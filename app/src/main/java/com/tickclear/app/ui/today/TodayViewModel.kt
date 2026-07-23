@@ -3,7 +3,7 @@ package com.tickclear.app.ui.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.scheduler.ReminderScheduler
@@ -30,7 +30,7 @@ data class TodayUiState(
     val conflictIds: Set<String> = emptySet(),
     val total: Int = 0,
     val done: Int = 0,
-    val groups: Map<String, TaskGroupEntity> = emptyMap(),
+    val groups: Map<String, TaskGroup> = emptyMap(),
     val encouragement: String = "",
     val pendingDelete: Task? = null,
 )

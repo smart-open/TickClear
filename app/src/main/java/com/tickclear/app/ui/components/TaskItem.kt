@@ -32,7 +32,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.ui.theme.Spacing
 import androidx.compose.ui.res.stringResource
@@ -64,7 +64,7 @@ fun formatMinute(min: Int?): String =
 @Composable
 fun TaskItem(
     item: com.tickclear.app.domain.usecase.TodayItem,
-    group: TaskGroupEntity?,
+    group: TaskGroup?,
     isConflict: Boolean,
     onComplete: () -> Unit,
     onDelete: () -> Unit,
@@ -121,7 +121,7 @@ fun TaskItem(
 @Composable
 private fun TaskCardContent(
     task: Task,
-    group: TaskGroupEntity?,
+    group: TaskGroup?,
     done: Boolean,
     isConflict: Boolean,
     onComplete: () -> Unit,

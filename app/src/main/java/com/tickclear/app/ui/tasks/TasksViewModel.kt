@@ -3,7 +3,7 @@ package com.tickclear.app.ui.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.scheduler.ReminderScheduler
@@ -26,7 +26,7 @@ import javax.inject.Inject
 
 data class TasksUiState(
     val tasks: List<Task> = emptyList(),     // 仅启用（未软删）任务
-    val groups: List<TaskGroupEntity> = emptyList(), // 仅启用任务组
+    val groups: List<TaskGroup> = emptyList(), // 仅启用任务组
     val pendingDelete: Task? = null,
 )
 
@@ -99,7 +99,7 @@ class TasksViewModel @Inject constructor(
     }
 
     /** 新建或更新任务组。 */
-    suspend fun saveGroup(group: TaskGroupEntity) {
+    suspend fun saveGroup(group: TaskGroup) {
         if (groupRepository.getById(group.id) != null) {
             updateGroupUseCase(group)
         } else {

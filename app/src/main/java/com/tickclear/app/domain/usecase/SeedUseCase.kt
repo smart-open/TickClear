@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.TaskRepository
@@ -33,9 +33,9 @@ class SeedUseCase @Inject constructor(
         val gWork = "seed_g_work"
 
         val groups = listOf(
-            TaskGroupEntity(gMorning, "晨间流程", "🌅", "blue", 0),
-            TaskGroupEntity(gHealth, "健康", "💊", "mint", 1),
-            TaskGroupEntity(gWork, "工作", "💼", "violet", 2),
+            TaskGroup(gMorning, "晨间流程", "🌅", "blue", 0),
+            TaskGroup(gHealth, "健康", "💊", "mint", 1),
+            TaskGroup(gWork, "工作", "💼", "violet", 2),
         )
         groups.forEach { groupRepository.upsert(it) }
 

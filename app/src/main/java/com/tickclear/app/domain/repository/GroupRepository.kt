@@ -1,16 +1,16 @@
 package com.tickclear.app.domain.repository
 
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import kotlinx.coroutines.flow.Flow
 
 /**
  * 分组仓库契约（domain 层）。
  */
 interface GroupRepository {
-    fun observeActive(): Flow<List<TaskGroupEntity>>
-    fun observeDeleted(): Flow<List<TaskGroupEntity>>
-    suspend fun getById(id: String): TaskGroupEntity?
-    suspend fun upsert(group: TaskGroupEntity)
+    fun observeActive(): Flow<List<TaskGroup>>
+    fun observeDeleted(): Flow<List<TaskGroup>>
+    suspend fun getById(id: String): TaskGroup?
+    suspend fun upsert(group: TaskGroup)
     suspend fun softDelete(id: String)
     suspend fun restore(id: String)
     suspend fun hardDelete(id: String)

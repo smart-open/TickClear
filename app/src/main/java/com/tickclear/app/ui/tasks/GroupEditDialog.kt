@@ -37,7 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.ui.components.DropdownField
 import com.tickclear.app.ui.components.formatMinute
 import com.tickclear.app.ui.theme.Spacing
@@ -69,9 +69,9 @@ private val GROUP_ICON_PRESETS = listOf("📁", "💼", "🏠", "🏃", "📚", 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupEditDialog(
-    initial: TaskGroupEntity?,
+    initial: TaskGroup?,
     onDismiss: () -> Unit,
-    onSave: suspend (TaskGroupEntity) -> Unit,
+    onSave: suspend (TaskGroup) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -156,7 +156,7 @@ fun GroupEditDialog(
                 onClick = {
                     scope.launch {
                         onSave(
-                            TaskGroupEntity(
+                            TaskGroup(
                                 id = initial?.id ?: UUID.randomUUID().toString(),
                                 name = name.trim().ifEmpty { defaultGroupName },
                                 icon = icon.ifEmpty { "📁" },

@@ -61,7 +61,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.domain.model.TaskStatus
 import com.tickclear.app.ui.components.TaskEditSheet
@@ -82,8 +82,8 @@ fun TasksScreen(
     var showEditor by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<Task?>(null) }
     var showGroupEditor by remember { mutableStateOf(false) }
-    var editingGroup by remember { mutableStateOf<TaskGroupEntity?>(null) }
-    var groupToDelete by remember { mutableStateOf<TaskGroupEntity?>(null) }
+    var editingGroup by remember { mutableStateOf<TaskGroup?>(null) }
+    var groupToDelete by remember { mutableStateOf<TaskGroup?>(null) }
     // 宽屏主从双栏：选中任务 id（"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
     var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -236,8 +236,8 @@ fun TasksScreen(
 private fun TasksList(
     state: TasksUiState,
     onTaskClick: (Task) -> Unit,
-    onGroupEdit: (TaskGroupEntity) -> Unit,
-    onGroupDelete: (TaskGroupEntity) -> Unit,
+    onGroupEdit: (TaskGroup) -> Unit,
+    onGroupDelete: (TaskGroup) -> Unit,
     onDeleteTask: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -304,7 +304,7 @@ private fun TasksList(
 
 @Composable
 private fun GroupHeaderRow(
-    group: TaskGroupEntity,
+    group: TaskGroup,
     count: Int,
     onEdit: () -> Unit,
     onDelete: () -> Unit,

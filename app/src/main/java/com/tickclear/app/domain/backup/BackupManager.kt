@@ -4,7 +4,7 @@ import com.tickclear.app.data.local.entities.CheckInEntity
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
@@ -135,7 +135,7 @@ class BackupManager @Inject constructor(
     }
 
     // ── 序列化 ──
-    private fun groupToJson(g: TaskGroupEntity) = JSONObject().apply {
+    private fun groupToJson(g: TaskGroup) = JSONObject().apply {
         put("id", g.id); put("name", g.name); put("icon", g.icon); put("colorKey", g.colorKey)
         put("orderIndex", g.orderIndex); put("repeatType", g.repeatType)
         put("repeatAnchorMin", g.repeatAnchorMin ?: JSONObject.NULL)
@@ -180,7 +180,7 @@ class BackupManager @Inject constructor(
     private fun JSONObject.optLongOrNull(key: String): Long? = if (isNull(key) || !has(key)) null else getLong(key)
     private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key) || !has(key)) null else getString(key)
 
-    private fun jsonToGroup(o: JSONObject) = TaskGroupEntity(
+    private fun jsonToGroup(o: JSONObject) = TaskGroup(
         id = o.getString("id"),
         name = o.optString("name", ""),
         icon = o.optString("icon", "📁"),

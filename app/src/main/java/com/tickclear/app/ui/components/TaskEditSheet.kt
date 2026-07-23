@@ -55,7 +55,7 @@ import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskGroupEntity
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.ui.components.DropdownField
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -89,7 +89,7 @@ private val OFFSET_OPTIONS = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskEditSheet(
-    groups: List<TaskGroupEntity>,
+    groups: List<TaskGroup>,
     initial: Task?,
     onDismiss: () -> Unit,
     onSave: suspend (Task) -> List<Task>,
@@ -121,7 +121,7 @@ fun TaskEditSheet(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun TaskEditContent(
-    groups: List<TaskGroupEntity>,
+    groups: List<TaskGroup>,
     initial: Task?,
     onDismiss: () -> Unit,
     onSave: suspend (Task) -> List<Task>,
