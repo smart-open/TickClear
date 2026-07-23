@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +70,7 @@ fun TaskItem(
     onComplete: () -> Unit,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
+    isFocused: Boolean = false,
 ) {
     val task = item.task
     val dismissState = rememberSwipeToDismissBoxState(
@@ -113,6 +115,7 @@ fun TaskItem(
                 isConflict = isConflict,
                 onComplete = onComplete,
                 onEdit = onEdit,
+                isFocused = isFocused,
             )
         },
     )
@@ -126,12 +129,20 @@ private fun TaskCardContent(
     isConflict: Boolean,
     onComplete: () -> Unit,
     onEdit: () -> Unit,
+    isFocused: Boolean = false,
 ) {
     val timeText = if (task.allDay) stringResource(R.string.task_all_day) else formatMinute(task.instanceDueMinute())
     val taskItemCd = stringResource(R.string.a11y_task_item, task.title)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (isFocused) {
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                } else {
+                    Modifier
+                },
+            )
             .clickable { onEdit() }
             .semantics { contentDescription = taskItemCd }
             .padding(vertical = Spacing.sm, horizontal = Spacing.md),

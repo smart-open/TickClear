@@ -37,6 +37,7 @@
     <string name="today_conflict_count">%1$d 项时间冲突</string>
     <string name="today_conflict_hint">以下任务时间重叠，请确认</string>
     <string name="today_no_task">今天还没有安排任务</string>
+    <string name="today_kbd_hint">键盘：↑↓ 选择 · 空格/回车 完成 · N 新建</string>
     <string name="today_clear_all_desc">一键清空今日</string>
     <string name="today_clear_all_title">清空今日全部任务？</string>
     <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>

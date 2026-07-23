@@ -51,6 +51,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalView
+import android.view.KeyEvent
+import android.view.View
+import androidx.compose.runtime.DisposableEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -163,6 +167,7 @@ fun TodayScreen(
                     onDelete = { viewModel.delete(it) },
                     onEdit = { editingTaskId = it.task.id; showEditor = true },
                     onAdd = { editingTaskId = null; showEditor = true },
+                    shortcutsEnabled = !showEditor && !showClearConfirm,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
                 // 右侧统计侧栏：复用统计主体（独立注入自身 ViewModel）
@@ -183,6 +188,7 @@ fun TodayScreen(
                 onDelete = { viewModel.delete(it) },
                 onEdit = { editingTaskId = it.task.id; showEditor = true },
                 onAdd = { editingTaskId = null; showEditor = true },
+                shortcutsEnabled = !showEditor && !showClearConfirm,
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
             )
         }
@@ -239,8 +245,49 @@ private fun TodayMainContent(
     onDelete: (TodayItem) -> Unit,
     onEdit: (TodayItem) -> Unit,
     onAdd: () -> Unit,
+    shortcutsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    // V2.10 键盘快捷键：在 Compose 宿主 View 上挂 OnKeyListener 捕获 ↑↓ 选择 / 空格·回车完成 / N 新建。
+    // 采用 View 级监听而非 Modifier.focusable，规避本环境对 focusable 符号的解析差异，且无需强制焦点。
+    var focusedIndex by remember { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val view = LocalView.current
+    DisposableEffect(view, shortcutsEnabled) {
+        val listener = View.OnKeyListener { _, keyCode, event ->
+            if (!shortcutsEnabled || event.action != KeyEvent.ACTION_DOWN) return@OnKeyListener false
+            val count = state.items.size
+            if (count == 0) return@OnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val next = (focusedIndex + 1).coerceAtMost(count - 1)
+                    focusedIndex = next
+                    scope.launch { listState.scrollToItem(next) }
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    val prev = (focusedIndex - 1).coerceAtLeast(0)
+                    focusedIndex = prev
+                    scope.launch { listState.scrollToItem(prev) }
+                    true
+                }
+                KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER -> {
+                    // 完成当前聚焦项；若已完成的则顺延到首个未完成项
+                    val target = state.items.getOrNull(focusedIndex)?.takeIf { !it.done }
+                        ?: state.items.firstOrNull { !it.done }
+                    if (target != null) onComplete(target)
+                    true
+                }
+                KeyEvent.KEYCODE_N -> {
+                    onAdd()
+                    true
+                }
+                else -> false
+            }
+        }
+        view.setOnKeyListener(listener)
+        onDispose { view.setOnKeyListener(null) }
+    }
     Column(modifier = modifier) {
         if (state.conflictIds.isNotEmpty()) {
             ConflictBanner(count = state.conflictIds.size, modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm))
@@ -274,6 +321,14 @@ private fun TodayMainContent(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                         )
+                        if (shortcutsEnabled) {
+                            Text(
+                                text = stringResource(R.string.today_kbd_hint),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                            )
+                        }
                     }
                     items(state.items, key = { it.instanceId }) { item ->
                         TaskItem(
@@ -283,6 +338,7 @@ private fun TodayMainContent(
                             onComplete = { onComplete(item) },
                             onDelete = { onDelete(item) },
                             onEdit = { onEdit(item) },
+                            isFocused = state.items.indexOf(item) == focusedIndex,
                         )
                     }
                 }
