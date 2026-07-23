@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -21,9 +22,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,10 +37,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tickclear.app.domain.model.Medal
+import com.tickclear.app.domain.model.MedalProgress
 import com.tickclear.app.domain.usecase.GroupStat
 import com.tickclear.app.ui.components.HeatmapCalendar
 import com.tickclear.app.ui.components.MedalWall
+import com.tickclear.app.ui.components.ProgressRing
 import com.tickclear.app.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +75,7 @@ fun StatsContent(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
     val trend by viewModel.trend.collectAsStateWithLifecycle()
+    var selectedMedal by remember { mutableStateOf<Medal?>(null) }
 
     val hasData = state.totalCompleted > 0 || state.byGroup.isNotEmpty()
     Column(
@@ -73,93 +85,155 @@ fun StatsContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-            if (!hasData) {
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Text(
-                        stringResource(R.string.stats_empty_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
-
-            // 汇总卡 2x2
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCard(
-                        emoji = "📊",
-                        value = "${state.todayCompleted}/${state.todayTotal}",
-                        label = stringResource(R.string.stats_today_rate),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        emoji = "🔥",
-                        value = stringResource(R.string.stats_streak_value, state.streakDays),
-                        label = stringResource(R.string.stats_streak),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCard(
-                        emoji = "✅",
-                        value = "${state.totalCompleted}",
-                        label = stringResource(R.string.stats_total_completed),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        emoji = "📅",
-                        value = "${state.checkInDays}",
-                        label = stringResource(R.string.stats_checkin_days),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-
-            // 完成趋势
-            SectionTitle(stringResource(R.string.stats_trend))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = period == StatsPeriod.DAY,
-                    onClick = { viewModel.setPeriod(StatsPeriod.DAY) },
-                    label = { Text(stringResource(R.string.period_day)) },
-                )
-                FilterChip(
-                    selected = period == StatsPeriod.WEEK,
-                    onClick = { viewModel.setPeriod(StatsPeriod.WEEK) },
-                    label = { Text(stringResource(R.string.period_week)) },
-                )
-                FilterChip(
-                    selected = period == StatsPeriod.MONTH,
-                    onClick = { viewModel.setPeriod(StatsPeriod.MONTH) },
-                    label = { Text(stringResource(R.string.period_month)) },
-                )
-            }
-            TrendBars(trend, period)
-
-            // 热力图
-            SectionTitle(stringResource(R.string.stats_heatmap))
-            HeatmapCalendar(completions = state.completions)
-
-            // 分组完成
-            SectionTitle(stringResource(R.string.stats_by_group))
-            if (state.byGroup.isEmpty()) {
+        if (!hasData) {
+            OutlinedCard(Modifier.fillMaxWidth()) {
                 Text(
-                    stringResource(R.string.stats_no_group),
+                    stringResource(R.string.stats_empty_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
                 )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    state.byGroup.forEach { GroupBarRow(it) }
-                }
             }
-
-            // 勋章墙
-            SectionTitle(stringResource(R.string.stats_medals))
-            MedalWall(unlocked = state.unlockedMedals)
         }
+
+        // 汇总卡 2x2
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatCard(
+                    emoji = "📊",
+                    value = "${state.todayCompleted}/${state.todayTotal}",
+                    label = stringResource(R.string.stats_today_rate),
+                    modifier = Modifier.weight(1f),
+                )
+                StatCard(
+                    emoji = "🔥",
+                    value = stringResource(R.string.stats_streak_value, state.streakDays),
+                    label = stringResource(R.string.stats_streak),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatCard(
+                    emoji = "✅",
+                    value = "${state.totalCompleted}",
+                    label = stringResource(R.string.stats_total_completed),
+                    modifier = Modifier.weight(1f),
+                )
+                StatCard(
+                    emoji = "📅",
+                    value = "${state.checkInDays}",
+                    label = stringResource(R.string.stats_checkin_days),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        // 完成率 & 最长连续
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RateRingCard(rate = state.completionRate, modifier = Modifier.weight(1f))
+            StatCard(
+                emoji = "🏆",
+                value = stringResource(R.string.stats_longest_streak_value, state.longestStreakDays),
+                label = stringResource(R.string.stats_longest_streak),
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // 本周 / 本月
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(
+                emoji = "📆",
+                value = "${state.thisWeekCompleted}",
+                label = stringResource(R.string.stats_week_completed),
+                modifier = Modifier.weight(1f),
+            )
+            StatCard(
+                emoji = "🗓️",
+                value = "${state.thisMonthCompleted}",
+                label = stringResource(R.string.stats_month_completed),
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // 打卡记录
+        SectionTitle(stringResource(R.string.stats_checkin_section))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(
+                emoji = "✅",
+                value = "${state.checkInDays}",
+                label = stringResource(R.string.stats_checkin_days),
+                modifier = Modifier.weight(1f),
+            )
+            StatCard(
+                emoji = "🔥",
+                value = stringResource(R.string.stats_streak_value, state.checkInStreak),
+                label = stringResource(R.string.stats_checkin_streak),
+                modifier = Modifier.weight(1f),
+            )
+            StatCard(
+                emoji = "🕓",
+                value = state.recentCheckIn ?: "—",
+                label = stringResource(R.string.stats_recent_checkin),
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // 完成趋势
+        SectionTitle(stringResource(R.string.stats_trend))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = period == StatsPeriod.DAY,
+                onClick = { viewModel.setPeriod(StatsPeriod.DAY) },
+                label = { Text(stringResource(R.string.period_day)) },
+            )
+            FilterChip(
+                selected = period == StatsPeriod.WEEK,
+                onClick = { viewModel.setPeriod(StatsPeriod.WEEK) },
+                label = { Text(stringResource(R.string.period_week)) },
+            )
+            FilterChip(
+                selected = period == StatsPeriod.MONTH,
+                onClick = { viewModel.setPeriod(StatsPeriod.MONTH) },
+                label = { Text(stringResource(R.string.period_month)) },
+            )
+        }
+        TrendBars(trend, period)
+
+        // 热力图
+        SectionTitle(stringResource(R.string.stats_heatmap))
+        HeatmapCalendar(completions = state.completions)
+
+        // 分组完成
+        SectionTitle(stringResource(R.string.stats_by_group))
+        if (state.byGroup.isEmpty()) {
+            Text(
+                stringResource(R.string.stats_no_group),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                state.byGroup.forEach { GroupBarRow(it) }
+            }
+        }
+
+        // 勋章墙
+        SectionTitle(stringResource(R.string.stats_medals))
+        MedalWall(
+            unlocked = state.unlockedMedals,
+            progress = state.medalProgress,
+            onMedalClick = { selectedMedal = it },
+        )
     }
+    selectedMedal?.let { medal ->
+        MedalDetailDialog(
+            medal = medal,
+            progress = state.medalProgress[medal.key],
+            unlockedDate = state.unlockedDates[medal.key],
+            onDismiss = { selectedMedal = null },
+        )
+    }
+}
 
 @Composable
 private fun StatCard(
@@ -197,6 +271,28 @@ private fun SectionTitle(text: String) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurface,
     )
+}
+
+@Composable
+private fun RateRingCard(
+    rate: Float,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedCard(modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ProgressRing(progress = rate, size = 56.dp)
+            Text(
+                stringResource(R.string.stats_today_rate),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
 }
 
 @Composable
@@ -268,3 +364,63 @@ private fun GroupBarRow(g: GroupStat) {
         )
     }
 }
+
+/** 勋章详情：名称 + 解锁条件(desc) + 解锁日期（已解锁）或进度（未解锁且可计算）。 */
+@Composable
+private fun MedalDetailDialog(
+    medal: Medal,
+    progress: MedalProgress?,
+    unlockedDate: Long?,
+    onDismiss: () -> Unit,
+) {
+    val isUnlocked = unlockedDate != null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
+        },
+        title = { Text("${medal.icon} ${medal.name}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    medal.desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (isUnlocked) {
+                    val dateStr = unlockedDate?.let { formatUnlockDate(it) } ?: ""
+                    Text(
+                        stringResource(R.string.medal_unlocked_date, dateStr),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.medal_locked),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (progress != null && progress.current >= 0) {
+                        val frac = (progress.current.toFloat() / progress.target).coerceIn(0f, 1f)
+                        LinearProgressIndicator(
+                            progress = { frac },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                        Text(
+                            stringResource(R.string.medal_progress, progress.current, progress.target),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+    )
+}
+
+private fun formatUnlockDate(millis: Long): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(millis))

@@ -72,7 +72,7 @@
     <!-- 统计 -->
     <string name="stats_title">统计</string>
     <string name="stats_completion_rate">完成率</string>
-    <string name="stats_streak">连续打卡</string>
+    <string name="stats_streak">连续完成</string>
     <string name="stats_by_group">按任务组</string>
     <string name="stats_by_day">按日</string>
     <string name="stats_by_week">按周</string>
@@ -253,6 +253,18 @@
     <string name="stats_no_group">暂无分组任务</string>
     <string name="stats_group_count">%1$d/%2$d</string>
     <string name="stats_empty_hint">还没有完成记录。完成今日任务后，这里会显示你的清空轨迹与勋章 ✨</string>
+
+    <!-- Phase 4 增强：最长连续 / 周月汇总 / 打卡记录 / 勋章进度 -->
+    <string name="stats_longest_streak">最长连续</string>
+    <string name="stats_longest_streak_value">最长 %1$d 天</string>
+    <string name="stats_week_completed">本周完成</string>
+    <string name="stats_month_completed">本月完成</string>
+    <string name="stats_checkin_section">打卡记录</string>
+    <string name="stats_checkin_streak">连续打卡</string>
+    <string name="stats_recent_checkin">最近打卡</string>
+    <string name="medal_progress">进度 %1$d/%2$d</string>
+    <string name="medal_unlocked_date">解锁于 %1$s</string>
+    <string name="medal_locked">尚未解锁</string>
 
     <!-- Phase 7：内联中文抽离（A-6）+ 无障碍（P7.4） -->
     <string name="today_date_format">M月d日 EEEE</string>
