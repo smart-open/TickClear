@@ -282,14 +282,25 @@ class AssistantViewModel @Inject constructor(
     private fun handleTool(call: XiaozhiEvent.McpToolCall) {
         viewModelScope.launch {
             val draft = mcpTools.handle(call)
-            if (draft != null) {
+            if (draft == null) {
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_unknown)))
+                return@launch
+            }
+            // 信任模式（PRD D20）：非危险操作（建任务）免去确认卡直接落库；
+            // 删除/暂停等危险操作无论是否信任都强制二次确认，避免误删。
+            if (settingsRepository.trustMode.first() && !isDangerousTool(call.tool)) {
+                val res = mcpTools.commit(draft)
+                append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
+            } else {
                 _pendingDraft.value = draft
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_pending)))
-            } else {
-                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_unknown)))
             }
         }
     }
+
+    /** 危险操作（删除/暂停/恢复/更新等）即便在信任模式下也强制确认。 */
+    private fun isDangerousTool(tool: String): Boolean =
+        tool in setOf("delete_task", "pause_task", "resume_task", "update_task", "remove_task")
 
     /** 确认创建草稿任务（语音解析确认卡「确认」）。 */
     fun confirmDraft() {
