@@ -363,6 +363,13 @@
     <string name="settings_mode_real">真实</string>
     <string name="settings_ai_local">本地规则</string>
     <string name="settings_section_privacy">数据与隐私</string>
+    <string name="settings_section_perms">通知与权限</string>
+    <string name="settings_perms_notif">通知与提醒渠道</string>
+    <string name="settings_perms_notif_sub">设置提醒声音、重要性与全屏提醒</string>
+    <string name="settings_perms_fullscreen">全屏提醒权限</string>
+    <string name="settings_perms_fullscreen_sub">Android 14+ 需授予才能全屏弹出高优先级提醒</string>
+    <string name="settings_perms_exactalarm">精确闹钟权限</string>
+    <string name="settings_perms_exactalarm_sub">授予后高优先级任务可准时送达</string>
     <string name="settings_recycle_subtitle">恢复或彻底删除软删除的任务</string>
     <string name="settings_export_title">导出备份</string>
     <string name="settings_export_subtitle">将全部任务与记录导出为 JSON 文件</string>

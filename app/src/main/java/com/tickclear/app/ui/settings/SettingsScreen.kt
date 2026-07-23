@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Download
@@ -45,9 +46,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import com.tickclear.app.R
+import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.ui.theme.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +84,49 @@ fun SettingsScreen(
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) viewModel.importFrom(uri) }
+
+    // V2.11 通知与权限引导：跳转系统设置（纯 Intent，零依赖），规避 Android 14+ 全屏/精确闹钟限制。
+    val context = LocalContext.current
+    val openNotificationChannel: () -> Unit = {
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startActivity(
+                    Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        putExtra(Settings.EXTRA_CHANNEL_ID, NotificationHelper.CHANNEL_REMINDER)
+                    },
+                )
+            } else {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    },
+                )
+            }
+        }
+    }
+    val openFullScreenPermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    },
+                )
+            }
+        }
+    }
+    val openExactAlarmPermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    },
+                )
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -189,6 +238,31 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_import_subtitle),
                 onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
             )
+
+            // ── 通知与权限 ──
+            SectionTitle(stringResource(R.string.settings_section_perms))
+            ClickableRow(
+                icon = Icons.Filled.Notifications,
+                title = stringResource(R.string.settings_perms_notif),
+                subtitle = stringResource(R.string.settings_perms_notif_sub),
+                onClick = openNotificationChannel,
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ClickableRow(
+                    icon = Icons.Filled.Notifications,
+                    title = stringResource(R.string.settings_perms_fullscreen),
+                    subtitle = stringResource(R.string.settings_perms_fullscreen_sub),
+                    onClick = openFullScreenPermission,
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ClickableRow(
+                    icon = Icons.Filled.Notifications,
+                    title = stringResource(R.string.settings_perms_exactalarm),
+                    subtitle = stringResource(R.string.settings_perms_exactalarm_sub),
+                    onClick = openExactAlarmPermission,
+                )
+            }
 
             // ── 关于 ──
             SectionTitle(stringResource(R.string.settings_section_about))
