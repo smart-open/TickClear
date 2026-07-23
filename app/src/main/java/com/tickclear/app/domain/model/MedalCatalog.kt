@@ -7,6 +7,9 @@ data class Medal(
     val icon: String,
 )
 
+/** 勋章进度：当前值 / 目标值；current < 0 表示当前环境无法直接计算（详情页仅展示条件）。 */
+data class MedalProgress(val current: Int, val target: Int)
+
 /** 勋章目录（静态定义；解锁态存 MedalUnlockEntity）。 */
 object MedalCatalog {
     val ALL = listOf(

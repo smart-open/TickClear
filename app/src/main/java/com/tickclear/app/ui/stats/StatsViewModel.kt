@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.tickclear.app.data.repositories.CheckInRepository
 import com.tickclear.app.data.repositories.CompletionRepository
 import com.tickclear.app.data.repositories.MedalRepository
+import com.tickclear.app.domain.model.MedalProgress
 import com.tickclear.app.domain.usecase.GetStatsUseCase
 import com.tickclear.app.domain.usecase.GroupStat
+import com.tickclear.app.domain.usecase.StreakUtils
+import com.tickclear.app.domain.usecase.TaskStats
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,10 +37,17 @@ data class StatsUiState(
     val completionRate: Float = 0f,
     val streakDays: Int = 0,
     val checkInDays: Int = 0,
+    val longestStreakDays: Int = 0,
+    val checkInStreak: Int = 0,
+    val recentCheckIn: String? = null,
+    val thisWeekCompleted: Int = 0,
+    val thisMonthCompleted: Int = 0,
     val byGroup: List<GroupStat> = emptyList(),
     /** dateLocal(yyyy-MM-dd) -> 当天完成数，用于热力图与趋势。 */
     val completions: Map<String, Int> = emptyMap(),
     val unlockedMedals: Set<String> = emptySet(),
+    val unlockedDates: Map<String, Long> = emptyMap(),
+    val medalProgress: Map<String, MedalProgress> = emptyMap(),
 )
 
 @HiltViewModel
@@ -54,9 +64,16 @@ class StatsViewModel @Inject constructor(
     val uiState: StateFlow<StatsUiState> = combine(
         getStatsUseCase(),
         completionsFlow,
-        medalRepository.observeUnlocked(),
         checkInRepository.observeDates(),
-    ) { stats, completions, unlocked, checkIns ->
+        medalRepository.observeUnlockedDates(),
+    ) { stats, completions, checkIns, unlockedDates ->
+        val ciStreak = StreakUtils.computeStreak(checkIns)
+        val ym = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE).substring(0, 7)
+        val weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekCount = completions.filterKeys { d ->
+            runCatching { LocalDate.parse(d) >= weekStart }.getOrDefault(false)
+        }.values.sum()
+        val monthCount = completions.filterKeys { it.startsWith(ym) }.values.sum()
         StatsUiState(
             isLoading = false,
             totalCompleted = stats.totalCompleted,
@@ -65,9 +82,16 @@ class StatsViewModel @Inject constructor(
             completionRate = stats.completionRate,
             streakDays = stats.streakDays,
             checkInDays = checkIns.size,
+            longestStreakDays = computeLongestStreak(completions),
+            checkInStreak = ciStreak,
+            recentCheckIn = checkIns.maxOrNull(),
+            thisWeekCompleted = weekCount,
+            thisMonthCompleted = monthCount,
             byGroup = stats.byGroup,
             completions = completions,
-            unlockedMedals = unlocked.toSet(),
+            unlockedMedals = unlockedDates.keys,
+            unlockedDates = unlockedDates,
+            medalProgress = computeMedalProgress(stats, completions, stats.streakDays),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatsUiState())
 
@@ -109,5 +133,50 @@ class StatsViewModel @Inject constructor(
                 TrendBucket("${d.monthValue}", sum)
             }.reversed()
         }
+    }
+
+    /** 连续完成天数的最长跨度（基于 CompletionLog 日期去重，count>0 的日期）。 */
+    private fun computeLongestStreak(completions: Map<String, Int>): Int {
+        val dates = completions.filter { it.value > 0 }.keys.sorted()
+        if (dates.size <= 1) return dates.size
+        var best = 1
+        var cur = 1
+        for (i in 1 until dates.size) {
+            val prev = runCatching { LocalDate.parse(dates[i - 1]) }.getOrNull()
+            val now = runCatching { LocalDate.parse(dates[i]) }.getOrNull()
+            if (prev == null || now == null) {
+                cur = 1
+                continue
+            }
+            cur = if (now == prev.plusDays(1)) cur + 1 else 1
+            if (cur > best) best = cur
+        }
+        return best
+    }
+
+    /**
+     * 各勋章当前进度（current/target）；current<0 表示当前环境无法直接计算（详情页仅展示条件）。
+     * 注意：STREAK_3/7 与 [CheckMedalsUseCase] 一致，基于「完成」连续天数（stats.streakDays），非打卡连续。
+     */
+    private fun computeMedalProgress(
+        stats: TaskStats,
+        completions: Map<String, Int>,
+        completionStreak: Int,
+    ): Map<String, MedalProgress> {
+        val ym = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE).substring(0, 7)
+        val maxDay = completions.values.maxOrNull() ?: 0
+        val monthCount = completions.filterKeys { it.startsWith(ym) }.values.sum()
+        return mapOf(
+            "FIRST_TASK" to MedalProgress(stats.totalCompleted, 1),
+            "STREAK_3" to MedalProgress(completionStreak, 3),
+            "STREAK_7" to MedalProgress(completionStreak, 7),
+            "LIGHTNING" to MedalProgress(maxDay, 5),
+            "ONTIME_10" to MedalProgress(-1, 10),
+            "RATE_100" to MedalProgress(
+                if (stats.todayTotal > 0 && stats.todayCompleted == stats.todayTotal) 1 else 0, 1,
+            ),
+            "GROUPS_3" to MedalProgress(stats.byGroup.size, 3),
+            "MONTH_MVP" to MedalProgress(monthCount, 30),
+        )
     }
 }
