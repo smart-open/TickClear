@@ -48,14 +48,18 @@ import androidx.compose.ui.unit.dp
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
+import android.provider.Settings
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
+import com.tickclear.app.domain.scheduler.PermissionChecker
 import com.tickclear.app.ui.components.DropdownField
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -150,6 +154,18 @@ fun TaskEditContent(
     // 后台定位：Android 10+（API 29+）地理围栏后台触发需「始终允许」；低版本随 fine 隐式授予。
     val backgroundLocationPermission = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     val context = LocalContext.current
+    // V2.12/V2.14：高优先级提醒前置权限引导（跳系统设置，复用 V2.11 同款 Intent）。
+    val openFullScreenPermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    },
+                )
+            }
+        }
+    }
     var showConflict by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -294,6 +310,21 @@ fun TaskEditContent(
                 onSelected = { reminderOffset = it },
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
             )
+            // V2.12：高优先级提醒且缺少全屏权限时，给出前置引导（降级路径已由 ReminderReceiver 静默降级）。
+            if (reminderLevel == "high" && !PermissionChecker.canUseFullScreenIntent(context)) {
+                Text(
+                    text = stringResource(R.string.reminder_high_hint_fullscreen),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+                TextButton(
+                    onClick = openFullScreenPermission,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                ) {
+                    Text(stringResource(R.string.permission_open_settings))
+                }
+            }
         }
 
         if (showConflict) {
