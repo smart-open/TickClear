@@ -1,7 +1,7 @@
 package com.tickclear.app.data.repositories
 
 import com.tickclear.app.data.local.dao.TaskInstanceDao
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
 import com.tickclear.app.domain.conflict.dueMinutesForDate
 import com.tickclear.app.domain.conflict.instanceDueMinute
@@ -33,7 +33,7 @@ class TaskInstanceRepository @Inject constructor(
      * 子日级重复（每 N 小时）会在当天生成多个实例（各自不同 minute）。视图打开时调用即可。
      * upsert IGNORE 保证幂等；单实例任务沿用 "${taskId}@${date}" 旧 id 以兼容既有提醒/通知。
      */
-    suspend fun ensureInstancesForDate(date: LocalDate, tasks: List<TaskEntity>) {
+    suspend fun ensureInstancesForDate(date: LocalDate, tasks: List<Task>) {
         val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
         for (task in tasks.filter { it.isEnabled() }) {
             if (!shouldGenerateInstance(task, date)) continue

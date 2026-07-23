@@ -7,7 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.core.content.ContextCompat
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,7 +25,7 @@ class GeofenceScheduler @Inject constructor(
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
 
-    fun register(task: TaskEntity) {
+    fun register(task: Task) {
         if (!hasLocation(task)) return
         // 显式权限守卫：无精确定位权限时不注册（addProximityAlert 需 ACCESS_FINE_LOCATION，缺失会抛 SecurityException）。
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -46,7 +46,7 @@ class GeofenceScheduler @Inject constructor(
         runCatching { locationManager.removeProximityAlert(pendingIntent(taskId)) }
     }
 
-    private fun hasLocation(task: TaskEntity): Boolean =
+    private fun hasLocation(task: Task): Boolean =
         task.geoLat != null && task.geoLng != null && task.geoRadius != null
 
     private fun pendingIntent(taskId: String): PendingIntent {

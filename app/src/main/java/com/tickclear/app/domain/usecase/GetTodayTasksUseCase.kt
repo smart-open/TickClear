@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.usecase
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.repositories.TaskInstanceRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.ConflictChecker
@@ -16,7 +16,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 data class TodayItem(
-    val task: TaskEntity,
+    val task: Task,
     val instanceId: String,
     val done: Boolean,
 )

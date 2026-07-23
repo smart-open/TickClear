@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.domain.usecase.TodayItem
 import com.tickclear.app.ui.components.ConflictBanner
 import com.tickclear.app.ui.components.ProgressRing

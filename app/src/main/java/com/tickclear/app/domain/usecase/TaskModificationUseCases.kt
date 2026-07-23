@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.usecase
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.ConflictChecker
@@ -14,7 +14,7 @@ class UpdateTaskUseCase @Inject constructor(
     private val taskRepository: TaskRepository,
     private val conflictChecker: ConflictChecker,
 ) {
-    suspend operator fun invoke(task: TaskEntity): List<TaskEntity> {
+    suspend operator fun invoke(task: Task): List<Task> {
         taskRepository.upsert(task)
         val all = taskRepository.observeAll().first()
         return conflictChecker.findConflicts(task, all)

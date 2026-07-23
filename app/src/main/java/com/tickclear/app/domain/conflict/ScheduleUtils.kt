@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.conflict
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus
 import java.time.DayOfWeek
@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit
  * - MONTHLY：dayOfMonth 命中；>当月天数时回退到月末最后一天（避免 31 号在短月永不触发）
  * - INTERVAL：基于锚点日 repeatAnchorDate 起算 (天数差 % interval == 0)；无锚点日不生成
  */
-fun shouldGenerateInstance(task: TaskEntity, date: LocalDate): Boolean {
+fun shouldGenerateInstance(task: Task, date: LocalDate): Boolean {
     return when (RepeatType.fromCode(task.repeatType)) {
         RepeatType.NONE -> {
             val raw = task.scheduledDate
@@ -57,7 +57,7 @@ fun shouldGenerateInstance(task: TaskEntity, date: LocalDate): Boolean {
  * - 多数类型：单值 [instanceDueMinute()]（可能为 null → 当天无具体时刻，用于全天后台生成）；
  * - INTERVAL 且 intervalHours>0：从锚点分钟起每 N 小时一个，直到 < 1440（如每 8 小时 → 08:00/16:00…）。
  */
-fun TaskEntity.dueMinutesForDate(date: LocalDate): List<Int> {
+fun Task.dueMinutesForDate(date: LocalDate): List<Int> {
     val base = instanceDueMinute()
     return when (RepeatType.fromCode(repeatType)) {
         RepeatType.INTERVAL -> {
@@ -74,13 +74,13 @@ fun TaskEntity.dueMinutesForDate(date: LocalDate): List<Int> {
 }
 
 /** 实例在当日的生效开始分钟（非重复= scheduledStartMin；重复= repeatAnchorMin）。 */
-fun TaskEntity.instanceDueMinute(): Int? {
+fun Task.instanceDueMinute(): Int? {
     return if (RepeatType.fromCode(repeatType) == RepeatType.NONE) scheduledStartMin
     else repeatAnchorMin
 }
 
 /** 任务是否处于启用态（active，非软删、非暂停）。 */
-fun TaskEntity.isEnabled(): Boolean =
+fun Task.isEnabled(): Boolean =
     deletedAt == null && status != TaskStatus.PAUSED.code
 
 /**
@@ -88,10 +88,10 @@ fun TaskEntity.isEnabled(): Boolean =
  * 新代码请优先使用 [shouldGenerateInstance]。
  */
 @Deprecated("使用 shouldGenerateInstance(task, date)", ReplaceWith("shouldGenerateInstance(task, date)"))
-fun TaskEntity.occursOn(date: LocalDate): Boolean = shouldGenerateInstance(this, date)
+fun Task.occursOn(date: LocalDate): Boolean = shouldGenerateInstance(this, date)
 
 /** 当日生效的结束分钟（非重复= scheduledEndMin；重复= anchor+默认 0）。 */
-fun TaskEntity.effectiveStartMin(): Int? = instanceDueMinute()
+fun Task.effectiveStartMin(): Int? = instanceDueMinute()
 
 /**
  * 当日生效的结束分钟。
@@ -100,7 +100,7 @@ fun TaskEntity.effectiveStartMin(): Int? = instanceDueMinute()
  * 与 GetTodayTasksUseCase 的今日视图冲突窗口保持一致（重复任务默认取 30 分钟时长），
  * 否则编辑期 findConflicts 对重复任务恒判不冲突（语义分裂 bug M1）。
  */
-fun TaskEntity.effectiveEndMin(): Int {
+fun Task.effectiveEndMin(): Int {
     val start = instanceDueMinute() ?: 0
     val end = if (RepeatType.fromCode(repeatType) == RepeatType.NONE) {
         (scheduledEndMin ?: scheduledStartMin ?: 0)

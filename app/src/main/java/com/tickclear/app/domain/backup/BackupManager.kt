@@ -3,7 +3,7 @@ package com.tickclear.app.domain.backup
 import com.tickclear.app.data.local.entities.CheckInEntity
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
@@ -143,7 +143,7 @@ class BackupManager @Inject constructor(
         put("deletedAt", g.deletedAt ?: JSONObject.NULL)
     }
 
-    private fun taskToJson(t: TaskEntity) = JSONObject().apply {
+    private fun taskToJson(t: Task) = JSONObject().apply {
         put("id", t.id); put("groupId", t.groupId ?: JSONObject.NULL); put("title", t.title)
         put("notes", t.notes); put("status", t.status)
         put("scheduledStartMin", t.scheduledStartMin ?: JSONObject.NULL)
@@ -194,7 +194,7 @@ class BackupManager @Inject constructor(
         deletedAt = o.optLongOrNull("deletedAt"),
     )
 
-    private fun jsonToTask(o: JSONObject) = TaskEntity(
+    private fun jsonToTask(o: JSONObject) = Task(
         id = o.getString("id"),
         groupId = o.optStringOrNull("groupId"),
         title = o.optString("title", ""),

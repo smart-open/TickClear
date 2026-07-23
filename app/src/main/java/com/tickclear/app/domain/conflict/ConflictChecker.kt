@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.conflict
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import java.time.LocalDate
 
 /**
@@ -20,10 +20,10 @@ object ConflictChecker {
 
     /** 编辑任务时，与现有任务列表做冲突检测（仅对「今日应发生」的任务比对）。 */
     fun findConflicts(
-        candidate: TaskEntity,
-        existing: List<TaskEntity>,
+        candidate: Task,
+        existing: List<Task>,
         toleranceMin: Int = DEFAULT_TOLERANCE_MIN,
-    ): List<TaskEntity> {
+    ): List<Task> {
         val today = LocalDate.now()
         val cStart = candidate.effectiveStartMin() ?: return emptyList()
         if (!shouldGenerateInstance(candidate, today)) return emptyList()
@@ -37,8 +37,8 @@ object ConflictChecker {
     }
 
     fun hasConflict(
-        candidate: TaskEntity,
-        existing: List<TaskEntity>,
+        candidate: Task,
+        existing: List<Task>,
         toleranceMin: Int = DEFAULT_TOLERANCE_MIN,
     ): Boolean = findConflicts(candidate, existing, toleranceMin).isNotEmpty()
 

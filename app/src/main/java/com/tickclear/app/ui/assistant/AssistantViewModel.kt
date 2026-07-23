@@ -18,7 +18,7 @@ import com.tickclear.app.domain.assistant.XiaozhiMcpTools
 import com.tickclear.app.domain.assistant.XiaozhiTransport
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -78,8 +78,8 @@ class AssistantViewModel @Inject constructor(
     )
 
     /** 语音/文本解析出的待确认草稿任务（确认卡）。null 表示无待确认项。 */
-    private val _pendingDraft = MutableStateFlow<TaskEntity?>(null)
-    val pendingDraft: StateFlow<TaskEntity?> = _pendingDraft.stateIn(
+    private val _pendingDraft = MutableStateFlow<Task?>(null)
+    val pendingDraft: StateFlow<Task?> = _pendingDraft.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), null,
     )
 

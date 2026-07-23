@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.CompletionLogEntity
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.data.repositories.TaskInstanceRepository
@@ -28,7 +28,7 @@ class CompleteTaskUseCase @Inject constructor(
     private val checkMedalsUseCase: CheckMedalsUseCase,
     private val recordCheckInUseCase: RecordCheckInUseCase,
 ) {
-    suspend operator fun invoke(task: TaskEntity, source: String = "manual") {
+    suspend operator fun invoke(task: Task, source: String = "manual") {
         val today = LocalDate.now()
         val dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val instanceId = "${task.id}@$dateStr"

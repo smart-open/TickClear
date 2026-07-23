@@ -54,7 +54,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.ui.components.DropdownField
 import com.tickclear.app.ui.theme.Spacing
@@ -90,9 +90,9 @@ private val OFFSET_OPTIONS = listOf(
 @Composable
 fun TaskEditSheet(
     groups: List<TaskGroupEntity>,
-    initial: TaskEntity?,
+    initial: Task?,
     onDismiss: () -> Unit,
-    onSave: suspend (TaskEntity) -> List<TaskEntity>,
+    onSave: suspend (Task) -> List<Task>,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -122,9 +122,9 @@ fun TaskEditSheet(
 @Composable
 fun TaskEditContent(
     groups: List<TaskGroupEntity>,
-    initial: TaskEntity?,
+    initial: Task?,
     onDismiss: () -> Unit,
-    onSave: suspend (TaskEntity) -> List<TaskEntity>,
+    onSave: suspend (Task) -> List<Task>,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -475,7 +475,7 @@ private fun TimePickerDialog(
 }
 
 private fun buildTask(
-    initial: TaskEntity?,
+    initial: Task?,
     title: String,
     defaultTitle: String,
     notes: String,
@@ -492,7 +492,7 @@ private fun buildTask(
     geoLat: Double?,
     geoLng: Double?,
     geoRadius: Int?,
-): TaskEntity {
+): Task {
     val today = LocalDate.now()
     val dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
@@ -507,7 +507,7 @@ private fun buildTask(
     val isIntervalHours = repeatType == "INTERVAL" && intervalUnit == "HOURS"
     val isIntervalDays = repeatType == "INTERVAL" && intervalUnit == "DAYS"
 
-    return TaskEntity(
+    return Task(
         id = initial?.id ?: UUID.randomUUID().toString(),
         groupId = groupId,
         title = title.trim().ifEmpty { defaultTitle },

@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.conflict
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,7 +19,7 @@ class ConflictCheckerTest {
         id: String,
         start: Int,
         end: Int,
-    ): TaskEntity = TaskEntity(
+    ): Task = Task(
         id = id,
         title = id,
         status = 0,
@@ -63,7 +63,7 @@ class ConflictCheckerTest {
 
     @Test
     fun `候选无开始时间返回空`() {
-        val noStart = TaskEntity(
+        val noStart = Task(
             id = "x", title = "x", status = 0,
             scheduledStartMin = null, allDay = true,
             scheduledDate = today.toString(), repeatType = "NONE", deletedAt = null,

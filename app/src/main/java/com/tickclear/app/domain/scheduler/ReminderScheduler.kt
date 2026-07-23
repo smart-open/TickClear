@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.repositories.TaskInstanceRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.dueMinutesForDate
@@ -76,7 +76,7 @@ object ReminderScheduler {
     }
 
     /** 调度单个任务当天所有应触发的实例（子日级重复会排多个闹钟）。 */
-    suspend fun scheduleForTask(context: Context, task: TaskEntity, today: LocalDate = LocalDate.now()) {
+    suspend fun scheduleForTask(context: Context, task: Task, today: LocalDate = LocalDate.now()) {
         if (!task.isEnabled() || !task.reminderEnabled) return
         if (!shouldGenerateInstance(task, today)) return
         val ep = entryPoint(context)

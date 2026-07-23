@@ -56,7 +56,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.ui.components.formatMinute
 import com.tickclear.app.ui.settings.SettingsViewModel
@@ -314,7 +314,7 @@ private fun ChatBubble(msg: ChatMessage) {
  */
 @Composable
 private fun TaskDraftCard(
-    draft: TaskEntity,
+    draft: Task,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,

@@ -2,7 +2,7 @@ package com.tickclear.app.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.TaskRepository
@@ -25,9 +25,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TasksUiState(
-    val tasks: List<TaskEntity> = emptyList(),     // 仅启用（未软删）任务
+    val tasks: List<Task> = emptyList(),     // 仅启用（未软删）任务
     val groups: List<TaskGroupEntity> = emptyList(), // 仅启用任务组
-    val pendingDelete: TaskEntity? = null,
+    val pendingDelete: Task? = null,
 )
 
 @HiltViewModel
@@ -44,7 +44,7 @@ class TasksViewModel @Inject constructor(
     private val geofenceScheduler: GeofenceScheduler,
     @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
-    private val pendingDelete = MutableStateFlow<TaskEntity?>(null)
+    private val pendingDelete = MutableStateFlow<Task?>(null)
 
     val uiState: StateFlow<TasksUiState> = combine(
         taskRepository.observeAll(),
@@ -80,7 +80,7 @@ class TasksViewModel @Inject constructor(
     }
 
     /** 新建或更新任务；返回冲突列表（供编辑页红条提示）。 */
-    suspend fun saveTask(task: TaskEntity): List<TaskEntity> {
+    suspend fun saveTask(task: Task): List<Task> {
         val existing = taskRepository.getById(task.id)
         val conflicts = if (existing != null) {
             updateTaskUseCase(task)

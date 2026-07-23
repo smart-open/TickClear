@@ -2,7 +2,7 @@ package com.tickclear.app.ui.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.TaskRepository
@@ -32,7 +32,7 @@ data class TodayUiState(
     val done: Int = 0,
     val groups: Map<String, TaskGroupEntity> = emptyMap(),
     val encouragement: String = "",
-    val pendingDelete: TaskEntity? = null,
+    val pendingDelete: Task? = null,
 )
 
 @HiltViewModel
@@ -48,7 +48,7 @@ class TodayViewModel @Inject constructor(
     private val geofenceScheduler: GeofenceScheduler,
     @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
-    private val pendingDelete = MutableStateFlow<TaskEntity?>(null)
+    private val pendingDelete = MutableStateFlow<Task?>(null)
     private val encouragementFlow = MutableStateFlow("")
 
     val uiState: StateFlow<TodayUiState> = combine(
@@ -111,7 +111,7 @@ class TodayViewModel @Inject constructor(
     }
 
     /** 新建或更新任务；返回冲突列表（供编辑页红条提示）。 */
-    suspend fun saveTask(task: TaskEntity): List<TaskEntity> {
+    suspend fun saveTask(task: Task): List<Task> {
         val existing = taskRepository.getById(task.id)
         val conflicts = if (existing != null) {
             updateTaskUseCase(task)

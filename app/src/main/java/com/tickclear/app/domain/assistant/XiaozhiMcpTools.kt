@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.assistant
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.usecase.AddTaskUseCase
 import java.util.UUID
@@ -23,13 +23,13 @@ class XiaozhiMcpTools @Inject constructor(
      * 返回 null 表示未知工具（不进入确认流程）。
      * 注意：此处【不】落库，落库由 [commit] 在用户确认后进行（语音解析确认卡）。
      */
-    suspend fun handle(call: XiaozhiEvent.McpToolCall): TaskEntity? = when (call.tool) {
+    suspend fun handle(call: XiaozhiEvent.McpToolCall): Task? = when (call.tool) {
         "create_task" -> buildDraft(call.arguments)
         else -> null
     }
 
-    /** 解析工具参数并构建草稿 [TaskEntity]（不含提交/落库）。 */
-    fun buildDraft(args: Map<String, Any?>): TaskEntity {
+    /** 解析工具参数并构建草稿 [Task]（不含提交/落库）。 */
+    fun buildDraft(args: Map<String, Any?>): Task {
         val title = ((args["title"] as? String)?.trim()).orEmpty().ifEmpty { "新任务" }
         val dateStr = args["date"] as? String?
         // 钳制分钟到 [0,1439]，越界值（如解析异常的大数）归一，避免非法时间点写入。
@@ -39,7 +39,7 @@ class XiaozhiMcpTools @Inject constructor(
         // weekdays 仅对 WEEKLY 有意义，其余类型丢弃，保持数据一致。
         val weekdays = if (repeat == RepeatType.WEEKLY) args["weekdays"] as? String? else null
 
-        return TaskEntity(
+        return Task(
             id = "xz_${UUID.randomUUID()}",
             title = title,
             scheduledDate = dateStr,
@@ -53,7 +53,7 @@ class XiaozhiMcpTools @Inject constructor(
     }
 
     /** 将草稿提交落库（用户已在确认卡点击确认）。 */
-    suspend fun commit(task: TaskEntity): ToolResult {
+    suspend fun commit(task: Task): ToolResult {
         val res = addTaskUseCase(task)
         val note = if (res.conflicts.isNotEmpty()) "（存在时间冲突，已保留）" else ""
         return ToolResult(true, "已创建任务：${task.title}$note", task.title)

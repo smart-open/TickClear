@@ -31,7 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.ui.theme.Spacing
@@ -120,7 +120,7 @@ fun TaskItem(
 
 @Composable
 private fun TaskCardContent(
-    task: TaskEntity,
+    task: Task,
     group: TaskGroupEntity?,
     done: Boolean,
     isConflict: Boolean,

@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.usecase
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.SettingsRepository
@@ -66,7 +66,7 @@ class SeedUseCase @Inject constructor(
         scheduledDate: String? = null,
         reminderEnabled: Boolean = false,
         reminderLevel: String = "mid",
-    ): TaskEntity = TaskEntity(
+    ): Task = Task(
         id = UUID.randomUUID().toString(),
         groupId = groupId,
         title = title,

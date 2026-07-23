@@ -60,7 +60,7 @@ import com.tickclear.app.ui.components.TaskEditContent
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.domain.model.TaskStatus
@@ -80,7 +80,7 @@ fun TasksScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by remember { mutableStateOf(false) }
-    var editingTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var editingTask by remember { mutableStateOf<Task?>(null) }
     var showGroupEditor by remember { mutableStateOf(false) }
     var editingGroup by remember { mutableStateOf<TaskGroupEntity?>(null) }
     var groupToDelete by remember { mutableStateOf<TaskGroupEntity?>(null) }
@@ -106,7 +106,7 @@ fun TasksScreen(
     }
 
     // 任务行点击：宽屏进右侧详情面板，窄屏弹底部编辑弹层
-    val onTaskClick: (TaskEntity) -> Unit = if (isWide) {
+    val onTaskClick: (Task) -> Unit = if (isWide) {
         { selectedTaskId = it.id }
     } else {
         { editingTask = it; showEditor = true }
@@ -235,7 +235,7 @@ fun TasksScreen(
 @Composable
 private fun TasksList(
     state: TasksUiState,
-    onTaskClick: (TaskEntity) -> Unit,
+    onTaskClick: (Task) -> Unit,
     onGroupEdit: (TaskGroupEntity) -> Unit,
     onGroupDelete: (TaskGroupEntity) -> Unit,
     onDeleteTask: (String) -> Unit,
@@ -342,7 +342,7 @@ private fun GroupHeaderRow(
 
 @Composable
 private fun TaskRow(
-    task: TaskEntity,
+    task: Task,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {

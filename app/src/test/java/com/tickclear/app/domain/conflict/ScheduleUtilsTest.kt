@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.conflict
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus
 import org.junit.Assert.assertEquals
@@ -29,7 +29,7 @@ class ScheduleUtilsTest {
         allDay: Boolean = false,
         status: Int = 0,
         deletedAt: Long? = null,
-    ): TaskEntity = TaskEntity(
+    ): Task = Task(
         id = "t1",
         title = "测试",
         status = status,

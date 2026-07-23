@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.usecase
 
-import com.tickclear.app.data.local.entities.TaskEntity
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.ConflictChecker
 import io.mockk.coEvery
@@ -23,7 +23,7 @@ class AddTaskUseCaseTest {
 
     private val today: String = LocalDate.now().toString()
 
-    private fun task(id: String, start: Int, end: Int) = TaskEntity(
+    private fun task(id: String, start: Int, end: Int) = Task(
         id = id, title = id, status = 0,
         scheduledStartMin = start, scheduledEndMin = end, allDay = false,
         scheduledDate = today, repeatType = "NONE", deletedAt = null,
