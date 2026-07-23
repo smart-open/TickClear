@@ -9,14 +9,16 @@ import androidx.room.PrimaryKey
  * 任务实例：重复任务不进入终态，每次「发生」由调度/视图懒生成一个实例，
  * 实例才拥有完成态。CompletionLog 由已完成实例历史派生。
  *
- * 主键 id = "${taskId}@${dueDateLocal}"，保证同一天同一任务唯一，配合 upsert IGNORE 去重。
+ * 主键 id = "${taskId}@${dueDateLocal}"（单实例/天）或 "${taskId}@${dueDateLocal}@${dueMinute}"
+ * （子日级重复，如每 N 小时一天多个），配合 upsert IGNORE 去重。
+ * 唯一约束扩展到 (taskId, dueDateLocal, dueMinute)，支持同一天多个实例（每 N 小时）。
  */
 @Entity(
     tableName = "task_instance",
     indices = [
         Index("taskId"),
         Index("dueDateLocal"),
-        Index(value = ["taskId", "dueDateLocal"], unique = true),
+        Index(value = ["taskId", "dueDateLocal", "dueMinute"], unique = true),
     ],
 )
 data class TaskInstanceEntity(

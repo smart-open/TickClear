@@ -29,7 +29,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         MedalUnlockEntity::class,
         CheckInEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -64,6 +64,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v4 → v5：
+         *  - task 新增 repeat_interval_hours（每 N 小时重复，PRD §7 自定义间隔）；
+         *  - task_instance 唯一约束扩展到 (taskId, dueDateLocal, dueMinute)，
+         *    支持子日级重复（每 N 小时）同一天多个实例。
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE task ADD COLUMN repeat_interval_hours INTEGER")
+                db.execSQL("DROP INDEX IF EXISTS index_task_instance_taskId_dueDateLocal")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX index_task_instance_taskId_dueDateLocal_dueMinute " +
+                        "ON task_instance(taskId, dueDateLocal, dueMinute)",
+                )
+            }
+        }
+
         fun create(context: Context, passphrase: String): AppDatabase {
             // L2：sqlcipher-android 需在打开数据库前显式加载 native 库（该 artifact 不自动加载）。
             // 加单次守卫，避免重复加载抛 UnsatisfiedLinkError。
@@ -79,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                 // 刻意不启用 fallbackToDestructiveMigration：版本升级且缺显式 Migration 时，
                 // Room 会显式抛异常（而非静默清空用户数据）。上线前必须在此追加 addMigrations(...)，
                 // 严禁在未提供 Migration 的情况下 bump schema version。
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
         }
     }

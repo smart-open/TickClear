@@ -67,6 +67,7 @@ private val REPEAT_OPTIONS = listOf(
     "DAILY" to R.string.repeat_daily,
     "WEEKLY" to R.string.repeat_weekly,
     "MONTHLY" to R.string.repeat_monthly,
+    "INTERVAL" to R.string.repeat_interval,
 )
 private val LEVEL_OPTIONS = listOf(
     "high" to R.string.reminder_high,
@@ -132,6 +133,9 @@ fun TaskEditContent(
     var startMin by remember { mutableIntStateOf(initial?.scheduledStartMin ?: (9 * 60)) }
     var endMin by remember { mutableIntStateOf(initial?.scheduledEndMin ?: (9 * 60 + 30)) }
     var repeatType by remember { mutableStateOf(initial?.repeatType ?: "NONE") }
+    // 自定义间隔（INTERVAL）：数值 + 单位（天/小时）
+    var intervalValue by remember { mutableIntStateOf(initial?.repeatIntervalDays ?: initial?.repeatIntervalHours ?: 1) }
+    var intervalUnit by remember { mutableStateOf(if (initial?.repeatIntervalHours != null) "HOURS" else "DAYS") }
     var reminderEnabled by remember { mutableStateOf(initial?.reminderEnabled ?: false) }
     var reminderLevel by remember { mutableStateOf(initial?.reminderLevel ?: "mid") }
     var reminderOffset by remember { mutableIntStateOf(initial?.reminderOffsetMin ?: 0) }
@@ -238,6 +242,28 @@ fun TaskEditContent(
             onSelected = { repeatType = it },
             modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
         )
+        if (repeatType == "INTERVAL") {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                OutlinedTextField(
+                    value = intervalValue.toString(),
+                    onValueChange = { intervalValue = it.toIntOrNull()?.coerceAtLeast(1) ?: 1 },
+                    label = { Text(stringResource(R.string.repeat_interval_value)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                DropdownField(
+                    label = stringResource(R.string.repeat_interval_unit),
+                    options = listOf("DAYS" to stringResource(R.string.repeat_interval_unit_days), "HOURS" to stringResource(R.string.repeat_interval_unit_hours)),
+                    selectedKey = intervalUnit,
+                    onSelected = { intervalUnit = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
 
         // 提醒
         Row(
@@ -353,6 +379,8 @@ fun TaskEditContent(
                     startMin = startMin,
                     endMin = endMin,
                     repeatType = repeatType,
+                    intervalValue = intervalValue,
+                    intervalUnit = intervalUnit,
                     reminderEnabled = reminderEnabled,
                     reminderLevel = reminderLevel,
                     reminderOffset = reminderOffset,
@@ -437,6 +465,8 @@ private fun buildTask(
     startMin: Int,
     endMin: Int,
     repeatType: String,
+    intervalValue: Int = 1,
+    intervalUnit: String = "DAYS",
     reminderEnabled: Boolean,
     reminderLevel: String,
     reminderOffset: Int,
@@ -451,8 +481,12 @@ private fun buildTask(
         "DAILY" -> Tuple(null, "DAILY", null, null)
         "WEEKLY" -> Tuple(null, "WEEKLY", today.dayOfWeek.value.toString(), null)
         "MONTHLY" -> Tuple(null, "MONTHLY", null, today.dayOfMonth)
+        "INTERVAL" -> Tuple(null, "INTERVAL", null, null)
         else -> Tuple(dateStr, "NONE", null, null)
     }
+
+    val isIntervalHours = repeatType == "INTERVAL" && intervalUnit == "HOURS"
+    val isIntervalDays = repeatType == "INTERVAL" && intervalUnit == "DAYS"
 
     return TaskEntity(
         id = initial?.id ?: UUID.randomUUID().toString(),
@@ -465,11 +499,12 @@ private fun buildTask(
         allDay = allDay,
         scheduledDate = scheduledDate,
         repeatType = repeatOut,
-        repeatIntervalDays = null,
+        repeatIntervalDays = if (isIntervalDays) intervalValue.coerceAtLeast(1) else null,
+        repeatIntervalHours = if (isIntervalHours) intervalValue.coerceAtLeast(1) else null,
         repeatWeekdays = weekdays,
         repeatMonthDay = monthDay,
         repeatAnchorMin = if (allDay) null else startMin,
-        repeatAnchorDate = null,
+        repeatAnchorDate = if (repeatType == "INTERVAL") dateStr else null,
         reminderEnabled = reminderEnabled,
         reminderLevel = reminderLevel,
         reminderOffsetMin = if (reminderEnabled) reminderOffset else null,

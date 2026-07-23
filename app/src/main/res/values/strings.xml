@@ -166,6 +166,11 @@
     <string name="repeat_daily">每天</string>
     <string name="repeat_weekly">每周</string>
     <string name="repeat_monthly">每月</string>
+    <string name="repeat_interval">自定义间隔</string>
+    <string name="repeat_interval_value">间隔数值</string>
+    <string name="repeat_interval_unit">间隔单位</string>
+    <string name="repeat_interval_unit_days">天</string>
+    <string name="repeat_interval_unit_hours">小时</string>
     <string name="reminder_level">提醒级别</string>
     <string name="reminder_high">高（重要）</string>
     <string name="reminder_mid">中</string>

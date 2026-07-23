@@ -27,7 +27,8 @@ data class TaskEntity(
     @ColumnInfo(defaultValue = "0") val allDay: Boolean = false,
     @ColumnInfo(defaultValue = "") val scheduledDate: String? = null, // 一次性任务的日历日期 YYYY-MM-DD；null=随时任务(每日生成)
     @ColumnInfo(defaultValue = "NONE") val repeatType: String = "NONE",
-    @ColumnInfo(defaultValue = "0") val repeatIntervalDays: Int? = null,
+    @ColumnInfo(defaultValue = "0") val repeatIntervalDays: Int? = null, // INTERVAL 每 N 天
+    @ColumnInfo(defaultValue = "0") val repeatIntervalHours: Int? = null, // INTERVAL 每 N 小时（如每 8 小时吃药）
     @ColumnInfo(defaultValue = "") val repeatWeekdays: String? = null, // csv "1,3,5"
     @ColumnInfo(defaultValue = "0") val repeatMonthDay: Int? = null,
     @ColumnInfo(defaultValue = "540") val repeatAnchorMin: Int? = null,

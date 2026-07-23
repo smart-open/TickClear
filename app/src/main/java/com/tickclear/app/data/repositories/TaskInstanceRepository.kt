@@ -3,6 +3,7 @@ package com.tickclear.app.data.repositories
 import com.tickclear.app.data.local.dao.TaskInstanceDao
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
+import com.tickclear.app.domain.conflict.dueMinutesForDate
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.conflict.shouldGenerateInstance
@@ -28,18 +29,23 @@ class TaskInstanceRepository @Inject constructor(
 
     /**
      * 懒生成：为指定日期补上所有「启用且应发生」任务的实例（基于传入任务列表，避免重复全量查询）。
-     * 视图打开时调用即可（无需后台调度器）。upsert IGNORE 保证幂等。
+     * 子日级重复（每 N 小时）会在当天生成多个实例（各自不同 minute）。视图打开时调用即可。
+     * upsert IGNORE 保证幂等；单实例任务沿用 "${taskId}@${date}" 旧 id 以兼容既有提醒/通知。
      */
     suspend fun ensureInstancesForDate(date: LocalDate, tasks: List<TaskEntity>) {
         val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
         for (task in tasks.filter { it.isEnabled() }) {
-            if (shouldGenerateInstance(task, date)) {
+            if (!shouldGenerateInstance(task, date)) continue
+            val minutes = task.dueMinutesForDate(date)
+            val single = minutes.size == 1
+            for (min in minutes) {
+                val id = if (single) "${task.id}@$dateStr" else "${task.id}@$dateStr@$min"
                 dao.upsert(
                     TaskInstanceEntity(
-                        id = "${task.id}@$dateStr",
+                        id = id,
                         taskId = task.id,
                         dueDateLocal = dateStr,
-                        dueMinute = task.instanceDueMinute(),
+                        dueMinute = min,
                     ),
                 )
             }

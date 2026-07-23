@@ -39,6 +39,9 @@ fun shouldGenerateInstance(task: TaskEntity, date: LocalDate): Boolean {
                 (md > date.lengthOfMonth() && date.dayOfMonth == date.lengthOfMonth())
         }
         RepeatType.INTERVAL -> {
+            // 每 N 小时：每日都发生（子日级，由 dueMinutesForDate 拆成多个时刻）。
+            if (task.repeatIntervalHours != null && task.repeatIntervalHours > 0) return@shouldGenerateInstance true
+            // 每 N 天：从锚点日起算，天数差能被间隔整除才发生；无锚点日不生成。
             val interval = (task.repeatIntervalDays ?: 1).coerceAtLeast(1)
             val anchor = task.repeatAnchorDate
                 ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -46,6 +49,27 @@ fun shouldGenerateInstance(task: TaskEntity, date: LocalDate): Boolean {
             val days = ChronoUnit.DAYS.between(anchor, date)
             days >= 0 && days % interval == 0L
         }
+    }
+}
+
+/**
+ * 任务在指定日期应生成的「实例生效分钟（分钟-of-day）」列表。
+ * - 多数类型：单值 [instanceDueMinute()]（可能为 null → 当天无具体时刻，用于全天后台生成）；
+ * - INTERVAL 且 intervalHours>0：从锚点分钟起每 N 小时一个，直到 < 1440（如每 8 小时 → 08:00/16:00…）。
+ */
+fun TaskEntity.dueMinutesForDate(date: LocalDate): List<Int> {
+    val base = instanceDueMinute()
+    return when (RepeatType.fromCode(repeatType)) {
+        RepeatType.INTERVAL -> {
+            val hours = repeatIntervalHours
+            if (hours != null && hours > 0) {
+                val start = base ?: 0
+                (0 until 1440 step (hours * 60)).map { start + it }.filter { it < 1440 }
+            } else {
+                base?.let { listOf(it) } ?: emptyList()
+            }
+        }
+        else -> base?.let { listOf(it) } ?: emptyList()
     }
 }
 
