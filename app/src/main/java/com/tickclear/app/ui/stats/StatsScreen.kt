@@ -400,7 +400,7 @@ private fun MedalDetailDialog(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (progress != null && progress.current >= 0) {
+                    if (progress != null && progress.target > 0 && progress.current >= 0) {
                         val frac = (progress.current.toFloat() / progress.target).coerceIn(0f, 1f)
                         LinearProgressIndicator(
                             progress = { frac },

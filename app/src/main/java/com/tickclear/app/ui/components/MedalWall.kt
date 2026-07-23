@@ -105,7 +105,7 @@ private fun MedalCell(
             textAlign = TextAlign.Center,
         )
         // 未解锁且可计算进度时，展示 x/y 进度条
-        if (!isUnlocked && progress != null && progress.current >= 0) {
+        if (!isUnlocked && progress != null && progress.target > 0 && progress.current >= 0) {
             val frac = (progress.current.toFloat() / progress.target).coerceIn(0f, 1f)
             LinearProgressIndicator(
                 progress = { frac },

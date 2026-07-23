@@ -79,12 +79,16 @@ fun TasksScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showEditor by remember { mutableStateOf(false) }
-    var editingTask by remember { mutableStateOf<Task?>(null) }
-    var showGroupEditor by remember { mutableStateOf(false) }
-    var editingGroup by remember { mutableStateOf<TaskGroup?>(null) }
-    var groupToDelete by remember { mutableStateOf<TaskGroup?>(null) }
-    // 宽屏主从双栏：选中任务 id（"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
+    var showEditor by rememberSaveable { mutableStateOf(false) }
+    var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showGroupEditor by rememberSaveable { mutableStateOf(false) }
+    var editingGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    var groupToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    // ��ת�󱣳ֱ༭/ɾ�����㣺�� id���� id �ӵ�ǰ�б��ָ�����Task/TaskGroup ����ֱ�� saveable����
+    val editingTask = state.tasks.find { it.id == editingTaskId }
+    val editingGroup = state.groups.find { it.id == editingGroupId }
+    val groupToDelete = state.groups.find { it.id == groupToDeleteId }
+    // 宽屏主从双栏：选中任务 id�?"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
     var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 软删任务撤销提示
@@ -105,11 +109,11 @@ fun TasksScreen(
         }
     }
 
-    // 任务行点击：宽屏进右侧详情面板，窄屏弹底部编辑弹层
+    // 任务行点击：宽屏进右侧详情面板，窄屏弹底部编辑弹�?
     val onTaskClick: (Task) -> Unit = if (isWide) {
         { selectedTaskId = it.id }
     } else {
-        { editingTask = it; showEditor = true }
+        { editingTaskId = it.id; showEditor = true }
     }
 
     Scaffold(
@@ -121,7 +125,7 @@ fun TasksScreen(
                     IconButton(onClick = onNavigateToRecycleBin) {
                         Icon(Icons.Filled.DeleteSweep, contentDescription = stringResource(R.string.recycle_bin_title))
                     }
-                    IconButton(onClick = { editingGroup = null; showGroupEditor = true }) {
+                    IconButton(onClick = { editingGroupId = null; showGroupEditor = true }) {
                         Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tasks_add_group))
                     }
                 },
@@ -132,7 +136,7 @@ fun TasksScreen(
                 onClick = if (isWide) {
                     { selectedTaskId = "__new__" }
                 } else {
-                    { editingTask = null; showEditor = true }
+                    { editingTaskId = null; showEditor = true }
                 },
                 modifier = Modifier.padding(Spacing.lg),
             ) {
@@ -145,8 +149,8 @@ fun TasksScreen(
                 TasksList(
                     state = state,
                     onTaskClick = onTaskClick,
-                    onGroupEdit = { editingGroup = it; showGroupEditor = true },
-                    onGroupDelete = { groupToDelete = it },
+                    onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
+                    onGroupDelete = { groupToDeleteId = it.id },
                     onDeleteTask = { viewModel.deleteTask(it) },
                     modifier = Modifier
                         .weight(1f)
@@ -187,8 +191,8 @@ fun TasksScreen(
             TasksList(
                 state = state,
                 onTaskClick = onTaskClick,
-                onGroupEdit = { editingGroup = it; showGroupEditor = true },
-                onGroupDelete = { groupToDelete = it },
+                onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
+                onGroupDelete = { groupToDeleteId = it.id },
                 onDeleteTask = { viewModel.deleteTask(it) },
                 modifier = Modifier
                     .fillMaxSize()
@@ -216,17 +220,17 @@ fun TasksScreen(
 
     groupToDelete?.let { g ->
         AlertDialog(
-            onDismissRequest = { groupToDelete = null },
+            onDismissRequest = { groupToDeleteId = null },
             title = { Text(stringResource(R.string.tasks_delete_group_title)) },
             text = { Text(stringResource(R.string.tasks_delete_group_confirm, g.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteGroup(g.id)
-                    groupToDelete = null
+                    groupToDeleteId = null
                 }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { groupToDelete = null }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { groupToDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -281,7 +285,7 @@ private fun TasksList(
             }
         }
 
-        // 无分组任务
+        // 无分组任�?
         if (ungrouped.isNotEmpty()) {
             item(key = "ungrouped_header") {
                 Text(

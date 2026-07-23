@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,8 +51,10 @@ fun RecycleBinScreen(
     onBack: () -> Unit = {},
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
-    var purgeAllConfirm by remember { mutableStateOf(false) }
-    var itemToPurge by remember { mutableStateOf<RecycleBinItem?>(null) }
+    var purgeAllConfirm by rememberSaveable { mutableStateOf(false) }
+    var itemToPurgeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // 旋转后保持「彻底删除」确认弹层（存 id，按 id 从列表恢复对象）。
+    val itemToPurge = items.find { it.id == itemToPurgeId }
 
     Scaffold(
         topBar = {
@@ -98,7 +101,7 @@ fun RecycleBinScreen(
                         RecycleBinRow(
                             item = item,
                             onRestore = { viewModel.restore(item) },
-                            onPurge = { itemToPurge = item },
+                            onPurge = { itemToPurgeId = item.id },
                         )
                     }
                 }
@@ -124,16 +127,16 @@ fun RecycleBinScreen(
 
     itemToPurge?.let { it ->
         AlertDialog(
-            onDismissRequest = { itemToPurge = null },
+            onDismissRequest = { itemToPurgeId = null },
             title = { Text(stringResource(R.string.recycle_bin_purge_now)) },
             text = { Text(stringResource(R.string.recycle_bin_purge_confirm, 1)) },
             confirmButton = {
-                TextButton(onClick = { viewModel.purge(it); itemToPurge = null }) {
+                TextButton(onClick = { viewModel.purge(it); itemToPurgeId = null }) {
                     Text(stringResource(R.string.action_confirm))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { itemToPurge = null }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { itemToPurgeId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
