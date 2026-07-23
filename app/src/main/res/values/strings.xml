@@ -386,6 +386,18 @@
     <string name="backup_import_ok">导入完成：任务 %1$d 项、任务组 %2$d 个</string>
     <string name="backup_auto_now_ok">已生成加密自动备份</string>
 
+    <!-- ICS 日历导入导出（V2.7） -->
+    <string name="settings_ics_export_title">导出为日历(.ics)</string>
+    <string name="settings_ics_export_subtitle">将带日期/重复的任务导出为 iCalendar 文件，可导入主流日历</string>
+    <string name="settings_ics_import_title">从日历(.ics)导入</string>
+    <string name="settings_ics_import_subtitle">从 iCalendar 文件导入任务（合并）</string>
+    <string name="ics_export_ok">已导出 %1$d 个任务到 .ics</string>
+    <string name="ics_import_ok">已从 .ics 导入 %1$d 个任务</string>
+
+    <!-- 桌面小组件（V2.8） -->
+    <string name="widget_today_title">今日待办</string>
+    <string name="widget_today_empty">今天还没有任务</string>
+
     <!-- 自动备份（V2.5/V2.6） -->
     <string name="settings_auto_backup_title">每日自动备份</string>
     <string name="settings_auto_backup_subtitle">每日凌晨加密备份到应用私有目录（保留最近 7 份，重装前可恢复）</string>

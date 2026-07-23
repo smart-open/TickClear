@@ -12,14 +12,17 @@ import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.backup.AutoBackupRunner
 import com.tickclear.app.domain.backup.AutoBackupScheduler
 import com.tickclear.app.domain.backup.BackupManager
+import com.tickclear.app.domain.ics.IcsManager
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +39,7 @@ data class BackupToast(val message: String)
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val backupManager: BackupManager,
+    private val taskRepository: TaskRepository,
     private val asrResolver: AsrProviderResolver,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -66,6 +70,35 @@ class SettingsViewModel @Inject constructor(
             backupToasts.tryEmit(
                 BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups)),
             )
+        } catch (e: Exception) {
+            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
+        }
+    }
+
+    /** 导出为 ICS 日历文件（V2.7）。 */
+    fun exportIcsTo(uri: Uri) = viewModelScope.launch {
+        try {
+            val tasks = taskRepository.observeAll().first()
+            val ics = IcsManager.exportTasksToIcs(tasks)
+            appContext.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(ics.toByteArray(Charsets.UTF_8))
+            } ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED)
+            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_export_ok, tasks.size)))
+        } catch (e: Exception) {
+            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
+        }
+    }
+
+    /** 从 ICS 日历文件导入（V2.7，按主键合并）。 */
+    fun importIcsFrom(uri: Uri) = viewModelScope.launch {
+        try {
+            val ics = appContext.contentResolver.openInputStream(uri)?.use { input ->
+                input.readBytes().toString(Charsets.UTF_8)
+            } ?: throw AppException(ErrorCode.IMPORT_READ_FAILED)
+            val tasks = IcsManager.parseIcsToTasks(ics)
+            if (tasks.isEmpty()) throw AppException(ErrorCode.IMPORT_EMPTY)
+            tasks.forEach { taskRepository.upsert(it) }
+            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_import_ok, tasks.size)))
         } catch (e: Exception) {
             backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
         }

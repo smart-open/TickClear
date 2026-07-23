@@ -86,6 +86,15 @@ fun SettingsScreen(
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) viewModel.importFrom(uri) }
+    val icsExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/calendar"),
+    ) { uri -> if (uri != null) viewModel.exportIcsTo(uri) }
+    val icsImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> if (uri != null) viewModel.importIcsFrom(uri) }
+    val icsExportName = "tickclear_${
+        java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+    }.ics"
 
     // V2.11 通知与权限引导：跳转系统设置（纯 Intent，零依赖），规避 Android 14+ 全屏/精确闹钟限制。
     val context = LocalContext.current
@@ -265,6 +274,20 @@ fun SettingsScreen(
                     onClick = { viewModel.runAutoBackupNow() },
                 )
             }
+
+            // ── ICS 日历导入导出（V2.7）──
+            ClickableRow(
+                icon = Icons.Filled.Upload,
+                title = stringResource(R.string.settings_ics_export_title),
+                subtitle = stringResource(R.string.settings_ics_export_subtitle),
+                onClick = { icsExportLauncher.launch(icsExportName) },
+            )
+            ClickableRow(
+                icon = Icons.Filled.Download,
+                title = stringResource(R.string.settings_ics_import_title),
+                subtitle = stringResource(R.string.settings_ics_import_subtitle),
+                onClick = { icsImportLauncher.launch(arrayOf("text/calendar", "application/octet-stream", "*/*")) },
+            )
 
             // ── 通知与权限 ──
             SectionTitle(stringResource(R.string.settings_section_perms))
