@@ -85,6 +85,8 @@ class BackupManager @Inject constructor(
         val version = root.optInt(KEY_VERSION, -1)
         if (version <= 0) throw AppException(ErrorCode.IMPORT_PARSE_FAILED)
         if (version > SCHEMA_VERSION) throw AppException(ErrorCode.IMPORT_VERSION_UNSUPPORTED)
+        // 版本兼容迁移：旧备份按主键合并导入前，先将其结构升级到当前 schema。
+        migrateIfNeeded(root, version)
 
         val groupsArr = root.optJSONArray("groups") ?: JSONArray()
         val tasksArr = root.optJSONArray("tasks") ?: JSONArray()
@@ -132,6 +134,40 @@ class BackupManager @Inject constructor(
             checkIns = checkInsArr.length(),
             medals = medalsArr.length(),
         )
+    }
+
+    /**
+     * 导出为加密字节（V2.6）：明文 JSON → [BackupCrypto] 信封。
+     * 自动备份默认走此路径；手动导出仍可用 [exportToJson] 明文。
+     */
+    suspend fun exportEncrypted(): ByteArray = withContext(Dispatchers.IO) {
+        BackupCrypto.encrypt(exportToJson().toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * 从字节导入（V2.6）：自动识别加密信封（[BackupCrypto.isEncrypted]），
+     * 命中则解密后走 [importFromJson]，否则按旧明文 JSON 兼容导入。
+     */
+    suspend fun importEncrypted(bytes: ByteArray): ImportResult = withContext(Dispatchers.IO) {
+        val json = BackupCrypto.decrypt(bytes).toString(Charsets.UTF_8)
+        importFromJson(json)
+    }
+
+    /**
+     * 备份结构迁移（V2.6 / 版本化）：将 [root] 从 [from] 版本逐步升级到 [SCHEMA_VERSION]。
+     * 当前仅 v1，暂无结构性变更；后续新增字段/重命名时在此追加 when 分支，
+     * 保证旧备份向前兼容，避免破坏性导入。
+     */
+    private fun migrateIfNeeded(root: JSONObject, from: Int) {
+        var v = from
+        while (v < SCHEMA_VERSION) {
+            when (v) {
+                // 1 -> 2：示例占位（如某字段重命名）。
+                // 1 -> 2: root.optJSONArray("tasks")?.forEach { it.rename("old", "new") }
+                else -> Unit
+            }
+            v++
+        }
     }
 
     // ── 序列化 ──
