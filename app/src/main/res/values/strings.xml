@@ -370,6 +370,12 @@
     <string name="settings_perms_fullscreen_sub">Android 14+ 需授予才能全屏弹出高优先级提醒</string>
     <string name="settings_perms_exactalarm">精确闹钟权限</string>
     <string name="settings_perms_exactalarm_sub">授予后高优先级任务可准时送达</string>
+    <string name="shortcut_new_task_short">新建任务</string>
+    <string name="shortcut_new_task_long">快速新建任务</string>
+    <string name="shortcut_assistant_short">语音助手</string>
+    <string name="shortcut_assistant_long">打开语音助手</string>
+    <string name="shortcut_today_short">今日</string>
+    <string name="shortcut_today_long">查看今日安排</string>
     <string name="settings_recycle_subtitle">恢复或彻底删除软删除的任务</string>
     <string name="settings_export_title">导出备份</string>
     <string name="settings_export_subtitle">将全部任务与记录导出为 JSON 文件</string>

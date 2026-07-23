@@ -76,11 +76,21 @@ fun TasksScreen(
     viewModel: TasksViewModel = hiltViewModel(),
     isWide: Boolean = false,
     onNavigateToRecycleBin: () -> Unit = {},
+    initialOpenEditor: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    // V2.9：由「新建任务」快捷方式进入时，自动弹出新建编辑器（仅消费一次，避免重组/旋转重复弹出）。
+    var shortcutEditorConsumed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(initialOpenEditor) {
+        if (initialOpenEditor && !shortcutEditorConsumed) {
+            editingTaskId = null
+            showEditor = true
+            shortcutEditorConsumed = true
+        }
+    }
     var showGroupEditor by rememberSaveable { mutableStateOf(false) }
     var editingGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var groupToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }

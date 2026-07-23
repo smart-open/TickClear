@@ -18,7 +18,8 @@ fun TickClearBottomBar(
     NavigationBar {
         topLevelDestinations.forEach { dest ->
             NavigationBarItem(
-                selected = currentRoute == dest.route,
+                // 忽略查询参数（如 tasks?openEditor=true）匹配一级目的地
+                selected = currentRoute?.substringBefore("?") == dest.route,
                 onClick = { onNavigate(dest.route) },
                 icon = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
                 label = { Text(stringResource(dest.labelRes)) },
@@ -36,7 +37,7 @@ fun TickClearNavRail(
     NavigationRail {
         topLevelDestinations.forEach { dest ->
             NavigationRailItem(
-                selected = currentRoute == dest.route,
+                selected = currentRoute?.substringBefore("?") == dest.route,
                 onClick = { onNavigate(dest.route) },
                 icon = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
                 label = { Text(stringResource(dest.labelRes)) },
