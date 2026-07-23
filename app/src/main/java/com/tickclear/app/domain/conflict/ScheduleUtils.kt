@@ -18,9 +18,11 @@ import java.time.temporal.ChronoUnit
 fun shouldGenerateInstance(task: TaskEntity, date: LocalDate): Boolean {
     return when (RepeatType.fromCode(task.repeatType)) {
         RepeatType.NONE -> {
-            val sd = task.scheduledDate
-                ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-            sd == null || sd == date
+            val raw = task.scheduledDate
+            if (raw == null) return@shouldGenerateInstance true // 随时任务：每天生成
+            // 损坏的日期字符串解析失败时「不生成」，而非悄悄退化为每日任务。
+            val sd = runCatching { LocalDate.parse(raw) }.getOrNull() ?: return@shouldGenerateInstance false
+            sd == date
         }
         RepeatType.DAILY -> true
         RepeatType.WEEKLY -> {

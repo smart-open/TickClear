@@ -151,6 +151,7 @@
     <string name="notify_channel_high">重要提醒</string>
     <string name="notify_channel_mid">普通提醒</string>
     <string name="notify_channel_low">轻提醒</string>
+    <string name="notify_channel_silent">静默提醒</string>
 
     <!-- 错误 -->
     <string name="error_generic">出错了，请稍后重试</string>

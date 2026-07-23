@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.tickclear.app.MainActivity
 import com.tickclear.app.FullScreenAlertActivity
@@ -52,7 +53,7 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 when (action) {
                     ACTION_SHOW -> showNotification(appCtx, taskId, instanceId)
-                    ACTION_COMPLETE -> complete(appCtx, taskId)
+                    ACTION_COMPLETE -> complete(appCtx, taskId, instanceId)
                     ACTION_SNOOZE -> {
                         val delay = intent.getIntExtra(EXTRA_DELAY_MIN, SNOOZE_DEFAULT_MIN)
                         ReminderScheduler.scheduleSnooze(appCtx, instanceId, taskId, delay)
@@ -85,7 +86,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        val channel = if (level == "silent") NotificationHelper.CHANNEL_LOW else NotificationHelper.channelForLevel(level)
+        val channel = if (level == "silent") NotificationHelper.CHANNEL_SILENT else NotificationHelper.channelForLevel(level)
         val priority = when (level) {
             "high" -> NotificationCompat.PRIORITY_MAX
             "low" -> NotificationCompat.PRIORITY_LOW
@@ -120,17 +121,21 @@ class ReminderReceiver : BroadcastReceiver() {
         }
         if (level == "high") {
             builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
-            // 高优先级提醒：附加全屏意图（Android 14+ 仅在应用前台或系统允许时弹全屏；否则降级为普通通知）。
-            builder.setFullScreenIntent(fullScreenIntent(context, taskId, instanceId), true)
+            // 高优先级提醒：附加全屏意图。Android 14+ 仅在系统允许（已获「额外提醒权限」或应用前台）时真正全屏，
+            // 否则系统静默降级为普通通知；此处仅在允许时附加，避免无效附加。
+            if (Build.VERSION.SDK_INT < 34 || notificationManager(context).canUseFullScreenIntent()) {
+                builder.setFullScreenIntent(fullScreenIntent(context, taskId, instanceId), true)
+            }
         }
-        notificationManager(context).notify(taskId.hashCode(), builder.build())
+        // 以 instanceId 作为通知键：避免不同任务 hashCode 碰撞，且重复任务多实例各自独立（互不覆盖）。
+        notificationManager(context).notify(instanceId.hashCode(), builder.build())
     }
 
-    private suspend fun complete(context: Context, taskId: String) {
+    private suspend fun complete(context: Context, taskId: String, instanceId: String) {
         val ep = EntryPointAccessors.fromApplication(context, ReminderScheduler.ReminderEntryPoint::class.java)
         val task = ep.taskRepository().getActiveById(taskId) ?: ep.taskRepository().getById(taskId) ?: return
         ep.completeTaskUseCase()(task)
-        cancelNotification(context, taskId)
+        cancelNotification(context, instanceId)
     }
 
     private suspend fun skip(context: Context, taskId: String, instanceId: String) {
@@ -139,7 +144,7 @@ class ReminderReceiver : BroadcastReceiver() {
         if (date.isNotEmpty()) {
             ep.taskInstanceRepository().skip(instanceId, taskId, date)
         }
-        cancelNotification(context, taskId)
+        cancelNotification(context, instanceId)
     }
 
     private fun openAppIntent(context: Context, req: Int): PendingIntent {
@@ -175,8 +180,8 @@ class ReminderReceiver : BroadcastReceiver() {
     private fun notificationManager(context: Context): NotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    private fun cancelNotification(context: Context, taskId: String) {
-        notificationManager(context).cancel(taskId.hashCode())
+    private fun cancelNotification(context: Context, instanceId: String) {
+        notificationManager(context).cancel(instanceId.hashCode())
     }
 
     /** 全屏提醒意图：跳转 [FullScreenAlertActivity] 展示醒目提醒。 */

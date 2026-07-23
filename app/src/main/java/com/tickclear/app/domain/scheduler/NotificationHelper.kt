@@ -16,6 +16,7 @@ object NotificationHelper {
     const val CHANNEL_HIGH = "tickclear.reminder.high"
     const val CHANNEL_MID = "tickclear.reminder.mid"
     const val CHANNEL_LOW = "tickclear.reminder.low"
+    const val CHANNEL_SILENT = "tickclear.reminder.silent"
 
     fun channelForLevel(level: String): String = when (level) {
         "high" -> CHANNEL_HIGH
@@ -50,6 +51,12 @@ object NotificationHelper {
             context.getString(R.string.notify_channel_low),
             android.app.NotificationManager.IMPORTANCE_LOW,
         ).apply { setShowBadge(false) }
-        manager.createNotificationChannels(listOf(reminder, high, mid, low))
+        // 静音时段专用渠道：IMPORTANCE_MIN，比 LOW 更静默、无通知栏提示（PRD D.2 ch_silent）。
+        val silent = NotificationChannel(
+            CHANNEL_SILENT,
+            context.getString(R.string.notify_channel_silent),
+            android.app.NotificationManager.IMPORTANCE_MIN,
+        ).apply { setShowBadge(false) }
+        manager.createNotificationChannels(listOf(reminder, high, mid, low, silent))
     }
 }

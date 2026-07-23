@@ -37,8 +37,8 @@ class SettingsRepository @Inject constructor(
         prefs[KEY_ANIMATION] ?: true
     }
 
-    // ── 静音时段（低优先级通知自动静默；默认关闭，默认 22:00–7:00）──
-    val quietHoursEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_QUIET_ENABLED] ?: false }
+    // ── 静音时段（低优先级通知自动静默；PRD 默认开启，默认 22:00–7:00）──
+    val quietHoursEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_QUIET_ENABLED] ?: true }
     val quietStartMin: Flow<Int> = dataStore.data.map { it[KEY_QUIET_START] ?: DEFAULT_QUIET_START }
     val quietEndMin: Flow<Int> = dataStore.data.map { it[KEY_QUIET_END] ?: DEFAULT_QUIET_END }
 

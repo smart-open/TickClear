@@ -65,7 +65,7 @@ class AudioCapture {
                     filled += need
                     off += need
                     if (filled == frameSize) {
-                        onFrame(frame.copyOf())
+                        runCatching { onFrame(frame.copyOf()) }
                         filled = 0
                     }
                 }
@@ -136,7 +136,7 @@ class AudioCapture {
                 System.arraycopy(c, 0, pcm, off, c.size)
                 off += c.size
             }
-            onComplete(pcm)
+            runCatching { onComplete(pcm) }
         }, "AudioCapture-accum").also { it.start() }
         return true
     }

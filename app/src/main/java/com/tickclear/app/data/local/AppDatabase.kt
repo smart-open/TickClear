@@ -45,6 +45,16 @@ abstract class AppDatabase : RoomDatabase() {
         private val sqlcipherLock = Any()
         @Volatile private var sqlcipherLoaded = false
 
+        /** v1 → v2：首版实体集稳定，无结构性变更（仅版本号递增）。 */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) { /* 空迁移：v1 与 v2 schema 一致 */ }
+        }
+
+        /** v2 → v3：同上，无结构性变更。 */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) { /* 空迁移：v2 与 v3 schema 一致 */ }
+        }
+
         /** v3 → v4：为 task 新增位置提醒三列（地理围栏）。 */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -69,7 +79,7 @@ abstract class AppDatabase : RoomDatabase() {
                 // 刻意不启用 fallbackToDestructiveMigration：版本升级且缺显式 Migration 时，
                 // Room 会显式抛异常（而非静默清空用户数据）。上线前必须在此追加 addMigrations(...)，
                 // 严禁在未提供 Migration 的情况下 bump schema version。
-                .addMigrations(MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
         }
     }
