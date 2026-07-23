@@ -3,6 +3,7 @@ package com.tickclear.app
 import android.app.Application
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.di.AppEntryPoint
+import com.tickclear.app.domain.log.CrashReporter
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.domain.scheduler.ReminderScheduler
 import com.tickclear.app.domain.scheduler.RecycleBinScheduler
@@ -19,6 +20,8 @@ class TickClearApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // V2.3：安装崩溃遥测（预载历史崩溃 + 全局未捕获异常处理器）。
+        CrashReporter.install(this)
         // 预热 SQLCipher 口令（首次生成并持久化到 Keystore）
         SecureStore.getDbPassphrase(this)
         // 通知渠道（提醒系统）
