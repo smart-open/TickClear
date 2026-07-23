@@ -1,0 +1,173 @@
+# TickClear Android 编译环境 · 最小路径手册（Windows）
+
+> 目标：仅用命令行工具验证 `assembleDebug`，**不安装 Android Studio**（节省 3~4GB）。
+> 适用：Windows 10/11，已具备 JDK 21。
+> 本手册已按本项目实际参数校准：`compileSdk = 34`、`minSdk = 24`、`targetSdk = 34`、AGP `8.5.2`、Gradle `8.9`、Kotlin `2.0.21`。
+
+---
+
+## 0. 前提确认（本机已满足）
+
+- ✅ **JDK 21**（如 `openjdk 21.0.6`）—— AGP 8.5.2 + Gradle 8.9 支持 JDK 17~21；本项目只要求产出 **Java 17 字节码**（见 `app/build.gradle.kts` 的 `sourceCompatibility/targetCompatibility = VERSION_17`、`kotlinOptions.jvmTarget = "17"`），JDK 21 向下兼容，无需改装 17。
+- 确认 `JAVA_HOME` 指向 JDK 21：
+  ```bat
+  echo %JAVA_HOME%
+  java -version
+  ```
+  若未设置或指向错误，先设（改成你实际安装路径）：
+  ```bat
+  setx JAVA_HOME "C:\Program Files\Java\jdk-21"
+  ```
+
+---
+
+## 1. 下载 Android 命令行工具（不含 IDE）
+
+- 打开 https://developer.android.com/tools → 找到 **"Command line tools only"** → 下载 Windows 的 zip（文件名类似 `commandlinetools-win-xxxx_latest.zip`）。
+- 体积约 **130MB**，内含 `sdkmanager` / `avdmanager` 等，没有 Studio 图形界面。
+
+---
+
+## 2. 解压到固定目录（目录结构是关键）
+
+- 把 zip 解压，得到 `cmdline-tools` 文件夹。
+- 移动到：`C:\Android\cmdline-tools\latest\`
+  - 最终路径必须为：`C:\Android\cmdline-tools\latest\bin\sdkmanager.bat`
+- ⚠️ 必须多包一层 `latest`，否则 `sdkmanager` 会报 `Could not determine SDK root`。
+
+---
+
+## 3. 配置环境变量
+
+```bat
+setx ANDROID_HOME C:\Android
+setx ANDROID_SDK_ROOT C:\Android
+```
+
+再把以下两项加入 **PATH**（系统属性 → 高级 → 环境变量 → Path → 新建）：
+
+```
+C:\Android\cmdline-tools\latest\bin
+C:\Android\platform-tools
+```
+
+> 重新打开一个命令行窗口让变量生效。
+
+---
+
+## 4. 只装必需的 SDK 包（最小化下载）
+
+```bat
+sdkmanager.bat "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+```
+
+| 包 | 体积 | 作用 |
+|---|---|---|
+| `platforms;android-34` | ~100MB | 编译目标平台 |
+| `build-tools;34.0.0` | ~70MB | aapt/dx 等构建工具 |
+| `platform-tools` | ~15MB | adb（编译非必需，连真机用） |
+
+**不安装**：模拟器、系统镜像、NDK、其他 platforms —— 全部不需要。
+
+---
+
+## 5. 同意许可协议
+
+```bat
+sdkmanager.bat --licenses
+```
+
+一路输入 `y` 回车；或一次性通过：
+
+```bat
+echo y | sdkmanager.bat --licenses
+```
+
+---
+
+## 6. 编译验证
+
+在项目目录 `D:\ai_work\TickClear` 下执行：
+
+```bat
+gradlew.bat assembleDebug
+```
+
+- 首次运行会自动下载 **Gradle 8.9**（~150MB）到 `~/.gradle`。
+- 依赖（Compose / Hilt / Room 等 aar）首次也会从 Maven 下载并缓存（~500MB~1GB，无法避免，但只缓存一次）。
+- `local.properties` 项目已自带；腾讯云 ASR 密钥缺省为空串，debug 编译不受影响，**无需任何额外配置**。
+- 成功后 APK 位于：`app\build\outputs\apk\debug\app-debug.apk`
+
+---
+
+## 7. 两个提速技巧
+
+- **只想快速抓编译错误**（不打包、不跑 lint，最快）：
+  ```bat
+  gradlew.bat compileDebugKotlin
+  ```
+  Hilt / Room 的 kapt 注解生成也会执行，能抓出"引用了不存在的列/字段"这类错误。
+- **完整构建但跳过 lint**（本项目 `app/build.gradle.kts` 中 `lint { abortOnError = true; checkDependencies = true }`，警告可能终止构建）：
+  ```bat
+  gradlew.bat assembleDebug -x lintVitalAnalyze -x lint
+  ```
+
+---
+
+## 8. 真机联调（可选，不装模拟器）
+
+- 手机开启「开发者选项 → USB 调试」，连接电脑。
+- 安装到手机：
+  ```bat
+  gradlew.bat installDebug
+  ```
+  （依赖第 4 步装的 `platform-tools` 里的 adb）
+
+---
+
+## 9. 资源占用估算
+
+| 项目 | 最小方案（本手册） | 装 Android Studio |
+|---|---|---|
+| JDK 21 | 已有 | 自带 JDK（重复） |
+| cmdline-tools | 130MB | 包含在 Studio |
+| platforms;android-34 | 100MB | 同 |
+| build-tools;34.0.0 | 70MB | 同 |
+| platform-tools | 15MB | 同 |
+| Gradle + 依赖缓存 | ~1GB | 同 |
+| **IDE 本体** | **0** | **3~4GB** |
+| 模拟器/系统镜像 | **0（不装）** | 常默认下载数 GB |
+| **合计** | **≈ 1.3GB** | **≈ 8GB+** |
+
+> 注：若改用模拟器路线，额外需 `emulator`（~400MB）+ `system-images;android-34;google_apis;x86_64`（解压后 ~3.5GB），总占盘升至 ~5~6GB，且吃内存与虚拟化。仅验证编译无需模拟器；要看 UI 交互可用真机 `installDebug`，零额外空间。
+
+---
+
+## 10. 常见卡点排查
+
+- **`sdkmanager` 报找不到 JAVA_HOME** → 回到第 0 步确认 `JAVA_HOME` 指向 JDK 21，并重开命令行。
+- **`Could not determine SDK root`** → 第 2 步目录层次错了，必须是 `...\cmdline-tools\latest\bin\`。
+- **网络慢/超时** → `sdkmanager` 默认从 `dl.google.com` 拉取，可挂代理或换网络；Gradle 依赖同理（可在 `gradle.properties` 配置 `systemProp.http.proxyHost` / `systemProp.http.proxyPort`）。
+- **编译报 `Unsupported class file major version`** → 说明误用了更老的 JDK 跑 Gradle；本项目 AGP 8.5.2 已支持 JDK 21，若遇到多半是 `JAVA_HOME` 指向了老版本，改回 21 即可。
+
+---
+
+## 附：最小安装命令速查
+
+```bat
+:: 0. 确认 JDK 21
+java -version
+
+:: 2~3. 解压 cmdline-tools 到 C:\Android\cmdline-tools\latest\ 后设变量
+setx ANDROID_HOME C:\Android
+setx ANDROID_SDK_ROOT C:\Android
+::   PATH 追加：C:\Android\cmdline-tools\latest\bin 与 C:\Android\platform-tools
+
+:: 4~5. 装包 + 许可
+sdkmanager.bat "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+echo y | sdkmanager.bat --licenses
+
+:: 6. 编译
+cd /d D:\ai_work\TickClear
+gradlew.bat assembleDebug
+```

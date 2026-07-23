@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点清 TickClear · P0 + Sprint1 高保真原型</title>
+<style>
+  :root{
+    --font: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body{
+    font-family:var(--font);
+    background:#0b1020;
+    background:radial-gradient(1200px 600px at 20% -10%, #1b2547 0%, #0b1020 55%);
+    color:#e7ecf5; min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; padding:24px 12px 48px;
+  }
+  .wrap{ width:100%; max-width:1080px; display:flex; gap:28px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+
+  /* ===== 原型导航条（评审用，独立于手机）===== */
+  .protonav{ width:240px; flex:0 0 240px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; padding:18px; backdrop-filter:blur(8px); }
+  .protonav h2{ font-size:13px; letter-spacing:.08em; color:#9fb0d0; text-transform:uppercase; margin-bottom:12px; }
+  .protonav .grp{ margin-bottom:16px; }
+  .protonav .grp .lab{ font-size:11px; color:#7c8db0; margin-bottom:6px; }
+  .pbtn{ display:block; width:100%; text-align:left; background:rgba(255,255,255,.05); border:1px solid transparent;
+    color:#dce4f5; padding:9px 12px; border-radius:10px; font-size:13px; cursor:pointer; margin-bottom:6px; transition:.15s; }
+  .pbtn:hover{ background:rgba(255,255,255,.10); }
+  .pbtn.active{ background:#2563EB; border-color:#3b82f6; color:#fff; }
+  .theme-row{ display:flex; gap:8px; }
+  .tchip{ flex:1; height:34px; border-radius:9px; border:2px solid transparent; cursor:pointer; font-size:11px; color:#0b1020; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .tchip.light{ background:#5B8FF9; }
+  .tchip.mint{ background:#61DDAA; }
+  .tchip.dark{ background:#161A21; color:#E6EAF0; border-color:#2C333E; }
+  .tchip.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.35); }
+  .note{ font-size:11px; line-height:1.6; color:#8294b8; margin-top:6px; }
+
+  /* ===== 手机外框 ===== */
+  .phone{
+    width:390px; height:844px; flex:0 0 390px; background:var(--bg); border-radius:46px;
+    border:10px solid #0d1326; box-shadow:0 30px 70px rgba(0,0,0,.55), 0 0 0 2px #1c2742 inset;
+    position:relative; overflow:hidden; display:flex; flex-direction:column;
+    transition:background .3s;
+  }
+  /* 状态栏 */
+  .statusbar{ height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:13px; font-weight:600; color:var(--on-surface); }
+  .statusbar .icons{ display:flex; gap:6px; align-items:center; font-size:12px; }
+  .screenarea{ flex:1; position:relative; overflow:hidden; }
+  .screen{ position:absolute; inset:0; overflow-y:auto; padding:8px 16px 96px; display:none; }
+  .screen.active{ display:block; }
+  .screen::-webkit-scrollbar{ width:0; }
+
+  /* ===== 主题变量 ===== */
+  .phone[data-theme="light"]{
+    --primary:#2563EB; --on-primary:#FFFFFF; --primary-container:#DBE6FF; --on-primary-container:#0E2A75;
+    --brand:#5B8FF9; --secondary:#61DDAA; --tertiary:#A78BFA; --info:#5B8FF9;
+    --bg:#F5F7FA; --surface:#FFFFFF; --surface-variant:#EDF1F7;
+    --on-surface:#1F2937; --on-surface-variant:#5B6472;
+    --outline:#D5DBE5; --outline-variant:#E8ECF3;
+    --success:#0E8C5E; --success-container:#C8F0DC; --on-success-container:#053B27;
+    --error:#C62828; --error-container:#FFDAD6; --on-error-container:#410E0B;
+    --warning:#9A5B00; --warning-container:#FFE6C2; --on-warning-container:#4A2C00;
+    --paused:#6B7280;
+    --shadow-card:0 1px 2px rgba(16,24,40,.06), 0 2px 6px rgba(16,24,40,.08);
+    --shadow-fab:0 6px 16px rgba(37,99,235,.35);
+    --track:rgba(31,41,55,.12);
+  }
+  .phone[data-theme="mint"]{
+    --primary:#1FA971; --on-primary:#FFFFFF; --primary-container:#C8F0DC; --on-primary-container:#053B27;
+    --brand:#61DDAA; --secondary:#61DDAA; --tertiary:#A78BFA; --info:#5B8FF9;
+    --bg:#F2F8F5; --surface:#FFFFFF; --surface-variant:#E6F4EE;
+    --on-surface:#16302A; --on-surface-variant:#3F5C53;
+    --outline:#CFE5DB; --outline-variant:#E6F1EC;
+    --success:#0E8C5E; --success-container:#C8F0DC; --on-success-container:#053B27;
+    --error:#C62828; --error-container:#FFDAD6; --on-error-container:#410E0B;
+    --warning:#9A5B00; --warning-container:#FFE6C2; --on-warning-container:#4A2C00;
+    --paused:#6B7280;
+    --shadow-card:0 1px 2px rgba(16,48,42,.06), 0 2px 6px rgba(16,48,42,.08);
+    --shadow-fab:0 6px 16px rgba(31,169,113,.35);
+    --track:rgba(22,48,42,.12);
+  }
+  .phone[data-theme="dark"]{
+    --primary:#9DB8FF; --on-primary:#0A2A6B; --primary-container:#1E3A8A; --on-primary-container:#D9E4FF;
+    --brand:#5B8FF9; --secondary:#5FD6A0; --tertiary:#A78BFA; --info:#5B8FF9;
+    --bg:#0F1115; --surface:#161A21; --surface-variant:#222831;
+    --on-surface:#E6EAF0; --on-surface-variant:#9AA3B2;
+    --outline:#2C333E; --outline-variant:#1C2128;
+    --success:#5FD6A0; --success-container:#0E3A28; --on-success-container:#C8F0DC;
+    --error:#FF8A82; --error-container:#410E0B; --on-error-container:#FFDAD6;
+    --warning:#FFC97A; --warning-container:#4A2C00; --on-warning-container:#FFE6C2;
+    --paused:#9AA3B2;
+    --shadow-card:0 1px 0 rgba(255,255,255,.04) inset, 0 2px 8px rgba(0,0,0,.45);
+    --shadow-fab:0 6px 18px rgba(93,143,249,.45);
+    --track:rgba(230,234,240,.14);
+  }
+
+  /* ===== 通用组件 ===== */
+  .topbar{ display:flex; align-items:center; gap:10px; padding:6px 2px 10px; }
+  .topbar .back{ width:34px; height:34px; border-radius:50%; background:var(--surface-variant); display:flex; align-items:center; justify-content:center; color:var(--on-surface); font-size:18px; cursor:pointer; }
+  .topbar .title{ font-size:18px; font-weight:600; color:var(--on-surface); }
+  .spacer{ flex:1; }
+  .card{ background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:14px 16px; margin-bottom:12px; }
+  .chip{ display:inline-flex; align-items:center; gap:4px; background:var(--surface-variant); color:var(--on-surface-variant);
+    border-radius:999px; padding:4px 10px; font-size:12px; font-weight:500; }
+  .chip.brand{ background:var(--primary-container); color:var(--on-primary-container); }
+  .chip.warn{ background:var(--warning-container); color:var(--on-warning-container); }
+  .chip.ok{ background:var(--success-container); color:var(--on-success-container); }
+  .btn{ border:none; border-radius:999px; padding:12px 18px; font-size:15px; font-weight:600; font-family:var(--font); cursor:pointer; }
+  .btn.primary{ background:var(--primary); color:var(--on-primary); box-shadow:var(--shadow-fab); }
+  .btn.ghost{ background:var(--surface-variant); color:var(--on-surface); }
+  .btn.block{ width:100%; }
+  .fab{ position:absolute; right:18px; bottom:84px; width:56px; height:56px; border-radius:50%;
+    background:var(--primary); color:var(--on-primary); display:flex; align-items:center; justify-content:center;
+    font-size:26px; box-shadow:var(--shadow-fab); cursor:pointer; z-index:5; border:3px solid var(--brand); }
+
+  /* ===== 今日视图 ===== */
+  .datebar{ display:flex; align-items:center; gap:8px; margin:2px 2px 4px; }
+  .datebar .d{ font-size:18px; font-weight:600; color:var(--on-surface); }
+  .datebar .greet{ font-size:13px; color:var(--on-surface-variant); }
+  .today-head{ display:flex; align-items:center; gap:16px; padding:6px 4px 14px; }
+  .ring-wrap{ position:relative; width:100px; height:100px; flex:0 0 100px; }
+  .ring-wrap svg{ transform:rotate(-90deg); }
+  .ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ring-center .num{ font-size:22px; font-weight:700; color:var(--on-surface); font-variant-numeric:tabular-nums; }
+  .ring-center .cap{ font-size:11px; color:var(--on-surface-variant); }
+  .head-meta{ flex:1; }
+  .head-meta .big{ font-size:15px; font-weight:600; color:var(--on-surface); margin-bottom:4px; }
+  .head-meta .sub{ font-size:13px; color:var(--on-surface-variant); }
+
+  .timeline{ position:relative; padding-left:54px; }
+  .time-node{ position:relative; }
+  .time-node::before{ content:""; position:absolute; left:-40px; top:6px; bottom:-6px; width:2px; background:var(--outline-variant); }
+  .time-label{ position:absolute; left:-54px; top:2px; width:34px; text-align:right; font-size:12px; font-weight:600; color:var(--on-surface-variant); font-variant-numeric:tabular-nums; }
+  .time-node:last-child::before{ display:none; }
+
+  .task-row{ position:relative; display:flex; align-items:center; gap:10px; background:var(--surface); border-radius:14px;
+    box-shadow:var(--shadow-card); padding:12px 14px; margin-bottom:10px; }
+  .check{ width:24px; height:24px; border-radius:50%; border:2px solid var(--outline); flex:0 0 24px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; transition:.18s; }
+  .task-row.done .check{ background:var(--success); border-color:var(--success); }
+  .task-row.done .tname{ color:var(--on-surface-variant); text-decoration:line-through; opacity:.7; }
+  .ticon{ font-size:18px; }
+  .tname{ font-size:15px; font-weight:600; color:var(--on-surface); flex:1; }
+  .tmeta{ font-size:12px; color:var(--on-surface-variant); font-variant-numeric:tabular-nums; }
+  .task-row.conflict{ border-left:4px solid var(--error); }
+  .conflict-badge{ background:var(--error-container); color:var(--on-error-container); border-radius:999px; font-size:11px; font-weight:600; padding:2px 8px; cursor:pointer; }
+
+  .group-card{ background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); margin-bottom:10px; overflow:hidden; }
+  .group-head{ display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer; }
+  .group-dot{ width:10px; height:10px; border-radius:50%; background:var(--tertiary); flex:0 0 10px; }
+  .group-name{ font-size:15px; font-weight:600; color:var(--on-surface); flex:1; }
+  .group-prog{ font-size:12px; color:var(--on-surface-variant); font-variant-numeric:tabular-nums; }
+  .group-sub{ padding:0 14px 8px 18px; display:none; }
+  .group-card.open .group-sub{ display:block; }
+  .sub-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--outline-variant); }
+  .sub-row .check{ width:20px; height:20px; flex:0 0 20px; }
+  .sub-row.done .tname{ text-decoration:line-through; opacity:.6; color:var(--on-surface-variant); }
+
+  .section-label{ font-size:12px; font-weight:600; color:var(--on-surface-variant); margin:10px 4px 6px; letter-spacing:.04em; }
+  .paused .tname{ color:var(--paused); }
+  .paused .tmeta{ color:var(--paused); }
+
+  .bottom-bar{ position:absolute; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--outline-variant);
+    display:flex; align-items:center; gap:12px; padding:12px 16px; box-shadow:0 -2px 10px rgba(0,0,0,.04); }
+  .bottom-bar .count{ font-size:13px; color:var(--on-surface-variant); flex:1; }
+
+  /* 底部 Tab */
+  .tabbar{ position:absolute; left:0; right:0; bottom:0; height:64px; background:var(--surface); border-top:1px solid var(--outline-variant);
+    display:flex; z-index:4; }
+  .tab{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:var(--on-surface-variant); font-size:11px; cursor:pointer; }
+  .tab .ic{ font-size:20px; }
+  .tab.active{ color:var(--primary); font-weight:600; }
+
+  /* 冲突弹层 */
+  .pop{ position:absolute; left:16px; right:16px; top:120px; background:var(--surface); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); padding:14px; z-index:9; display:none; border:1px solid var(--error-container); }
+  .pop.show{ display:block; }
+  .pop h4{ font-size:14px; color:var(--error); margin-bottom:8px; }
+  .pop .pi{ font-size:13px; color:var(--on-surface); padding:6px 0; border-top:1px solid var(--outline-variant); }
+
+  /* ===== 任务编辑 ===== */
+  .field{ margin-bottom:16px; }
+  .field > label{ display:block; font-size:13px; font-weight:600; color:var(--on-surface-variant); margin-bottom:7px; }
+  .input{ width:100%; background:var(--surface-variant); border:1px solid var(--outline); border-radius:12px; padding:12px 14px; font-size:15px; color:var(--on-surface); font-family:var(--font); }
+  .input:focus{ outline:none; border-color:var(--brand); }
+  .seg{ display:flex; gap:6px; flex-wrap:wrap; }
+  .seg .opt{ flex:1; min-width:60px; text-align:center; padding:9px 6px; border-radius:10px; background:var(--surface-variant); color:var(--on-surface-variant); font-size:13px; cursor:pointer; border:1px solid transparent; }
+  .seg .opt.active{ background:var(--primary-container); color:var(--on-primary-container); border-color:var(--brand); font-weight:600; }
+  .weekdays{ display:flex; gap:6px; margin-top:8px; }
+  .weekdays .wd{ width:34px; height:34px; border-radius:50%; background:var(--surface-variant); color:var(--on-surface-variant); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; }
+  .weekdays .wd.active{ background:var(--primary); color:#fff; }
+  .warnbar{ background:var(--error-container); color:var(--on-error-container); border-radius:12px; padding:11px 14px; font-size:13px; font-weight:600; margin-bottom:14px; display:none; align-items:center; gap:8px; }
+  .warnbar.show{ display:flex; }
+  .sim{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--on-surface-variant); margin-top:6px; cursor:pointer; }
+
+  /* ===== 任务组编辑 ===== */
+  .emoji-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .emoji-row .e{ width:42px; height:42px; border-radius:12px; background:var(--surface-variant); display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; border:2px solid transparent; }
+  .emoji-row .e.active{ border-color:var(--brand); }
+  .color-row{ display:flex; gap:10px; }
+  .color-row .c{ width:36px; height:36px; border-radius:50%; cursor:pointer; border:3px solid transparent; }
+  .color-row .c.active{ border-color:var(--on-surface); }
+  .subedit{ display:flex; align-items:center; gap:8px; background:var(--surface-variant); border-radius:10px; padding:8px 10px; margin-bottom:8px; }
+  .subedit .grip{ color:var(--on-surface-variant); cursor:grab; }
+  .subedit input{ flex:1; border:none; background:transparent; font-size:14px; color:var(--on-surface); font-family:var(--font); }
+  .subedit input:focus{ outline:none; }
+
+  /* ===== 设计系统 ===== */
+  .ds-section{ margin-bottom:18px; }
+  .ds-section h3{ font-size:13px; color:var(--on-surface-variant); margin-bottom:10px; font-weight:600; letter-spacing:.04em; }
+  .swatch-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .swatch{ border-radius:12px; overflow:hidden; border:1px solid var(--outline-variant); background:var(--surface); }
+  .swatch .c{ height:46px; }
+  .swatch .meta{ padding:7px 9px; }
+  .swatch .meta .n{ font-size:11px; font-weight:600; color:var(--on-surface); }
+  .swatch .meta .h{ font-size:10px; color:var(--on-surface-variant); font-variant-numeric:tabular-nums; }
+  .type-row{ padding:8px 0; border-bottom:1px solid var(--outline-variant); color:var(--on-surface); }
+  .type-row .t{ font-size:11px; color:var(--on-surface-variant); }
+  .spacing-row{ display:flex; gap:8px; align-items:flex-end; }
+  .sp-box{ background:var(--brand); border-radius:4px; }
+
+  /* ===== 引导 / 模板 ===== */
+  .onboard-hero{ text-align:center; padding:24px 8px 12px; }
+  .onboard-hero .big{ font-size:26px; font-weight:700; color:var(--on-surface); margin-bottom:6px; }
+  .onboard-hero .sub{ font-size:14px; color:var(--on-surface-variant); }
+  .tpl-card{ display:flex; gap:12px; align-items:center; background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:14px; margin-bottom:12px; }
+  .tpl-emoji{ width:48px; height:48px; border-radius:14px; background:var(--primary-container); display:flex; align-items:center; justify-content:center; font-size:26px; flex:0 0 48px; }
+  .tpl-info{ flex:1; }
+  .tpl-info .nm{ font-size:15px; font-weight:600; color:var(--on-surface); }
+  .tpl-info .ds{ font-size:12px; color:var(--on-surface-variant); margin-top:3px; line-height:1.5; }
+
+  /* 设置 / 统计 简化 */
+  .set-row{ display:flex; align-items:center; gap:12px; padding:14px 4px; border-bottom:1px solid var(--outline-variant); }
+  .set-row .ic{ font-size:18px; }
+  .set-row .lab{ flex:1; font-size:15px; color:var(--on-surface); }
+  .toggle{ width:46px; height:28px; border-radius:999px; background:var(--outline); position:relative; cursor:pointer; transition:.2s; }
+  .toggle.on{ background:var(--primary); }
+  .toggle::after{ content:""; position:absolute; width:22px; height:22px; border-radius:50%; background:#fff; top:3px; left:3px; transition:.2s; }
+  .toggle.on::after{ left:21px; }
+  .mini-card{ background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:16px; text-align:center; margin-bottom:12px; }
+  .mini-card .v{ font-size:30px; font-weight:700; color:var(--primary); font-variant-numeric:tabular-nums; }
+  .mini-card .l{ font-size:12px; color:var(--on-surface-variant); margin-top:4px; }
+
+  .toast{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.9); background:rgba(15,17,21,.92); color:#fff; padding:14px 22px; border-radius:14px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:.25s; z-index:20; }
+  .toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 评审导航 -->
+  <div class="protonav">
+    <h2>点清 · 原型导航</h2>
+    <div class="grp">
+      <div class="lab">屏幕（P0 / S1 范围）</div>
+      <button class="pbtn active" data-go="today">🏠 今日视图（主屏）</button>
+      <button class="pbtn" data-go="task">➕ 新建/编辑任务（冲突 D-12）</button>
+      <button class="pbtn" data-go="group">📋 新建任务组（S1 组CRUD）</button>
+      <button class="pbtn" data-go="onboard">✨ 首次引导/预设模板（S1-3）</button>
+      <button class="pbtn" data-go="design">🎨 设计系统 / 三主题（P0-2）</button>
+      <button class="pbtn" data-go="stats">📊 统计（v1.0 简版）</button>
+      <button class="pbtn" data-go="settings">⚙️ 设置（v1.0 占位）</button>
+    </div>
+    <div class="grp">
+      <div class="lab">主题（D.7 Token）</div>
+      <div class="theme-row">
+        <div class="tchip light active" data-theme="light">清空蓝</div>
+        <div class="tchip mint" data-theme="mint">薄荷绿</div>
+        <div class="tchip dark" data-theme="dark">暗夜</div>
+      </div>
+      <div class="note">P0-2 设计 Token 落地：三套 ColorScheme 共用 token 名切换，暗夜改色调 elevation。</div>
+    </div>
+    <div class="grp">
+      <div class="note">📲 手机 390×844 · Light &amp; Breezy 设计语言<br>数据来自 S1 实体模型（Task/TaskGroup/TaskInstance/CompletionLog）。<br>交互：勾选完成联动进度环、展开任务组、冲突角标、主题实时切换。</div>
+    </div>
+  </div>
+
+  <!-- 手机 -->
+  <div class="phone" data-theme="light" id="phone">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="icons">●●● &nbsp; Wi-Fi &nbsp; 🔋</span>
+    </div>
+
+    <div class="screenarea">
+
+      <!-- ===== 今日视图 ===== -->
+      <section class="screen active" id="screen-today">
+        <div class="datebar">
+          <span class="d">今日 · 周三</span>
+          <span class="greet">☀️ 早上好，今天有 8 件事</span>
+        </div>
+        <div class="today-head">
+          <div class="ring-wrap">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="var(--track)" stroke-width="10"></circle>
+              <circle id="ringProg" cx="50" cy="50" r="45" fill="none" stroke="var(--brand)" stroke-width="10" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="176.7"></circle>
+            </svg>
+            <div class="ring-center"><div class="num" id="ringNum">3/8</div><div class="cap">完成</div></div>
+          </div>
+          <div class="head-meta">
+            <div class="big">管好每一个时间点</div>
+            <div class="sub">清空每一件烦心事 🧹</div>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <div class="time-node">
+            <div class="time-label">08:00</div>
+            <div class="task-row conflict" data-conflict>
+              <div class="check" onclick="toggleDone(this)">✓</div>
+              <span class="ticon">💊</span>
+              <span class="tname">吃维生素</span>
+              <span class="tmeta">⏰ 8:00</span>
+              <span class="conflict-badge" onclick="showConflict(event)">2 项冲突</span>
+            </div>
+            <div class="task-row done" data-row>
+              <div class="check" onclick="toggleDone(this)">✓</div>
+              <span class="ticon">🏃</span>
+              <span class="tname">晨跑</span>
+              <span class="tmeta">已完成</span>
+            </div>
+          </div>
+
+          <div class="time-node">
+            <div class="time-label">09:00</div>
+            <div class="group-card open" id="grpMorning">
+              <div class="group-head" onclick="toggleGroup('grpMorning')">
+                <span class="group-dot"></span>
+                <span class="group-name">📋 晨间流程</span>
+                <span class="group-prog">[2/4] ▾</span>
+              </div>
+              <div class="group-sub">
+                <div class="sub-row done"><div class="check" onclick="toggleDone(this)">✓</div><span class="ticon">🪥</span><span class="tname">刷牙</span></div>
+                <div class="sub-row done"><div class="check" onclick="toggleDone(this)">✓</div><span class="ticon">💧</span><span class="tname">洗脸</span></div>
+                <div class="sub-row"><div class="check" onclick="toggleDone(this)">✓</div><span class="ticon">🍳</span><span class="tname">吃早餐</span></div>
+                <div class="sub-row"><div class="check" onclick="toggleDone(this)">✓</div><span class="ticon">🐱</span><span class="tname">喂猫</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="time-node">
+            <div class="time-label">随时</div>
+            <div class="task-row" data-row>
+              <div class="check" onclick="toggleDone(this)">✓</div>
+              <span class="ticon">📞</span>
+              <span class="tname">回电话给妈妈</span>
+            </div>
+            <div class="task-row" data-row>
+              <div class="check" onclick="toggleDone(this)">✓</div>
+              <span class="ticon">🛒</span>
+              <span class="tname">去药店取药</span>
+              <span class="tmeta">📍 附近</span>
+            </div>
+          </div>
+
+          <div class="section-label">⏸ 已暂停（不参与清空）</div>
+          <div class="time-node">
+            <div class="time-label"></div>
+            <div class="task-row paused" data-row>
+              <div class="check">✓</div>
+              <span class="ticon">💊</span>
+              <span class="tname">吃钙片</span>
+              <span class="tmeta">已暂停</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-bar">
+          <span class="count" id="clearCount">已完成 3 项</span>
+          <button class="btn primary" onclick="clearToday()">🧹 一键清空</button>
+        </div>
+
+        <!-- 冲突弹层 -->
+        <div class="pop" id="conflictPop">
+          <h4>⚠ 时间冲突（强冲突）</h4>
+          <div class="pi">💊 吃维生素 · 08:00（高优先级·吃药类）</div>
+          <div class="pi">💊 吃钙片 · 08:00（与「健康打卡」组级定时重叠）</div>
+          <div class="pi" style="color:var(--on-surface-variant);border:none;font-size:12px;margin-top:6px;">可在知情情况下仍保存（D-12）</div>
+        </div>
+      </section>
+
+      <!-- ===== 新建/编辑任务 ===== -->
+      <section class="screen" id="screen-task">
+        <div class="topbar"><div class="back" onclick="go('today')">←</div><div class="title">新建任务</div><div class="spacer"></div></div>
+        <div class="warnbar" id="conflictBar">⚠ 与「吃钙片」时间冲突（08:00）— 仍可保存</div>
+
+        <div class="field">
+          <label>任务名称</label>
+          <input class="input" value="吃钙片" id="taskName">
+        </div>
+        <div class="field">
+          <label>时间</label>
+          <div class="seg">
+            <div class="opt active" onclick="selOpt(this)">08:00</div>
+            <div class="opt" onclick="selOpt(this)">12:30</div>
+            <div class="opt" onclick="selOpt(this)">20:00</div>
+            <div class="opt" onclick="selOpt(this)">不定时</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>重复规则</label>
+          <div class="seg" id="repeatSeg">
+            <div class="opt" onclick="selRepeat(this,'once')">不重复</div>
+            <div class="opt active" onclick="selRepeat(this,'daily')">每天</div>
+            <div class="opt" onclick="selRepeat(this,'weekly')">每周</div>
+            <div class="opt" onclick="selRepeat(this,'monthly')">每月</div>
+            <div class="opt" onclick="selRepeat(this,'interval')">间隔</div>
+          </div>
+          <div class="weekdays" id="weekdayRow" style="display:none">
+            <div class="wd" onclick="toggleWd(this)">一</div><div class="wd" onclick="toggleWd(this)">二</div><div class="wd" onclick="toggleWd(this)">三</div><div class="wd" onclick="toggleWd(this)">四</div><div class="wd" onclick="toggleWd(this)">五</div><div class="wd" onclick="toggleWd(this)">六</div><div class="wd" onclick="toggleWd(this)">日</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>所属任务组（组级 repeatRule 优先，§7.1 裁决）</label>
+          <div class="seg">
+            <div class="opt active" onclick="selOpt(this)">无（独立任务）</div>
+            <div class="opt" onclick="selOpt(this)">健康打卡</div>
+            <div class="opt" onclick="selOpt(this)">晨间流程</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>提醒级别</label>
+          <div class="seg">
+            <div class="opt active" onclick="selOpt(this)">高·吃药类</div>
+            <div class="opt" onclick="selOpt(this)">中·日程</div>
+            <div class="opt" onclick="selOpt(this)">低·普通</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>备注</label>
+          <input class="input" placeholder="选填，如剂量 / 地点">
+        </div>
+        <label class="sim"><input type="checkbox" id="simConflict" onchange="toggleConflictBar()"> 模拟：时间与已有任务冲突（演示 D-12 顶部红色警示条）</label>
+
+        <div style="height:12px"></div>
+        <button class="btn ghost block" onclick="go('today')">取消</button>
+        <div style="height:10px"></div>
+        <button class="btn primary block" onclick="saveTask()">保存任务</button>
+      </section>
+
+      <!-- ===== 新建任务组 ===== -->
+      <section class="screen" id="screen-group">
+        <div class="topbar"><div class="back" onclick="go('today')">←</div><div class="title">新建任务组</div><div class="spacer"></div></div>
+        <div class="field">
+          <label>组名称</label>
+          <input class="input" value="晨间流程">
+        </div>
+        <div class="field">
+          <label>图标</label>
+          <div class="emoji-row">
+            <div class="e active" onclick="selEmoji(this)">🌅</div>
+            <div class="e" onclick="selEmoji(this)">💊</div>
+            <div class="e" onclick="selEmoji(this)">🌙</div>
+            <div class="e" onclick="selEmoji(this)">📋</div>
+            <div class="e" onclick="selEmoji(this)">🔥</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>主题色</label>
+          <div class="color-row">
+            <div class="c active" style="background:#A78BFA" onclick="selColor(this)"></div>
+            <div class="c" style="background:#61DDAA" onclick="selColor(this)"></div>
+            <div class="c" style="background:#5B8FF9" onclick="selColor(this)"></div>
+            <div class="c" style="background:#FFB347" onclick="selColor(this)"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>子任务（拖拽排序 · @Transaction 批量更新 order）</label>
+          <div class="subedit"><span class="grip">≡</span><input value="刷牙"><span class="tmeta">3′</span></div>
+          <div class="subedit"><span class="grip">≡</span><input value="洗脸"><span class="tmeta">2′</span></div>
+          <div class="subedit"><span class="grip">≡</span><input value="喝一杯温水"></div>
+          <div class="subedit"><span class="grip">≡</span><input value="吃早餐"></div>
+          <button class="btn ghost block" style="margin-top:6px">+ 添加子任务</button>
+        </div>
+        <div class="field">
+          <label>组级重复（优先级高于子任务，见 §7.1）</label>
+          <div class="seg">
+            <div class="opt active" onclick="selOpt(this)">每天 08:00</div>
+            <div class="opt" onclick="selOpt(this)">不重复</div>
+          </div>
+        </div>
+        <div style="height:12px"></div>
+        <button class="btn ghost block" onclick="go('today')">取消</button>
+        <div style="height:10px"></div>
+        <button class="btn primary block" onclick="go('today')">保存任务组</button>
+      </section>
+
+      <!-- ===== 首次引导 / 预设模板 ===== -->
+      <section class="screen" id="screen-onboard">
+        <div class="onboard-hero">
+          <div class="big">欢迎使用 点清 🧹</div>
+          <div class="sub">用「任务组」打包你的日常，一键清空烦恼</div>
+        </div>
+        <div class="tpl-card">
+          <div class="tpl-emoji">🌅</div>
+          <div class="tpl-info"><div class="nm">晨间流程</div><div class="ds">刷牙 · 洗脸 · 喝温水 · 吃早餐 · 看日程</div></div>
+          <button class="btn primary" style="padding:9px 14px" onclick="enableTpl(this)">启用</button>
+        </div>
+        <div class="tpl-card">
+          <div class="tpl-emoji">💊</div>
+          <div class="tpl-info"><div class="nm">健康打卡</div><div class="ds">维生素 8:00 · 喝水 10:00 · 散步 12:30 · 钙片 20:00</div></div>
+          <button class="btn primary" style="padding:9px 14px" onclick="enableTpl(this)">启用</button>
+        </div>
+        <div class="tpl-card">
+          <div class="tpl-emoji">🌙</div>
+          <div class="tpl-info"><div class="nm">晚间收尾</div><div class="ds">回顾 · 写计划 · 阅读 30′ · 冥想 10′ · 睡觉 23:00</div></div>
+          <button class="btn primary" style="padding:9px 14px" onclick="enableTpl(this)">启用</button>
+        </div>
+        <div style="height:14px"></div>
+        <button class="btn ghost block" onclick="go('today')">跳过，直接进入</button>
+      </section>
+
+      <!-- ===== 设计系统 ===== -->
+      <section class="screen" id="screen-design">
+        <div class="topbar"><div class="title">设计系统 · D.7 Token</div></div>
+        <div class="ds-section">
+          <h3>语义色板（清空蓝 / Light）</h3>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="c" style="background:var(--primary)"></div><div class="meta"><div class="n">primary</div><div class="h">#2563EB</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--brand)"></div><div class="meta"><div class="n">brand</div><div class="h">#5B8FF9</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--success)"></div><div class="meta"><div class="n">success</div><div class="h">#0E8C5E</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--error)"></div><div class="meta"><div class="n">error</div><div class="h">#C62828</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--warning)"></div><div class="meta"><div class="n">warning</div><div class="h">#9A5B00</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--tertiary)"></div><div class="meta"><div class="n">tertiary·组紫</div><div class="h">#A78BFA</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--surface)"></div><div class="meta"><div class="n">surface</div><div class="h">#FFFFFF</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--bg)"></div><div class="meta"><div class="n">background</div><div class="h">#F5F7FA</div></div></div>
+            <div class="swatch"><div class="c" style="background:var(--outline)"></div><div class="meta"><div class="n">outline</div><div class="h">#D5DBE5</div></div></div>
+          </div>
+        </div>
+        <div class="ds-section">
+          <h3>字号阶梯（D.7.3 · sp）</h3>
+          <div class="type-row"><div class="t">Display 32 / 700</div><div style="font-size:32px;font-weight:700;color:var(--on-surface)">清空烦恼</div></div>
+          <div class="type-row"><div class="t">Headline 24 / 700</div><div style="font-size:24px;font-weight:700;color:var(--on-surface)">今日视图</div></div>
+          <div class="type-row"><div class="t">Title 18 / 600</div><div style="font-size:18px;font-weight:600;color:var(--on-surface)">任务名称</div></div>
+          <div class="type-row"><div class="t">Body 15 / 400</div><div style="font-size:15px;color:var(--on-surface)">管好每一个时间点</div></div>
+          <div class="type-row"><div class="t">Caption 13 / 400</div><div style="font-size:13px;color:var(--on-surface-variant)">08:00 · 已完成</div></div>
+        </div>
+        <div class="ds-section">
+          <h3>圆角 & 间距（4dp 栅格）</h3>
+          <div class="spacing-row" style="margin-bottom:10px">
+            <div class="sp-box" style="width:8px;height:24px"></div><div class="sp-box" style="width:12px;height:24px"></div><div class="sp-box" style="width:16px;height:24px"></div><div class="sp-box" style="width:24px;height:24px"></div>
+            <span style="font-size:11px;color:var(--on-surface-variant)">sm8 / md12 / lg16 / xl24</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="width:54px;height:54px;background:var(--brand);border-radius:8px"></div>
+            <div style="width:54px;height:54px;background:var(--brand);border-radius:16px"></div>
+            <div style="width:54px;height:54px;background:var(--primary);border-radius:999px"></div>
+            <span style="font-size:11px;color:var(--on-surface-variant)">sm8 / lg16 / pill999</span>
+          </div>
+        </div>
+        <div class="ds-section">
+          <h3>进度环（直径100 · 线宽10 · 圆角线帽 · brand）</h3>
+          <div class="ring-wrap" style="margin:auto">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="var(--track)" stroke-width="10"></circle>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="var(--brand)" stroke-width="10" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="84.8"></circle>
+            </svg>
+            <div class="ring-center"><div class="num">70%</div><div class="cap">完成</div></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--on-surface-variant);line-height:1.6;padding:0 4px 8px">P0-2 落地：三主题共用 token 名切换；暗夜用色调 elevation 替代深阴影；对比均 ≥ WCAG AA。</div>
+      </section>
+
+      <!-- ===== 统计（v1.0 简版）===== -->
+      <section class="screen" id="screen-stats">
+        <div class="topbar"><div class="title">统计</div></div>
+        <div class="mini-card"><div class="v">3/8</div><div class="l">当日进度（按实例口径 D.9）</div></div>
+        <div class="mini-card"><div class="v">37%</div><div class="l">今日完成率</div></div>
+        <div class="card">
+          <div style="font-size:13px;color:var(--on-surface-variant);line-height:1.7">
+            v1.0 简版（方案①·不隐藏）：仅展示当日进度 + 完成率。<br>
+            🔥 连续天数 / 🟩 打卡热力图 / 🏆 成就墙 / 📈 周趋势 于 <b>v1.1（S9）</b> 完整开放（基于 CompletionLog.dateLocal）。
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 设置（v1.0 占位）===== -->
+      <section class="screen" id="screen-settings">
+        <div class="topbar"><div class="title">设置</div></div>
+        <div class="card" style="padding:6px 14px">
+          <div class="set-row"><span class="ic">🎨</span><span class="lab">主题</span><span class="chip brand">清空蓝（v1.0）</span></div>
+          <div class="set-row"><span class="ic">🤖</span><span class="lab">信任模式（免确认）</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          <div class="set-row"><span class="ic">✨</span><span class="lab">动画效果</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="set-row"><span class="ic">🎙️</span><span class="lab">语音识别配置（v1.1）</span><span class="chip warn">未配置</span></div>
+          <div class="set-row"><span class="ic">🗑️</span><span class="lab">本地数据管理 · 回收站</span><span style="color:var(--on-surface-variant)">›</span></div>
+          <div class="set-row"><span class="ic">ℹ️</span><span class="lab">关于 & 反馈</span><span style="color:var(--on-surface-variant)">›</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--on-surface-variant);padding:8px 6px;line-height:1.6">薄荷绿 / 暗夜主题切换能力在 v1.1（S9）开放；回收站软删 30 天可恢复（D-1）。</div>
+      </section>
+
+      <!-- FAB + Tab + Toast -->
+      <div class="fab" onclick="go('task')">＋</div>
+      <div class="tabbar">
+        <div class="tab active" data-tab="today" onclick="go('today')"><span class="ic">🏠</span>今日</div>
+        <div class="tab" data-tab="stats" onclick="go('stats')"><span class="ic">📊</span>统计</div>
+        <div class="tab" data-tab="settings" onclick="go('settings')"><span class="ic">⚙️</span>设置</div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const C = 282.74; // 2*pi*45
+  function setTheme(t){
+    document.getElementById('phone').setAttribute('data-theme', t);
+    document.querySelectorAll('.tchip').forEach(c=>c.classList.toggle('active', c.dataset.theme===t));
+  }
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-'+id).classList.add('active');
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+    document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('active', b.dataset.go===id));
+    document.querySelector('.screenarea').scrollTop = 0;
+  }
+  document.querySelectorAll('.pbtn').forEach(b=> b.onclick=()=>go(b.dataset.go));
+  document.querySelectorAll('.tchip').forEach(c=> c.onclick=()=>setTheme(c.dataset.theme));
+
+  function updateRing(){
+    const rows = document.querySelectorAll('#screen-today .task-row:not(.paused), #screen-today .sub-row:not(.paused)');
+    const total = rows.length;
+    const done = document.querySelectorAll('#screen-today .task-row.done:not(.paused), #screen-today .sub-row.done:not(.paused)').length;
+    const ratio = total? done/total : 0;
+    document.getElementById('ringProg').style.strokeDashoffset = C*(1-ratio);
+    document.getElementById('ringNum').textContent = done+'/'+total;
+    document.getElementById('clearCount').textContent = '已完成 '+done+' 项';
+  }
+  function toggleDone(el){
+    const row = el.closest('.task-row') || el.closest('.sub-row');
+    if(!row) return;
+    row.classList.toggle('done');
+    if(row.classList.contains('done')) el.textContent='✓'; else el.textContent='';
+    updateRing();
+  }
+  function toggleGroup(id){
+    document.getElementById(id).classList.toggle('open');
+  }
+  function showConflict(e){
+    e.stopPropagation();
+    document.getElementById('conflictPop').classList.toggle('show');
+  }
+  document.getElementById('screen-today').addEventListener('click',()=>{
+    document.getElementById('conflictPop').classList.remove('show');
+  });
+  function clearToday(){
+    const t=document.getElementById('toast'); t.textContent='今日清空！🎉'; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1400);
+  }
+  function selOpt(el){ el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('active')); el.classList.add('active'); }
+  function selRepeat(el,type){
+    selOpt(el);
+    document.getElementById('weekdayRow').style.display = (type==='weekly')?'flex':'none';
+  }
+  function toggleWd(el){ el.classList.toggle('active'); }
+  function selEmoji(el){ el.parentElement.querySelectorAll('.e').forEach(e=>e.classList.remove('active')); el.classList.add('active'); }
+  function selColor(el){ el.parentElement.querySelectorAll('.c').forEach(c=>c.classList.remove('active')); el.classList.add('active'); }
+  function toggleConflictBar(){
+    document.getElementById('conflictBar').classList.toggle('show', document.getElementById('simConflict').checked);
+  }
+  function saveTask(){ go('today'); const t=document.getElementById('toast'); t.textContent='已保存任务 ✓'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1300); }
+  function enableTpl(btn){ btn.textContent='已启用 ✓'; btn.disabled=true; btn.style.opacity=.6;
+    const t=document.getElementById('toast'); t.textContent='模板已启用，去今日视图看看 →'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
+
+  updateRing();
+</script>
+</body>
+</html>

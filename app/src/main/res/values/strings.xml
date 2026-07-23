@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">点清 TickClear</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_today">今日</string>
+    <string name="tab_tasks">任务</string>
+    <string name="tab_stats">统计</string>
+    <string name="tab_assistant">助手</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- 通用 -->
+    <string name="action_add">添加</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_delete">删除</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_complete">完成</string>
+    <string name="action_restore">恢复</string>
+    <string name="action_clear_all">一键清空</string>
+    <string name="action_more">更多</string>
+    <string name="action_back">返回</string>
+    <string name="action_refresh">刷新</string>
+    <string name="empty_title">还没有内容</string>
+    <string name="empty_subtitle">点击右下角按钮开始添加</string>
+
+    <!-- 今日 -->
+    <string name="today_title">今日</string>
+    <string name="today_greeting_morning">早上好 ☀️</string>
+    <string name="today_greeting_noon">中午好 🌤️</string>
+    <string name="today_greeting_afternoon">下午好 🌈</string>
+    <string name="today_greeting_evening">晚上好 🌙</string>
+    <string name="today_greeting_night">夜深了 💤</string>
+    <string name="today_completion">今日完成 %1$d/%2$d</string>
+    <string name="today_completion_rate">完成率 %1$d%%</string>
+    <string name="today_conflict_count">%1$d 项时间冲突</string>
+    <string name="today_conflict_hint">以下任务时间重叠，请确认</string>
+    <string name="today_no_task">今天还没有安排任务</string>
+    <string name="today_clear_all_desc">一键清空今日</string>
+    <string name="today_clear_all_title">清空今日全部任务？</string>
+    <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>
+    <string name="today_cleared_snack">今日已清空，继续保持！</string>
+    <string name="today_ai_add_hint">用 AI 助手说一句话就能建任务</string>
+
+    <!-- 任务 -->
+    <string name="tasks_title">任务</string>
+    <string name="tasks_groups">任务组</string>
+    <string name="task_title_hint">任务标题</string>
+    <string name="task_note_hint">备注（可选）</string>
+    <string name="task_start_time">开始时间</string>
+    <string name="task_end_time">结束时间</string>
+    <string name="task_all_day">全天</string>
+    <string name="task_group">所属任务组</string>
+    <string name="task_reminder">提醒</string>
+    <string name="task_location">位置提醒</string>
+    <string name="task_location_lat">纬度（latitude）</string>
+    <string name="task_location_lng">经度（longitude）</string>
+    <string name="task_location_radius">触发半径（米）</string>
+    <string name="task_location_use_current">使用当前位置</string>
+    <string name="task_location_perm_hint">需在系统设置中授予定位权限才能获取当前位置</string>
+    <string name="task_conflict_warning">该任务与已有任务时间冲突</string>
+    <string name="recycle_bin_title">回收站</string>
+    <string name="recycle_bin_empty">回收站是空的</string>
+    <string name="recycle_bin_auto_purge">删除 30 天后将自动彻底清理</string>
+    <string name="recycle_bin_restore">恢复</string>
+    <string name="recycle_bin_purge_now">立即清理</string>
+    <string name="recycle_bin_purge_confirm">确定要彻底删除选中的 %1$d 项吗？此操作不可恢复。</string>
+
+    <!-- 统计 -->
+    <string name="stats_title">统计</string>
+    <string name="stats_completion_rate">完成率</string>
+    <string name="stats_streak">连续打卡</string>
+    <string name="stats_by_group">按任务组</string>
+    <string name="stats_by_day">按日</string>
+    <string name="stats_by_week">按周</string>
+    <string name="stats_by_month">按月</string>
+    <string name="stats_medals">勋章墙</string>
+    <string name="stats_checkin">今日已打卡</string>
+
+    <!-- 助手 -->
+    <string name="assistant_title">助手</string>
+    <string name="assistant_connected">已连接</string>
+    <string name="assistant_disconnected">未连接</string>
+    <string name="assistant_connecting">连接中…</string>
+    <string name="assistant_input_hint">说点什么，或输入文字…</string>
+    <string name="assistant_send">发送</string>
+    <string name="assistant_mic">按住说话</string>
+    <string name="assistant_config">连接设置</string>
+    <string name="assistant_mode_mock">模拟（离线）</string>
+    <string name="assistant_mode_real">真实小智服务端</string>
+    <string name="assistant_endpoint">服务端地址</string>
+    <string name="assistant_token">Token</string>
+    <string name="assistant_func_created">已通过函数调用创建任务：%1$s</string>
+    <string name="assistant_func_failed">创建任务失败：%1$s</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_dynamic">跟随系统（Material You）</string>
+    <string name="settings_voice">语音识别</string>
+    <string name="settings_ai">AI 助手</string>
+    <string name="settings_recycle_bin">回收站</string>
+    <string name="settings_debug">调试</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_animation">动画</string>
+    <string name="settings_asr_provider">ASR 服务商</string>
+    <string name="settings_llm_provider">LLM 服务商</string>
+    <string name="settings_test">测试</string>
+    <string name="settings_secret">密钥</string>
+
+    <!-- 关于 -->
+    <string name="about_title">关于点清</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_desc">点清 TickClear —— 管好每一个时间点，清空每一件烦心事。纯本地、无账号、任务数据加密存储。</string>
+    <string name="about_encryption_note">数据通过 SQLCipher 加密存储；清除应用数据将丢失加密库且无法恢复。</string>
+
+    <!-- 调试 -->
+    <string name="debug_title">调试</string>
+    <string name="debug_logs">运行日志</string>
+    <string name="debug_test_conflict">测试冲突检测</string>
+    <string name="debug_test_notification">测试通知</string>
+    <string name="debug_test_asr">测试 ASR</string>
+    <string name="debug_export_db">导出数据库</string>
+    <string name="debug_clear_logs">清空日志</string>
+    <string name="debug_section_app">应用</string>
+    <string name="debug_app_version">版本</string>
+    <string name="debug_ai_mode">AI 引擎</string>
+    <string name="debug_assistant_mode">助手模式</string>
+    <string name="debug_assistant_endpoint">服务端地址</string>
+    <string name="debug_voice_supported">语音输入可用</string>
+    <string name="debug_section_reminder">提醒</string>
+    <string name="debug_exact_alarm">精确闹钟权限</string>
+    <string name="debug_exact_alarm_hint">未授予精确闹钟权限，后台提醒可能延迟，请在系统设置中开启。</string>
+    <string name="debug_quiet_hours">静音时段</string>
+    <string name="debug_notifications">通知已开启</string>
+    <string name="debug_channels">通知渠道数</string>
+    <string name="debug_section_data">数据</string>
+    <string name="debug_tasks">任务</string>
+    <string name="debug_groups">任务组</string>
+    <string name="debug_completions">完成记录</string>
+    <string name="debug_checkins">打卡</string>
+    <string name="debug_medals">勋章</string>
+    <string name="debug_section_actions">操作</string>
+    <string name="debug_reschedule">重新排程提醒</string>
+
+    <!-- 通知渠道 -->
+    <string name="notify_channel_reminder">任务提醒</string>
+    <string name="notify_channel_high">重要提醒</string>
+    <string name="notify_channel_mid">普通提醒</string>
+    <string name="notify_channel_low">轻提醒</string>
+
+    <!-- 错误 -->
+    <string name="error_generic">出错了，请稍后重试</string>
+    <string name="error_permission_record">需要麦克风权限才能使用语音</string>
+    <string name="error_network">网络异常</string>
+
+    <!-- 任务编辑 -->
+    <string name="task_edit_new">新建任务</string>
+    <string name="task_edit_edit">编辑任务</string>
+    <string name="task_repeat">重复</string>
+    <string name="repeat_none">不重复（仅今天）</string>
+    <string name="repeat_daily">每天</string>
+    <string name="repeat_weekly">每周</string>
+    <string name="repeat_monthly">每月</string>
+    <string name="reminder_level">提醒级别</string>
+    <string name="reminder_high">高（重要）</string>
+    <string name="reminder_mid">中</string>
+    <string name="reminder_low">低</string>
+    <string name="reminder_offset">提前提醒</string>
+    <string name="reminder_offset_on">准时</string>
+    <string name="reminder_offset_5">提前 5 分钟</string>
+    <string name="reminder_offset_15">提前 15 分钟</string>
+    <string name="reminder_offset_30">提前 30 分钟</string>
+    <string name="group_none">无</string>
+
+    <!-- 提醒通知 -->
+    <string name="notify_action_complete">完成</string>
+    <string name="notify_action_snooze">稍后提醒</string>
+    <string name="notify_action_skip">跳过</string>
+    <string name="notify_reminder_text">该完成任务了</string>
+
+    <!-- 今日软删撤销 -->
+    <string name="today_deleted_snack">已删除「%1$s」</string>
+
+    <!-- 随机鼓励语（下拉刷新轮换） -->
+    <string-array name="encouragement_list">
+        <item>今天也要清空每一件小事 💪</item>
+        <item>一步一个脚印，今天也会很棒 ✨</item>
+        <item>完成一件事，就少一件烦恼 🍃</item>
+        <item>你已经比昨天更近一步了 🌱</item>
+        <item>专注当下，慢慢来比较快 🐢</item>
+        <item>把今天过成想要的样子 🎯</item>
+        <item>小任务，大清空 🧹</item>
+        <item>你正在好好照顾自己，真棒 🌟</item>
+    </string-array>
+
+    <!-- Phase 3：任务 Tab -->
+    <string name="tasks_add_group">新建组</string>
+    <string name="tasks_deleted_snack">已删除「%1$s」</string>
+    <string name="tasks_empty">还没有任务，点右下角加一个吧</string>
+    <string name="tasks_dual_pane_hint">点选左侧任务查看或编辑，或点击 + 新建</string>
+    <string name="tasks_no_group">未分组</string>
+    <string name="tasks_group_count">%1$d 个任务</string>
+    <string name="tasks_delete_group_title">删除任务组</string>
+    <string name="tasks_delete_group_confirm">删除「%1$s」？组内任务会移出该组（不会丢失）。</string>
+    <string name="task_paused">已暂停</string>
+
+    <!-- Phase 3：任务组弹层 -->
+    <string name="group_edit_new">新建任务组</string>
+    <string name="group_edit_edit">编辑任务组</string>
+    <string name="group_name_hint">组名称</string>
+    <string name="group_icon_hint">图标（emoji）</string>
+    <string name="group_color">颜色</string>
+    <string name="group_repeat">组级重复频率</string>
+    <string name="group_repeat_anchor">默认提醒时间</string>
+    <string name="group_default_name">未命名组</string>
+    <string name="group_color_blue">蓝</string>
+    <string name="group_color_mint">薄荷</string>
+    <string name="group_color_violet">紫</string>
+    <string name="group_color_amber">琥珀</string>
+    <string name="group_color_rose">玫瑰</string>
+    <string name="group_color_sky">天蓝</string>
+
+    <!-- Phase 3：回收站 -->
+    <string name="recycle_bin_purge_all">清空回收站</string>
+    <string name="recycle_bin_purge_all_confirm">确定清空回收站？所有软删的任务与组将彻底删除且不可恢复。</string>
+    <string name="recycle_bin_type_task">任务 · 删除于 %1$s</string>
+    <string name="recycle_bin_type_group">任务组 · 删除于 %1$s</string>
+    <string name="recycle_bin_unnamed">未命名</string>
+
+    <!-- Phase 4：统计 Tab -->
+    <string name="stats_today_rate">今日完成率</string>
+    <string name="stats_streak_value">连续 %1$d 天</string>
+    <string name="stats_total_completed">累计完成</string>
+    <string name="stats_checkin_days">打卡天数</string>
+    <string name="stats_trend">完成趋势</string>
+    <string name="stats_trend_month">%1$d月</string>
+    <string name="period_day">日</string>
+    <string name="period_week">周</string>
+    <string name="period_month">月</string>
+    <string name="stats_heatmap">活跃热力图</string>
+    <string name="stats_no_group">暂无分组任务</string>
+    <string name="stats_group_count">%1$d/%2$d</string>
+    <string name="stats_empty_hint">还没有完成记录。完成今日任务后，这里会显示你的清空轨迹与勋章 ✨</string>
+
+    <!-- Phase 7：内联中文抽离（A-6）+ 无障碍（P7.4） -->
+    <string name="today_date_format">M月d日 EEEE</string>
+
+    <string name="assistant_screen_title">小智助手</string>
+    <string name="assistant_mic_desc">语音输入</string>
+    <string name="assistant_voice_stop">停止聆听</string>
+    <string name="assistant_voice_unsupported">本机不支持语音编码，请使用文字输入</string>
+    <string name="assistant_input_placeholder">说点什么，或点麦克风试试</string>
+    <string name="assistant_config_title">助手配置</string>
+    <string name="assistant_config_desc">助手配置</string>
+    <string name="assistant_mode_label">运行模式</string>
+    <string name="assistant_mode_real_chip">真实小智</string>
+    <string name="assistant_endpoint_label">网关地址</string>
+    <string name="assistant_token_label">令牌（真实模式，存于加密存储）</string>
+    <string name="assistant_prompt_label">AI 人设 / 欢迎话术</string>
+    <string name="assistant_provider_label">LLM 服务商</string>
+    <string name="assistant_provider_xiaozhi">小智（语音+建任务）</string>
+    <string name="assistant_provider_openai">OpenAI 兼容（文本）</string>
+    <string name="assistant_provider_doubao">豆包（字节）</string>
+    <string name="assistant_provider_qianwen">通义千问（阿里）</string>
+    <string name="assistant_provider_unknown">未知的 LLM 服务商</string>
+    <string name="assistant_base_url_label">API Base URL</string>
+    <string name="assistant_api_key_label">API Key（存于加密存储）</string>
+    <string name="assistant_model_label">模型名</string>
+    <string name="assistant_asr_label">ASR 服务商（语音识别）</string>
+    <string name="assistant_asr_xiaozhi">小智（由服务端识别）</string>
+    <string name="assistant_asr_openai">OpenAI 兼容</string>
+    <string name="assistant_asr_tencent">腾讯云（一句话识别）</string>
+    <string name="assistant_asr_aliyun">阿里云（一句话识别）</string>
+    <string name="assistant_asr_system">系统（本地识别）</string>
+    <string name="assistant_asr_system_hint">使用设备内置语音识别（系统框架 API，非离线神经网络模型；需联网、效果依赖厂商实现）。</string>
+    <string name="assistant_tencent_secret_id_label">腾讯云 SecretId</string>
+    <string name="assistant_tencent_secret_key_label">腾讯云 SecretKey</string>
+    <string name="assistant_aliyun_access_key_label">阿里云 AccessKeyId</string>
+    <string name="assistant_aliyun_access_secret_label">阿里云 AccessKeySecret</string>
+    <string name="assistant_aliyun_app_key_label">阿里云 AppKey</string>
+    <string name="assistant_asr_empty">没听清，请再说一次～</string>
+    <string name="assistant_draft_pending">已解析到任务，请确认是否创建</string>
+    <string name="assistant_draft_unknown">收到暂不支持的指令</string>
+    <string name="assistant_draft_cancelled">已取消创建任务</string>
+    <string name="assistant_draft_title">确认创建任务</string>
+    <string name="assistant_draft_confirm">创建</string>
+    <string name="assistant_draft_dismiss">取消</string>
+    <string name="assistant_draft_time">时间</string>
+    <string name="assistant_draft_repeat">重复</string>
+    <string name="assistant_draft_reminder">提醒</string>
+    <string name="assistant_draft_anytime">随时</string>
+    <string name="assistant_wakeword_label">语音唤醒词</string>
+    <string name="assistant_wakeword_subtitle">离线 best-effort，依赖系统语音识别</string>
+    <string name="assistant_wakeword_phrase_label">唤醒词短语</string>
+    <string name="assistant_wakeword_start">开启语音唤醒</string>
+    <string name="assistant_wakeword_stop">关闭语音唤醒</string>
+    <string name="assistant_wakeword_triggered">已触发唤醒词，开始聆听…</string>
+    <string name="assistant_wakeword_unavailable">当前设备不支持系统语音识别，唤醒词不可用</string>
+    <string name="fullscreen_reminder_title">提醒</string>
+    <string name="fullscreen_reminder_complete">完成</string>
+    <string name="fullscreen_reminder_snooze">稍后</string>
+    <string name="fullscreen_reminder_dismiss">关闭</string>
+    <string name="fullscreen_reminder_unknown">任务</string>
+
+    <string name="settings_section_appearance">外观</string>
+    <string name="settings_theme_title">主题</string>
+    <string name="settings_theme_subtitle">浅色 / 深色 / 动态取色</string>
+    <string name="settings_animation_title">动画</string>
+    <string name="settings_animation_subtitle">开启界面过渡与微动效</string>
+    <string name="settings_section_reminder">提醒</string>
+    <string name="settings_quiet_title">静音时段</string>
+    <string name="settings_quiet_subtitle">22:00–7:00 内低优先级提醒自动静默</string>
+    <string name="settings_section_assistant">小智助手</string>
+    <string name="settings_mode_title">运行模式</string>
+    <string name="settings_mode_subtitle">模拟：离线可用；真实：需配置网关与令牌</string>
+    <string name="settings_ai_engine_title">今日 AI 引擎</string>
+    <string name="settings_ai_engine_local">本地规则 NLU（离线）</string>
+    <string name="settings_ai_engine_cloud">云端大模型</string>
+    <string name="settings_mode_mock">模拟</string>
+    <string name="settings_mode_real">真实</string>
+    <string name="settings_ai_local">本地规则</string>
+    <string name="settings_section_privacy">数据与隐私</string>
+    <string name="settings_recycle_subtitle">恢复或彻底删除软删除的任务</string>
+    <string name="settings_export_title">导出备份</string>
+    <string name="settings_export_subtitle">将全部任务与记录导出为 JSON 文件</string>
+    <string name="settings_import_title">导入备份</string>
+    <string name="settings_import_subtitle">从 JSON 备份文件恢复数据（合并）</string>
+    <string name="backup_export_filename">tickclear_backup.json</string>
+    <string name="backup_export_ok">备份已导出</string>
+    <string name="backup_import_ok">导入完成：任务 %1$d 项、任务组 %2$d 个</string>
+    <string name="settings_section_about">关于</string>
+    <string name="settings_about_title">关于 点清</string>
+    <string name="settings_about_subtitle">版本、存储与隐私说明</string>
+    <string name="settings_section_advanced">高级（后续版本）</string>
+    <string name="settings_asr_row">ASR 语音识别配置</string>
+    <string name="settings_llm_row">LLM 大模型配置</string>
+    <string name="settings_debug_row">调试与日志</string>
+    <string name="settings_debug_subtitle">查看运行状态、测试通知与重新排程</string>
+    <string name="settings_later_tag">后续</string>
+    <string name="settings_theme_dynamic_short">动态</string>
+
+    <string name="about_version_label">版本 1.0.0 (Debug)</string>
+    <string name="about_storage_title">存储与安全</string>
+    <string name="about_storage_body">• 任务数据使用 SQLCipher 本地加密存储，口令仅保存在设备 Keystore 中。\n• 语音助手配置（网关令牌等敏感值）存入 EncryptedSharedPreferences。\n• 我们不上传你的任务内容；云端对话仅在「真实」模式下发生。</string>
+    <string name="about_assistant_title">小智助手</string>
+    <string name="about_assistant_body">默认「模拟」模式离线可用：与小智风格助手聊天，说出「提醒我明天9点开会」等，即可通过 MCP 工具自动建任务。切换「真实」模式需自行配置网关与令牌。</string>
+    <string name="about_current_theme">当前主题：%1$s</string>
+
+    <string name="heatmap_less">少</string>
+    <string name="heatmap_more">多</string>
+
+    <!-- 全局错误码提示（P0.7） -->
+    <string name="err_unknown">出了点问题，请稍后再试</string>
+    <string name="err_import_read">无法读取所选文件</string>
+    <string name="err_import_parse">备份文件格式不正确</string>
+    <string name="err_import_version">备份文件版本不受支持</string>
+    <string name="err_import_empty">备份文件为空，没有可导入的数据</string>
+    <string name="err_export_write">导出失败，无法写入文件</string>
+    <string name="err_task_time">任务时间无效</string>
+    <string name="err_task_not_found">任务不存在或已删除</string>
+    <string name="err_assistant_not_configured">助手尚未配置网关或令牌</string>
+    <string name="err_assistant_connect">助手连接失败，请检查网络</string>
+
+    <string name="a11y_task_item">任务：%1$s，点击编辑</string>
+    <string name="a11y_group_header">任务组：%1$s，点击编辑</string>
+    <string name="a11y_time_conflict">时间冲突</string>
+    <string name="a11y_swipe_complete">右滑完成</string>
+    <string name="a11y_swipe_delete">左滑删除</string>
+    <string name="task_default_title">新任务</string>
+    <string name="a11y_medal">勋章：%1$s，%2$s</string>
+    <string name="a11y_medal_unlocked">已解锁</string>
+    <string name="a11y_medal_locked">未解锁</string>
+    <string name="a11y_heatmap_cell">%1$s：完成 %2$d 个任务</string>
+    <string name="a11y_progress_ring">完成率 %1$d%%</string>
+    <string name="a11y_progress_ring_nav">完成率环，点击查看统计</string>
+
+    <string-array name="assistant_voice_samples">
+        <item>提醒我明天9点开会</item>
+        <item>提醒我每周一早上8点健身</item>
+        <item>提醒我后天晚上7点吃药</item>
+        <item>你好</item>
+    </string-array>
+</resources>

@@ -1,0 +1,68 @@
+# AGENT.md — 点清 TickClear 项目规范
+
+> 本文件为 AI 协作与人工开发共用的项目规范。改动架构/约定时同步更新本文件。
+
+## 1. 项目概览
+- **点清 TickClear**：Android 个人任务清理工具（手机 + 平板自适应）。
+- **定位**：纯本地、无云端账号；任务数据经 **SQLCipher** 加密存储。
+- **包名**：`com.tickclear.app`，单模块 `:app`（MVP 优先，未拆 :core/:data）。
+- **基线**：Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 / minSdk 24 / targetSdk 34 / compileSdk 34。
+- **UI**：Jetpack Compose + Material3；底部 5 Tab：今日 / 任务 / 统计 / 助手 / 设置。
+- **DI**：Hilt（Room→KSP，Hilt→KAPT）。
+- **本地存储**：Room(SQLCipher) + DataStore(偏好) + EncryptedSharedPreferences(密钥/口令)。
+
+## 2. 模块内包布局
+```
+ui/         Compose 界面与 ViewModel
+  theme/    设计令牌(LIGHT/DARK/DYNAMIC)、Typography、Shape、Spacing
+  navigation/  Routes / BottomNav / TickClearNavGraph
+  components/  共享组件(TaskCard/ConflictBanner/...)
+  today/ tasks/ stats/ assistant/ settings/ ai/ adaptive/
+data/       Room 实体、DAO、AppDatabase、Repository、SecureStore
+domain/     纯 Kotlin 模型、UseCase、ConflictChecker、ai/、assistant/、scheduler/
+di/         Hilt 模块
+```
+
+## 3. 编码规范
+- **依赖注入**：所有 Repository / UseCase / 客户端经 Hilt 提供，`@Inject constructor` + `@Singleton`。
+- **状态管理**：ViewModel 暴露 `StateFlow`/`SharedFlow`；UI 用 `collectAsStateWithLifecycle` 订阅；**禁止**在 Compose 中直接持有可变业务状态。
+- **字符串**：**所有用户可见中文进 `res/values/strings.xml`**（落实 PRD A-6），禁止 Compose 内联硬编码。
+- **无魔数**：颜色/间距/圆角用 `ui/theme` 令牌；时间窗容差等常量集中定义。
+- **错误处理**：统一 `AppError` sealed；Repository 抛域异常，ViewModel 映射为 UI 状态；**禁止裸 catch**。
+- **并发**：IO 用 `Dispatchers.IO`（经 `DispatcherProvider`）；流入 UI 在主线程收集。
+- **数据库迁移**：`AppDatabase` 版本递增；破坏性变更走 `Migration`，不启用 `fallbackToDestructiveMigration`。
+
+## 4. 密钥与敏感数据处理（红线）
+- `local.properties` 含明文调试密钥，**已被 .gitignore 忽略，禁止提交、禁止写进源码**。
+- 仅 **debug** 构建经 `buildConfigField` 注入腾讯 ASR 密钥；release 不读取。
+- SQLCipher 口令与 ASR/LLM 密钥存 **EncryptedSharedPreferences**（Keystore, AES256-GCM）。
+- 口令丢失 = 加密库不可解密：关于页必须提示"清除应用数据将丢失加密库"。
+
+## 5. 四大 Tab 行为契约
+- **今日**：分组展示今日任务；完成/编辑/删除（左滑软删带撤销、右滑完成）；时间窗冲突角标 + `ConflictBanner`；今日完成率；AI 助手入口。
+- **任务**：全部任务 + 任务组 CRUD（级联软删）；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
+- **统计**：按组/日/周/月完成情况、完成率、连续打卡天数（基于 `CheckInEntity`，不允许补卡）、勋章墙（8 枚）。
+- **助手**：模拟硬件设备对接小智(Xiaozhi) WebSocket 协议，语音 + 文字聊天；对话出现任务时经 **MCP 函数调用(`create_task`)** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 Mock 模式离线可跑。
+- **设置**：主题(浅色/深色/动态)、语音/ASR 配置 + 测试、回收站管理、调试(日志/测试按钮)、关于。
+
+## 6. 构建与运行
+```bash
+# 调试构建（需 Android SDK，已设 ANDROID_HOME=C:\Android）
+./gradlew assembleDebug
+# 安装到设备/模拟器
+./gradlew installDebug
+# 运行测试
+./gradlew testDebugUnitTest
+```
+- 编译需联网拉取依赖（AGP / Compose BOM / Hilt / Room / SQLCipher 等）。
+- SQLCipher 与 Room 共用 SQLite：已在 `app/build.gradle.kts` 排除 `androidx.sqlite:sqlite-framework`。
+
+## 7. 分支与任务追踪
+- 任务清单见 `docs/开发计划_任务清单.md`：Phase 0–7 子任务带 `- [ ]` / `- [x]` ✅ 勾选位与验收标准。
+- 每完成一个子任务，在任务清单中勾选 ✅ 并（按需）追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志。
+- 提交信息用中文，格式：`[Phase N] 简述`。
+
+## 8. 已知风险
+- Opus 编解码：语音链路优先用 Android `MediaCodec`(audio/opus)；Mock 模式不需真实 Opus。集中封装在 `domain/assistant/OpusCodec`。
+- 真实小智服务端联调（Real 模式）依赖外部 token，后置到 v1.1；Mock 模式为默认演示路径。
+- 动态取色(DYNAMIC)仅 API31+，低版本回退浅色。

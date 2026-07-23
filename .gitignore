@@ -1,0 +1,18 @@
+# ===== 本地密钥 / 环境（含云凭据，禁止入库）=====
+local.properties
+*.local.properties
+
+# ===== 构建产物 =====
+/build
+/app/build
+/.gradle
+/captures
+.externalNativeBuild
+*.apk
+*.aab
+
+# ===== IDE =====
+.idea/
+*.iml
+.DS_Store
+.vscode/
