@@ -157,6 +157,10 @@ class BackupManager @Inject constructor(
         put("repeatAnchorDate", t.repeatAnchorDate ?: JSONObject.NULL)
         put("reminderEnabled", t.reminderEnabled); put("reminderLevel", t.reminderLevel)
         put("reminderOffsetMin", t.reminderOffsetMin ?: JSONObject.NULL)
+        put("repeatIntervalHours", t.repeatIntervalHours ?: JSONObject.NULL)
+        put("geoLat", t.geoLat ?: JSONObject.NULL)
+        put("geoLng", t.geoLng ?: JSONObject.NULL)
+        put("geoRadius", t.geoRadius ?: JSONObject.NULL)
         put("source", t.source); put("createdAt", t.createdAt); put("updatedAt", t.updatedAt)
         put("completedAt", t.completedAt ?: JSONObject.NULL)
         put("deletedAt", t.deletedAt ?: JSONObject.NULL)
@@ -179,6 +183,7 @@ class BackupManager @Inject constructor(
     private fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key) || !has(key)) null else getInt(key)
     private fun JSONObject.optLongOrNull(key: String): Long? = if (isNull(key) || !has(key)) null else getLong(key)
     private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key) || !has(key)) null else getString(key)
+    private fun JSONObject.optDoubleOrNull(key: String): Double? = if (isNull(key) || !has(key)) null else getDouble(key)
 
     private fun jsonToGroup(o: JSONObject) = TaskGroup(
         id = o.getString("id"),
@@ -210,6 +215,10 @@ class BackupManager @Inject constructor(
         repeatMonthDay = o.optIntOrNull("repeatMonthDay"),
         repeatAnchorMin = o.optIntOrNull("repeatAnchorMin"),
         repeatAnchorDate = o.optStringOrNull("repeatAnchorDate"),
+        repeatIntervalHours = o.optIntOrNull("repeatIntervalHours"),
+        geoLat = o.optDoubleOrNull("geoLat"),
+        geoLng = o.optDoubleOrNull("geoLng"),
+        geoRadius = o.optIntOrNull("geoRadius"),
         reminderEnabled = o.optBoolean("reminderEnabled", false),
         reminderLevel = o.optString("reminderLevel", "mid"),
         reminderOffsetMin = o.optIntOrNull("reminderOffsetMin"),
