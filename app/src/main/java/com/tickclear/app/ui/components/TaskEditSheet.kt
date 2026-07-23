@@ -166,6 +166,17 @@ fun TaskEditContent(
             }
         }
     }
+    val openExactAlarmPermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    },
+                )
+            }
+        }
+    }
     var showConflict by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -320,6 +331,21 @@ fun TaskEditContent(
                 )
                 TextButton(
                     onClick = openFullScreenPermission,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                ) {
+                    Text(stringResource(R.string.permission_open_settings))
+                }
+            }
+            // V2.14：高优先级提醒且缺少精确闹钟权限时，给出前置引导（降级路径由 ReminderScheduler 退化为非精确）。
+            if (reminderLevel == "high" && !PermissionChecker.canScheduleExactAlarms(context)) {
+                Text(
+                    text = stringResource(R.string.reminder_high_hint_exact),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+                TextButton(
+                    onClick = openExactAlarmPermission,
                     modifier = Modifier.padding(top = Spacing.xs),
                 ) {
                     Text(stringResource(R.string.permission_open_settings))
