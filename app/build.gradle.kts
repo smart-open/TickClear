@@ -99,6 +99,12 @@ android {
     }
 }
 
+// Room 迁移可审计性（V2.1）：将各版本 schema 导出到 app/schemas 并提交仓库，
+// 后续破坏性迁移可据此校验/生成 Migration，避免盲目 fallbackToDestructiveMigration。
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
