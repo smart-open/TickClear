@@ -31,6 +31,11 @@ interface SettingsRepository {
     val wakeWord: Flow<String>
     val trustMode: Flow<Boolean>
 
+    /** 自动备份开关（V2.5）：开启后每日经 AlarmManager 周期导出加密 JSON。 */
+    val autoBackupEnabled: Flow<Boolean>
+    /** 最近一次自动备份时间（epoch millis，0=从未），用于设置页回显。 */
+    val lastAutoBackupAt: Flow<Long>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
@@ -52,6 +57,8 @@ interface SettingsRepository {
     suspend fun setWakeWordEnabled(enabled: Boolean)
     suspend fun setWakeWord(word: String)
     suspend fun setTrustMode(enabled: Boolean)
+    suspend fun setAutoBackupEnabled(enabled: Boolean)
+    suspend fun setLastAutoBackupAt(at: Long)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

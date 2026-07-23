@@ -69,6 +69,8 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val animationEnabled by viewModel.animationEnabled.collectAsStateWithLifecycle()
     val quietHoursEnabled by viewModel.quietHoursEnabled.collectAsStateWithLifecycle()
+    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
+    val lastAutoBackupAt by viewModel.lastAutoBackupAt.collectAsStateWithLifecycle()
     val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
     val assistantMode by viewModel.assistantMode.collectAsStateWithLifecycle()
 
@@ -238,6 +240,31 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_import_subtitle),
                 onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
             )
+
+            // ── 自动备份（V2.5/V2.6）：每日加密备份到应用私有目录，可手动立即执行 ──
+            SettingRow(
+                title = stringResource(R.string.settings_auto_backup_title),
+                subtitle = stringResource(R.string.settings_auto_backup_subtitle),
+            ) {
+                Switch(
+                    checked = autoBackupEnabled,
+                    onCheckedChange = { viewModel.setAutoBackupEnabled(it) },
+                )
+            }
+            if (autoBackupEnabled) {
+                val lastText = if (lastAutoBackupAt > 0L) {
+                    val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+                    stringResource(R.string.settings_auto_backup_last, fmt.format(java.util.Date(lastAutoBackupAt)))
+                } else {
+                    stringResource(R.string.settings_auto_backup_never)
+                }
+                ClickableRow(
+                    icon = Icons.Filled.Upload,
+                    title = stringResource(R.string.settings_auto_backup_now),
+                    subtitle = lastText,
+                    onClick = { viewModel.runAutoBackupNow() },
+                )
+            }
 
             // ── 通知与权限 ──
             SectionTitle(stringResource(R.string.settings_section_perms))

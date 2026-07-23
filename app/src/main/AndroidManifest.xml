@@ -55,6 +55,11 @@
         </receiver>
 
         <receiver
+            android:name=".domain.backup.AutoBackupReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
+        <receiver
             android:name=".domain.scheduler.RecycleBinPurgeReceiver"
             android:exported="false"
             android:enabled="true" />

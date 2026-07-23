@@ -3,6 +3,7 @@ package com.tickclear.app
 import android.app.Application
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.di.AppEntryPoint
+import com.tickclear.app.domain.backup.AutoBackupScheduler
 import com.tickclear.app.domain.log.CrashReporter
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.domain.scheduler.ReminderScheduler
@@ -31,6 +32,8 @@ class TickClearApplication : Application() {
         // 首次启动注入示例数据 + 重排今日提醒
         val seed = EntryPointAccessors.fromApplication(this, AppEntryPoint::class.java).seedUseCase()
         scope.launch {
+            // V2.5：同步自动备份闹钟（开关开启才排程）。
+            AutoBackupScheduler.sync(this@TickClearApplication)
             seed.ensureSeeded()
             ReminderScheduler.rescheduleAll(this@TickClearApplication)
         }

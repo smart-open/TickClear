@@ -9,6 +9,8 @@ import com.tickclear.app.data.SecureStore
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
+import com.tickclear.app.domain.backup.AutoBackupRunner
+import com.tickclear.app.domain.backup.AutoBackupScheduler
 import com.tickclear.app.domain.backup.BackupManager
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
@@ -118,6 +120,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
 
+    // ── 自动备份（V2.5/V2.6）──
+    val autoBackupEnabled: StateFlow<Boolean> = settingsRepository.autoBackupEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
+    )
+    val lastAutoBackupAt: StateFlow<Long> = settingsRepository.lastAutoBackupAt.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 0L,
+    )
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
     fun setQuietHoursEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setQuietHoursEnabled(enabled) }
@@ -156,6 +166,28 @@ class SettingsViewModel @Inject constructor(
     fun setWakeWordEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setWakeWordEnabled(enabled) }
     fun setWakeWord(word: String) = viewModelScope.launch { settingsRepository.setWakeWord(word) }
     fun setTrustMode(enabled: Boolean) = viewModelScope.launch { settingsRepository.setTrustMode(enabled) }
+
+    // ── 自动备份 ──
+    fun setAutoBackupEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setAutoBackupEnabled(enabled)
+        AutoBackupScheduler.sync(appContext)
+    }
+
+    /** 「立即备份」：手动触发一次加密自动备份（写入私有目录，保留最近 N 份）。 */
+    fun runAutoBackupNow() = viewModelScope.launch {
+        try {
+            AutoBackupRunner.run(
+                baseDir = appContext.filesDir,
+                backupManager = backupManager,
+                settingsRepository = settingsRepository,
+            )
+            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.backup_auto_now_ok)))
+        } catch (e: Exception) {
+            backupToasts.tryEmit(
+                BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)),
+            )
+        }
+    }
 
     /**
      * 测试连接前先把当前选择的 ASR 服务商与对应凭据落库（仅写相关字段，避免覆盖其它服务商凭据），

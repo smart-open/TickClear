@@ -3,6 +3,7 @@ package com.tickclear.app.domain.scheduler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.tickclear.app.domain.backup.AutoBackupScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +23,8 @@ class BootReceiver : BroadcastReceiver() {
                 val pending = goAsync()
                 scope.launch {
                     try {
+                        // V2.5：重新同步自动备份闹钟（开关开启才排程）。
+                        AutoBackupScheduler.sync(ctx)
                         ReminderScheduler.rescheduleAll(ctx)
                     } finally {
                         pending.finish()

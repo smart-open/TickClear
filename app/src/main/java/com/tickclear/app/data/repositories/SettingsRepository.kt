@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tickclear.app.data.SecureStore
@@ -77,6 +78,10 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 信任模式（PRD D20：开启后语音建任务免确认；危险操作仍强制确认；默认关闭）──
     override val trustMode: Flow<Boolean> = dataStore.data.map { it[KEY_TRUST_MODE] ?: false }
 
+    // ── 自动备份（V2.5）：默认关闭，需用户主动开启；记录最近执行时间用于回显。──
+    override val autoBackupEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_BACKUP] ?: false }
+    override val lastAutoBackupAt: Flow<Long> = dataStore.data.map { it[KEY_LAST_BACKUP_AT] ?: 0L }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
@@ -98,6 +103,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setWakeWordEnabled(enabled: Boolean) { dataStore.edit { it[KEY_WAKE_WORD_ENABLED] = enabled } }
     override suspend fun setWakeWord(word: String) { dataStore.edit { it[KEY_WAKE_WORD] = word.trim().ifEmpty { SettingsRepository.DEFAULT_WAKE_WORD } } }
     override suspend fun setTrustMode(enabled: Boolean) { dataStore.edit { it[KEY_TRUST_MODE] = enabled } }
+    override suspend fun setAutoBackupEnabled(enabled: Boolean) { dataStore.edit { it[KEY_AUTO_BACKUP] = enabled } }
+    override suspend fun setLastAutoBackupAt(at: Long) { dataStore.edit { it[KEY_LAST_BACKUP_AT] = at } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -175,5 +182,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_WAKE_WORD_ENABLED = booleanPreferencesKey("wake_word_enabled")
         private val KEY_WAKE_WORD = stringPreferencesKey("wake_word")
         private val KEY_TRUST_MODE = booleanPreferencesKey("trust_mode")
+        private val KEY_AUTO_BACKUP = booleanPreferencesKey("auto_backup_enabled")
+        private val KEY_LAST_BACKUP_AT = longPreferencesKey("last_auto_backup_at")
     }
 }

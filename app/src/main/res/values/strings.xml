@@ -384,6 +384,14 @@
     <string name="backup_export_filename">tickclear_backup.json</string>
     <string name="backup_export_ok">备份已导出</string>
     <string name="backup_import_ok">导入完成：任务 %1$d 项、任务组 %2$d 个</string>
+    <string name="backup_auto_now_ok">已生成加密自动备份</string>
+
+    <!-- 自动备份（V2.5/V2.6） -->
+    <string name="settings_auto_backup_title">每日自动备份</string>
+    <string name="settings_auto_backup_subtitle">每日凌晨加密备份到应用私有目录（保留最近 7 份，重装前可恢复）</string>
+    <string name="settings_auto_backup_now">立即备份</string>
+    <string name="settings_auto_backup_last">上次备份：%1$s</string>
+    <string name="settings_auto_backup_never">尚未执行过自动备份</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_about_title">关于 点清</string>
     <string name="settings_about_subtitle">版本、存储与隐私说明</string>
