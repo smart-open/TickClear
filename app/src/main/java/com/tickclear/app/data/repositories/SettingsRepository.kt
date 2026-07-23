@@ -74,6 +74,9 @@ class SettingsRepository @Inject constructor(
     val wakeWordEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_WAKE_WORD_ENABLED] ?: false }
     val wakeWord: Flow<String> = dataStore.data.map { it[KEY_WAKE_WORD] ?: DEFAULT_WAKE_WORD }
 
+    // ── 信任模式（PRD D20：开启后语音建任务免确认；危险操作仍强制确认；默认关闭）──
+    val trustMode: Flow<Boolean> = dataStore.data.map { it[KEY_TRUST_MODE] ?: false }
+
     suspend fun setThemeMode(mode: ThemeMode) = dataStore.edit { it[KEY_THEME] = mode.name }
     suspend fun setAnimationEnabled(enabled: Boolean) = dataStore.edit { it[KEY_ANIMATION] = enabled }
     suspend fun setQuietHoursEnabled(enabled: Boolean) = dataStore.edit { it[KEY_QUIET_ENABLED] = enabled }
@@ -94,6 +97,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setAsrModel(model: String) = dataStore.edit { it[KEY_ASR_MODEL] = model }
     suspend fun setWakeWordEnabled(enabled: Boolean) = dataStore.edit { it[KEY_WAKE_WORD_ENABLED] = enabled }
     suspend fun setWakeWord(word: String) = dataStore.edit { it[KEY_WAKE_WORD] = word.trim().ifEmpty { DEFAULT_WAKE_WORD } }
+    suspend fun setTrustMode(enabled: Boolean) = dataStore.edit { it[KEY_TRUST_MODE] = enabled }
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
@@ -207,5 +211,6 @@ class SettingsRepository @Inject constructor(
         private val KEY_ASR_MODEL = stringPreferencesKey("asr_model")
         private val KEY_WAKE_WORD_ENABLED = booleanPreferencesKey("wake_word_enabled")
         private val KEY_WAKE_WORD = stringPreferencesKey("wake_word")
+        private val KEY_TRUST_MODE = booleanPreferencesKey("trust_mode")
     }
 }

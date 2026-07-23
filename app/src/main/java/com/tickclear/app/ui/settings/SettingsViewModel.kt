@@ -111,6 +111,9 @@ class SettingsViewModel @Inject constructor(
     val wakeWord: StateFlow<String> = settingsRepository.wakeWord.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), "小清",
     )
+    val trustMode: StateFlow<Boolean> = settingsRepository.trustMode.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
+    )
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
@@ -149,6 +152,45 @@ class SettingsViewModel @Inject constructor(
     // ── 唤醒词 ──
     fun setWakeWordEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setWakeWordEnabled(enabled) }
     fun setWakeWord(word: String) = viewModelScope.launch { settingsRepository.setWakeWord(word) }
+    fun setTrustMode(enabled: Boolean) = viewModelScope.launch { settingsRepository.setTrustMode(enabled) }
+
+    /**
+     * 测试连接前先把当前选择的 ASR 服务商与对应凭据落库（仅写相关字段，避免覆盖其它服务商凭据），
+     * 使 [testCurrentAsr] 能基于最新配置解析到正确的 Provider。
+     */
+    suspend fun persistAsrForTest(
+        provider: String,
+        baseUrl: String,
+        model: String,
+        apiKey: String,
+        tencentSecretId: String,
+        tencentSecretKey: String,
+        aliyunAccessKeyId: String,
+        aliyunAccessKeySecret: String,
+        aliyunAppKey: String,
+    ) {
+        settingsRepository.setAsrProvider(provider)
+        when (provider) {
+            AsrProviderCatalog.OPENAI -> {
+                settingsRepository.setAsrBaseUrl(baseUrl)
+                settingsRepository.setAsrModel(model)
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_ASR_API_KEY, apiKey)
+            }
+            AsrProviderCatalog.TENCENT -> {
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_TENCENT_SECRET_ID, tencentSecretId)
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_TENCENT_SECRET_KEY, tencentSecretKey)
+            }
+            AsrProviderCatalog.ALIYUN -> {
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_ALIYUN_ACCESS_KEY, aliyunAccessKeyId)
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_ALIYUN_ACCESS_SECRET, aliyunAccessKeySecret)
+                SecureStore.putSecret(appContext, SettingsRepository.PREF_ALIYUN_APP_KEY, aliyunAppKey)
+            }
+        }
+    }
+
+    /** 基于已保存的 ASR 配置解析 Provider 并执行连通性自检。 */
+    suspend fun testCurrentAsr(): Boolean =
+        runCatching { asrResolver.resolve()?.test() ?: false }.getOrDefault(false)
 
     fun navigateToRecycleBin() = events.tryEmit(SettingsEvent.NavigateToRecycleBin)
     fun navigateToAbout() = events.tryEmit(SettingsEvent.NavigateToAbout)

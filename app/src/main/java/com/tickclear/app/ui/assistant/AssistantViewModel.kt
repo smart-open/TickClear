@@ -108,6 +108,18 @@ class AssistantViewModel @Inject constructor(
         else -> true // openai / tencent / aliyun 均为文件式上传
     }
 
+    /** 文件式云 ASR 的凭据是否齐备（§7.5.9 门控表：无凭据不应展示可用麦克风）。 */
+    private suspend fun asrCredentialsPresent(asr: String): Boolean = when (asr) {
+        AsrProviderCatalog.OPENAI -> !settingsRepository.getAsrApiKey().isNullOrBlank()
+        AsrProviderCatalog.TENCENT ->
+            !settingsRepository.getTencentSecretId().isNullOrBlank() && !settingsRepository.getTencentSecretKey().isNullOrBlank()
+        AsrProviderCatalog.ALIYUN ->
+            !settingsRepository.getAliyunAccessKeyId().isNullOrBlank()
+                && !settingsRepository.getAliyunAccessKeySecret().isNullOrBlank()
+                && !settingsRepository.getAliyunAppKey().isNullOrBlank()
+        else -> true
+    }
+
     fun connect() {
         viewModelScope.launch {
             val llm = settingsRepository.llmProvider.first()

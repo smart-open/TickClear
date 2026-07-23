@@ -74,6 +74,7 @@ fun AssistantConfigSheet(
     val asrModel by settingsViewModel.asrModel.collectAsStateWithLifecycle()
     val wakeEnabled by settingsViewModel.wakeWordEnabled.collectAsStateWithLifecycle()
     val wakeWord by settingsViewModel.wakeWord.collectAsStateWithLifecycle()
+    val trustMode by settingsViewModel.trustMode.collectAsStateWithLifecycle()
 
     var localMode by remember { mutableStateOf(mode) }
     var localEndpoint by remember { mutableStateOf(endpoint) }
@@ -94,6 +95,8 @@ fun AssistantConfigSheet(
     var localAliyunAppKey by remember { mutableStateOf("") }
     var localWakeEnabled by remember { mutableStateOf(wakeEnabled) }
     var localWakeWord by remember { mutableStateOf(wakeWord) }
+    var localTrust by remember { mutableStateOf(trustMode) }
+    var asrTestMsg by remember { mutableStateOf<String?>(null) }
 
     // 切换 LLM 服务商：载入该服务商默认值与密钥
     LaunchedEffect(localProvider) {
@@ -259,9 +262,23 @@ fun AssistantConfigSheet(
                 )
             }
 
+            // ── 信任模式（免确认创建）──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.assistant_trust_title), style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.assistant_trust_subtitle), style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = localTrust, onCheckedChange = { localTrust = it })
+            }
+
             Button(
                 onClick = {
                     scope.launch {
+                        settingsViewModel.setTrustMode(localTrust)
                         settingsViewModel.setLlmProvider(localProvider)
                         settingsViewModel.setAssistantPrompt(localPrompt)
                         if (localProvider == LlmProviderCatalog.XIAOZHI) {
