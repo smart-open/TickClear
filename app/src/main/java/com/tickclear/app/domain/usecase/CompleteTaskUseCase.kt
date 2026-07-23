@@ -2,7 +2,6 @@ package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.domain.model.Task
-import com.tickclear.app.data.local.entities.TaskInstanceEntity
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.data.repositories.TaskInstanceRepository
 import com.tickclear.app.domain.repository.TaskRepository
@@ -28,23 +27,13 @@ class CompleteTaskUseCase @Inject constructor(
     private val checkMedalsUseCase: CheckMedalsUseCase,
     private val recordCheckInUseCase: RecordCheckInUseCase,
 ) {
-    suspend operator fun invoke(task: Task, source: String = "manual") {
+    suspend operator fun invoke(task: Task, instanceId: String, source: String = "manual") {
         val today = LocalDate.now()
         val dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val instanceId = "${task.id}@$dateStr"
 
-        // 确保当日实例存在并完成
-        instanceRepository.upsert(
-            TaskInstanceEntity(
-                id = instanceId,
-                taskId = task.id,
-                dueDateLocal = dateStr,
-                dueMinute = task.instanceDueMinute(),
-            ),
-        )
-        instanceRepository.complete(
-            TaskInstanceEntity(id = instanceId, taskId = task.id, dueDateLocal = dateStr),
-        )
+        // 完成指定实例（保留既有 dueMinute；仅缺失时以 anchor 兜底创建），避免子日级重复
+        // （每 N 小时）任务误写「单实例」id 而与界面实际点击的 per-minute 实例脱节。
+        instanceRepository.completeInstance(instanceId, task.id, dateStr, task.instanceDueMinute())
 
         // 幂等 CompletionLog（(taskId, dateLocal) 唯一 → IGNORE 去重）
         completionRepository.insert(

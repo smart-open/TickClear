@@ -85,7 +85,7 @@ class FullScreenAlertActivity : ComponentActivity() {
                             Text(getString(R.string.fullscreen_reminder_snooze))
                         }
                         Button(onClick = {
-                            lifecycleScope.launch { complete(taskId) }
+                            lifecycleScope.launch { complete(taskId, instanceId) }
                             finish()
                         }) {
                             Text(getString(R.string.fullscreen_reminder_complete))
@@ -96,9 +96,9 @@ class FullScreenAlertActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun complete(taskId: String) {
+    private suspend fun complete(taskId: String, instanceId: String) {
         val ep = EntryPointAccessors.fromApplication(this, ReminderScheduler.ReminderEntryPoint::class.java)
         val task = ep.taskRepository().getActiveById(taskId) ?: ep.taskRepository().getById(taskId) ?: return
-        ep.completeTaskUseCase()(task)
+        ep.completeTaskUseCase()(task, instanceId)
     }
 }

@@ -20,6 +20,9 @@ interface TaskInstanceDao {
     @Query("SELECT * FROM task_instance WHERE taskId = :taskId AND dueDateLocal = :date LIMIT 1")
     suspend fun get(taskId: String, date: String): TaskInstanceEntity?
 
+    @Query("SELECT * FROM task_instance WHERE id = :id")
+    suspend fun getById(id: String): TaskInstanceEntity?
+
     @Query("UPDATE task_instance SET status = 2, completedAt = :ts WHERE id = :id")
     suspend fun setCompleted(id: String, ts: Long = System.currentTimeMillis())
 

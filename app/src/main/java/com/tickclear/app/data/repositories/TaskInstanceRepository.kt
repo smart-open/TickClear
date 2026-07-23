@@ -58,9 +58,16 @@ class TaskInstanceRepository @Inject constructor(
         ensureInstancesForDate(date, taskRepository.observeAll().first())
     }
 
-    /** 标记实例完成（仅置实例完成态，CompletionLog 由调用方写入）。 */
-    suspend fun complete(instance: TaskInstanceEntity) {
-        dao.setCompleted(instance.id)
+    /**
+     * 标记实例完成：实例已存在则直接置完成态（保留既有 dueMinute）；
+     * 仅当实例缺失（防御性场景）才以 fallbackDueMinute 创建后再完成。
+     * CompletionLog 由调用方写入。
+     */
+    suspend fun completeInstance(instanceId: String, taskId: String, dateStr: String, fallbackDueMinute: Int?) {
+        if (dao.getById(instanceId) == null) {
+            dao.upsert(TaskInstanceEntity(id = instanceId, taskId = taskId, dueDateLocal = dateStr, dueMinute = fallbackDueMinute))
+        }
+        dao.setCompleted(instanceId)
     }
 
     suspend fun get(taskId: String, date: LocalDate): TaskInstanceEntity? =
@@ -72,16 +79,16 @@ class TaskInstanceRepository @Inject constructor(
     suspend fun purgeDeleted() = dao.deleteForDeletedTasks()
 
     /**
-     * 跳过某次实例（重复任务）：不存在则直接写入 skipped 实例，存在则置 skipped。
-     * instanceId 回退串（如 "$taskId@today"）导致 date 非法时，降级为「今日 + skipped」，
-     * 避免 LocalDate.parse 抛 DateTimeParseException 被上层吞掉（M3）。
+     * 跳过某次实例（重复任务）：实例已存在则直接置 skipped；不存在则写入 skipped 实例。
+     * 兼容单实例 id（"$taskId@$date"）与子日级多实例 id（"$taskId@$date@$min"）：
+     * 取 '@' 前段解析日期，解析失败降级为今日，避免 LocalDate.parse 抛异常（M3）。
+     * 修复：子日级多实例 id 原会因 upsert IGNORE 未真正置 skipped（实例已存在）。
      */
     suspend fun skip(instanceId: String, taskId: String, date: String) {
-        val parsed = runCatching { LocalDate.parse(date) }.getOrNull()
-        val dateStr = parsed?.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val existing = if (parsed != null) get(taskId, parsed) else null
-        if (existing == null) {
+        val dateStr = runCatching {
+            LocalDate.parse(date.substringBefore("@")).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }.getOrNull() ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        if (dao.getById(instanceId) == null) {
             dao.upsert(
                 TaskInstanceEntity(
                     id = instanceId,

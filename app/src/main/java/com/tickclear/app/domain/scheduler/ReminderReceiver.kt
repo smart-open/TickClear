@@ -134,7 +134,7 @@ class ReminderReceiver : BroadcastReceiver() {
     private suspend fun complete(context: Context, taskId: String, instanceId: String) {
         val ep = EntryPointAccessors.fromApplication(context, ReminderScheduler.ReminderEntryPoint::class.java)
         val task = ep.taskRepository().getActiveById(taskId) ?: ep.taskRepository().getById(taskId) ?: return
-        ep.completeTaskUseCase()(task)
+        ep.completeTaskUseCase()(task, instanceId)
         cancelNotification(context, instanceId)
     }
 

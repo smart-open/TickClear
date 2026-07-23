@@ -74,7 +74,7 @@ class TodayViewModel @Inject constructor(
 
     fun complete(item: TodayItem) {
         viewModelScope.launch {
-            completeTaskUseCase(item.task)
+            completeTaskUseCase(item.task, item.instanceId)
             ReminderScheduler.cancelForTask(appContext, item.task.id)
         }
     }
@@ -104,7 +104,7 @@ class TodayViewModel @Inject constructor(
         viewModelScope.launch {
             val incomplete = getTodayTasks().first().items.filter { !it.done }
             incomplete.forEach { item ->
-                completeTaskUseCase(item.task)
+                completeTaskUseCase(item.task, item.instanceId)
                 ReminderScheduler.cancelForTask(appContext, item.task.id)
             }
         }
