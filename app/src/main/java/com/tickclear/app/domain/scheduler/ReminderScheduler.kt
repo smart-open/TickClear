@@ -46,14 +46,32 @@ object ReminderScheduler {
     private fun entryPoint(context: Context): ReminderEntryPoint =
         EntryPointAccessors.fromApplication(context.applicationContext, ReminderEntryPoint::class.java)
 
-    /** 全量重排（在 IO 调度内调用）：遍历所有启用且开启提醒的任务，排程今日发生的提醒。 */
+    /**
+     * 全量重排（在 IO 调度内调用）：遍历所有启用且开启提醒的任务，排程今日发生的提醒。
+     * 批量优化：实例生成与当日实例查询各只做一次（原先逐任务各查一次 → N+1 查询），
+     * 与任务数无关，固定 3 次 DB 访问；单任务排程仍走 [scheduleForTask]。
+     */
     suspend fun rescheduleAll(context: Context) {
         val ep = entryPoint(context)
         val today = LocalDate.now()
         val tasks = ep.taskRepository().observeAll().first()
             .filter { it.isEnabled() && it.reminderEnabled }
+        if (tasks.isEmpty()) return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        // 一次性为全部任务生成当日实例（原逐任务调用 → N 次，现 1 次）。
+        ep.taskInstanceRepository().ensureInstancesForDate(today, tasks)
+        val now = System.currentTimeMillis()
+        // 一次性取出当日全部实例并按 taskId 分组（原每任务各查 1 次 → N 次，现 1 次）。
+        val instancesByTask = ep.taskInstanceRepository().observeOn(today).first()
+            .groupBy { it.taskId }
         for (task in tasks) {
-            scheduleForTask(context, task, today)
+            (instancesByTask[task.id] ?: continue).forEach { inst ->
+                val minute = inst.dueMinute ?: return@forEach
+                val trigger = triggerMillisForMinute(minute, task.reminderOffsetMin ?: 0) ?: return@forEach
+                if (trigger <= now) return@forEach // 过去的提醒不再弹出（避免启动即轰炸）
+                val pi = showPendingIntent(context, task.id, inst.id)
+                setExact(am, context, trigger, pi)
+            }
         }
     }
 
