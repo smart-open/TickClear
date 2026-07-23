@@ -84,7 +84,9 @@ class LocalSpeechRecognizer(private val context: Context) {
             val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull().orEmpty()
             onFinal?.invoke(text)
-            if (continuous && running) startListeningInternal()
+            // 单句（非持续）识别：回执后释放识别器，避免 SpeechRecognizer 连接泄漏，
+            // 且令 running 复位，否则后续 start() 直接 return 导致麦克风永久不可用。
+            if (continuous && running) startListeningInternal() else stop()
         }
 
         override fun onError(error: Int) {

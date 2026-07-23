@@ -329,6 +329,7 @@ class AssistantViewModel @Inject constructor(
         Thread {
             if (capturing) capture.stop()
             wakeWordManager.stop()
+            localRecognizer.stop()
         }.apply { isDaemon = true }.start()
         // opusCodec 为 @Singleton 共享资源，随进程存活并跨会话复用，不由屏幕级 VM 释放（生命周期归属修正）。
         viewModelScope.launch { transport.disconnect() }
