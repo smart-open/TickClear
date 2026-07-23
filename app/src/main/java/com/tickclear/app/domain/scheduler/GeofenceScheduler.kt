@@ -1,9 +1,12 @@
 package com.tickclear.app.domain.scheduler
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.location.LocationManager
+import androidx.core.content.ContextCompat
 import com.tickclear.app.data.local.entities.TaskEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -24,6 +27,10 @@ class GeofenceScheduler @Inject constructor(
 
     fun register(task: TaskEntity) {
         if (!hasLocation(task)) return
+        // 显式权限守卫：无精确定位权限时不注册（addProximityAlert 需 ACCESS_FINE_LOCATION，缺失会抛 SecurityException）。
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) return
         runCatching {
             locationManager.addProximityAlert(
                 task.geoLat!!,

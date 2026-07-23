@@ -69,9 +69,11 @@ android {
     }
 
     lint {
-        // 中文化迁移（PRD A-6）在 Phase 7 收尾，期间不阻断构建。
-        abortOnError = false
-        checkReleaseBuilds = false
+        // 收紧质量门禁：错误级问题阻断构建（P8 已修复 4 处 MissingPermission）。
+        abortOnError = true
+        checkReleaseBuilds = true
+        // 仅告警不阻断（历史遗留 i18n/未用资源等，非正确性问题），保留可见性但不卡构建。
+        warningsAsErrors = false
     }
 }
 

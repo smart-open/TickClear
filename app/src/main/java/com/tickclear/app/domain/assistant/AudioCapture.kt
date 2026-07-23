@@ -86,7 +86,9 @@ class AudioCapture {
     /**
      * 累积采集模式：将整段录音缓冲进内存，停止时一次性回调完整 PCM（16bit）。
      * 用于云 ASR（需整段音频文件而非实时帧流）。其余语义同 [start]。
+     * 权限：与 [start] 一致，调用前须已授予 RECORD_AUDIO（由 UI 层守卫）。
      */
+    @SuppressLint("MissingPermission")
     fun startAccumulate(sampleRate: Int = 16000, onComplete: (ByteArray) -> Unit): Boolean {
         if (running) return true
         val minBuf = AudioRecord.getMinBufferSize(

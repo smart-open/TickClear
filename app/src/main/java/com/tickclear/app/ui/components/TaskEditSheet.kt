@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
 import android.location.LocationManager
@@ -115,6 +116,8 @@ fun TaskEditSheet(
  * - 含时间选择器（非全天）、重复、提醒开关/级别/提前量；
  * - 保存时调用 onSave 返回冲突列表，存在冲突则显示红条但仍可「仍要保存」。
  */
+// getLastKnownLocation 调用已由 accompanist fineLocationPermission.status is Granted 运行时守卫，lint 无法识别该守卫，故显式抑制。
+@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun TaskEditContent(
