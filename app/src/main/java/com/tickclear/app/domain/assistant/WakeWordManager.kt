@@ -20,18 +20,15 @@ class WakeWordManager(
     val isAvailable: Boolean get() = recognizer.isAvailable
 
     /** 开始持续监听唤醒词；命中时回调 [onWake]（已在主线程）。 */
-    fun start(onWake: () -> Unit) {
+    suspend fun start(onWake: () -> Unit) {
         if (active || !recognizer.isAvailable) return
         active = true
+        val phrase = settingsRepository.wakeWord.first().trim().replace("\\s+".toRegex(), "").lowercase()
         recognizer.start(
             continuous = true,
             onPartial = { /* 唤醒词检测以终句为准，减少误触发 */ },
             onFinal = { text ->
                 if (!active) return@start
-                val phrase = runCatching { settingsRepository.wakeWord.first() }.getOrDefault("小清")
-                    .trim()
-                    .replace("\\s+".toRegex(), "")
-                    .lowercase()
                 val hit = text.trim().replace("\\s+".toRegex(), "").lowercase()
                     .let { it == phrase || (phrase.isNotEmpty() && it.contains(phrase)) }
                 if (hit) {

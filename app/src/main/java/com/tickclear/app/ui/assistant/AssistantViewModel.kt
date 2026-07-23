@@ -163,13 +163,10 @@ class AssistantViewModel @Inject constructor(
     /** 停止语音采集。云 ASR 路径下，停止会触发转写；系统路径下停止实时识别。 */
     fun stopVoice() {
         if (!_recording.value) return
-        if (settingsRepository.asrProvider.first() == AsrProviderCatalog.SYSTEM) {
-            localRecognizer.stop()
-        } else {
-            capture.stop()
-        }
-        _recording.value = false
         viewModelScope.launch {
+            val isSystem = settingsRepository.asrProvider.first() == AsrProviderCatalog.SYSTEM
+            if (isSystem) localRecognizer.stop() else capture.stop()
+            _recording.value = false
             if (settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI) transport.sendListenStop()
         }
     }
