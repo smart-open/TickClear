@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.util.Log
+import com.tickclear.app.domain.log.AppLogger
 import kotlin.math.min
 
 /**
@@ -33,7 +33,7 @@ class AudioCapture {
                 minBuf * 2,
             )
         } catch (e: Exception) {
-            Log.w("AudioCapture", "init failed", e)
+            AppLogger.w("AudioCapture", "init failed", e)
             return false
         }
         if (rec.state != AudioRecord.STATE_INITIALIZED) {
@@ -54,7 +54,7 @@ class AudioCapture {
                 val n = try {
                     rec.read(readBuf, 0, readBuf.size)
                 } catch (e: Exception) {
-                    Log.w("AudioCapture", "read failed", e)
+                    AppLogger.w("AudioCapture", "read failed", e)
                     break
                 }
                 if (n <= 0) break
@@ -103,7 +103,7 @@ class AudioCapture {
                 minBuf * 2,
             )
         } catch (e: Exception) {
-            Log.w("AudioCapture", "init failed", e)
+            AppLogger.w("AudioCapture", "init failed", e)
             return false
         }
         if (rec.state != AudioRecord.STATE_INITIALIZED) {
@@ -123,7 +123,7 @@ class AudioCapture {
                 val n = try {
                     rec.read(readBuf, 0, readBuf.size)
                 } catch (e: Exception) {
-                    Log.w("AudioCapture", "read failed", e)
+                    AppLogger.w("AudioCapture", "read failed", e)
                     break
                 }
                 if (n <= 0) break

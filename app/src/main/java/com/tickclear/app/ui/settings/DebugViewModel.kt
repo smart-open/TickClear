@@ -2,11 +2,14 @@ package com.tickclear.app.ui.settings
 
 import android.app.AlarmManager
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.BuildConfig
+import com.tickclear.app.domain.log.AppLogger
+import com.tickclear.app.domain.log.LogEntry
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
@@ -18,12 +21,15 @@ import com.tickclear.app.domain.scheduler.ReminderReceiver
 import com.tickclear.app.domain.scheduler.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 
 /** 各维度诊断信息（供 DebugScreen 展示）。 */
@@ -61,7 +67,13 @@ class DebugViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), DebugInfo(),
     )
 
-    init { load() }
+    /** 运行日志（v2.0 / V2.2）：订阅 AppLogger 内存环形缓冲，供在屏查看与导出。 */
+    val logs: StateFlow<List<LogEntry>> = AppLogger.entries
+
+    init {
+        AppLogger.i("AppLogger", "调试日志已就绪（v2.0 V2.2）")
+        load()
+    }
 
     /** 刷新全部诊断数据。 */
     fun load() = viewModelScope.launch {
@@ -103,4 +115,18 @@ class DebugViewModel @Inject constructor(
     fun reschedule() = viewModelScope.launch {
         ReminderScheduler.rescheduleAll(appContext)
     }
+
+    /** 导出运行日志为纯文本文件（SAF 落盘，零新依赖）。 */
+    fun exportLogs(uri: Uri) = viewModelScope.launch {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                appContext.contentResolver.openOutputStream(uri)?.use { os ->
+                    os.write(AppLogger.formatPlain().toByteArray(StandardCharsets.UTF_8))
+                }
+            }
+        }
+    }
+
+    /** 清空内存日志缓冲。 */
+    fun clearLogs() = AppLogger.clear()
 }

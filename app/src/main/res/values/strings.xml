@@ -126,6 +126,8 @@
     <string name="debug_test_notification">测试通知</string>
     <string name="debug_test_asr">测试 ASR</string>
     <string name="debug_export_db">导出数据库</string>
+    <string name="debug_export_logs">导出日志</string>
+    <string name="debug_logs_empty">暂无日志</string>
     <string name="debug_clear_logs">清空日志</string>
     <string name="debug_section_app">应用</string>
     <string name="debug_app_version">版本</string>

@@ -3,7 +3,7 @@ package com.tickclear.app.domain.assistant
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import android.util.Log
+import com.tickclear.app.domain.log.AppLogger
 
 /**
  * PCM 播放：16kHz / 单声道 / 16bit，流式 write。
@@ -40,7 +40,7 @@ class AudioPlayer {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         } catch (e: Exception) {
-            Log.w("AudioPlayer", "init failed", e)
+            AppLogger.w("AudioPlayer", "init failed", e)
             return false
         }
 

@@ -1,12 +1,19 @@
 package com.tickclear.app.ui.settings
 
+import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,10 +32,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
+import com.tickclear.app.domain.log.LogLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +46,11 @@ fun DebugScreen(
     onBack: () -> Unit = {},
 ) {
     val info by viewModel.info.collectAsStateWithLifecycle()
+    val logs by viewModel.logs.collectAsStateWithLifecycle()
+
+    val logExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri -> if (uri != null) viewModel.exportLogs(uri) }
 
     Scaffold(
         topBar = {
@@ -93,6 +107,63 @@ fun DebugScreen(
             InfoRow(stringResource(R.string.debug_completions), info.completionCount.toString())
             InfoRow(stringResource(R.string.debug_checkins), info.checkInCount.toString())
             InfoRow(stringResource(R.string.debug_medals), info.medalCount.toString())
+
+            SectionTitle(stringResource(R.string.debug_logs))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp),
+            ) {
+                if (logs.isEmpty()) {
+                    Text(
+                        stringResource(R.string.debug_logs_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Column {
+                        logs.takeLast(200).forEach { e ->
+                            val ts = DateFormat.format("HH:mm:ss", e.timeMillis).toString()
+                            val color = when (e.level) {
+                                LogLevel.ERROR -> MaterialTheme.colorScheme.error
+                                LogLevel.WARN -> MaterialTheme.colorScheme.error.copy(alpha = 0.75f)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                            Text(
+                                text = "$ts ${e.level.letter}/${e.tag}: ${e.message}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontFamily = FontFamily.Monospace,
+                                color = color,
+                                modifier = Modifier.padding(vertical = 1.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = { viewModel.clearLogs() },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.debug_clear_logs))
+                }
+                Button(
+                    onClick = { logExportLauncher.launch("tickclear_logs.txt") },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.debug_export_logs))
+                }
+            }
 
             SectionTitle(stringResource(R.string.debug_section_actions))
             Row(

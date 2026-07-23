@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.tickclear.app.domain.repository.RecycleBinRepository
-import android.util.Log
+import com.tickclear.app.domain.log.AppLogger
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -45,7 +45,7 @@ class RecycleBinPurgeReceiver : BroadcastReceiver() {
                 val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)
                 repo.purgeExpired(cutoff)
             } catch (e: Exception) {
-                Log.e(tag, "回收站物理清理失败", e) // L7：原 runCatching 静默吞异常，改为记录
+                AppLogger.e(tag, "回收站物理清理失败", e) // L7：原 runCatching 静默吞异常，改为记录
             } finally {
                 pending.finish()
                 scope.cancel() // 单次广播完成即回收作用域（L1）
