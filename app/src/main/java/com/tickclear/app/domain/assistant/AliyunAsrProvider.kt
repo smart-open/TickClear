@@ -107,6 +107,18 @@ class AliyunAsrProvider @Inject constructor(
         }.also { if (it.isEmpty()) throw AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, detail = "识别结果为空") }
     }
 
+    override suspend fun test(): Boolean = withContext(Dispatchers.IO) {
+        val accessKeyId = SecureStore.getSecret(context, SettingsRepository.PREF_ALIYUN_ACCESS_KEY)
+        val accessKeySecret = SecureStore.getSecret(context, SettingsRepository.PREF_ALIYUN_ACCESS_SECRET)
+        val appKey = SecureStore.getSecret(context, SettingsRepository.PREF_ALIYUN_APP_KEY)
+        if (accessKeyId.isNullOrBlank() || accessKeySecret.isNullOrBlank() || appKey.isNullOrBlank()) return@withContext false
+        // 端点连通性探测（阿里云 ASR 无免鉴权轻量 ping，仅验证网络可达）。
+        runCatching {
+            val req = Request.Builder().url("https://nls-gateway.cn-shanghai.aliyuncs.com/").get().build()
+            client.newCall(req).execute().use { true }
+        }.getOrDefault(false)
+    }
+
     companion object {
         private const val ENDPOINT = "https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/asr"
     }

@@ -87,7 +87,19 @@ class WhisperCompatibleAsrProvider @Inject constructor(
         }.also { if (it.isEmpty()) throw AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, detail = "识别结果为空") }
     }
 
-    companion object {
+    override suspend fun test(): Boolean = withContext(Dispatchers.IO) {
+        val baseUrl = settingsRepository.asrBaseUrl.first().trim().removeSuffix("/")
+        val apiKey = SecureStore.getSecret(context, SettingsRepository.PREF_ASR_API_KEY)
+        if (apiKey.isNullOrBlank() || baseUrl.isBlank()) return@withContext false
+        // 轻量鉴权探测：OpenAI 兼容的 /models 端点，2xx 或 401/403 均说明端点与密钥格式有效。
+        runCatching {
+            val req = Request.Builder().url("$baseUrl/models")
+                .addHeader("Authorization", "Bearer $apiKey").build()
+            client.newCall(req).execute().use { resp -> resp.isSuccessful || resp.code == 401 || resp.code == 403 }
+        }.getOrDefault(false)
+    }
+
+companion object {
         const val DEFAULT_MODEL = "whisper-1"
     }
 }

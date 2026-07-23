@@ -23,4 +23,10 @@ interface AsrProvider {
 
     /** 将音频文件转写为文本。实现应自行处理鉴权、网络与错误映射。 */
     suspend fun transcribe(audio: File): String
+
+    /**
+     * 凭据连通性自检：返回 true 表示必要凭据已配置且端点可达（不保证真实转写一定成功）。
+     * 用于「测试并保存」前给出即时反馈，避免保存明显残缺的凭据配置。
+     */
+    suspend fun test(): Boolean
 }

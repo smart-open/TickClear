@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.assistant.AsrProviderCatalog
+import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.backup.BackupManager
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
@@ -32,6 +34,7 @@ data class BackupToast(val message: String)
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val backupManager: BackupManager,
+    private val asrResolver: AsrProviderResolver,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 

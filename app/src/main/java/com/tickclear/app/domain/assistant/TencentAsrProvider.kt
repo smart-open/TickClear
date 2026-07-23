@@ -130,4 +130,15 @@ class TencentAsrProvider @Inject constructor(
             throw if (e is AppException) e else AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, cause = e, detail = e.message)
         }.also { if (it.isEmpty()) throw AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, detail = "识别结果为空") }
     }
+
+    override suspend fun test(): Boolean = withContext(Dispatchers.IO) {
+        val secretId = SecureStore.getSecret(context, SettingsRepository.PREF_TENCENT_SECRET_ID)
+        val secretKey = SecureStore.getSecret(context, SettingsRepository.PREF_TENCENT_SECRET_KEY)
+        if (secretId.isNullOrBlank() || secretKey.isNullOrBlank()) return@withContext false
+        // 端点连通性探测（腾讯云 ASR 无免鉴权轻量 ping，仅验证网络可达）。
+        runCatching {
+            val req = Request.Builder().url("https://asr.tencentcloudapi.com/").get().build()
+            client.newCall(req).execute().use { true }
+        }.getOrDefault(false)
+    }
 }

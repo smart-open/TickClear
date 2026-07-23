@@ -240,6 +240,33 @@ fun AssistantConfigSheet(
                 else -> { /* xiaozhi：由小智服务端识别，无额外配置 */ }
             }
 
+            // ── ASR 测试连接（仅文件式云 ASR 显示）──
+            if (localAsrProvider in setOf(AsrProviderCatalog.OPENAI, AsrProviderCatalog.TENCENT, AsrProviderCatalog.ALIYUN)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(onClick = {
+                        scope.launch {
+                            settingsViewModel.persistAsrForTest(
+                                localAsrProvider, localAsrBaseUrl, localAsrModel, localAsrApiKey,
+                                localTencentSecretId, localTencentSecretKey,
+                                localAliyunAccessKeyId, localAliyunAccessKeySecret, localAliyunAppKey,
+                            )
+                            asrTestMsg = if (settingsViewModel.testCurrentAsr()) {
+                                context.getString(R.string.assistant_asr_test_ok)
+                            } else {
+                                context.getString(R.string.assistant_asr_test_fail)
+                            }
+                        }
+                    }) {
+                        Text(stringResource(R.string.assistant_asr_test))
+                    }
+                    asrTestMsg?.let { Text(it, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+                }
+            }
+
             // ── 语音唤醒词（离线 best-effort）──
             Row(
                 modifier = Modifier.fillMaxWidth(),

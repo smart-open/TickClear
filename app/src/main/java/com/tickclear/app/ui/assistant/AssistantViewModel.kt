@@ -97,8 +97,9 @@ class AssistantViewModel @Inject constructor(
             val mode = settingsRepository.assistantMode.first()
             val llm = settingsRepository.llmProvider.first()
             val asr = settingsRepository.asrProvider.first()
+            val cloudAsrReady = (llm != LlmProviderCatalog.XIAOZHI) && asrSupportsVoice(asr) && asrCredentialsPresent(asr)
             _voiceSupported.value = ((llm == LlmProviderCatalog.XIAOZHI) && (mode == "REAL") && opusCodec.isEncoderAvailable())
-                || ((llm != LlmProviderCatalog.XIAOZHI) && asrSupportsVoice(asr))
+                || cloudAsrReady
         }
     }
 
