@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
 import com.tickclear.app.data.SecureStore
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.backup.BackupManager

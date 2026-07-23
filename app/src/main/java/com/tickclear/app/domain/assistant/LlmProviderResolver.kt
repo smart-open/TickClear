@@ -1,6 +1,6 @@
 package com.tickclear.app.domain.assistant
 
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import kotlin.jvm.JvmSuppressWildcards
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject

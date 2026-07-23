@@ -1,7 +1,7 @@
 package com.tickclear.app.ui.tasks
 
 import app.cash.turbine.test
-import com.tickclear.app.data.repositories.RecycleBinRepository
+import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.model.RecycleBinItem
 import com.tickclear.app.util.MainDispatcherRule
 import io.mockk.coVerify

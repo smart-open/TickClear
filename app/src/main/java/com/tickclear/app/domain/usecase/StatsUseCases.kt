@@ -1,11 +1,11 @@
 package com.tickclear.app.domain.usecase
 
-import com.tickclear.app.data.repositories.CheckInRepository
-import com.tickclear.app.data.repositories.CompletionRepository
-import com.tickclear.app.data.repositories.GroupRepository
-import com.tickclear.app.data.repositories.MedalRepository
+import com.tickclear.app.domain.repository.CheckInRepository
+import com.tickclear.app.domain.repository.CompletionRepository
+import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.MedalRepository
 import com.tickclear.app.data.repositories.TaskInstanceRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi

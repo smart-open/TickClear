@@ -2,7 +2,7 @@ package com.tickclear.app.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted

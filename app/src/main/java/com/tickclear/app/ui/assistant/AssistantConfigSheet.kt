@@ -32,7 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.data.SecureStore
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.LlmProviderCatalog
 import com.tickclear.app.ui.settings.SettingsViewModel

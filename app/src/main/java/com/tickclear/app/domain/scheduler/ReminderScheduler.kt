@@ -7,7 +7,7 @@ import android.content.Intent
 import android.os.Build
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.repositories.TaskInstanceRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.dueMinutesForDate
 import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.conflict.shouldGenerateInstance
@@ -40,7 +40,7 @@ object ReminderScheduler {
         fun taskRepository(): TaskRepository
         fun taskInstanceRepository(): TaskInstanceRepository
         fun completeTaskUseCase(): com.tickclear.app.domain.usecase.CompleteTaskUseCase
-        fun settingsRepository(): com.tickclear.app.data.repositories.SettingsRepository
+        fun settingsRepository(): com.tickclear.app.domain.repository.SettingsRepository
     }
 
     private fun entryPoint(context: Context): ReminderEntryPoint =

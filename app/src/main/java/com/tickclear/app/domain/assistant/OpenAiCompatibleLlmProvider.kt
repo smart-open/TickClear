@@ -2,7 +2,7 @@ package com.tickclear.app.domain.assistant
 
 import android.content.Context
 import com.tickclear.app.data.SecureStore
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import dagger.hilt.android.qualifiers.ApplicationContext

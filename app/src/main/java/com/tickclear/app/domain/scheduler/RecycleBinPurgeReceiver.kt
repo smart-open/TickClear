@@ -3,7 +3,7 @@ package com.tickclear.app.domain.scheduler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.tickclear.app.data.repositories.RecycleBinRepository
+import com.tickclear.app.domain.repository.RecycleBinRepository
 import android.util.Log
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn

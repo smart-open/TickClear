@@ -3,25 +3,27 @@ package com.tickclear.app.data.repositories
 import com.tickclear.app.data.local.dao.TaskDao
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.domain.model.TaskStatus
+import com.tickclear.app.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class TaskRepository @Inject constructor(
+class TaskRepositoryImpl @Inject constructor(
     private val dao: TaskDao,
-) {
-    fun observeAll(): Flow<List<TaskEntity>> = dao.observeAll()
-    fun observeByGroup(groupId: String): Flow<List<TaskEntity>> = dao.observeByGroup(groupId)
-    fun observeDeleted(): Flow<List<TaskEntity>> = dao.observeDeleted()
-    suspend fun getById(id: String): TaskEntity? = dao.getById(id)
-    suspend fun getActiveById(id: String): TaskEntity? = dao.getActiveById(id)
-    suspend fun upsert(task: TaskEntity) = dao.insert(task)
-    suspend fun setStatus(id: String, status: TaskStatus, completedAt: Long?) =
-        dao.setStatus(id, status.code, completedAt)
+) : TaskRepository {
+    override fun observeAll(): Flow<List<TaskEntity>> = dao.observeAll()
+    override fun observeByGroup(groupId: String): Flow<List<TaskEntity>> = dao.observeByGroup(groupId)
+    override fun observeDeleted(): Flow<List<TaskEntity>> = dao.observeDeleted()
+    override suspend fun getById(id: String): TaskEntity? = dao.getById(id)
+    override suspend fun getActiveById(id: String): TaskEntity? = dao.getActiveById(id)
+    override suspend fun upsert(task: TaskEntity) { dao.insert(task) }
+    override suspend fun setStatus(id: String, newStatus: TaskStatus, completedAt: Long?) {
+        dao.setStatus(id, newStatus.code, completedAt)
+    }
 
-    suspend fun softDelete(id: String) = dao.softDelete(id)
-    suspend fun restore(id: String) = dao.restore(id)
-    suspend fun hardDelete(id: String) = dao.hardDelete(id)
-    suspend fun purgeExpired(cutoff: Long) = dao.purgeExpired(cutoff)
+    override suspend fun softDelete(id: String) { dao.softDelete(id) }
+    override suspend fun restore(id: String) { dao.restore(id) }
+    override suspend fun hardDelete(id: String) { dao.hardDelete(id) }
+    override suspend fun purgeExpired(cutoff: Long) { dao.purgeExpired(cutoff) }
 }

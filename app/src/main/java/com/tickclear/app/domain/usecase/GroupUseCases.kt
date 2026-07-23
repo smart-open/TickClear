@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.TaskGroupEntity
-import com.tickclear.app.data.repositories.GroupRepository
+import com.tickclear.app.domain.repository.GroupRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 

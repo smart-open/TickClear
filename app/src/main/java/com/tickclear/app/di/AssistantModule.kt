@@ -1,7 +1,7 @@
 package com.tickclear.app.di
 
 import android.content.Context
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.OpusCodec
 import com.tickclear.app.domain.assistant.XiaozhiMcpTools
 import com.tickclear.app.domain.assistant.XiaozhiTransport

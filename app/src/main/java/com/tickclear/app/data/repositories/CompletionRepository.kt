@@ -2,17 +2,18 @@ package com.tickclear.app.data.repositories
 
 import com.tickclear.app.data.local.dao.CompletionLogDao
 import com.tickclear.app.data.local.entities.CompletionLogEntity
+import com.tickclear.app.domain.repository.CompletionRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CompletionRepository @Inject constructor(
+class CompletionRepositoryImpl @Inject constructor(
     private val dao: CompletionLogDao,
-) {
-    fun observeAll(): Flow<List<CompletionLogEntity>> = dao.observeAll()
-    fun observeRange(from: String, to: String): Flow<List<CompletionLogEntity>> = dao.observeRange(from, to)
-    fun observeDates(): Flow<List<String>> = dao.observeDates()
-    suspend fun insert(log: CompletionLogEntity) = dao.insert(log)
-    suspend fun countByDate(date: String): Int = dao.countByDate(date)
+) : CompletionRepository {
+    override fun observeAll(): Flow<List<CompletionLogEntity>> = dao.observeAll()
+    override fun observeRange(from: String, to: String): Flow<List<CompletionLogEntity>> = dao.observeRange(from, to)
+    override fun observeDates(): Flow<List<String>> = dao.observeDates()
+    override suspend fun insert(log: CompletionLogEntity) { dao.insert(log) }
+    override suspend fun countByDate(date: String): Int = dao.countByDate(date)
 }

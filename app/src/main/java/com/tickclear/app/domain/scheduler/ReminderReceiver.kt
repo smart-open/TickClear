@@ -81,7 +81,7 @@ class ReminderReceiver : BroadcastReceiver() {
             val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
             val start = settings.quietStartMin.first()
             val end = settings.quietEndMin.first()
-            if (com.tickclear.app.data.repositories.SettingsRepository.isInQuietWindow(nowMin, start, end)) {
+            if (com.tickclear.app.domain.repository.SettingsRepository.isInQuietWindow(nowMin, start, end)) {
                 level = "silent"
             }
         }

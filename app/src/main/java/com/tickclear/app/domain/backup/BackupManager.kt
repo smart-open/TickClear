@@ -5,11 +5,11 @@ import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskGroupEntity
-import com.tickclear.app.data.repositories.CheckInRepository
-import com.tickclear.app.data.repositories.CompletionRepository
-import com.tickclear.app.data.repositories.GroupRepository
-import com.tickclear.app.data.repositories.MedalRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.CheckInRepository
+import com.tickclear.app.domain.repository.CompletionRepository
+import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.MedalRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import kotlinx.coroutines.Dispatchers

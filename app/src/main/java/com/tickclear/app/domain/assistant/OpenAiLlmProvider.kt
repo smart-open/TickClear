@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.assistant
 
 import android.content.Context
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton

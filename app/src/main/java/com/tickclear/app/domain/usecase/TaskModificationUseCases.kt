@@ -1,8 +1,8 @@
 package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.TaskEntity
-import com.tickclear.app.data.repositories.RecycleBinRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.RecycleBinRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.ConflictChecker
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject

@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.TaskEntity
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.ConflictChecker
 import io.mockk.coEvery
 import io.mockk.coVerify

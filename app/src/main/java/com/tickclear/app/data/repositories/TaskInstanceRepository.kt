@@ -9,6 +9,7 @@ import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.conflict.shouldGenerateInstance
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus
+import com.tickclear.app.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate

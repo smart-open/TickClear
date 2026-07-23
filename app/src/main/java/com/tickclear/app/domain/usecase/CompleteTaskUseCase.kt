@@ -3,9 +3,9 @@ package com.tickclear.app.domain.usecase
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
-import com.tickclear.app.data.repositories.CompletionRepository
+import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.data.repositories.TaskInstanceRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus

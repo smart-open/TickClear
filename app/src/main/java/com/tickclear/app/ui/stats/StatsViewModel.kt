@@ -2,9 +2,9 @@ package com.tickclear.app.ui.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tickclear.app.data.repositories.CheckInRepository
-import com.tickclear.app.data.repositories.CompletionRepository
-import com.tickclear.app.data.repositories.MedalRepository
+import com.tickclear.app.domain.repository.CheckInRepository
+import com.tickclear.app.domain.repository.CompletionRepository
+import com.tickclear.app.domain.repository.MedalRepository
 import com.tickclear.app.domain.model.MedalProgress
 import com.tickclear.app.domain.usecase.GetStatsUseCase
 import com.tickclear.app.domain.usecase.GroupStat

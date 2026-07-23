@@ -2,9 +2,9 @@ package com.tickclear.app.domain.usecase
 
 import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskGroupEntity
-import com.tickclear.app.data.repositories.GroupRepository
-import com.tickclear.app.data.repositories.SettingsRepository
-import com.tickclear.app.data.repositories.TaskRepository
+import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.SettingsRepository
+import com.tickclear.app.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter

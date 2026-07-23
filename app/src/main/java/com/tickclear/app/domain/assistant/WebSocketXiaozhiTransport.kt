@@ -1,7 +1,7 @@
 package com.tickclear.app.domain.assistant
 
 import com.tickclear.app.data.SecureStore
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

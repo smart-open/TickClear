@@ -2,7 +2,7 @@ package com.tickclear.app.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tickclear.app.data.repositories.RecycleBinRepository
+import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.model.RecycleBinItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted

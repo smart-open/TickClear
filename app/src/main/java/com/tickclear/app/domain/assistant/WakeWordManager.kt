@@ -2,7 +2,7 @@ package com.tickclear.app.domain.assistant
 
 import android.content.Context
 import kotlinx.coroutines.flow.first
-import com.tickclear.app.data.repositories.SettingsRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 
 /**
  * 离线语音唤醒词（best-effort，系统识别服务兜底，零依赖）。
