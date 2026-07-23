@@ -1,5 +1,7 @@
 package com.tickclear.app.domain.assistant
 
+import android.content.Context
+import com.tickclear.app.R
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.delay
@@ -9,7 +11,9 @@ import kotlinx.coroutines.delay
  * 对齐设备协议：hello 握手 → 拦截官方 welcome → 本地自定义欢迎；
  * 收到文本后识别是否为建任务意图，是则发出 mcp create_task 工具调用。
  */
-class MockXiaozhiTransport : XiaozhiTransport {
+class MockXiaozhiTransport(
+    private val context: Context,
+) : XiaozhiTransport {
 
     private val _events = MutableSharedFlow<XiaozhiEvent>(extraBufferCapacity = 64)
     override val events: Flow<XiaozhiEvent> = _events
@@ -21,7 +25,7 @@ class MockXiaozhiTransport : XiaozhiTransport {
         connected = true
         _events.emit(XiaozhiEvent.Connected)
         // 拦截官方默认 welcome，改用本地自定义欢迎词（见落地文档 4.1/4.2）
-        val welcome = "我在，请问有什么可以帮您？"
+        val welcome = context.getString(R.string.assistant_mock_welcome)
         _events.emit(XiaozhiEvent.LlmText(welcome))
         _events.emit(XiaozhiEvent.TtsText(welcome))
     }
@@ -51,7 +55,7 @@ class MockXiaozhiTransport : XiaozhiTransport {
                 "WEEKLY" -> "每周${parsed.weekdays}"
                 else -> parsed.dateStr ?: "今天"
             }
-            _events.emit(XiaozhiEvent.LlmText("好的，已为你记下「${parsed.title}」（$whenText）。"))
+            _events.emit(XiaozhiEvent.LlmText(context.getString(R.string.assistant_mock_task_saved, parsed.title, whenText)))
         } else {
             _events.emit(XiaozhiEvent.LlmText(genericReply(text)))
         }
@@ -68,10 +72,10 @@ class MockXiaozhiTransport : XiaozhiTransport {
     }
 
     private fun genericReply(text: String): String = when {
-        text.contains("你好") || text.contains("hi", ignoreCase = true) -> "你好呀，今天也要把小事一件件清空～"
-        text.contains("你是谁") || text.contains("你叫什么") -> "我是你的专属小智助手，帮你记任务、陪你聊天。"
-        text.contains("谢谢") -> "不客气，随时叫我～"
-        text.length <= 6 -> "嗯嗯，我在听。需要我帮你记点什么吗？"
-        else -> "收到～如果想记一件事，可以说「提醒我明天9点开会」这样哦。"
+        text.contains("你好") || text.contains("hi", ignoreCase = true) -> context.getString(R.string.assistant_mock_reply_hello)
+        text.contains("你是谁") || text.contains("你叫什么") -> context.getString(R.string.assistant_mock_reply_who)
+        text.contains("谢谢") -> context.getString(R.string.assistant_mock_reply_thanks)
+        text.length <= 6 -> context.getString(R.string.assistant_mock_reply_short)
+        else -> context.getString(R.string.assistant_mock_reply_default)
     }
 }

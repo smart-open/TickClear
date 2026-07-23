@@ -1,5 +1,6 @@
 package com.tickclear.app.di
 
+import android.content.Context
 import com.tickclear.app.data.repositories.SettingsRepository
 import com.tickclear.app.domain.assistant.OpusCodec
 import com.tickclear.app.domain.assistant.XiaozhiMcpTools
@@ -8,6 +9,7 @@ import com.tickclear.app.domain.assistant.XiaozhiTransportRouter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -26,8 +28,9 @@ object AssistantModule {
     @Provides
     @Singleton
     fun provideXiaozhiTransport(
+        @ApplicationContext context: Context,
         settings: SettingsRepository,
         mcpTools: XiaozhiMcpTools,
         codec: OpusCodec,
-    ): XiaozhiTransport = XiaozhiTransportRouter(settings, mcpTools, codec)
+    ): XiaozhiTransport = XiaozhiTransportRouter(context, settings, mcpTools, codec)
 }
