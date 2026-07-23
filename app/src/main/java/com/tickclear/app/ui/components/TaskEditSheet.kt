@@ -144,6 +144,8 @@ fun TaskEditContent(
     var geoLngText by remember { mutableStateOf(initial?.geoLng?.toString() ?: "") }
     var geoRadiusText by remember { mutableStateOf((initial?.geoRadius ?: 100).toString()) }
     val fineLocationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    // 后台定位：Android 10+（API 29+）地理围栏后台触发需「始终允许」；低版本随 fine 隐式授予。
+    val backgroundLocationPermission = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     val context = LocalContext.current
     var showConflict by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
@@ -360,6 +362,20 @@ fun TaskEditContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
+            } else if (backgroundLocationPermission.status !is PermissionStatus.Granted) {
+                // 前台定位已授予但缺后台定位：地理围栏退到后台会静默失效，引导用户授予「始终允许」。
+                Text(
+                    text = stringResource(R.string.task_location_bg_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+                TextButton(
+                    onClick = { backgroundLocationPermission.launchPermissionRequest() },
+                    modifier = Modifier.padding(top = Spacing.xs),
+                ) {
+                    Text(stringResource(R.string.task_location_bg_grant))
+                }
             }
         }
 

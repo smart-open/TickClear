@@ -25,6 +25,15 @@ object TaskIntentParser {
 
     private val DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
+    // 正则提升为常量，避免每次 parse/parseClock 调用重复编译（性能）。
+    private val RE_HHMM = Regex("""\d{1,2}[:：]\d{2}""")
+    private val RE_HH_MM_CN = Regex("""\d{1,2}点\d{1,2}分""")
+    private val RE_HH_CN = Regex("""\d{1,2}点""")
+    private val RE_TIME_WORDS = Regex("""(今天|明天|后天|大后天|每天|每日|周[一二三四五六日天]|星期[一二三四五六日天]|上午|下午|早上|中午|晚上|凌晨|傍晚|点|分)""")
+    private val RE_WS = Regex("""\s+""")
+    private val RE_CLOCK_HHMM = Regex("""(\d{1,2})[:：](\d{2})""")
+    private val RE_CLOCK_CN = Regex("""(\d{1,2})点(?:(\d{1,2})分)?""")
+
     fun parse(input: String): ParsedTask? {
         val text = input.trim()
         if (text.isEmpty()) return null
@@ -71,11 +80,11 @@ object TaskIntentParser {
 
         // 从 body 中剥离时间相关词，得到标题
         var title = body
-        title = title.replace(Regex("""\d{1,2}[:：]\d{2}"""), " ")
-        title = title.replace(Regex("""\d{1,2}点\d{1,2}分"""), " ")
-        title = title.replace(Regex("""\d{1,2}点"""), " ")
-        title = title.replace(Regex("""(今天|明天|后天|大后天|每天|每日|周[一二三四五六日天]|星期[一二三四五六日天]|上午|下午|早上|中午|晚上|凌晨|傍晚|点|分)"""), " ")
-        title = title.replace(Regex("""\s+"""), " ").trim()
+        title = title.replace(RE_HHMM, " ")
+        title = title.replace(RE_HH_MM_CN, " ")
+        title = title.replace(RE_HH_CN, " ")
+        title = title.replace(RE_TIME_WORDS, " ")
+        title = title.replace(RE_WS, " ").trim()
         if (title.isEmpty()) title = "新任务"
 
         val dateStr = if (repeatType == "NONE") {
@@ -106,12 +115,12 @@ object TaskIntentParser {
 
     private fun parseClock(text: String): Pair<Int?, Int?> {
         // HH:MM
-        Regex("""(\d{1,2})[:：](\d{2})""").find(text)?.let {
+        RE_CLOCK_HHMM.find(text)?.let {
             val (h, m) = it.destructured
             return h.toIntOrNull() to m.toIntOrNull()
         }
         // HH点MM分 / HH点
-        Regex("""(\d{1,2})点(?:(\d{1,2})分)?""").find(text)?.let {
+        RE_CLOCK_CN.find(text)?.let {
             val (h, m) = it.destructured
             return h.toIntOrNull() to m.toIntOrNull()?.let { if (it > 59) null else it }
         }

@@ -324,9 +324,13 @@ class AssistantViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        if (_recording.value) capture.stop()
-        wakeWordManager.stop()
-        opusCodec.release()
+        // capture.stop() 内含 thread.join()，onCleared 运行于主线程，移出到独立线程避免阻塞 UI（ANR 风险）。
+        val capturing = _recording.value
+        Thread {
+            if (capturing) capture.stop()
+            wakeWordManager.stop()
+        }.apply { isDaemon = true }.start()
+        // opusCodec 为 @Singleton 共享资源，随进程存活并跨会话复用，不由屏幕级 VM 释放（生命周期归属修正）。
         viewModelScope.launch { transport.disconnect() }
         super.onCleared()
     }

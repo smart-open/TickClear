@@ -23,13 +23,13 @@ class WakeWordManager(
     suspend fun start(onWake: () -> Unit) {
         if (active || !recognizer.isAvailable) return
         active = true
-        val phrase = settingsRepository.wakeWord.first().trim().replace("\\s+".toRegex(), "").lowercase()
+        val phrase = settingsRepository.wakeWord.first().trim().replace(WS, "").lowercase()
         recognizer.start(
             continuous = true,
             onPartial = { /* 唤醒词检测以终句为准，减少误触发 */ },
             onFinal = { text ->
                 if (!active) return@start
-                val hit = text.trim().replace("\\s+".toRegex(), "").lowercase()
+                val hit = text.trim().replace(WS, "").lowercase()
                     .let { it == phrase || (phrase.isNotEmpty() && it.contains(phrase)) }
                 if (hit) {
                     stop()
@@ -46,4 +46,9 @@ class WakeWordManager(
     }
 
     val isActive: Boolean get() = active
+
+    companion object {
+        // 提升为常量避免每次 start/onFinal 重复编译（性能）。
+        private val WS = Regex("\\s+")
+    }
 }
