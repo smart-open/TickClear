@@ -13,6 +13,14 @@ android {
     namespace = "com.tickclear.app"
     compileSdk = 34
 
+    // 发布签名：从 local.properties 读取 release.* ；缺失时回退 debug，保证本地仍可产出 release 包（不内联任何密钥）。
+    val releaseProps = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) load(f.inputStream())
+    }
+    val hasReleaseKey = listOf("release.storeFile", "release.storePassword", "release.keyAlias", "release.keyPassword")
+        .all { releaseProps[it] != null }
+
     defaultConfig {
         applicationId = "com.tickclear.app"
         minSdk = 24
@@ -23,13 +31,27 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(releaseProps["release.storeFile"].toString())
+                storePassword = releaseProps["release.storePassword"].toString()
+                keyAlias = releaseProps["release.keyAlias"].toString()
+                keyPassword = releaseProps["release.keyPassword"].toString()
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // 有 release 密钥用正式签名，否则回退 debug（仅影响本地构建，不入库）。
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
@@ -126,6 +148,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.mockk)
+    // test-only：android.jar 的 org.json 为 stub（方法抛异常），纯 JVM 单测需真实实现；不进 release 体积
+    testImplementation("org.json:json:20231013")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

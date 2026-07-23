@@ -6,6 +6,7 @@ local.properties
 /build
 /app/build
 /.gradle
+/.kotlin
 /captures
 .externalNativeBuild
 *.apk
