@@ -349,6 +349,8 @@ LocationReminder
 | **自定义间隔** | 每 N 天/N 小时 | 「每 8 小时吃一次药」 |
 | **位置提醒** | 进入/离开指定范围 | 「到 XX 药店附近提醒买药」 |
 
+> **【实现状态·自定义间隔】**：v1.0 已落地「每 N 天 / 每 N 小时」。`TaskEntity` 新增 `repeatIntervalHours`（`repeatIntervalDays` 保留）；`ScheduleUtils.dueMinutesForDate` 将「每 N 小时」拆为当日多个生效分钟（如每 8 小时从锚点起拆成 08:00/16:00…），`TaskInstanceRepository` 据此生成多个实例，`ReminderScheduler` 为每个实例排独立精确闹钟（`PendingIntent` 以 `instanceId` 哈希为 requestCode，避免同任务多实例互相覆盖）。编辑页重复下拉新增「自定义间隔」并提供「天/小时」单位切换。
+
 #### 提醒通道策略
 
 ```
@@ -659,6 +661,8 @@ NLU 意图识别 + 槽位抽取
 
 > **【开发就绪度·D20 信任模式（决策）】**：为减少熟练用户摩擦，设置中提供「信任模式 / 免确认」开关。**开启后**：创建 / 暂停 / 启用等常规操作默认直接执行（仍展示轻量 Snackbar「撤销」）；**删除等危险操作无论是否开启信任模式均强制强确认**（防误删 / 口误）。默认关闭。
 
+> **【实现状态·D20】**：v1.0 已落地。设置页新增「信任模式」开关（默认关闭）；`AssistantViewModel.handleTool` 在信任模式下对非危险工具（建任务等）直接 `mcpTools.commit` 落库并以系统消息反馈，删除 / 暂停 / 更新 / 恢复 / 移除等危险工具无论是否信任均强制弹出确认卡（二次确认），符合「防误删」硬约束。
+
 #### 7.5.7 歧义澄清与错误处理
 
 | 场景 | 处理 |
@@ -696,6 +700,8 @@ NLU 意图识别 + 槽位抽取
 > 凭据以加密方式存储于本机 `EncryptedSharedPreferences`（基于 Android Keystore，而非直接将 Secret 存入 SQLCipher 明文表），不随任务数据导出；切换 / 清除服务商时一并清除本地凭据。
 >
 > **【深度审查·测试上传】**：§7.5.11「测试并保存」会发起一次极短音频上传以校验凭据有效性，同样属于上传音频行为，须在隐私说明与测试弹窗中明示用户。
+
+> **【实现状态·§7.5.9】**：v1.0 已落地且能力扩展。配置页支持 4 类服务商：系统识别（Xiaozhi 服务端 / 本地 `SpeechRecognizer` 兜底）、OpenAI 兼容（Whisper 类一键转写）、腾讯云 ASR（本地 TC3-HMAC-SHA256 签名）、阿里云 NLS（本地 RPC HMAC-SHA1 签名）；各家凭据存于 `EncryptedSharedPreferences`（Keystore），不上云。配置页提供「测试」按钮（`AsrProvider.test()` 发起一次极短识别校验凭据），通过后才提示保存；`AssistantViewModel` 语音门控已强化为「已配置且凭据齐备」才展示可用麦克风（§7.5.9 门控表）。
 
 **配置流程**
 
