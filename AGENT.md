@@ -60,7 +60,8 @@ di/         Hilt 模块
 ## 7. 分支与任务追踪
 - 任务清单见 `docs/开发计划_任务清单.md`：Phase 0–7 子任务带 `- [ ]` / `- [x]` ✅ 勾选位与验收标准。
 - 每完成一个子任务，在任务清单中勾选 ✅ 并（按需）追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志。
-- 提交信息用中文，格式：`[Phase N] 简述`。
+- **提交纪律（红线）**：每一次编码 / 修改完成、进入下一项事项前必须 `git commit`（功能自洽、可独立回滚）；禁止把多个不相关改动攒成一次大提交。提交信息用中文，格式：`[Phase N] 简述`。
+- 工程纪律（全程保持）：中文全抽离 `strings.xml`、数据库迁移显式 `Migration` 禁 `fallbackToDestructiveMigration`、不引入新依赖（复用 OkHttp/DataStore/系统框架）。
 
 ## 8. 已知风险
 - Opus 编解码：语音链路优先用 Android `MediaCodec`(audio/opus)；Mock 模式不需真实 Opus。集中封装在 `domain/assistant/OpusCodec`。
