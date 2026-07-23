@@ -301,6 +301,22 @@
     <string name="assistant_wakeword_stop">关闭语音唤醒</string>
     <string name="assistant_wakeword_triggered">已触发唤醒词，开始聆听…</string>
     <string name="assistant_wakeword_unavailable">当前设备不支持系统语音识别，唤醒词不可用</string>
+
+    <!-- 助手：信任模式 + ASR 测试连接 -->
+    <string name="assistant_trust_title">信任模式（免确认创建）</string>
+    <string name="assistant_trust_subtitle">开启后语音建任务直接落库，不再弹确认卡；删除等危险操作仍强制确认</string>
+    <string name="assistant_asr_test">测试连接</string>
+    <string name="assistant_asr_test_ok">连接成功，凭据有效</string>
+    <string name="assistant_asr_test_fail">连接失败，请检查凭据与网络</string>
+
+    <!-- 助手：离线模拟传输文案（原硬编码，统一抽离） -->
+    <string name="assistant_mock_welcome">我在，请问有什么可以帮您？</string>
+    <string name="assistant_mock_task_saved">好的，已为你记下「%1$s」（%2$s）。</string>
+    <string name="assistant_mock_reply_hello">你好呀，今天也要把小事一件件清空～</string>
+    <string name="assistant_mock_reply_who">我是你的专属小智助手，帮你记任务、陪你聊天。</string>
+    <string name="assistant_mock_reply_thanks">不客气，随时叫我～</string>
+    <string name="assistant_mock_reply_short">嗯嗯，我在听。需要我帮你记点什么吗？</string>
+    <string name="assistant_mock_reply_default">收到～如果想记一件事，可以说「提醒我明天9点开会」这样哦。</string>
     <string name="fullscreen_reminder_title">提醒</string>
     <string name="fullscreen_reminder_complete">完成</string>
     <string name="fullscreen_reminder_snooze">稍后</string>
