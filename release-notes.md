@@ -4,6 +4,35 @@
 
 ---
 
+## v2.2.0（2026-07-24）· 后续遗留任务收口
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 4 / versionName 2.2.0
+**相对 v2.1.0**：收口 v2.1 规划的「后续遗留任务」——仪器化测试真机化 + 覆盖率度量、设计文档漂移项回填；无功能回归。
+
+### ✨ 核心新增（遗留任务收口）
+- **仪器化测试真机化 + 覆盖率度量（V2.25）**：`app/build.gradle.kts` 启用 `enableUnitTestCoverage` / `enableAndroidTestCoverage`（Jacoco 随 AGP 内置，**零新依赖**）；新增 `.github/workflows/ci.yml` 编排 `lintRelease` + `createDebugUnitTestCoverageReport`（覆盖率产物上传 Artifact）+ `connectedDebugAndroidTest`（reactivecircus 模拟器跑 `androidTest` 脚手架：启动冒烟 + 备份加密往返）。单测覆盖率报告本地已跑通。
+- **设计文档 `- [ ]` 漂移项系统回填（V2.26）**：逐条比对代码后回填 `docs/点清APP_产品设计文档.md`。已实现的 30+ 项验收点（任务组 7 项、通知栏直接完成、吃药类三操作、位置提醒、静音时段、一键清空确认、振动跟随系统、时间冲突红条 3 项、空状态/问候语/已完成下沉、语音四类指令/单任务暂停/今日时间线/暂停不触发/软删回收站 30 天/麦克风门控等）已勾选并附代码证据；**诚实保留**未实现项（5/30 分钟稍后选项、音效开关、折叠已完成按钮、组级暂停级联、离线热词、方言）与验收指标项（送达率/准确率/耗时/误删率），避免误标。
+
+### 🛠 质量与工程
+- 全程守住红线：零新依赖（Jacoco/CI 均为内置于 AGP/标准 Action 的零运行时依赖方案）、中文全抽离 `strings.xml`、Room 显式 Migration、按功能拆 commit。
+- 全量 lint 门禁复跑 0 error（`abortOnError=true`）；`./gradlew testDebugUnitTest` 全绿；单测覆盖率报告可生成。
+
+### ⚠️ 已知限制 / 显式保留
+- **离线 ML ASR（V2.27 · 显式保留）**：引入端侧推理框架（Vosk / whisper.cpp 等）将破「零新依赖」红线，且属 best-effort 体验增强而非正确性问题。v2.2.0 维持系统框架 `android.speech.SpeechRecognizer` 的 best-effort 方案，**不引入任何依赖**。若未来项目放宽红线，再评估端侧模型。
+- 仪器化测试需 CI 模拟器/真机运行（本环境仅编译验证 + 单测覆盖率本地跑通）；方言识别、离线热词指令仍为未实现项。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:createDebugUnitTestCoverageReport  # 单测覆盖率报告（app/build/reports/coverage/debug）
+./gradlew :app:lintRelease            # 全量 lint（error 级阻断构建）
+```
+
+---
+
 ## v2.1.0（2026-07-24）· 质量与韧性加固
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
