@@ -38,8 +38,10 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -251,13 +253,16 @@ private fun TodayMainContent(
 ) {
     // V2.10 键盘快捷键：在 Compose 宿主 View 上挂 OnKeyListener 捕获 ↑↓ 选择 / 空格·回车完成 / N 新建。
     // 采用 View 级监听而非 Modifier.focusable，规避本环境对 focusable 符号的解析差异，且无需强制焦点。
-    var focusedIndex by remember { mutableStateOf(0) }
+    var focusedIndex by rememberSaveable { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    // 键盘监听闭包在 DisposableEffect 内创建，但 state 每次重组都会变化；用 rememberUpdatedState 让
+    // 闭包始终读取最新 state.items，避免操作后作用于过期数据（误完成错误项）。
+    val currentState = rememberUpdatedState(state)
     val view = LocalView.current
     DisposableEffect(view, shortcutsEnabled) {
         val listener = View.OnKeyListener { _, keyCode, event ->
             if (!shortcutsEnabled || event.action != KeyEvent.ACTION_DOWN) return@OnKeyListener false
-            val count = state.items.size
+            val count = currentState.value.items.size
             if (count == 0) return@OnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -274,8 +279,8 @@ private fun TodayMainContent(
                 }
                 KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER -> {
                     // 完成当前聚焦项；若已完成的则顺延到首个未完成项
-                    val target = state.items.getOrNull(focusedIndex)?.takeIf { !it.done }
-                        ?: state.items.firstOrNull { !it.done }
+                    val target = currentState.value.items.getOrNull(focusedIndex)?.takeIf { !it.done }
+                        ?: currentState.value.items.firstOrNull { !it.done }
                     if (target != null) onComplete(target)
                     true
                 }
@@ -333,7 +338,7 @@ private fun TodayMainContent(
                     }
                     items(state.items, key = { it.instanceId }) { item ->
                         // V2.21 列表项进入/重排动画
-                        Box(modifier = Modifier.animateItemPlacement()) {
+                        Box(modifier = Modifier.animateItem()) {
                             TaskItem(
                                 item = item,
                                 group = state.groups[item.task.groupId],

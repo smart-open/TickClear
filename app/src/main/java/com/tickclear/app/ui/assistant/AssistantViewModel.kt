@@ -33,6 +33,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -419,7 +422,10 @@ class AssistantViewModel @Inject constructor(
             localRecognizer.stop()
         }.apply { isDaemon = true }.start()
         // opusCodec 为 @Singleton 共享资源，随进程存活并跨会话复用，不由屏幕级 VM 释放（生命周期归属修正）。
-        viewModelScope.launch { transport.disconnect() }
+        // transport 同为 @Singleton，生命周期长于本屏幕级 VM；disconnect 必须跑在与 viewModelScope 无关的作用域，
+        // 否则 super.onCleared() 取消 viewModelScope 后该协程永不执行，导致 WebSocket/AudioTrack/scope 泄露，
+        // 且再次进入助手时 transport.connect() 因 connected==true 直接 return（连接/重连失效）。
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch { transport.disconnect() }
         super.onCleared()
     }
 }
