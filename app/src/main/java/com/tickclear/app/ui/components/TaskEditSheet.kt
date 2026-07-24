@@ -437,6 +437,13 @@ fun TaskEditContent(
                     Text(stringResource(R.string.task_location_bg_grant))
                 }
             }
+            // V2.13：到达提醒精度说明（主动轮询依赖系统定位，城市环境精度有限）。
+            Text(
+                text = stringResource(R.string.task_location_precision),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
         }
 
         Button(

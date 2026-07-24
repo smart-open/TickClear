@@ -26,6 +26,8 @@ class BootReceiver : BroadcastReceiver() {
                         // V2.5：重新同步自动备份闹钟（开关开启才排程）。
                         AutoBackupScheduler.sync(ctx)
                         ReminderScheduler.rescheduleAll(ctx)
+                        // V2.13：重启后位置提醒改为前台轮询服务，需重新评估并启停。
+                        GeofenceScheduler.sync(ctx)
                     } finally {
                         pending.finish()
                         scope.cancel() // 单次广播完成即回收作用域（L1）

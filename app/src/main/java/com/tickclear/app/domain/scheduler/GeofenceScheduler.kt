@@ -1,70 +1,59 @@
 package com.tickclear.app.domain.scheduler
 
 import android.Manifest
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
+import android.os.Build
 import androidx.core.content.ContextCompat
+import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.model.Task
+import com.tickclear.app.domain.repository.TaskRepository
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
- * 位置提醒调度：基于系统原生 [LocationManager.addProximityAlert]（无需 Play 服务依赖）。
- * 任务含经纬度与半径时注册邻近告警；进入半径即触发（经 [GeofenceReceiver] → 复用提醒通知）。
- * 注意：邻近告警依赖系统定位，后台触发需定位权限；Android 10+ 后台需 ACCESS_BACKGROUND_LOCATION。
+ * 位置提醒调度（V2.13）：生命周期管理器，按是否存在「启用且含经纬度」的任务
+ * 启停 [LocationReminderService]（前台主动轮询），替代原系统 addProximityAlert。
+ * 零 GMS 依赖；未授予精确定位权限时不启动服务。
  */
 @Singleton
 class GeofenceScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private val locationManager by lazy {
-        context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    }
+    /** 实例方法：用注入的上下文同步服务状态（供任务保存后调用）。 */
+    fun sync() = sync(context)
 
-    fun register(task: Task) {
-        if (!hasLocation(task)) return
-        // 显式权限守卫：无精确定位权限时不注册（addProximityAlert 需 ACCESS_FINE_LOCATION，缺失会抛 SecurityException）。
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
-        runCatching {
-            locationManager.addProximityAlert(
-                task.geoLat!!,
-                task.geoLng!!,
-                task.geoRadius!!.toFloat(),
-                PROXIMITY_EXPIRATION,
-                pendingIntent(task.id),
-            )
-        }
-    }
-
-    fun unregister(taskId: String) {
-        runCatching { locationManager.removeProximityAlert(pendingIntent(taskId)) }
-    }
-
-    private fun hasLocation(task: Task): Boolean =
-        task.geoLat != null && task.geoLng != null && task.geoRadius != null
-
-    private fun pendingIntent(taskId: String): PendingIntent {
-        val intent = Intent(context, GeofenceReceiver::class.java).apply {
-            action = ACTION_GEOFENCE
-            putExtra(EXTRA_TASK_ID, taskId)
-        }
-        return PendingIntent.getBroadcast(
-            context,
-            taskId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-    }
+    /** 注册/注销单个任务：均触发一次状态同步（启/停服务）。参数保留以兼容调用方。 */
+    fun register(@Suppress("UNUSED_PARAMETER") task: Task) = sync(context)
+    fun unregister(@Suppress("UNUSED_PARAMETER") taskId: String) = sync(context)
 
     companion object {
-        const val ACTION_GEOFENCE = "com.tickclear.app.geofence.ENTER"
-        const val EXTRA_TASK_ID = "task_id"
-        const val PROXIMITY_EXPIRATION = -1L // 永不过期（直至任务删除/更新取消）
+        private fun hasGeoTasks(context: Context): Boolean = runCatching {
+            val ep = EntryPointAccessors.fromApplication(context, LocationReminderService.LocationReminderEntryPoint::class.java)
+            runBlocking(Dispatchers.IO) {
+                ep.taskRepository().observeAll().first()
+            }.any { it.isEnabled() && it.geoLat != null && it.geoLng != null && it.geoRadius != null }
+        }.getOrDefault(false)
+
+        /** 同步位置提醒服务：有任务且已授权则前台启动，否则停止。供 BootReceiver / 任务保存后调用。 */
+        fun sync(context: Context) {
+            val permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val intent = Intent(context, LocationReminderService::class.java)
+            if (permitted && hasGeoTasks(context)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+                else context.startService(intent)
+            } else {
+                context.stopService(intent)
+            }
+        }
     }
 }

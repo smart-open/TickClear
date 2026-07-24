@@ -62,7 +62,10 @@
     <string name="task_location_perm_hint">需在系统设置中授予定位权限才能获取当前位置</string>
     <string name="task_location_bg_hint">后台位置提醒需授予「始终允许」定位权限，否则应用退到后台时可能不触发</string>
     <string name="task_location_bg_grant">授予后台定位权限</string>
+    <string name="task_location_precision">到达提醒精度取决于系统定位，城市环境约数十米到数百米；后台持续监测仅在添加了位置提醒的任务时运行，会占用一定定位资源。</string>
     <string name="task_conflict_warning">该任务与已有任务时间冲突</string>
+    <string name="location_reminder_service_title">位置提醒监听中</string>
+    <string name="location_reminder_service_text">正在后台监测到达提醒，可在设置或任务中关闭位置提醒</string>
     <string name="recycle_bin_title">回收站</string>
     <string name="recycle_bin_empty">回收站是空的</string>
     <string name="recycle_bin_auto_purge">删除 30 天后将自动彻底清理</string>

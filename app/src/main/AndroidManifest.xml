@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:name=".TickClearApplication"
@@ -85,10 +87,11 @@
             android:exported="false"
             android:enabled="true" />
 
-        <receiver
-            android:name=".domain.scheduler.GeofenceReceiver"
+        <!-- V2.13 位置提醒前台轮询服务：零 GMS 依赖，仅后台监测到达提醒时运行 -->
+        <service
+            android:name=".domain.scheduler.LocationReminderService"
             android:exported="false"
-            android:enabled="true" />
+            android:foregroundServiceType="location" />
     </application>
 
 </manifest>
