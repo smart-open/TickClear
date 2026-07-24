@@ -25,8 +25,8 @@ android {
         applicationId = "com.tickclear.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "2.1.0"
+        versionCode = 4
+        versionName = "2.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -55,6 +55,10 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // 测试覆盖率（V2.2）：Jacoco 随 AGP 内置，零新依赖；
+            // unit 覆盖率本地可跑，androidTest 覆盖率供 CI 真机/模拟器生成。
+            enableUnitTestCoverage = true
+            enableAndroidTestCoverage = true
             // 仅 debug 注入本地 ASR 密钥（local.properties 含明文凭据，已 gitignore，禁止入库/禁止提交到 release）。
             val localProps = Properties().apply {
                 val f = rootProject.file("local.properties")
