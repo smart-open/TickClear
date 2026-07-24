@@ -4,6 +4,34 @@
 
 ---
 
+## v2.1.0（2026-07-24）· 质量与韧性加固
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 3 / versionName 2.1.0
+**相对 v2.0.0**：质量与数据韧性加固，无功能回归。
+
+### ✨ 核心新增（质量与韧性）
+- **JVM 单元测试补全（V2.22）**：为 v2.0 新增强的纯逻辑模块补 JVM 单测 —— `IcsManager` RFC5545 往返（一次性/全天/日/周/月重复、特殊字符转义、非法输入容错、UID 保留）、`BackupManager.validateBackupJson` 备份健康判定。`./gradlew testDebugUnitTest` 全绿可验证（零新依赖）。
+- **备份自愈校验（V2.23）**：`BackupManager.validateBackupJson(json): BackupHealth` 纯函数（解析 + 版本 + 结构校验，JVM 可测）；`AutoBackupRunner` 写入后即时解密校验并回写 DataStore 健康状态；设置页「自动备份」区回显「上次备份状态：正常 / 损坏 / 空 / 未检查」，损坏用错误色提示重备。
+
+### 🛠 质量与工程
+- 修复 2 个 ICS 解析 bug（`IcsManager.parseEvent`）：按 `BEGIN:VEVENT` 拆分残留前导 `\r` 吞掉 `UID`（任务 id）；全天判断误用值（`20260724`）而非 `DTSTART` 的 `VALUE=DATE` 参数，导致全天任务导入后丢失 `allDay` 标志。
+- 单元测试由 30+ 增至 40+（`IcsManagerTest` 9 例 + `BackupManagerHealthTest` 5 例），全绿。
+- 全量 lint 门禁复跑 0 error（`abortOnError=true`）。
+
+### ⚠️ 已知限制（同 v2.0.0，无新增）
+- 仪器化测试仍仅编译验证（运行需真机/CI）；离线 ML ASR 仍为系统框架 best-effort。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 全量 lint（error 级阻断构建）
+```
+
+---
+
 ## v2.0.0（2026-07-24）· 效率与平台集成正式版（封板）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
