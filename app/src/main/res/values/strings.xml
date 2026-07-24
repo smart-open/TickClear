@@ -305,7 +305,7 @@
     <string name="assistant_asr_tencent">腾讯云（一句话识别）</string>
     <string name="assistant_asr_aliyun">阿里云（一句话识别）</string>
     <string name="assistant_asr_system">系统（本地识别）</string>
-    <string name="assistant_asr_system_hint">使用设备内置语音识别（系统框架 API，非离线神经网络模型；需联网、效果依赖厂商实现）。</string>
+    <string name="assistant_asr_system_hint">使用设备内置语音识别（系统框架 API）。已尽力请求设备端离线识别，是否真正离线取决于系统是否内置识别模型；无模型时自动回退在线识别，效果依赖厂商实现。如需稳定识别请选择云 ASR 服务商。</string>
     <string name="assistant_tencent_secret_id_label">腾讯云 SecretId</string>
     <string name="assistant_tencent_secret_key_label">腾讯云 SecretKey</string>
     <string name="assistant_aliyun_access_key_label">阿里云 AccessKeyId</string>

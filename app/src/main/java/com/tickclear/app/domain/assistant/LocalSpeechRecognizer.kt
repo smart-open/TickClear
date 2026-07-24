@@ -15,8 +15,14 @@ import java.util.Locale
  *
  * ⚠️ 局限（务必知悉）：这是「系统识别服务兜底」方案，并非神经网络离线模型。
  * - 多数设备实际依赖厂商/Google 识别服务，可能需联网；
- * - 是否真正离线取决于系统是否提供 on-device 识别（部分设备支持 [RecognizerIntent.EXTRA_PREFER_OFFLINE]）；
- * - 真正离线神经网络唤醒词/ASR 需引入模型文件 + 推理运行时（如 Vosk / TFLite），与项目「不引入新依赖」约束冲突，故未采用。
+ * - 是否真正离线取决于系统是否提供 on-device 识别（已通过 [RecognizerIntent.EXTRA_PREFER_OFFLINE] 尽力请求，
+ *   无设备端模型时系统自动回退在线识别，无副作用）；
+ *
+ * V2.16 离线 ML ASR 评估结论（2026-07）：
+ * - Vosk（~2MB AAR + 40MB 中文模型）、sherpa-onnx / TFLite 均需引入推理运行时依赖 + 模型资产，
+ *   直接违反项目「不引入新依赖」红线，且 APK 体积增加 40MB+，不采用；
+ * - 采用现状：系统框架 best-effort（EXTRA_PREFER_OFFLINE）+ 云 ASR 服务商可选，
+ *   能力上限已在设置页 assistant_asr_system_hint 向用户明示。
  *
  * 用法：单句识别（本地 ASR 语音输入）传 [continuous]=false；持续监听（唤醒词）传 true，框架会在无匹配/超时时自动重启。
  */
@@ -62,6 +68,9 @@ class LocalSpeechRecognizer(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.CHINESE.toString())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            // V2.16：尽力请求设备端离线识别（是否生效取决于系统是否装有 on-device 模型；
+            // 不支持时系统自动回退在线识别，无副作用）。
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
         recognizer?.startListening(intent)
     }
