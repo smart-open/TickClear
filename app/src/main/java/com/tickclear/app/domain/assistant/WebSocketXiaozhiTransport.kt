@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -51,13 +52,24 @@ class WebSocketXiaozhiTransport(
     // 服务端 TTS 下行：解码 Opus → PCM → AudioTrack 播放（best-effort，失败静默丢弃）。
     private val player = AudioPlayer()
 
+    // 心跳保活（V2.17）：WebSocket 协议层 ping/pong，20s 间隔；pong 超时即触发 onFailure → 退避重连，
+    // 兼作 NAT/代理空闲链路保活与死链检测，无需应用层自定义心跳报文。
     private val client = OkHttpClient.Builder()
         .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
+    private companion object {
+        /** 意外断线最大自动重连次数（1s/2s/4s/8s/16s 指数退避）。 */
+        const val MAX_RECONNECT = 5
+    }
+
     @Volatile private var ws: WebSocket? = null
     @Volatile private var sessionId: String? = null
     @Volatile private var connected = false
+
+    // V2.17 重连韧性：用户主动断开时不重连；意外断线按指数退避重试，握手成功后计数清零。
+    @Volatile private var userDisconnect = false
+    @Volatile private var reconnectAttempt = 0
 
     private var pendingPrompt: String = ""
     private var pendingToken: String? = null
@@ -68,6 +80,17 @@ class WebSocketXiaozhiTransport(
     override suspend fun connect(prompt: String) {
         if (connected) return
         pendingPrompt = prompt
+        userDisconnect = false
+        reconnectAttempt = 0
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        openSocket()
+    }
+
+    /**
+     * 建立（或重建）WebSocket。每次都重新读取 endpoint 与 token —— 外部 token 刷新场景下，
+     * 用户在设置页更新 token 后无需重启应用，下一次（重）连接即生效。
+     */
+    private suspend fun openSocket() {
         pendingToken = settings.getAssistantToken()
         val endpoint = settings.assistantEndpoint.first().ifEmpty { "wss://api.xiaozhi.me/ws" }
         val builder = Request.Builder().url(endpoint)
@@ -75,8 +98,25 @@ class WebSocketXiaozhiTransport(
             builder.addHeader("Authorization", "Bearer $it")
         }
         connected = true
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         ws = client.newWebSocket(builder.build(), listener)
+    }
+
+    /** 意外断线处理：未超上限则退避重连，否则最终失联。 */
+    private fun onUnexpectedDrop() {
+        connected = false
+        ws = null
+        if (userDisconnect || reconnectAttempt >= MAX_RECONNECT) {
+            _events.tryEmit(XiaozhiEvent.Disconnected)
+            return
+        }
+        reconnectAttempt++
+        val attempt = reconnectAttempt
+        _events.tryEmit(XiaozhiEvent.Reconnecting(attempt, MAX_RECONNECT))
+        scope?.launch {
+            // 指数退避：1s/2s/4s/8s/16s，上限 30s。
+            delay(minOf(1000L shl (attempt - 1), 30_000L))
+            if (!userDisconnect) openSocket()
+        }
     }
 
     override suspend fun sendText(text: String) {
@@ -132,6 +172,7 @@ class WebSocketXiaozhiTransport(
     }
 
     override suspend fun disconnect() {
+        userDisconnect = true
         if (!connected) return
         connected = false
         player.release()
@@ -177,12 +218,12 @@ class WebSocketXiaozhiTransport(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            connected = false
-            ws = null
-            _events.tryEmit(XiaozhiEvent.Disconnected)
+            // 网络异常/服务端崩溃等意外失败：走退避重连（V2.17）。
+            onUnexpectedDrop()
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            // 服务端优雅关闭视为会话结束，不自动重连（与 goodbye 语义一致）。
             connected = false
             ws = null
             _events.tryEmit(XiaozhiEvent.Disconnected)
@@ -194,6 +235,9 @@ class WebSocketXiaozhiTransport(
         when (val type = root["type"]?.jsonPrimitive?.content) {
             "hello" -> {
                 sessionId = root["session_id"]?.jsonPrimitive?.content
+                // 握手成功：重连计数清零并广播连接恢复（V2.17）。
+                reconnectAttempt = 0
+                _events.tryEmit(XiaozhiEvent.Connected)
                 val welcome = root["message"]?.jsonPrimitive?.content
                 if (!welcome.isNullOrBlank()) _events.tryEmit(XiaozhiEvent.LlmText(welcome))
             }

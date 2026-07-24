@@ -26,5 +26,8 @@ sealed interface XiaozhiEvent {
         val taskCreated: Boolean,
     ) : XiaozhiEvent
 
+    /** V2.17：连接意外断开后正在自动重连（第 attempt/max 次，指数退避）。 */
+    data class Reconnecting(val attempt: Int, val max: Int) : XiaozhiEvent
+
     data object Disconnected : XiaozhiEvent
 }

@@ -268,6 +268,9 @@ class AssistantViewModel @Inject constructor(
     private fun onEvent(ev: XiaozhiEvent) {
         when (ev) {
             is XiaozhiEvent.Connected -> _connected.value = true
+            is XiaozhiEvent.Reconnecting -> append(
+                ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_reconnecting, ev.attempt, ev.max)),
+            )
             is XiaozhiEvent.Disconnected -> _connected.value = false
             is XiaozhiEvent.SttText -> Unit // 用户输入已在 sendText 体现
             is XiaozhiEvent.TtsText -> Unit // 界面无需展示 TTS

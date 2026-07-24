@@ -312,6 +312,7 @@
     <string name="assistant_aliyun_access_secret_label">阿里云 AccessKeySecret</string>
     <string name="assistant_aliyun_app_key_label">阿里云 AppKey</string>
     <string name="assistant_asr_empty">没听清，请再说一次～</string>
+    <string name="assistant_reconnecting">连接中断，正在重连（第 %1$d/%2$d 次）…</string>
     <string name="assistant_draft_pending">已解析到任务，请确认是否创建</string>
     <string name="assistant_draft_unknown">收到暂不支持的指令</string>
     <string name="assistant_draft_cancelled">已取消创建任务</string>
