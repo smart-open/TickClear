@@ -2,6 +2,7 @@ package com.tickclear.app.ui.navigation
 
 import android.content.Context
 import android.content.Intent
+import android.annotation.TargetApi
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
@@ -49,6 +50,7 @@ object ShortcutHelper {
         runCatching { manager.dynamicShortcuts = shortcuts }
     }
 
+    @TargetApi(Build.VERSION_CODES.N_MR1)
     private fun build(
         context: Context,
         action: String,

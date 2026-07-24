@@ -21,6 +21,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 import javax.inject.Inject
 
 /** 统计趋势的聚合周期。 */
@@ -128,7 +129,7 @@ class StatsViewModel @Inject constructor(
 
             StatsPeriod.MONTH -> (0 until 6).map { i ->
                 val d = today.minusMonths(i.toLong())
-                val key = "${d.year}-${String.format("%02d", d.monthValue)}"
+                val key = "${d.year}-${String.format(Locale.ROOT, "%02d", d.monthValue)}"
                 val sum = completions.filterKeys { it.startsWith(key) }.values.sum()
                 TrendBucket("${d.monthValue}", sum)
             }.reversed()

@@ -103,7 +103,7 @@ fun RecycleBinScreen(
                 ) {
                     items(items, key = { "${it.type}_${it.id}" }) { item ->
                         // V2.21 列表项进入/重排动画
-                        Box(modifier = Modifier.fillMaxWidth().animateItemPlacement()) {
+                        Box(modifier = Modifier.fillMaxWidth().animateItem()) {
                             RecycleBinRow(
                                 item = item,
                                 onRestore = { viewModel.restore(item) },

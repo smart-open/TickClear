@@ -54,7 +54,11 @@ class TodayWidgetFactory(
         val item = items.getOrNull(position) ?: return RemoteViews(context.packageName, R.layout.widget_today_item)
         val rv = RemoteViews(context.packageName, R.layout.widget_today_item)
         rv.setTextViewText(R.id.widget_item_title, item.task.title)
-        rv.setBoolean(R.id.widget_item_check, "setChecked", item.done)
+        // RemoteViews 不支持 CheckBox；用 ImageView + 系统 drawable 表示勾选态（零新增资源）。
+        rv.setImageViewResource(
+            R.id.widget_item_check,
+            if (item.done) android.R.drawable.checkbox_on_background else android.R.drawable.checkbox_off_background,
+        )
         val min = item.task.instanceDueMinute()
         rv.setTextViewText(
             R.id.widget_item_time,
