@@ -16,37 +16,26 @@
     <string name="action_delete">删除</string>
     <string name="action_confirm">确定</string>
     <string name="action_edit">编辑</string>
-    <string name="action_complete">完成</string>
     <string name="action_restore">恢复</string>
-    <string name="action_clear_all">一键清空</string>
-    <string name="action_more">更多</string>
     <string name="action_back">返回</string>
     <string name="action_refresh">刷新</string>
-    <string name="empty_title">还没有内容</string>
-    <string name="empty_subtitle">点击右下角按钮开始添加</string>
 
     <!-- 今日 -->
-    <string name="today_title">今日</string>
     <string name="today_greeting_morning">早上好 ☀️</string>
     <string name="today_greeting_noon">中午好 🌤️</string>
     <string name="today_greeting_afternoon">下午好 🌈</string>
     <string name="today_greeting_evening">晚上好 🌙</string>
     <string name="today_greeting_night">夜深了 💤</string>
-    <string name="today_completion">今日完成 %1$d/%2$d</string>
-    <string name="today_completion_rate">完成率 %1$d%%</string>
     <string name="today_conflict_count">%1$d 项时间冲突</string>
-    <string name="today_conflict_hint">以下任务时间重叠，请确认</string>
     <string name="today_no_task">今天还没有安排任务</string>
     <string name="today_kbd_hint">键盘：↑↓ 选择 · 空格/回车 完成 · N 新建</string>
     <string name="today_clear_all_desc">一键清空今日</string>
     <string name="today_clear_all_title">清空今日全部任务？</string>
     <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>
     <string name="today_cleared_snack">今日已清空，继续保持！</string>
-    <string name="today_ai_add_hint">用 AI 助手说一句话就能建任务</string>
 
     <!-- 任务 -->
     <string name="tasks_title">任务</string>
-    <string name="tasks_groups">任务组</string>
     <string name="task_title_hint">任务标题</string>
     <string name="task_note_hint">备注（可选）</string>
     <string name="task_start_time">开始时间</string>
@@ -77,61 +66,29 @@
 
     <!-- 统计 -->
     <string name="stats_title">统计</string>
-    <string name="stats_completion_rate">完成率</string>
     <string name="stats_streak">连续完成</string>
     <string name="stats_by_group">按任务组</string>
-    <string name="stats_by_day">按日</string>
-    <string name="stats_by_week">按周</string>
-    <string name="stats_by_month">按月</string>
     <string name="stats_medals">勋章墙</string>
-    <string name="stats_checkin">今日已打卡</string>
 
     <!-- 助手 -->
-    <string name="assistant_title">助手</string>
     <string name="assistant_connected">已连接</string>
     <string name="assistant_disconnected">未连接</string>
-    <string name="assistant_connecting">连接中…</string>
-    <string name="assistant_input_hint">说点什么，或输入文字…</string>
     <string name="assistant_send">发送</string>
-    <string name="assistant_mic">按住说话</string>
-    <string name="assistant_config">连接设置</string>
     <string name="assistant_mode_mock">模拟（离线）</string>
-    <string name="assistant_mode_real">真实小智服务端</string>
-    <string name="assistant_endpoint">服务端地址</string>
-    <string name="assistant_token">Token</string>
-    <string name="assistant_func_created">已通过函数调用创建任务：%1$s</string>
-    <string name="assistant_func_failed">创建任务失败：%1$s</string>
 
     <!-- 设置 -->
     <string name="settings_title">设置</string>
-    <string name="settings_theme">主题</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
-    <string name="settings_theme_dynamic">跟随系统（Material You）</string>
-    <string name="settings_voice">语音识别</string>
-    <string name="settings_ai">AI 助手</string>
     <string name="settings_recycle_bin">回收站</string>
-    <string name="settings_debug">调试</string>
-    <string name="settings_about">关于</string>
-    <string name="settings_animation">动画</string>
-    <string name="settings_asr_provider">ASR 服务商</string>
-    <string name="settings_llm_provider">LLM 服务商</string>
-    <string name="settings_test">测试</string>
-    <string name="settings_secret">密钥</string>
 
     <!-- 关于 -->
     <string name="about_title">关于点清</string>
-    <string name="about_version">版本 %1$s</string>
-    <string name="about_desc">点清 TickClear —— 管好每一个时间点，清空每一件烦心事。纯本地、无账号、任务数据加密存储。</string>
-    <string name="about_encryption_note">数据通过 SQLCipher 加密存储；清除应用数据将丢失加密库且无法恢复。</string>
 
     <!-- 调试 -->
     <string name="debug_title">调试</string>
     <string name="debug_logs">运行日志</string>
-    <string name="debug_test_conflict">测试冲突检测</string>
     <string name="debug_test_notification">测试通知</string>
-    <string name="debug_test_asr">测试 ASR</string>
-    <string name="debug_export_db">导出数据库</string>
     <string name="debug_export_logs">导出日志</string>
     <string name="debug_logs_empty">暂无日志</string>
     <string name="debug_clear_logs">清空日志</string>
@@ -164,9 +121,7 @@
     <string name="notify_channel_silent">静默提醒</string>
 
     <!-- 错误 -->
-    <string name="error_generic">出错了，请稍后重试</string>
     <string name="error_permission_record">需要麦克风权限才能使用语音</string>
-    <string name="error_network">网络异常</string>
 
     <!-- 任务编辑 -->
     <string name="task_edit_new">新建任务</string>
@@ -468,10 +423,4 @@
     <string name="a11y_progress_ring">完成率 %1$d%%</string>
     <string name="a11y_progress_ring_nav">完成率环，点击查看统计</string>
 
-    <string-array name="assistant_voice_samples">
-        <item>提醒我明天9点开会</item>
-        <item>提醒我每周一早上8点健身</item>
-        <item>提醒我后天晚上7点吃药</item>
-        <item>你好</item>
-    </string-array>
 </resources>
