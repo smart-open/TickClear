@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -233,7 +234,7 @@ fun TodayScreen(
  * 今日主内容（下拉刷新 + 任务列表 + 新建 FAB），窄屏铺满、宽屏作为左栏。
  * listState 由外部持有以在旋转/配置变化后保持滚动位置。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun TodayMainContent(
     state: TodayUiState,
@@ -331,15 +332,18 @@ private fun TodayMainContent(
                         }
                     }
                     items(state.items, key = { it.instanceId }) { item ->
-                        TaskItem(
-                            item = item,
-                            group = state.groups[item.task.groupId],
-                            isConflict = state.conflictIds.contains(item.instanceId),
-                            onComplete = { onComplete(item) },
-                            onDelete = { onDelete(item) },
-                            onEdit = { onEdit(item) },
-                            isFocused = state.items.indexOf(item) == focusedIndex,
-                        )
+                        // V2.21 列表项进入/重排动画
+                        Box(modifier = Modifier.animateItemPlacement()) {
+                            TaskItem(
+                                item = item,
+                                group = state.groups[item.task.groupId],
+                                isConflict = state.conflictIds.contains(item.instanceId),
+                                onComplete = { onComplete(item) },
+                                onDelete = { onDelete(item) },
+                                onEdit = { onEdit(item) },
+                                isFocused = state.items.indexOf(item) == focusedIndex,
+                            )
+                        }
                     }
                 }
             }

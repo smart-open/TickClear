@@ -1,5 +1,7 @@
 package com.tickclear.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,9 +27,12 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -133,6 +138,17 @@ private fun TaskCardContent(
 ) {
     val timeText = if (task.allDay) stringResource(R.string.task_all_day) else formatMinute(task.instanceDueMinute())
     val taskItemCd = stringResource(R.string.a11y_task_item, task.title)
+    // V2.21 完成任务微动效：勾选框轻微回弹放大，内容随完成淡出。
+    val checkScale by animateFloatAsState(
+        targetValue = if (done) 1.12f else 1f,
+        animationSpec = spring(stiffness = 400f, dampingRatio = 0.55f),
+        label = "checkScale",
+    )
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (done) 0.6f else 1f,
+        animationSpec = spring(stiffness = 300f, dampingRatio = 0.7f),
+        label = "contentAlpha",
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -151,8 +167,9 @@ private fun TaskCardContent(
         Checkbox(
             checked = done,
             onCheckedChange = { onComplete() },
+            modifier = Modifier.scale(checkScale),
         )
-        Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
+        Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm).alpha(contentAlpha)) {
             Text(
                 text = task.title,
                 style = MaterialTheme.typography.bodyLarge,

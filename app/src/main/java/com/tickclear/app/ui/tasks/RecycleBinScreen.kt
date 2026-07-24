@@ -1,6 +1,8 @@
 package com.tickclear.app.ui.tasks
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,7 +46,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RecycleBinScreen(
     viewModel: RecycleBinViewModel = hiltViewModel(),
@@ -100,11 +102,14 @@ fun RecycleBinScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(items, key = { "${it.type}_${it.id}" }) { item ->
-                        RecycleBinRow(
-                            item = item,
-                            onRestore = { viewModel.restore(item) },
-                            onPurge = { itemToPurgeId = item.id },
-                        )
+                        // V2.21 列表项进入/重排动画
+                        Box(modifier = Modifier.fillMaxWidth().animateItemPlacement()) {
+                            RecycleBinRow(
+                                item = item,
+                                onRestore = { viewModel.restore(item) },
+                                onPurge = { itemToPurgeId = item.id },
+                            )
+                        }
                     }
                 }
             }
