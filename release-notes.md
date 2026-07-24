@@ -4,6 +4,38 @@
 
 ---
 
+## v2.3.0（2026-07-24）· 遗留功能缺口补齐
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 5 / versionName 2.3.0
+**相对 v2.2.0**：补齐 v2.2 收口后仍遗留的 4 项「真实功能缺口」——多档稍后提醒、音效开关、折叠已完成、组级暂停/启用/删除级联。无功能回归。
+
+### ✨ 核心新增（V2.30–V2.33）
+- **多档稍后提醒时长（V2.30）**：设置页新增「稍后提醒时长」分段选择（5/15/30 分钟，默认 15）。通知栏与全屏提醒的「稍后」动作、以及高优先级全屏提醒均改用该设置。`ReminderPrefs.normalizeSnoozeMin` 做归一化容错。
+- **提醒音效开关（V2.31）**：设置页新增「提醒音效」总开关（默认开）。关闭后高优先级提醒**不发声、不震动**，仅保留灯光与渠道重要性（仍送达）。`ReminderPrefs.shouldPlaySound` 纯函数判定。
+- **折叠已完成任务（V2.32）**：今日视图已完成数超过 20 时，列表自动拆分为「进行中 / 已完成」两段，并提供「折叠 / 展开」开关，避免长列表拖累；已完成项保持下沉与半透明。`TodayListPrefs.shouldShowCollapseByDoneCount` 纯函数判定（阈值 20）。
+- **组级暂停 / 启用 / 删除级联（V2.33）**：任务组头新增「暂停 / 启用」切换；暂停组级联暂停组内全部未软删任务（定时不再触发），启用则级联恢复。删除任务组改为级联软删组内所有任务再删组，级联同时取消对应提醒与地理围栏。`PauseGroupUseCase` / `ResumeGroupUseCase` / `DeleteGroupCascadeUseCase` 与单任务 `PauseTaskUseCase` / `ResumeTaskUseCase` 构成级联能力。
+
+### 🛠 质量与工程
+- 新增单测：`ReminderPrefsTest`(3) `TodayListPrefsTest`(1) `GroupUseCasesTest`(5)，覆盖归一化、音效判定、折叠阈值与级联落到子任务的验证。
+- 全程守住红线：零新依赖（复用 DataStore / NotificationCompat / Compose）、中文全抽离 `strings.xml`、Room 无 schema 变更、按功能拆 commit。
+- `./gradlew :app:lintRelease` 0 error；`./gradlew :app:testDebugUnitTest` 全绿。
+
+### ⚠️ 已知限制 / 显式保留
+- **离线热词 / 方言识别（V2.28 · 显式保留）**：引入端侧推理框架会破「零新依赖」红线，v2.3.0 维持系统 `SpeechRecognizer` best-effort，不引入依赖。
+- 组级删除级联软删后，回收站恢复组时仅恢复组本身（子任务需逐条恢复）；该增强留待 v2.4+。
+- 单元测试覆盖率为纯逻辑模块（约 5% 指令级）；UI/仓库/调度交互需 Robolectric 或仪器化测试，留待后续。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 质量门禁
+```
+
+---
+
 ## v2.2.0（2026-07-24）· 后续遗留任务收口
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
