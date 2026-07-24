@@ -38,6 +38,8 @@ class XiaozhiMcpTools @Inject constructor(
         val repeat = RepeatType.fromCode((args["repeatType"] as? String) ?: "NONE")
         // weekdays 仅对 WEEKLY 有意义，其余类型丢弃，保持数据一致。
         val weekdays = if (repeat == RepeatType.WEEKLY) args["weekdays"] as? String? else null
+        // 提前量：>0 代表提前 N 分钟提醒（V2.15 口语「提前15分钟」等）。
+        val offset = (args["reminderOffset"] as? Number)?.toInt()?.takeIf { it > 0 }
 
         return Task(
             id = "xz_${UUID.randomUUID()}",
@@ -46,7 +48,8 @@ class XiaozhiMcpTools @Inject constructor(
             scheduledStartMin = minute,
             repeatType = repeat.code,
             repeatWeekdays = weekdays,
-            reminderEnabled = minute != null,
+            reminderEnabled = minute != null || offset != null,
+            reminderOffsetMin = offset,
             reminderLevel = "mid",
             source = "xiaozhi",
         )

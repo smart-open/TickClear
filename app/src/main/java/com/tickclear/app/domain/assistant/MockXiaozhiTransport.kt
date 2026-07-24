@@ -47,6 +47,7 @@ class MockXiaozhiTransport(
                         "minute" to parsed.minute,
                         "repeatType" to parsed.repeatType,
                         "weekdays" to parsed.weekdays,
+                        "reminderOffset" to parsed.reminderOffsetMin,
                     ),
                 ),
             )

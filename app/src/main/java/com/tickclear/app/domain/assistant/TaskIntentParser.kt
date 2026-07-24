@@ -16,6 +16,13 @@ object TaskIntentParser {
         val minute: Int?, // 0..1439
         val repeatType: String, // NONE / DAILY / WEEKLY
         val weekdays: String?, // 周重复 csv "1..7"
+        val reminderOffsetMin: Int? = null, // 提前 N 分钟提醒（null/0=准时；>0 提前）
+    )
+
+    /** 中文星期单字 → ISO 数字（1=周一 … 7=周日），供单/多/范围匹配复用（正则捕获组仅含单字）。 */
+    private val WD_MAP = mapOf(
+        "一" to 1, "二" to 2, "三" to 3, "四" to 4,
+        "五" to 5, "六" to 6, "日" to 7, "天" to 7,
     )
 
     private val TRIGGERS = listOf(
@@ -33,6 +40,8 @@ object TaskIntentParser {
     private val RE_WS = Regex("""\s+""")
     private val RE_CLOCK_HHMM = Regex("""(\d{1,2})[:：](\d{2})""")
     private val RE_CLOCK_CN = Regex("""(\d{1,2})点(?:(\d{1,2})分)?""")
+    // 提前量：「提前15分钟」或「15分钟前(提醒)」
+    private val RE_OFFSET = Regex("""提前\s*(\d+)\s*分钟|(\d+)\s*分钟前""")
 
     fun parse(input: String): ParsedTask? {
         val text = input.trim()
@@ -49,16 +58,18 @@ object TaskIntentParser {
         body = body.replace("提醒", " ").replace("开会", " ").replace("会议", " ")
 
         // ── 重复 / 日期 ──
+        // 归一 星期→周，仅用于星期提取，不影响标题。
+        val wkText = text.replace("星期", "周")
         var repeatType = "NONE"
         var weekdays: String? = null
         var dayOffset = 0
         when {
             text.contains("每天") || text.contains("每日") -> repeatType = "DAILY"
             else -> {
-                val wd = parseWeekday(text)
+                val wd = parseWeekdays(wkText)
                 if (wd != null) {
                     repeatType = "WEEKLY"
-                    weekdays = wd.toString()
+                    weekdays = wd
                 } else {
                     dayOffset = when {
                         text.contains("大后天") -> 3
@@ -69,6 +80,14 @@ object TaskIntentParser {
                     }
                 }
             }
+        }
+
+        // ── 提前量（提醒偏移）──
+        var reminderOffsetMin: Int? = null
+        RE_OFFSET.find(text)?.let {
+            val g1 = it.groupValues[1]
+            val g2 = it.groupValues[2]
+            reminderOffsetMin = (if (g1.isNotEmpty()) g1 else g2).toIntOrNull()
         }
 
         // ── 时间 ──
@@ -84,6 +103,7 @@ object TaskIntentParser {
         title = title.replace(RE_HH_MM_CN, " ")
         title = title.replace(RE_HH_CN, " ")
         title = title.replace(RE_TIME_WORDS, " ")
+        title = title.replace(RE_OFFSET, " ")
         title = title.replace(RE_WS, " ").trim()
         if (title.isEmpty()) title = "新任务"
 
@@ -99,17 +119,34 @@ object TaskIntentParser {
             minute = if (h != null) h * 60 + (minute ?: 0) else null,
             repeatType = repeatType,
             weekdays = weekdays,
+            reminderOffsetMin = reminderOffsetMin,
         )
     }
 
-    private fun parseWeekday(text: String): Int? {
-        val map = mapOf(
-            "周一" to 1, "星期一" to 1, "周二" to 2, "星期二" to 2,
-            "周三" to 3, "星期三" to 3, "周四" to 4, "星期四" to 4,
-            "周五" to 5, "星期五" to 5, "周六" to 6, "星期六" to 6,
-            "周日" to 7, "周天" to 7, "星期日" to 7, "星期天" to 7,
-        )
-        for ((k, v) in map) if (text.contains(k)) return v
+    /**
+     * 解析周重复模式（V2.15 增强）：
+     * - 「工作日」→ 1,2,3,4,5
+     * - 「周一到周五 / 周一至周五」范围 → 闭区间 csv
+     * - 「周一三五 / 周一、三、五」多个 → 去重排序 csv
+     * 单周几（如「周一」）返回 "1"，与旧行为一致。
+     */
+    private fun parseWeekdays(wkText: String): String? {
+        if (wkText.contains("工作日")) return "1,2,3,4,5"
+        val rangeRe = Regex("""周([一二三四五六日天])\s*(?:到|至|-)\s*周([一二三四五六日天])""")
+        rangeRe.find(wkText)?.let {
+            val (a, b) = it.destructured
+            val va = WD_MAP[a] ?: return@let null
+            val vb = WD_MAP[b] ?: return@let null
+            val lo = minOf(va, vb)
+            val hi = maxOf(va, vb)
+            return (lo..hi).joinToString(",")
+        }
+        // 多周几：支持「周一三五」连写与「周一、周三、周五」分写，取每个星期单字。
+        val multiRe = Regex("""周((?:[一二三四五六日天][、,，]?)+)""")
+        val all = multiRe.findAll(wkText)
+            .flatMap { m -> m.groupValues[1].toCharArray().asSequence().mapNotNull { WD_MAP[it.toString()] } }
+            .toSet().toList().sorted()
+        if (all.isNotEmpty()) return all.joinToString(",")
         return null
     }
 
