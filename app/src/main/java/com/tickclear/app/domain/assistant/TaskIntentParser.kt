@@ -175,6 +175,63 @@ object TaskIntentParser {
         return if (lower > 23) 23 else lower
     }
 
+    // ══════════ V2.18 多轮任务编辑：对「刚创建的任务」的后续指令解析 ══════════
+
+    /** 编辑意图（对最近一次创建的任务）。 */
+    sealed interface ParsedEdit {
+        /** 改时间：dateStr 为 null 表示不改日期，minute 为 null 表示只改日期。 */
+        data class ChangeTime(val dateStr: String?, val minute: Int?) : ParsedEdit
+
+        /** 改重复：NONE / DAILY / WEEKLY(+weekdays csv)。 */
+        data class ChangeRepeat(val repeatType: String, val weekdays: String?) : ParsedEdit
+
+        /** 取消（软删除）刚创建的任务。 */
+        data object Cancel : ParsedEdit
+    }
+
+    private val RE_EDIT_TIME_HINT = Regex("""改到|改成|改时间|推迟到|提前到|换到|调到|挪到""")
+    private val RE_EDIT_CANCEL = Regex("""取消|删掉|删了|删除|不要了|算了""")
+
+    /**
+     * 解析对上一个任务的编辑指令；无法识别返回 null（调用方回落到正常对话）。
+     * 优先级：取消 > 改重复 > 改时间（「改成每天」须先于时间分支匹配）。
+     */
+    fun parseEdit(input: String): ParsedEdit? {
+        val text = input.trim()
+        if (text.isEmpty() || text.length > 30) return null // 长句大概率是新话题
+
+        if (RE_EDIT_CANCEL.containsMatchIn(text) &&
+            (text.contains("任务") || text.contains("它") || text.contains("这个") ||
+                text.contains("那个") || text.contains("刚才") || text.length <= 6)
+        ) {
+            return ParsedEdit.Cancel
+        }
+
+        val hasEditHint = RE_EDIT_TIME_HINT.containsMatchIn(text)
+        if (!hasEditHint) return null
+
+        // 改重复：改成每天 / 改成工作日 / 改成每周一三五 / 改成不重复
+        if (text.contains("不重复") || text.contains("只一次")) return ParsedEdit.ChangeRepeat("NONE", null)
+        if (text.contains("每天") || text.contains("每日")) return ParsedEdit.ChangeRepeat("DAILY", null)
+        val wkText = text.replace("星期", "周")
+        parseWeekdays(wkText)?.let { return ParsedEdit.ChangeRepeat("WEEKLY", it) }
+
+        // 改时间：日期偏移 + 时刻，至少解析出其一
+        val dayOffset = when {
+            text.contains("大后天") -> 3
+            text.contains("后天") -> 2
+            text.contains("明天") -> 1
+            text.contains("今天") -> 0
+            else -> null
+        }
+        val (hour, minute) = parseClock(text)
+        val h = hour?.let { applyMeridiem(text, it) }
+        val min = if (h != null) h * 60 + (minute ?: 0) else null
+        if (dayOffset == null && min == null) return null
+        val dateStr = dayOffset?.let { LocalDate.now().plusDays(it.toLong()).format(DATE_FMT) }
+        return ParsedEdit.ChangeTime(dateStr, min)
+    }
+
     fun weekdayName(dow: DayOfWeek): String = when (dow) {
         DayOfWeek.MONDAY -> "周一"
         DayOfWeek.TUESDAY -> "周二"

@@ -16,9 +16,13 @@ import com.tickclear.app.domain.assistant.WavUtil
 import com.tickclear.app.domain.assistant.XiaozhiEvent
 import com.tickclear.app.domain.assistant.XiaozhiMcpTools
 import com.tickclear.app.domain.assistant.XiaozhiTransport
+import com.tickclear.app.domain.assistant.TaskIntentParser
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import com.tickclear.app.domain.model.Task
+import com.tickclear.app.domain.repository.TaskRepository
+import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
+import com.tickclear.app.domain.usecase.UpdateTaskUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -47,8 +51,14 @@ class AssistantViewModel @Inject constructor(
     private val opusCodec: OpusCodec,
     private val llmResolver: LlmProviderResolver,
     private val asrResolver: AsrProviderResolver,
+    private val taskRepository: TaskRepository,
+    private val updateTaskUseCase: UpdateTaskUseCase,
+    private val softDeleteTaskUseCase: SoftDeleteTaskUseCase,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
+
+    /** V2.18：最近一次经助手创建的任务 id，作为「改时间/改重复/取消」多轮编辑的目标。 */
+    @Volatile private var lastCreatedTaskId: String? = null
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.stateIn(
@@ -214,6 +224,8 @@ class AssistantViewModel @Inject constructor(
         if (t.isEmpty()) return
         append(ChatMessage(nextId(), "user", t))
         viewModelScope.launch {
+            // V2.18 多轮编辑：若存在「刚创建的任务」且本句是编辑指令，则本地闭环处理，不再送 LLM。
+            if (lastCreatedTaskId != null && tryHandleEdit(t)) return@launch
             val llm = settingsRepository.llmProvider.first()
             if (llm == LlmProviderCatalog.XIAOZHI) {
                 transport.sendText(t)
@@ -293,6 +305,7 @@ class AssistantViewModel @Inject constructor(
             // 删除/暂停等危险操作无论是否信任都强制二次确认，避免误删。
             if (settingsRepository.trustMode.first() && !isDangerousTool(call.tool)) {
                 val res = mcpTools.commit(draft)
+                if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
                 append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
             } else {
                 _pendingDraft.value = draft
@@ -310,9 +323,56 @@ class AssistantViewModel @Inject constructor(
         val draft = _pendingDraft.value ?: return
         viewModelScope.launch {
             val res = mcpTools.commit(draft)
+            if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
             append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
             _pendingDraft.value = null
         }
+    }
+
+    /**
+     * V2.18 多轮任务编辑：尝试把 [text] 解析为对最近创建任务的「改时间/改重复/取消」指令。
+     * 返回 true 表示已本地闭环处理（调用方不再路由到 LLM）。
+     */
+    private suspend fun tryHandleEdit(text: String): Boolean {
+        val edit = TaskIntentParser.parseEdit(text) ?: return false
+        val id = lastCreatedTaskId ?: return false
+        val task = taskRepository.getById(id)
+        if (task == null) {
+            lastCreatedTaskId = null
+            return false
+        }
+        when (edit) {
+            is TaskIntentParser.ParsedEdit.Cancel -> {
+                softDeleteTaskUseCase(id)
+                lastCreatedTaskId = null
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_edit_cancelled, task.title)))
+            }
+            is TaskIntentParser.ParsedEdit.ChangeTime -> {
+                val updated = task.copy(
+                    scheduledDate = edit.dateStr ?: task.scheduledDate,
+                    scheduledStartMin = edit.minute ?: task.scheduledStartMin,
+                )
+                val conflicts = updateTaskUseCase(updated)
+                val note = if (conflicts.isNotEmpty()) appContext.getString(R.string.assistant_edit_conflict_note) else ""
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_edit_time_ok, task.title) + note))
+            }
+            is TaskIntentParser.ParsedEdit.ChangeRepeat -> {
+                val updated = task.copy(
+                    repeatType = edit.repeatType,
+                    repeatWeekdays = edit.weekdays,
+                    // 重复任务不留一次性日期；改回不重复时若原无日期则回落到今天。
+                    scheduledDate = if (edit.repeatType == "NONE") {
+                        task.scheduledDate ?: java.time.LocalDate.now().toString()
+                    } else {
+                        null
+                    },
+                )
+                val conflicts = updateTaskUseCase(updated)
+                val note = if (conflicts.isNotEmpty()) appContext.getString(R.string.assistant_edit_conflict_note) else ""
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_edit_repeat_ok, task.title) + note))
+            }
+        }
+        return true
     }
 
     /** 取消草稿任务（语音解析确认卡「取消」）。 */

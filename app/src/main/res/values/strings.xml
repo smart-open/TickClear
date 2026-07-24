@@ -313,6 +313,10 @@
     <string name="assistant_aliyun_app_key_label">阿里云 AppKey</string>
     <string name="assistant_asr_empty">没听清，请再说一次～</string>
     <string name="assistant_reconnecting">连接中断，正在重连（第 %1$d/%2$d 次）…</string>
+    <string name="assistant_edit_time_ok">已更新「%1$s」的时间</string>
+    <string name="assistant_edit_repeat_ok">已更新「%1$s」的重复方式</string>
+    <string name="assistant_edit_cancelled">已取消「%1$s」</string>
+    <string name="assistant_edit_conflict_note">（与现有任务时间冲突，已保留）</string>
     <string name="assistant_draft_pending">已解析到任务，请确认是否创建</string>
     <string name="assistant_draft_unknown">收到暂不支持的指令</string>
     <string name="assistant_draft_cancelled">已取消创建任务</string>

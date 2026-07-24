@@ -80,4 +80,42 @@ class TaskIntentParserTest {
         val p = TaskIntentParser.parse("提醒我明天9点交报告")!!
         assertTrue(p.title.contains("报告"))
     }
+
+    // ── V2.18 多轮编辑指令 ──
+
+    @Test
+    fun `编辑 改到明天10点 解析为 ChangeTime`() {
+        val e = TaskIntentParser.parseEdit("改到明天10点")
+        assertTrue(e is TaskIntentParser.ParsedEdit.ChangeTime)
+        e as TaskIntentParser.ParsedEdit.ChangeTime
+        assertEquals(LocalDate.now().plusDays(1).format(fmt), e.dateStr)
+        assertEquals(600, e.minute)
+    }
+
+    @Test
+    fun `编辑 改成每天 解析为 ChangeRepeat DAILY`() {
+        val e = TaskIntentParser.parseEdit("改成每天")
+        assertTrue(e is TaskIntentParser.ParsedEdit.ChangeRepeat)
+        assertEquals("DAILY", (e as TaskIntentParser.ParsedEdit.ChangeRepeat).repeatType)
+    }
+
+    @Test
+    fun `编辑 改成工作日 解析为 WEEKLY 1-5`() {
+        val e = TaskIntentParser.parseEdit("改成工作日")
+        e as TaskIntentParser.ParsedEdit.ChangeRepeat
+        assertEquals("WEEKLY", e.repeatType)
+        assertEquals("1,2,3,4,5", e.weekdays)
+    }
+
+    @Test
+    fun `编辑 取消这个任务 解析为 Cancel`() {
+        assertEquals(TaskIntentParser.ParsedEdit.Cancel, TaskIntentParser.parseEdit("取消这个任务"))
+        assertEquals(TaskIntentParser.ParsedEdit.Cancel, TaskIntentParser.parseEdit("不要了"))
+    }
+
+    @Test
+    fun `编辑 普通聊天不误判`() {
+        assertNull(TaskIntentParser.parseEdit("今天天气怎么样"))
+        assertNull(TaskIntentParser.parseEdit("帮我写一段自我介绍，要求两百字以上，语气自然一些"))
+    }
 }
