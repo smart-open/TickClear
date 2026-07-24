@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.usecase.TodayItem
+import com.tickclear.app.domain.usecase.TodayListPrefs
 import com.tickclear.app.ui.components.ConflictBanner
 import com.tickclear.app.ui.components.ProgressRing
 import com.tickclear.app.ui.components.TaskEditSheet
@@ -259,6 +262,16 @@ private fun TodayMainContent(
     // 闭包始终读取最新 state.items，避免操作后作用于过期数据（误完成错误项）。
     val currentState = rememberUpdatedState(state)
     val view = LocalView.current
+
+    // V2.32：拆分进行中/已完成；已完成数超过阈值时默认折叠（用户可手动展开）。
+    // 注意：rememberSaveable / LaunchedEffect 必须在 @Composable 函数体作用域，
+    // 不能放在 LazyColumn 的 LazyListScope（仅 item/items 内部是 composable 上下文）。
+    val activeItems = state.items.filter { !it.done }
+    val doneItems = state.items.filter { it.done }
+    var collapseDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size)) collapseDone = true
+    }
     DisposableEffect(view, shortcutsEnabled) {
         val listener = View.OnKeyListener { _, keyCode, event ->
             if (!shortcutsEnabled || event.action != KeyEvent.ACTION_DOWN) return@OnKeyListener false
@@ -336,7 +349,8 @@ private fun TodayMainContent(
                             )
                         }
                     }
-                    items(state.items, key = { it.instanceId }) { item ->
+
+                    items(activeItems, key = { it.instanceId }) { item ->
                         // V2.21 列表项进入/重排动画
                         Box(modifier = Modifier.animateItem()) {
                             TaskItem(
@@ -346,8 +360,34 @@ private fun TodayMainContent(
                                 onComplete = { onComplete(item) },
                                 onDelete = { onDelete(item) },
                                 onEdit = { onEdit(item) },
-                                isFocused = state.items.indexOf(item) == focusedIndex,
+                                isFocused = state.items.getOrNull(focusedIndex)?.instanceId == item.instanceId,
                             )
+                        }
+                    }
+
+                    if (doneItems.isNotEmpty()) {
+                        item {
+                            DoneSectionHeader(
+                                count = doneItems.size,
+                                collapsed = collapseDone,
+                                showToggle = TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size),
+                                onToggle = { collapseDone = !collapseDone },
+                            )
+                        }
+                        if (!collapseDone) {
+                            items(doneItems, key = { it.instanceId }) { item ->
+                                Box(modifier = Modifier.animateItem()) {
+                                    TaskItem(
+                                        item = item,
+                                        group = state.groups[item.task.groupId],
+                                        isConflict = state.conflictIds.contains(item.instanceId),
+                                        onComplete = { onComplete(item) },
+                                        onDelete = { onDelete(item) },
+                                        onEdit = { onEdit(item) },
+                                        isFocused = state.items.getOrNull(focusedIndex)?.instanceId == item.instanceId,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -370,4 +410,48 @@ private fun greetingRes(hour: Int): Int = when (hour) {
     in 14..17 -> R.string.today_greeting_afternoon
     in 18..22 -> R.string.today_greeting_evening
     else -> R.string.today_greeting_night
+}
+
+/**
+ * 已完成分区头部（V2.32）：展示已完成数量；当数量超过阈值时提供「折叠/展开」开关。
+ */
+@Composable
+private fun DoneSectionHeader(
+    count: Int,
+    collapsed: Boolean,
+    showToggle: Boolean,
+    onToggle: () -> Unit,
+) {
+    if (showToggle) {
+        // stringResource 必须在 composable 上下文预计算，不能在 .semantics {} 内（非 composable 作用域）。
+        val headerCd = stringResource(R.string.today_done_section_title, count)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = headerCd }
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(R.string.today_done_section_title, count),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(if (collapsed) R.string.today_expand else R.string.today_collapse),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    } else {
+        Text(
+            text = stringResource(R.string.today_done_section_title, count),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        )
+    }
+    HorizontalDivider()
 }
