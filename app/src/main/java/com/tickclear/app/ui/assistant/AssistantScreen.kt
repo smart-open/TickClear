@@ -5,10 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,6 +73,7 @@ import android.Manifest
 fun AssistantScreen(
     viewModel: AssistantViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
+    isWide: Boolean = false,
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val connected by viewModel.connected.collectAsStateWithLifecycle()
@@ -123,6 +130,12 @@ fun AssistantScreen(
                 },
                 actions = {
                     ConnectionChip(connected)
+                    // V2.19 宽屏常驻配置侧栏，隐藏齿轮避免重复入口
+                    if (!isWide) {
+                        IconButton(onClick = { showConfig = true }) {
+                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.assistant_config_desc))
+                        }
+                    }
                     if (wakeEnabled) {
                         IconButton(onClick = {
                             if (wakeWordActive) {
@@ -196,33 +209,77 @@ fun AssistantScreen(
             }
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // 语音/文本解析出的待确认草稿任务：确认卡优先展示，避免误建。
-            pendingDraft?.let { draft ->
-                TaskDraftCard(
-                    draft = draft,
-                    onConfirm = { viewModel.confirmDraft() },
-                    onDismiss = { viewModel.dismissDraft() },
+        if (isWide) {
+            // V2.19 宽屏：对话与配置分栏；配置面板常驻右侧，无需弹窗。
+            Row(Modifier.fillMaxSize().padding(padding)) {
+                Column(Modifier.weight(1f).fillMaxSize()) {
+                    // 语音/文本解析出的待确认草稿任务：确认卡优先展示，避免误建。
+                    pendingDraft?.let { draft ->
+                        TaskDraftCard(
+                            draft = draft,
+                            onConfirm = { viewModel.confirmDraft() },
+                            onDismiss = { viewModel.dismissDraft() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                    }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(messages, key = { it.id }) { msg ->
+                            ChatBubble(msg)
+                        }
+                    }
+                }
+                HorizontalDivider(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .fillMaxHeight()
+                        .width(1.dp),
                 )
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 440.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                ) {
+                    AssistantConfigContent(settingsViewModel = settingsVm, onDismiss = {})
+                }
             }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(messages, key = { it.id }) { msg ->
-                    ChatBubble(msg)
+        } else {
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // 语音/文本解析出的待确认草稿任务：确认卡优先展示，避免误建。
+                pendingDraft?.let { draft ->
+                    TaskDraftCard(
+                        draft = draft,
+                        onConfirm = { viewModel.confirmDraft() },
+                        onDismiss = { viewModel.dismissDraft() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(messages, key = { it.id }) { msg ->
+                        ChatBubble(msg)
+                    }
                 }
             }
         }
     }
 
-    if (showConfig) {
+    if (showConfig && !isWide) {
         AssistantConfigSheet(onDismiss = { showConfig = false })
     }
 }

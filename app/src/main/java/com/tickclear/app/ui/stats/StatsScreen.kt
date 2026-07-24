@@ -52,12 +52,14 @@ import java.util.Locale
 @Composable
 fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
+    isWide: Boolean = false,
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) },
     ) { padding ->
         StatsContent(
             viewModel = viewModel,
+            isWide = isWide,
             modifier = Modifier.padding(padding),
         )
     }
@@ -66,10 +68,12 @@ fun StatsScreen(
 /**
  * 统计主体（不含 Scaffold/TopAppBar），可独立注入 ViewModel。
  * 既用于统计 Tab，也用于今日 Tab 宽屏的统计侧栏。
+ * [isWide] 为 true 时（Medium+ 宽屏）概览与明细分双栏，避免大屏横向留白与卡片拉伸。
  */
 @Composable
 fun StatsContent(
     viewModel: StatsViewModel = hiltViewModel(),
+    isWide: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -96,6 +100,55 @@ fun StatsContent(
             }
         }
 
+        if (isWide) {
+            // V2.19 宽屏：概览与明细分双栏，避免大屏横向留白与卡片被拉伸。
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                StatsOverviewColumn(state = state, modifier = Modifier.weight(1f))
+                StatsDetailColumn(
+                    state = state,
+                    period = period,
+                    trend = trend,
+                    viewModel = viewModel,
+                    onMedalClick = { selectedMedal = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                StatsOverviewColumn(state = state)
+                StatsDetailColumn(
+                    state = state,
+                    period = period,
+                    trend = trend,
+                    viewModel = viewModel,
+                    onMedalClick = { selectedMedal = it },
+                )
+            }
+        }
+    }
+    selectedMedal?.let { medal ->
+        MedalDetailDialog(
+            medal = medal,
+            progress = state.medalProgress[medal.key],
+            unlockedDate = state.unlockedDates[medal.key],
+            onDismiss = { selectedMedal = null },
+        )
+    }
+}
+
+/**
+ * 统计概览栏（左/上）：汇总卡 2x2、完成率环 + 最长连续、本周/本月、打卡记录。
+ * 同时供窄屏单列与宽屏双栏复用。
+ */
+@Composable
+private fun StatsOverviewColumn(
+    state: StatsUiState,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         // 汇总卡 2x2
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -177,7 +230,23 @@ fun StatsContent(
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+}
 
+/**
+ * 统计明细栏（右/下）：完成趋势、热力图、分组完成、勋章墙。
+ * 同时供窄屏单列与宽屏双栏复用。
+ */
+@Composable
+private fun StatsDetailColumn(
+    state: StatsUiState,
+    period: StatsPeriod,
+    trend: List<TrendBucket>,
+    viewModel: StatsViewModel,
+    onMedalClick: (Medal) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         // 完成趋势
         SectionTitle(stringResource(R.string.stats_trend))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -222,15 +291,7 @@ fun StatsContent(
         MedalWall(
             unlocked = state.unlockedMedals,
             progress = state.medalProgress,
-            onMedalClick = { selectedMedal = it },
-        )
-    }
-    selectedMedal?.let { medal ->
-        MedalDetailDialog(
-            medal = medal,
-            progress = state.medalProgress[medal.key],
-            unlockedDate = state.unlockedDates[medal.key],
-            onDismiss = { selectedMedal = null },
+            onMedalClick = onMedalClick,
         )
     }
 }

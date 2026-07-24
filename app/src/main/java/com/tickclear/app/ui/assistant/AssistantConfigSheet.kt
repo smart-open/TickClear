@@ -59,9 +59,23 @@ fun AssistantConfigSheet(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     onDismiss: () -> Unit,
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        AssistantConfigContent(settingsViewModel = settingsViewModel, onDismiss = onDismiss)
+    }
+}
+
+/**
+ * 助手配置面板主体（不含 ModalBottomSheet 外壳）。
+ * 既用于窄屏的 BottomSheet，也用于宽屏的常驻侧栏（V2.19）。
+ */
+@Composable
+internal fun AssistantConfigContent(
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    onDismiss: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val mode by settingsViewModel.assistantMode.collectAsStateWithLifecycle()
     val endpoint by settingsViewModel.assistantEndpoint.collectAsStateWithLifecycle()
@@ -121,14 +135,13 @@ fun AssistantConfigSheet(
         localAliyunAppKey = settingsViewModel.getAliyunAppKey().orEmpty()
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
             Text(
                 stringResource(R.string.assistant_config_title),
                 style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
@@ -345,7 +358,6 @@ fun AssistantConfigSheet(
             }
         }
     }
-}
 
 @Composable
 private fun AsrTextField(

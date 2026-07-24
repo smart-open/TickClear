@@ -128,8 +128,8 @@ private fun AppNavHost(
                 initialOpenEditor = entry.arguments?.getBoolean("openEditor") ?: false,
             )
         }
-        composable(Routes.STATS) { StatsScreen() }
-        composable(Routes.ASSISTANT) { AssistantScreen(onBack = { navController.navigate(Routes.TODAY) }) }
+        composable(Routes.STATS) { StatsScreen(isWide = isWide) }
+        composable(Routes.ASSISTANT) { AssistantScreen(isWide = isWide, onBack = { navController.navigate(Routes.TODAY) }) }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
