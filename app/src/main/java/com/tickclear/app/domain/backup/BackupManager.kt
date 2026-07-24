@@ -154,6 +154,26 @@ class BackupManager @Inject constructor(
     }
 
     /**
+     * 备份健康校验（V2.23 自愈校验）：纯解析 + 版本 + 结构校验，不落盘、不依赖 Android 上下文，
+     * 供自动备份写入后即时自检与设置页回显。JVM 单测可覆盖。
+     *
+     * 规则对齐 [importFromJson]：版本缺失/非法或不高于当前 schema 视为 [BackupHealth.CORRUPT]；
+     * 结构合法但五类数据全空视为 [BackupHealth.EMPTY]；否则 [BackupHealth.OK]。
+     */
+    fun validateBackupJson(json: String): BackupHealth {
+        val root = runCatching { JSONObject(json) }.getOrNull() ?: return BackupHealth.CORRUPT
+        val version = root.optInt(KEY_VERSION, -1)
+        if (version <= 0) return BackupHealth.CORRUPT
+        if (version > SCHEMA_VERSION) return BackupHealth.CORRUPT
+        val total = (root.optJSONArray("groups")?.length() ?: 0) +
+            (root.optJSONArray("tasks")?.length() ?: 0) +
+            (root.optJSONArray("completionLogs")?.length() ?: 0) +
+            (root.optJSONArray("checkIns")?.length() ?: 0) +
+            (root.optJSONArray("medals")?.length() ?: 0)
+        return if (total == 0) BackupHealth.EMPTY else BackupHealth.OK
+    }
+
+    /**
      * 备份结构迁移（V2.6 / 版本化）：将 [root] 从 [from] 版本逐步升级到 [SCHEMA_VERSION]。
      * 当前仅 v1，暂无结构性变更；后续新增字段/重命名时在此追加 when 分支，
      * 保证旧备份向前兼容，避免破坏性导入。

@@ -1,5 +1,6 @@
 package com.tickclear.app.domain.repository
 
+import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
@@ -36,6 +37,9 @@ interface SettingsRepository {
     /** 最近一次自动备份时间（epoch millis，0=从未），用于设置页回显。 */
     val lastAutoBackupAt: Flow<Long>
 
+    /** 最近一次自动备份的健康状态（V2.23 自愈校验），用于设置页回显。 */
+    val lastBackupHealth: Flow<BackupHealth>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
@@ -59,6 +63,7 @@ interface SettingsRepository {
     suspend fun setTrustMode(enabled: Boolean)
     suspend fun setAutoBackupEnabled(enabled: Boolean)
     suspend fun setLastAutoBackupAt(at: Long)
+    suspend fun setLastBackupHealth(health: BackupHealth)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

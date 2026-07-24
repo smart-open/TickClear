@@ -377,6 +377,13 @@
     <string name="settings_auto_backup_now">立即备份</string>
     <string name="settings_auto_backup_last">上次备份：%1$s</string>
     <string name="settings_auto_backup_never">尚未执行过自动备份</string>
+    <!-- 备份自愈校验（V2.23） -->
+    <string name="settings_backup_health_title">上次备份状态</string>
+    <string name="settings_backup_health_subtitle">自动校验最近一次备份是否可正常恢复</string>
+    <string name="settings_backup_health_ok">正常</string>
+    <string name="settings_backup_health_corrupt">损坏，请重新备份</string>
+    <string name="settings_backup_health_empty">空（无数据）</string>
+    <string name="settings_backup_health_none">未检查</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_about_title">关于 点清</string>
     <string name="settings_about_subtitle">版本、存储与隐私说明</string>

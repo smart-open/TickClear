@@ -38,6 +38,14 @@ object AutoBackupRunner {
             ?.forEach { it.delete() }
 
         settingsRepository.setLastAutoBackupAt(System.currentTimeMillis())
+
+        // V2.23 备份自愈校验：解密刚写入的字节并校验结构，回写健康状态供设置页回显。
+        // 校验失败不影响已落盘的备份（仅健康状态标记为 CORRUPT，提示用户重备）。
+        runCatching {
+            val json = BackupCrypto.decrypt(bytes).toString(Charsets.UTF_8)
+            settingsRepository.setLastBackupHealth(backupManager.validateBackupJson(json))
+        }.onFailure { AppLogger.w("AutoBackup", "备份自检失败（不影响已写入的备份）", it) }
+
         AppLogger.i("AutoBackup", "已写入 ${file.name}（${bytes.size} 字节，保留 ${dir.listFiles { f -> f.name.endsWith(EXT) }?.size ?: 0} 份）")
     }
 }

@@ -53,6 +53,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import com.tickclear.app.R
+import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.ui.theme.ThemeMode
 
@@ -71,6 +72,7 @@ fun SettingsScreen(
     val quietHoursEnabled by viewModel.quietHoursEnabled.collectAsStateWithLifecycle()
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastAutoBackupAt by viewModel.lastAutoBackupAt.collectAsStateWithLifecycle()
+    val lastBackupHealth by viewModel.lastBackupHealth.collectAsStateWithLifecycle()
     val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
     val assistantMode by viewModel.assistantMode.collectAsStateWithLifecycle()
 
@@ -273,6 +275,19 @@ fun SettingsScreen(
                     subtitle = lastText,
                     onClick = { viewModel.runAutoBackupNow() },
                 )
+                // V2.23 备份自愈校验回显：颜色区分健康/损坏，损坏提示用户重备。
+                SettingRow(
+                    title = stringResource(R.string.settings_backup_health_title),
+                    subtitle = stringResource(R.string.settings_backup_health_subtitle),
+                ) {
+                    val (healthText, healthColor) = when (lastBackupHealth) {
+                        BackupHealth.OK -> stringResource(R.string.settings_backup_health_ok) to MaterialTheme.colorScheme.primary
+                        BackupHealth.CORRUPT -> stringResource(R.string.settings_backup_health_corrupt) to MaterialTheme.colorScheme.error
+                        BackupHealth.EMPTY -> stringResource(R.string.settings_backup_health_empty) to MaterialTheme.colorScheme.onSurfaceVariant
+                        BackupHealth.NONE -> stringResource(R.string.settings_backup_health_none) to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Text(healthText, color = healthColor, style = MaterialTheme.typography.bodyMedium)
+                }
             }
 
             // ── ICS 日历导入导出（V2.7）──

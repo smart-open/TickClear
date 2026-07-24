@@ -11,6 +11,7 @@ import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.backup.AutoBackupRunner
 import com.tickclear.app.domain.backup.AutoBackupScheduler
+import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.backup.BackupManager
 import com.tickclear.app.domain.ics.IcsManager
 import com.tickclear.app.domain.model.AppException
@@ -159,6 +160,10 @@ class SettingsViewModel @Inject constructor(
     )
     val lastAutoBackupAt: StateFlow<Long> = settingsRepository.lastAutoBackupAt.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), 0L,
+    )
+    /** 最近一次自动备份的健康状态（V2.23 自愈校验回显）。 */
+    val lastBackupHealth: StateFlow<BackupHealth> = settingsRepository.lastBackupHealth.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), BackupHealth.NONE,
     )
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }

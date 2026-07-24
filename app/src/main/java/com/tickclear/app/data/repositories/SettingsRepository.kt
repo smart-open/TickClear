@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tickclear.app.data.SecureStore
+import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.ui.theme.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -82,6 +83,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override val autoBackupEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_BACKUP] ?: false }
     override val lastAutoBackupAt: Flow<Long> = dataStore.data.map { it[KEY_LAST_BACKUP_AT] ?: 0L }
 
+    override val lastBackupHealth: Flow<BackupHealth> = dataStore.data.map { prefs ->
+        runCatching { BackupHealth.valueOf(prefs[KEY_LAST_BACKUP_HEALTH] ?: BackupHealth.NONE.name) }
+            .getOrDefault(BackupHealth.NONE)
+    }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
@@ -105,6 +111,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setTrustMode(enabled: Boolean) { dataStore.edit { it[KEY_TRUST_MODE] = enabled } }
     override suspend fun setAutoBackupEnabled(enabled: Boolean) { dataStore.edit { it[KEY_AUTO_BACKUP] = enabled } }
     override suspend fun setLastAutoBackupAt(at: Long) { dataStore.edit { it[KEY_LAST_BACKUP_AT] = at } }
+    override suspend fun setLastBackupHealth(health: BackupHealth) { dataStore.edit { it[KEY_LAST_BACKUP_HEALTH] = health.name } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -184,5 +191,6 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_TRUST_MODE = booleanPreferencesKey("trust_mode")
         private val KEY_AUTO_BACKUP = booleanPreferencesKey("auto_backup_enabled")
         private val KEY_LAST_BACKUP_AT = longPreferencesKey("last_auto_backup_at")
+        private val KEY_LAST_BACKUP_HEALTH = stringPreferencesKey("last_backup_health")
     }
 }
