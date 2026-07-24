@@ -40,6 +40,12 @@ interface SettingsRepository {
     /** 最近一次自动备份的健康状态（V2.23 自愈校验），用于设置页回显。 */
     val lastBackupHealth: Flow<BackupHealth>
 
+    /** 「稍后提醒」默认时长（分钟），受 [SNOOZE_OPTIONS] 约束（V2.30）。 */
+    val snoozeDefaultMin: Flow<Int>
+
+    /** 提醒音效开关：关闭后高优先级提醒不发声/不震动（V2.31）。 */
+    val soundEnabled: Flow<Boolean>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
@@ -64,6 +70,8 @@ interface SettingsRepository {
     suspend fun setAutoBackupEnabled(enabled: Boolean)
     suspend fun setLastAutoBackupAt(at: Long)
     suspend fun setLastBackupHealth(health: BackupHealth)
+    suspend fun setSnoozeDefaultMin(min: Int)
+    suspend fun setSoundEnabled(enabled: Boolean)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
@@ -111,6 +119,9 @@ interface SettingsRepository {
         const val DEFAULT_WAKE_WORD = "小清"
         const val DEFAULT_QUIET_START = 22 * 60 // 22:00
         const val DEFAULT_QUIET_END = 7 * 60    // 07:00
+
+        /** 「稍后提醒」默认时长（分钟），须与 [com.tickclear.app.domain.scheduler.ReminderPrefs.SNOOZE_OPTIONS] 一致。 */
+        const val DEFAULT_SNOOZE_MIN = com.tickclear.app.domain.scheduler.ReminderPrefs.DEFAULT_SNOOZE_MIN
 
         /** 判断某分钟数(0-1439)是否落在静音时段 [start,end)，支持跨午夜。 */
         fun isInQuietWindow(nowMin: Int, startMin: Int, endMin: Int): Boolean {

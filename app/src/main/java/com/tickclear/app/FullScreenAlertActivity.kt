@@ -29,6 +29,7 @@ import com.tickclear.app.domain.scheduler.ReminderReceiver
 import com.tickclear.app.domain.scheduler.ReminderScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -45,9 +46,12 @@ class FullScreenAlertActivity : ComponentActivity() {
         val taskId = intent.getStringExtra(ReminderReceiver.EXTRA_TASK_ID) ?: run { finish(); return }
         val instanceId = intent.getStringExtra(ReminderReceiver.EXTRA_INSTANCE_ID) ?: "$taskId@today"
 
+        var snoozeMin by mutableStateOf(ReminderReceiver.SNOOZE_DEFAULT_MIN)
         lifecycleScope.launch {
             val ep = EntryPointAccessors.fromApplication(this@FullScreenAlertActivity, ReminderScheduler.ReminderEntryPoint::class.java)
             title = ep.taskRepository().getById(taskId)?.title ?: getString(R.string.fullscreen_reminder_unknown)
+            // V2.30 稍后提醒时长取用户设置（默认 15 分钟）。
+            snoozeMin = ep.settingsRepository().snoozeDefaultMin.first()
         }
 
         setContent {
@@ -78,7 +82,7 @@ class FullScreenAlertActivity : ComponentActivity() {
                         }
                         TextButton(onClick = {
                             lifecycleScope.launch {
-                                ReminderScheduler.scheduleSnooze(this@FullScreenAlertActivity, instanceId, taskId, ReminderReceiver.SNOOZE_DEFAULT_MIN)
+                                ReminderScheduler.scheduleSnooze(this@FullScreenAlertActivity, instanceId, taskId, snoozeMin)
                             }
                             finish()
                         }) {

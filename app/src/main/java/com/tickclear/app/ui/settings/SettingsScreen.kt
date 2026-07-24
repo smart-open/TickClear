@@ -70,6 +70,8 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val animationEnabled by viewModel.animationEnabled.collectAsStateWithLifecycle()
     val quietHoursEnabled by viewModel.quietHoursEnabled.collectAsStateWithLifecycle()
+    val snoozeDefaultMin by viewModel.snoozeDefaultMin.collectAsStateWithLifecycle()
+    val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastAutoBackupAt by viewModel.lastAutoBackupAt.collectAsStateWithLifecycle()
     val lastBackupHealth by viewModel.lastBackupHealth.collectAsStateWithLifecycle()
@@ -191,6 +193,31 @@ fun SettingsScreen(
                 Switch(
                     checked = quietHoursEnabled,
                     onCheckedChange = { viewModel.setQuietHoursEnabled(it) },
+                )
+            }
+            // V2.30 稍后提醒默认时长：5/15/30 分钟分段选择。
+            SettingRow(
+                title = stringResource(R.string.settings_snooze_title),
+                subtitle = stringResource(R.string.settings_snooze_subtitle),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.tickclear.app.domain.scheduler.ReminderPrefs.SNOOZE_OPTIONS.forEach { min ->
+                        FilterChip(
+                            selected = snoozeDefaultMin == min,
+                            onClick = { viewModel.setSnoozeDefaultMin(min) },
+                            label = { Text(stringResource(R.string.settings_snooze_option, min)) },
+                        )
+                    }
+                }
+            }
+            // V2.31 提醒音效开关：关闭后高优先级提醒不发声/不震动。
+            SettingRow(
+                title = stringResource(R.string.settings_sound_title),
+                subtitle = stringResource(R.string.settings_sound_subtitle),
+            ) {
+                Switch(
+                    checked = soundEnabled,
+                    onCheckedChange = { viewModel.setSoundEnabled(it) },
                 )
             }
 

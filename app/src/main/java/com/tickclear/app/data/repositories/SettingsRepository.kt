@@ -88,6 +88,16 @@ class SettingsRepositoryImpl @Inject constructor(
             .getOrDefault(BackupHealth.NONE)
     }
 
+    // ── 稍后提醒默认时长（V2.30）：默认 15 分钟，受 SNOOZE_OPTIONS 约束。──
+    override val snoozeDefaultMin: Flow<Int> = dataStore.data.map { prefs ->
+        com.tickclear.app.domain.scheduler.ReminderPrefs.normalizeSnoozeMin(
+            prefs[KEY_SNOOZE_MIN] ?: SettingsRepository.DEFAULT_SNOOZE_MIN,
+        )
+    }
+
+    // ── 提醒音效开关（V2.31）：默认开启。──
+    override val soundEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_SOUND_ENABLED] ?: true }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
@@ -112,6 +122,10 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setAutoBackupEnabled(enabled: Boolean) { dataStore.edit { it[KEY_AUTO_BACKUP] = enabled } }
     override suspend fun setLastAutoBackupAt(at: Long) { dataStore.edit { it[KEY_LAST_BACKUP_AT] = at } }
     override suspend fun setLastBackupHealth(health: BackupHealth) { dataStore.edit { it[KEY_LAST_BACKUP_HEALTH] = health.name } }
+    override suspend fun setSnoozeDefaultMin(min: Int) {
+        dataStore.edit { it[KEY_SNOOZE_MIN] = com.tickclear.app.domain.scheduler.ReminderPrefs.normalizeSnoozeMin(min) }
+    }
+    override suspend fun setSoundEnabled(enabled: Boolean) { dataStore.edit { it[KEY_SOUND_ENABLED] = enabled } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -192,5 +206,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_AUTO_BACKUP = booleanPreferencesKey("auto_backup_enabled")
         private val KEY_LAST_BACKUP_AT = longPreferencesKey("last_auto_backup_at")
         private val KEY_LAST_BACKUP_HEALTH = stringPreferencesKey("last_backup_health")
+        private val KEY_SNOOZE_MIN = intPreferencesKey("snooze_default_min")
+        private val KEY_SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
     }
 }

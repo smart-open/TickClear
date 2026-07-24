@@ -166,6 +166,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), BackupHealth.NONE,
     )
 
+    // ── 稍后提醒默认时长（V2.30）──
+    val snoozeDefaultMin: StateFlow<Int> = settingsRepository.snoozeDefaultMin.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), com.tickclear.app.domain.scheduler.ReminderPrefs.DEFAULT_SNOOZE_MIN,
+    )
+
+    // ── 提醒音效开关（V2.31）──
+    val soundEnabled: StateFlow<Boolean> = settingsRepository.soundEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true,
+    )
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
     fun setQuietHoursEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setQuietHoursEnabled(enabled) }
@@ -210,6 +220,16 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setAutoBackupEnabled(enabled)
         AutoBackupScheduler.sync(appContext)
     }
+
+    // ── 稍后提醒默认时长（V2.30）──
+    fun setSnoozeDefaultMin(min: Int) = viewModelScope.launch {
+        settingsRepository.setSnoozeDefaultMin(
+            com.tickclear.app.domain.scheduler.ReminderPrefs.normalizeSnoozeMin(min),
+        )
+    }
+
+    // ── 提醒音效开关（V2.31）──
+    fun setSoundEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setSoundEnabled(enabled) }
 
     /** 「立即备份」：手动触发一次加密自动备份（写入私有目录，保留最近 N 份）。 */
     fun runAutoBackupNow() = viewModelScope.launch {

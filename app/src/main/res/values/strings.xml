@@ -33,6 +33,9 @@
     <string name="today_clear_all_title">清空今日全部任务？</string>
     <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>
     <string name="today_cleared_snack">今日已清空，继续保持！</string>
+    <string name="today_done_section_title">已完成（%1$d）</string>
+    <string name="today_collapse">折叠</string>
+    <string name="today_expand">展开</string>
 
     <!-- 任务 -->
     <string name="tasks_title">任务</string>
@@ -179,8 +182,10 @@
     <string name="tasks_no_group">未分组</string>
     <string name="tasks_group_count">%1$d 个任务</string>
     <string name="tasks_delete_group_title">删除任务组</string>
-    <string name="tasks_delete_group_confirm">删除「%1$s」？组内任务会移出该组（不会丢失）。</string>
+    <string name="tasks_delete_group_confirm">删除「%1$s」？组内所有任务将一并移入回收站，组本身也会被删除。</string>
     <string name="task_paused">已暂停</string>
+    <string name="tasks_group_pause">暂停任务组</string>
+    <string name="tasks_group_resume">启用任务组</string>
 
     <!-- Phase 3：任务组弹层 -->
     <string name="group_edit_new">新建任务组</string>
@@ -326,6 +331,11 @@
     <string name="settings_section_reminder">提醒</string>
     <string name="settings_quiet_title">静音时段</string>
     <string name="settings_quiet_subtitle">22:00–7:00 内低优先级提醒自动静默</string>
+    <string name="settings_snooze_title">稍后提醒时长</string>
+    <string name="settings_snooze_subtitle">通知与全屏提醒的「稍后提醒」默认时长</string>
+    <string name="settings_snooze_option">%1$d 分钟</string>
+    <string name="settings_sound_title">提醒音效</string>
+    <string name="settings_sound_subtitle">关闭后高优先级提醒不发声、不震动</string>
     <string name="settings_section_assistant">小智助手</string>
     <string name="settings_mode_title">运行模式</string>
     <string name="settings_mode_subtitle">模拟：离线可用；真实：需配置网关与令牌</string>

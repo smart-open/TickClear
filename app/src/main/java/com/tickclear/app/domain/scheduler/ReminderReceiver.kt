@@ -94,6 +94,11 @@ class ReminderReceiver : BroadcastReceiver() {
             else -> NotificationCompat.PRIORITY_DEFAULT
         }
 
+        // V2.30 稍后提醒时长取用户设置（默认 15 分钟）。
+        val snoozeMin = settings.snoozeDefaultMin.first()
+        // V2.31 音效开关：关闭时不发声/不震动（仍保留灯光/渠道重要性）。
+        val soundOn = ReminderPrefs.shouldPlaySound(settings.soundEnabled.first(), level)
+
         val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(task.title)
@@ -110,7 +115,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .addAction(
                 R.drawable.ic_notification,
                 context.getString(R.string.notify_action_snooze),
-                actionIntent(context, ACTION_SNOOZE, taskId, instanceId, (instanceId + "z").hashCode(), SNOOZE_DEFAULT_MIN),
+                actionIntent(context, ACTION_SNOOZE, taskId, instanceId, (instanceId + "z").hashCode(), snoozeMin),
             )
         if (RepeatType.fromCode(task.repeatType) != RepeatType.NONE) {
             builder.addAction(
@@ -120,7 +125,12 @@ class ReminderReceiver : BroadcastReceiver() {
             )
         }
         if (level == "high") {
-            builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
+            // V2.31：音效开关关闭时不发声/不震动，仅保留灯光与渠道重要性。
+            if (soundOn) {
+                builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
+            } else {
+                builder.setDefaults(NotificationCompat.DEFAULT_LIGHTS)
+            }
             // 高优先级提醒：附加全屏意图。Android 14+ 仅在系统允许（已获「额外提醒权限」或应用前台）时真正全屏，
             // 否则系统静默降级为普通通知；此处仅在允许时附加，避免无效附加。
             if (Build.VERSION.SDK_INT < 34 || notificationManager(context).canUseFullScreenIntent()) {
