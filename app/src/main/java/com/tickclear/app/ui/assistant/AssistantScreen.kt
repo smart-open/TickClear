@@ -65,6 +65,7 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.ui.components.formatMinute
+import com.tickclear.app.ui.components.EmptyStateGuide
 import com.tickclear.app.ui.settings.SettingsViewModel
 import android.Manifest
 
@@ -77,6 +78,7 @@ fun AssistantScreen(
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val connected by viewModel.connected.collectAsStateWithLifecycle()
+    val configured by viewModel.configured.collectAsStateWithLifecycle()
     val voiceSupported by viewModel.voiceSupported.collectAsStateWithLifecycle()
     val recording by viewModel.recording.collectAsStateWithLifecycle()
     val pendingDraft by viewModel.pendingDraft.collectAsStateWithLifecycle()
@@ -212,30 +214,16 @@ fun AssistantScreen(
         if (isWide) {
             // V2.19 宽屏：对话与配置分栏；配置面板常驻右侧，无需弹窗。
             Row(Modifier.fillMaxSize().padding(padding)) {
-                Column(Modifier.weight(1f).fillMaxSize()) {
-                    // 语音/文本解析出的待确认草稿任务：确认卡优先展示，避免误建。
-                    pendingDraft?.let { draft ->
-                        TaskDraftCard(
-                            draft = draft,
-                            onConfirm = { viewModel.confirmDraft() },
-                            onDismiss = { viewModel.dismissDraft() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                    }
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(messages, key = { it.id }) { msg ->
-                            ChatBubble(msg)
-                        }
-                    }
-                }
+                AssistantChatBody(
+                    isWide = true,
+                    configured = configured,
+                    messages = messages,
+                    pendingDraft = pendingDraft,
+                    viewModel = viewModel,
+                    listState = listState,
+                    onConfigure = { showConfig = true },
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                )
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -252,35 +240,24 @@ fun AssistantScreen(
                 }
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // 语音/文本解析出的待确认草稿任务：确认卡优先展示，避免误建。
-                pendingDraft?.let { draft ->
-                    TaskDraftCard(
-                        draft = draft,
-                        onConfirm = { viewModel.confirmDraft() },
-                        onDismiss = { viewModel.dismissDraft() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
-                }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(messages, key = { it.id }) { msg ->
-                        ChatBubble(msg)
-                    }
-                }
-            }
+            AssistantChatBody(
+                isWide = false,
+                configured = configured,
+                messages = messages,
+                pendingDraft = pendingDraft,
+                viewModel = viewModel,
+                listState = listState,
+                onConfigure = { showConfig = true },
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
         }
     }
 
     if (showConfig && !isWide) {
-        AssistantConfigSheet(onDismiss = { showConfig = false })
+        AssistantConfigSheet(onDismiss = {
+            showConfig = false
+            viewModel.refreshConfigured()
+        })
     }
 }
 
@@ -291,6 +268,56 @@ private fun submit(
 ) {
     viewModel.sendText(text)
     clear("")
+}
+
+/**
+ * 助手对话主体（窄屏整屏 / 宽屏左栏复用）：草稿确认卡 + 对话列表；
+ * 未配置服务商且非宽屏时展示引导插画与「去配置」按钮（V2.20）。
+ */
+@Composable
+private fun AssistantChatBody(
+    isWide: Boolean,
+    configured: Boolean,
+    messages: List<ChatMessage>,
+    pendingDraft: Task?,
+    viewModel: AssistantViewModel,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onConfigure: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
+        pendingDraft?.let { draft ->
+            TaskDraftCard(
+                draft = draft,
+                onConfirm = { viewModel.confirmDraft() },
+                onDismiss = { viewModel.dismissDraft() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+        if (!isWide && !configured) {
+            EmptyStateGuide(
+                icon = "🤖",
+                title = stringResource(R.string.assistant_unconfigured_title),
+                message = stringResource(R.string.assistant_unconfigured_desc),
+                actionLabel = stringResource(R.string.assistant_unconfigured_action),
+                onAction = onConfigure,
+            )
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(messages, key = { it.id }) { msg ->
+                    ChatBubble(msg)
+                }
+            }
+        }
+    }
 }
 
 @Composable

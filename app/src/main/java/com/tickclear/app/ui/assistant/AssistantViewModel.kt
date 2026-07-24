@@ -70,6 +70,12 @@ class AssistantViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
 
+    /** V2.20：助手是否已配置可用（据此展示未配置引导）。 */
+    private val _configured = MutableStateFlow(false)
+    val configured: StateFlow<Boolean> = _configured.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
+    )
+
     /** 是否支持语音输入：真实小智(Opus) 或 任一文件式云 ASR 或 系统本地识别。 */
     private val _voiceSupported = MutableStateFlow(false)
     val voiceSupported: StateFlow<Boolean> = _voiceSupported.stateIn(
@@ -133,6 +139,7 @@ class AssistantViewModel @Inject constructor(
 
     fun connect() {
         viewModelScope.launch {
+            _configured.value = computeConfigured()
             val llm = settingsRepository.llmProvider.first()
             if (llm == LlmProviderCatalog.XIAOZHI) {
                 val prompt = settingsRepository.assistantPrompt.first()
@@ -152,6 +159,23 @@ class AssistantViewModel @Inject constructor(
             if (llm == LlmProviderCatalog.XIAOZHI) transport.disconnect()
             _connected.value = false
         }
+    }
+
+    /** V2.20：依据当前设置判断助手是否可正常工作（未配置时展示引导）。 */
+    private suspend fun computeConfigured(): Boolean {
+        val llm = settingsRepository.llmProvider.first()
+        return if (llm == LlmProviderCatalog.XIAOZHI) {
+            val mode = settingsRepository.assistantMode.first()
+            mode == "MOCK" || settingsRepository.assistantEndpoint.first().isNotBlank()
+        } else {
+            settingsRepository.llmBaseUrl.first().isNotBlank()
+                && !settingsRepository.getLlmApiKey(llm).isNullOrBlank()
+        }
+    }
+
+    /** V2.20：配置面板保存后刷新「已配置」状态，及时收起未配置引导。 */
+    fun refreshConfigured() {
+        viewModelScope.launch { _configured.value = computeConfigured() }
     }
 
     /** 开始语音采集：根据 ASR 服务商路由到系统实时识别或整段 PCM 累积（云 ASR）。 */

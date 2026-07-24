@@ -1,7 +1,6 @@
 package com.tickclear.app.ui.tasks
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.RecycleBinItem
+import com.tickclear.app.ui.components.EmptyStateGuide
 import com.tickclear.app.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,6 +49,7 @@ import java.util.Locale
 fun RecycleBinScreen(
     viewModel: RecycleBinViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
+    onNavigateToToday: () -> Unit = {},
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     var purgeAllConfirm by rememberSaveable { mutableStateOf(false) }
@@ -76,13 +77,14 @@ fun RecycleBinScreen(
         },
     ) { innerPadding ->
         if (items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(R.string.recycle_bin_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            EmptyStateGuide(
+                icon = "🗑️",
+                title = stringResource(R.string.recycle_bin_empty),
+                message = stringResource(R.string.recycle_bin_empty_desc),
+                actionLabel = stringResource(R.string.recycle_bin_go_today),
+                onAction = onNavigateToToday,
+                modifier = Modifier.padding(innerPadding),
+            )
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                 Text(

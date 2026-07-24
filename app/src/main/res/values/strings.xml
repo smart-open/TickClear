@@ -68,6 +68,8 @@
     <string name="location_reminder_service_text">正在后台监测到达提醒，可在设置或任务中关闭位置提醒</string>
     <string name="recycle_bin_title">回收站</string>
     <string name="recycle_bin_empty">回收站是空的</string>
+    <string name="recycle_bin_empty_desc">已删除的任务会暂存在这里，30 天后自动彻底清除。</string>
+    <string name="recycle_bin_go_today">去今日添加任务</string>
     <string name="recycle_bin_auto_purge">删除 30 天后将自动彻底清理</string>
     <string name="recycle_bin_restore">恢复</string>
     <string name="recycle_bin_purge_now">立即清理</string>
@@ -262,6 +264,8 @@
     <string name="stats_no_group">暂无分组任务</string>
     <string name="stats_group_count">%1$d/%2$d</string>
     <string name="stats_empty_hint">还没有完成记录。完成今日任务后，这里会显示你的清空轨迹与勋章 ✨</string>
+    <string name="stats_empty_title">还没有完成记录</string>
+    <string name="stats_go_today">去今日添加任务</string>
 
     <!-- Phase 4 增强：最长连续 / 周月汇总 / 打卡记录 / 勋章进度 -->
     <string name="stats_longest_streak">最长连续</string>
@@ -285,6 +289,9 @@
     <string name="assistant_input_placeholder">说点什么，或点麦克风试试</string>
     <string name="assistant_config_title">助手配置</string>
     <string name="assistant_config_desc">助手配置</string>
+    <string name="assistant_unconfigured_title">还没有配置助手</string>
+    <string name="assistant_unconfigured_desc">选择服务商并填写接入信息，即可用语音或文字创建任务。</string>
+    <string name="assistant_unconfigured_action">去配置</string>
     <string name="assistant_mode_label">运行模式</string>
     <string name="assistant_mode_real_chip">真实小智</string>
     <string name="assistant_endpoint_label">网关地址</string>

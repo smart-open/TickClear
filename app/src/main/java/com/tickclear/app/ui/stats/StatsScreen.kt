@@ -43,6 +43,7 @@ import com.tickclear.app.domain.usecase.GroupStat
 import com.tickclear.app.ui.components.HeatmapCalendar
 import com.tickclear.app.ui.components.MedalWall
 import com.tickclear.app.ui.components.ProgressRing
+import com.tickclear.app.ui.components.EmptyStateGuide
 import com.tickclear.app.R
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -53,6 +54,7 @@ import java.util.Locale
 fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
     isWide: Boolean = false,
+    onGoToday: (() -> Unit)? = null,
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) },
@@ -60,6 +62,7 @@ fun StatsScreen(
         StatsContent(
             viewModel = viewModel,
             isWide = isWide,
+            onGoToday = onGoToday,
             modifier = Modifier.padding(padding),
         )
     }
@@ -74,6 +77,7 @@ fun StatsScreen(
 fun StatsContent(
     viewModel: StatsViewModel = hiltViewModel(),
     isWide: Boolean = false,
+    onGoToday: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -90,17 +94,15 @@ fun StatsContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         if (!hasData) {
-            OutlinedCard(Modifier.fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.stats_empty_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        }
-
-        if (isWide) {
+            EmptyStateGuide(
+                icon = "📊",
+                title = stringResource(R.string.stats_empty_title),
+                message = stringResource(R.string.stats_empty_hint),
+                actionLabel = onGoToday?.let { stringResource(R.string.stats_go_today) },
+                onAction = onGoToday,
+                modifier = Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 24.dp),
+            )
+        } else if (isWide) {
             // V2.19 宽屏：概览与明细分双栏，避免大屏横向留白与卡片被拉伸。
             Row(
                 Modifier.fillMaxWidth(),

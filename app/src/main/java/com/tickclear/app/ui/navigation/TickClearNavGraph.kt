@@ -128,7 +128,18 @@ private fun AppNavHost(
                 initialOpenEditor = entry.arguments?.getBoolean("openEditor") ?: false,
             )
         }
-        composable(Routes.STATS) { StatsScreen(isWide = isWide) }
+        composable(Routes.STATS) {
+            StatsScreen(
+                isWide = isWide,
+                onGoToday = {
+                    navController.navigate(Routes.TODAY) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
+        }
         composable(Routes.ASSISTANT) { AssistantScreen(isWide = isWide, onBack = { navController.navigate(Routes.TODAY) }) }
         composable(Routes.SETTINGS) {
             SettingsScreen(
@@ -143,6 +154,17 @@ private fun AppNavHost(
             DebugScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
-        composable(Routes.RECYCLE_BIN) { RecycleBinScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.RECYCLE_BIN) {
+            RecycleBinScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToToday = {
+                    navController.navigate(Routes.TODAY) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
+        }
     }
 }
