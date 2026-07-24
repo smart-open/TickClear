@@ -96,19 +96,23 @@ object IcsManager {
     }
 
     private fun parseEvent(block: String): Task? {
+        // 归一化换行：导出用 \r\n，部分日历仅用 \n；不归一化会导致首行 UID 带前导 \r 被静默丢弃。
+        val normalized = block.replace("\r\n", "\n").replace("\r", "\n")
         val get = { key: String ->
-            block.lineSequence().firstOrNull { it.startsWith("$key:") || it.startsWith("$key;") }
+            normalized.lineSequence().firstOrNull { it.startsWith("$key:") || it.startsWith("$key;") }
                 ?.substringAfter(":")
         }
+        val dtStartLine = normalized.lineSequence().firstOrNull { it.startsWith("DTSTART:") || it.startsWith("DTSTART;") }
+        val dtStartRaw = dtStartLine?.substringAfter(":") ?: return null
         val summary = get("SUMMARY") ?: return null
         val uid = get("UID")?.substringBefore("@") ?: ""
         val description = get("DESCRIPTION")?.let { unescape(it) } ?: ""
-        val dtStartRaw = get("DTSTART") ?: return null
         val (date, startMin) = parseDt(dtStartRaw)
         val dtEndRaw = get("DTEND")
         val endMin = dtEndRaw?.let { parseDt(it).second }
-        val allDay = dtStartRaw.contains("VALUE=DATE")
-        val statusCompleted = block.lineSequence().any { it.startsWith("STATUS:COMPLETED") }
+        // allDay 须从 DTSTART 的参数 VALUE=DATE 判断（值本身不含该信息），否则全天任务会被误判为定时。
+        val allDay = dtStartLine.contains("VALUE=DATE")
+        val statusCompleted = normalized.lineSequence().any { it.startsWith("STATUS:COMPLETED") }
         val rrule = get("RRULE")
         val (repeatType, intervalDays, weekdays, monthDay) = parseRrule(rrule)
 
