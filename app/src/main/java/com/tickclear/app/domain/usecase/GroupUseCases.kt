@@ -1,7 +1,11 @@
 package com.tickclear.app.domain.usecase
 
+import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
+import com.tickclear.app.domain.model.TaskStatus
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.TaskRepository
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,4 +36,64 @@ class RestoreGroupUseCase @Inject constructor(
     private val repo: GroupRepository,
 ) {
     suspend operator fun invoke(id: String) = repo.restore(id)
+}
+
+/** 单个任务暂停：状态置为 PAUSED（仍保留数据，定时不再触发）。 */
+@Singleton
+class PauseTaskUseCase @Inject constructor(
+    private val repo: TaskRepository,
+) {
+    suspend operator fun invoke(task: Task) {
+        if (task.deletedAt != null) return
+        repo.setStatus(task.id, TaskStatus.PAUSED, null)
+    }
+}
+
+/** 单个任务启用：状态恢复为 ACTIVE。 */
+@Singleton
+class ResumeTaskUseCase @Inject constructor(
+    private val repo: TaskRepository,
+) {
+    suspend operator fun invoke(task: Task) {
+        if (task.deletedAt != null) return
+        repo.setStatus(task.id, TaskStatus.ACTIVE, null)
+    }
+}
+
+/** 任务组级暂停：级联暂停组内所有未软删任务（V2.33）。 */
+@Singleton
+class PauseGroupUseCase @Inject constructor(
+    private val taskRepo: TaskRepository,
+) {
+    suspend operator fun invoke(groupId: String) {
+        taskRepo.observeByGroup(groupId).first()
+            .filter { it.deletedAt == null }
+            .forEach { taskRepo.setStatus(it.id, TaskStatus.PAUSED, null) }
+    }
+}
+
+/** 任务组级启用：级联恢复组内所有未软删任务为 ACTIVE（V2.33）。 */
+@Singleton
+class ResumeGroupUseCase @Inject constructor(
+    private val taskRepo: TaskRepository,
+) {
+    suspend operator fun invoke(groupId: String) {
+        taskRepo.observeByGroup(groupId).first()
+            .filter { it.deletedAt == null }
+            .forEach { taskRepo.setStatus(it.id, TaskStatus.ACTIVE, null) }
+    }
+}
+
+/** 任务组级删除：级联软删组内所有未软删任务，再软删组本身（V2.33）。 */
+@Singleton
+class DeleteGroupCascadeUseCase @Inject constructor(
+    private val groupRepo: GroupRepository,
+    private val taskRepo: TaskRepository,
+) {
+    suspend operator fun invoke(groupId: String) {
+        taskRepo.observeByGroup(groupId).first()
+            .filter { it.deletedAt == null }
+            .forEach { taskRepo.softDelete(it.id) }
+        groupRepo.softDelete(groupId)
+    }
 }

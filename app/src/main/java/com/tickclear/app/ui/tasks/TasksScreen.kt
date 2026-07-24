@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -161,6 +163,8 @@ fun TasksScreen(
                     onTaskClick = onTaskClick,
                     onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
                     onGroupDelete = { groupToDeleteId = it.id },
+                    onGroupPause = { viewModel.pauseGroup(it.id) },
+                    onGroupResume = { viewModel.resumeGroup(it.id) },
                     onDeleteTask = { viewModel.deleteTask(it) },
                     modifier = Modifier
                         .weight(1f)
@@ -203,6 +207,8 @@ fun TasksScreen(
                 onTaskClick = onTaskClick,
                 onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
                 onGroupDelete = { groupToDeleteId = it.id },
+                onGroupPause = { viewModel.pauseGroup(it.id) },
+                onGroupResume = { viewModel.resumeGroup(it.id) },
                 onDeleteTask = { viewModel.deleteTask(it) },
                 modifier = Modifier
                     .fillMaxSize()
@@ -235,7 +241,7 @@ fun TasksScreen(
             text = { Text(stringResource(R.string.tasks_delete_group_confirm, g.name)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.deleteGroup(g.id)
+                    viewModel.deleteGroupCascade(g.id)
                     groupToDeleteId = null
                 }) { Text(stringResource(R.string.action_delete)) }
             },
@@ -252,6 +258,8 @@ private fun TasksList(
     onTaskClick: (Task) -> Unit,
     onGroupEdit: (TaskGroup) -> Unit,
     onGroupDelete: (TaskGroup) -> Unit,
+    onGroupPause: (TaskGroup) -> Unit,
+    onGroupResume: (TaskGroup) -> Unit,
     onDeleteTask: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -275,16 +283,22 @@ private fun TasksList(
 
         // 按组分组
         for (group in state.groups) {
+            val tasksInGroup = state.tasks.filter { it.groupId == group.id }
+            // V2.33：组内任务非空且全部处于暂停态时，认为该组已暂停。
+            val groupPaused = tasksInGroup.isNotEmpty() &&
+                tasksInGroup.all { TaskStatus.fromCode(it.status) == TaskStatus.PAUSED }
             item(key = "group_header_${group.id}") {
                 GroupHeaderRow(
                     group = group,
-                    count = state.tasks.count { it.groupId == group.id },
+                    count = tasksInGroup.size,
+                    paused = groupPaused,
                     onEdit = { onGroupEdit(group) },
                     onDelete = { onGroupDelete(group) },
+                    onTogglePause = { if (groupPaused) onGroupResume(group) else onGroupPause(group) },
                 )
             }
             items(
-                state.tasks.filter { it.groupId == group.id },
+                tasksInGroup,
                 key = { it.id },
             ) { task ->
                 TaskRow(
@@ -320,8 +334,10 @@ private fun TasksList(
 private fun GroupHeaderRow(
     group: TaskGroup,
     count: Int,
+    paused: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onTogglePause: () -> Unit,
 ) {
     val gc = groupColor(group.colorKey)
     val groupCd = stringResource(R.string.a11y_group_header, group.name)
@@ -347,6 +363,12 @@ private fun GroupHeaderRow(
                 stringResource(R.string.tasks_group_count, count),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onTogglePause) {
+            Icon(
+                if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                contentDescription = stringResource(if (paused) R.string.tasks_group_resume else R.string.tasks_group_pause),
             )
         }
         IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit)) }

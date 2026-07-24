@@ -10,6 +10,9 @@ import com.tickclear.app.domain.scheduler.ReminderScheduler
 import com.tickclear.app.domain.scheduler.GeofenceScheduler
 import com.tickclear.app.domain.usecase.AddGroupUseCase
 import com.tickclear.app.domain.usecase.AddTaskUseCase
+import com.tickclear.app.domain.usecase.DeleteGroupCascadeUseCase
+import com.tickclear.app.domain.usecase.PauseGroupUseCase
+import com.tickclear.app.domain.usecase.ResumeGroupUseCase
 import com.tickclear.app.domain.usecase.RestoreTaskUseCase
 import com.tickclear.app.domain.usecase.SoftDeleteGroupUseCase
 import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
@@ -20,6 +23,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -41,6 +45,9 @@ class TasksViewModel @Inject constructor(
     private val addGroupUseCase: AddGroupUseCase,
     private val updateGroupUseCase: UpdateGroupUseCase,
     private val softDeleteGroupUseCase: SoftDeleteGroupUseCase,
+    private val pauseGroupUseCase: PauseGroupUseCase,
+    private val resumeGroupUseCase: ResumeGroupUseCase,
+    private val deleteGroupCascadeUseCase: DeleteGroupCascadeUseCase,
     private val geofenceScheduler: GeofenceScheduler,
     @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
@@ -110,5 +117,49 @@ class TasksViewModel @Inject constructor(
     /** 软删任务组：组内任务脱离组（不丢数据）。 */
     fun deleteGroup(id: String) {
         viewModelScope.launch { softDeleteGroupUseCase(id) }
+    }
+
+    // ── V2.33 组级暂停 / 启用 / 删除级联 ──
+    /** 暂停整个任务组：级联暂停组内所有未软删任务。 */
+    fun pauseGroup(id: String) {
+        viewModelScope.launch {
+            pauseGroupUseCase(id)
+            cancelGroupReminders(id)
+        }
+    }
+
+    /** 启用整个任务组：级联恢复组内所有未软删任务为 ACTIVE。 */
+    fun resumeGroup(id: String) {
+        viewModelScope.launch {
+            resumeGroupUseCase(id)
+            rescheduleGroupReminders(id)
+        }
+    }
+
+    /** 删除整个任务组：级联软删组内所有未软删任务，再软删组本身。 */
+    fun deleteGroupCascade(id: String) {
+        viewModelScope.launch {
+            deleteGroupCascadeUseCase(id)
+            cancelGroupReminders(id)
+        }
+    }
+
+    private suspend fun cancelGroupReminders(groupId: String) {
+        val tasks = taskRepository.observeByGroup(groupId).first().filter { it.deletedAt == null }
+        for (task in tasks) {
+            ReminderScheduler.cancelForTask(appContext, task.id)
+            geofenceScheduler.unregister(task.id)
+        }
+    }
+
+    private suspend fun rescheduleGroupReminders(groupId: String) {
+        val tasks = taskRepository.observeByGroup(groupId).first().filter { it.deletedAt == null && it.reminderEnabled }
+        for (task in tasks) {
+            ReminderScheduler.scheduleForTask(appContext, task)
+            geofenceScheduler.unregister(task.id)
+            if (task.geoLat != null && task.geoLng != null && task.geoRadius != null) {
+                geofenceScheduler.register(task)
+            }
+        }
     }
 }
