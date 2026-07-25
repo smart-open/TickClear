@@ -17,3 +17,6 @@ local.properties
 *.iml
 .DS_Store
 .vscode/
+
+# ===== WorkBuddy 工程数据（禁止入库）=====
+.workbuddy/
