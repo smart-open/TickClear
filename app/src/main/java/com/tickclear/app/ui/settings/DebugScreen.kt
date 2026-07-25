@@ -215,4 +215,6 @@ private fun InfoRow(label: String, value: String) {
     HorizontalDivider()
 }
 
-private fun yesNo(v: Boolean): String = if (v) "是" else "否"
+@Composable
+private fun yesNo(v: Boolean): String =
+    stringResource(if (v) R.string.common_yes else R.string.common_no)

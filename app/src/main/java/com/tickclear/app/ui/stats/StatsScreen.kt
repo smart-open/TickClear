@@ -442,11 +442,11 @@ private fun MedalDetailDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
         },
-        title = { Text("${medal.icon} ${medal.name}") },
+        title = { Text("${medal.icon} ${stringResource(medal.nameRes)}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    medal.desc,
+                    stringResource(medal.descRes),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

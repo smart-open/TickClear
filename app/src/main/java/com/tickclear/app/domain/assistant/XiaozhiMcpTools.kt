@@ -1,8 +1,11 @@
 package com.tickclear.app.domain.assistant
 
+import android.content.Context
+import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.usecase.AddTaskUseCase
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,6 +13,7 @@ import javax.inject.Singleton
 /** 小智 MCP 工具集：当前实现 create_task，将对话中的意图落库为任务。 */
 @Singleton
 class XiaozhiMcpTools @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val addTaskUseCase: AddTaskUseCase,
 ) {
     data class ToolResult(
@@ -30,7 +34,7 @@ class XiaozhiMcpTools @Inject constructor(
 
     /** 解析工具参数并构建草稿 [Task]（不含提交/落库）。 */
     fun buildDraft(args: Map<String, Any?>): Task {
-        val title = ((args["title"] as? String)?.trim()).orEmpty().ifEmpty { "新任务" }
+        val title = ((args["title"] as? String)?.trim()).orEmpty().ifEmpty { context.getString(R.string.task_default_title) }
         val dateStr = args["date"] as? String?
         // 钳制分钟到 [0,1439]，越界值（如解析异常的大数）归一，避免非法时间点写入。
         val minute = (args["minute"] as? Number)?.toInt()?.coerceIn(0, 1439)
@@ -58,7 +62,10 @@ class XiaozhiMcpTools @Inject constructor(
     /** 将草稿提交落库（用户已在确认卡点击确认）。 */
     suspend fun commit(task: Task): ToolResult {
         val res = addTaskUseCase(task)
-        val note = if (res.conflicts.isNotEmpty()) "（存在时间冲突，已保留）" else ""
-        return ToolResult(true, "已创建任务：${task.title}$note", task.title)
+        val note = if (res.conflicts.isNotEmpty()) context.getString(R.string.xiaozhi_task_conflict_note) else ""
+        return ToolResult(true, context.getString(R.string.xiaozhi_task_created, task.title, note), task.title)
     }
+
+    /** 未知工具的用户可见提示（供传输层回执/展示复用）。 */
+    fun unknownToolMessage(tool: String): String = context.getString(R.string.xiaozhi_unknown_tool, tool)
 }

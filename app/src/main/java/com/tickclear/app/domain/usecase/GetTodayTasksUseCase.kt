@@ -19,6 +19,8 @@ data class TodayItem(
     val task: Task,
     val instanceId: String,
     val done: Boolean,
+    /** 实例当日生效开始分钟：子日级（每 N 小时）每实例不同，取实例自身 dueMinute；为 null 时回退任务锚点。 */
+    val dueMinute: Int?,
 )
 
 data class TodayTasks(
@@ -47,17 +49,23 @@ class GetTodayTasksUseCase @Inject constructor(
                 val taskMap = allTasks.associateBy { it.id }
                 val items = instances.mapNotNull { inst ->
                     val task = taskMap[inst.taskId] ?: return@mapNotNull null
-                    TodayItem(task = task, instanceId = inst.id, done = inst.status == TaskStatus.COMPLETED.code)
+                    TodayItem(
+                        task = task,
+                        instanceId = inst.id,
+                        done = inst.status == TaskStatus.COMPLETED.code,
+                        // 子日级重复各实例分钟不同，优先取实例自身 dueMinute；缺失回退任务锚点。
+                        dueMinute = inst.dueMinute ?: task.instanceDueMinute(),
+                    )
                 }.sortedWith(
                     // 未完成在前、已完成下沉；同组内再按当日发生时间排序。
                     compareBy<TodayItem> { it.done }
-                        .thenBy { it.task.instanceDueMinute() ?: Int.MAX_VALUE },
+                        .thenBy { it.dueMinute ?: Int.MAX_VALUE },
                 )
 
                 // 冲突检测：以实例的当日时间窗为准（无开始时间的不参与）。
                 // 跨午夜任务（结束分钟 < 开始分钟）视为延伸到次日（+1440），避免晚间接续漏判。
                 val windows = items.mapNotNull { item ->
-                    val start = item.task.instanceDueMinute() ?: return@mapNotNull null
+                    val start = item.dueMinute ?: return@mapNotNull null
                     val rawEnd = item.task.scheduledEndMin ?: (start + 30)
                     val end = if (rawEnd < start) rawEnd + 1440 else rawEnd
                     item.instanceId to (start..end)

@@ -72,7 +72,7 @@ private fun MedalCell(
     val statusText = stringResource(
         if (isUnlocked) R.string.a11y_medal_unlocked else R.string.a11y_medal_locked,
     )
-    val medalContentDescription = stringResource(R.string.a11y_medal, medal.name, statusText)
+    val medalContentDescription = stringResource(R.string.a11y_medal, stringResource(medal.nameRes), statusText)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,7 +97,7 @@ private fun MedalCell(
             )
         }
         Text(
-            text = medal.name,
+            text = stringResource(medal.nameRes),
             style = MaterialTheme.typography.labelSmall,
             color = content,
             maxLines = 1,

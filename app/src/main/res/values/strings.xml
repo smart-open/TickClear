@@ -355,6 +355,33 @@
     <!-- Mock 模式下「非重复任务」的兜底日期文案 -->
     <string name="assistant_mock_when_today">今天</string>
 
+    <!-- 小智 MCP 工具回执（聊天可见） -->
+    <string name="xiaozhi_task_created">已创建任务：%1$s%2$s</string>
+    <string name="xiaozhi_task_conflict_note">（存在时间冲突，已保留）</string>
+    <string name="xiaozhi_unknown_tool">未知工具：%1$s</string>
+
+    <!-- 通用是/否 -->
+    <string name="common_yes">是</string>
+    <string name="common_no">否</string>
+
+    <!-- 勋章名称与解锁条件（勋章墙 / 详情页可见） -->
+    <string name="medal_first_task_name">初次清空</string>
+    <string name="medal_first_task_desc">完成第一个任务</string>
+    <string name="medal_streak_3_name">三日打卡</string>
+    <string name="medal_streak_3_desc">连续打卡 3 天</string>
+    <string name="medal_streak_7_name">七日打卡</string>
+    <string name="medal_streak_7_desc">连续打卡 7 天</string>
+    <string name="medal_rate_100_name">满分一日</string>
+    <string name="medal_rate_100_desc">某日任务 100% 完成</string>
+    <string name="medal_lightning_name">雷厉风行</string>
+    <string name="medal_lightning_desc">单日完成 5 个任务</string>
+    <string name="medal_ontime_10_name">准时达人</string>
+    <string name="medal_ontime_10_desc">完成 10 个定时任务</string>
+    <string name="medal_groups_3_name">分类高手</string>
+    <string name="medal_groups_3_desc">创建 3 个任务组</string>
+    <string name="medal_month_mvp_name">月度 MVP</string>
+    <string name="medal_month_mvp_desc">单月完成 30 个任务</string>
+
     <!-- V2.43 方言识别 -->
     <string name="settings_asr_dialect_title">识别语言（方言）</string>
     <string name="settings_asr_dialect_subtitle">复用系统语音包，效果取决于设备是否装有对应语言</string>

@@ -52,8 +52,8 @@ class MockXiaozhiTransport(
                 ),
             )
             val whenText = when (parsed.repeatType) {
-                "DAILY" -> "每天"
-                "WEEKLY" -> "每周${parsed.weekdays}"
+                "DAILY" -> context.getString(R.string.repeat_daily)
+                "WEEKLY" -> context.getString(R.string.repeat_weekly) + parsed.weekdays
                 else -> parsed.dateStr ?: context.getString(R.string.assistant_mock_when_today)
             }
             _events.emit(XiaozhiEvent.LlmText(context.getString(R.string.assistant_mock_task_saved, parsed.title, whenText)))

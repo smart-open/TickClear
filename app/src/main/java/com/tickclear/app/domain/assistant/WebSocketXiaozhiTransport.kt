@@ -176,6 +176,8 @@ class WebSocketXiaozhiTransport(
         if (!connected) return
         connected = false
         player.release()
+        // 会话结束释放 Opus MediaCodec，避免编解码器终生死占（下次 encode/decode 惰性重建）。
+        runCatching { codec.release() }
         scope?.cancel()
         scope = null
         ws?.close(1000, "bye")
@@ -263,7 +265,7 @@ class WebSocketXiaozhiTransport(
                         runCatching { mcpTools.commit(draft) }
                             .getOrElse { XiaozhiMcpTools.ToolResult(false, it.message ?: "error", null) }
                     } else {
-                        XiaozhiMcpTools.ToolResult(false, "未知工具：$tool", null)
+                        XiaozhiMcpTools.ToolResult(false, mcpTools.unknownToolMessage(tool), null)
                     }
                     val resultJson = buildJsonObject {
                         put("success", JsonPrimitive(res.ok))
