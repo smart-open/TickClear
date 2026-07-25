@@ -4,6 +4,40 @@
 
 ---
 
+## v2.4.0（2026-07-25）· 语音增强与残留缺口收口
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 6 / versionName 2.4.0
+**相对 v2.3.0**：补齐 v2.3 收板后残留的 4 项真实功能缺口（V2.40–V2.43），并把 v2.4 规划内的真机/基准评测项（V2.44–V2.51）作为「已知限制」留待真机 QA 轮次。无功能回归。
+
+### ✨ 核心新增（V2.40–V2.43）
+- **一键清空「不再提示」（V2.40）**：清空确认弹窗新增「不再提示」复选框，勾选后持久化 `clearConfirmEnabled=false`，下次直达清空；设置页提供「清空前确认」开关可重新开启。
+- **软删任务组恢复级联（V2.41）**：与 V2.33 删除级联对称，回收站恢复任务组时级联恢复其软删成员任务（`RestoreGroupCascadeUseCase` + `TaskDao.restoreByGroup`），保证数据一致性。
+- **离线热词指令（V2.42）**：纯函数 `OfflineCommandRecognizer` 解析「暂停/启用/删除 + 任务名」热词，`ApplyOfflineCommandUseCase` 仅在任务名命中真实任务时执行（删除仅命中才生效，防误删）；`AssistantViewModel.sendText` 离线开关开启时本地闭环执行并回显，不再送 LLM。
+- **方言识别（V2.43）**：`LocalSpeechRecognizer.start` 新增 `language` 参数驱动 `RecognizerIntent.EXTRA_LANGUAGE`；设置页新增「识别语言（方言）」分段选择（普通话 / 粤语 / 台湾 / 英语），经 `SettingsRepository.asrLanguage` 持久化并在系统 ASR 路径透传。效果取决于设备是否装有对应语言包，未装回退系统默认。
+
+### 🛠 质量与工程
+- 新增单测：`OfflineCommandRecognizerTest`(11) `OfflineCommandUseCasesTest`(6) `RecycleBinViewModelTest`/`GroupUseCasesTest` 同步（组恢复级联用例）；V2.42 修复了 `Task.createdAt/updatedAt` 默认毫秒导致数据类相等判定偶发 flaky 的测试陷阱（测试内显式置 0）。
+- 全程守住红线：零新依赖（复用系统 ASR / DataStore / Compose）、中文全抽离 `strings.xml`、Room 无 schema 变更、按功能拆 commit。
+- `./gradlew :app:lintRelease` 0 error；`./gradlew :app:testDebugUnitTest` 全绿。
+
+### ⚠️ 已知限制 / 显式保留（V2.44–V2.51）
+- **提醒送达率 ≥ 98%（V2.44）**：真机 + OEM 后台保活评测，本环境仅单元 + lint 门禁，待真机轮次补测。
+- **性能基准 60fps / 冷启动 < 500ms（V2.45）**：Macrobenchmark/模拟器评测，待 `connectedDebugAndroidTest` 轮次补测。
+- **语音指标评测集（V2.46）**：意图/槽位准确率、端到端耗时、误删率，待真机语音评测集。
+- **全量冒烟 QA（V2.47–V2.51）**：核心流程 / 自适应布局 / 语音流水线 / 无障碍 / 兼容与降级，均需物理设备逐项走查，作为已知限制留待真机 QA 轮次（相关逻辑已随 v2.0–v2.4 实现并通过单元 + lint 门禁）。
+- V2.28/V2.27 离线端侧 ML ASR 模型仍按红线保留（不引入推理框架）；V2.42/V2.43 以轻量系统 ASR 方案补足离线热词与方言能力。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 质量门禁
+```
+
+---
+
 ## v2.3.0（2026-07-24）· 遗留功能缺口补齐
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
