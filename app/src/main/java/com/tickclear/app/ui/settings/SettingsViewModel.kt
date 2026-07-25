@@ -191,6 +191,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_ASR_LANGUAGE,
     )
 
+    // ── 语音历史保存（V2.65）──
+    val voiceHistoryEnabled: StateFlow<Boolean> = settingsRepository.voiceHistoryEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
+    )
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
     fun setQuietHoursEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setQuietHoursEnabled(enabled) }
@@ -254,6 +259,9 @@ class SettingsViewModel @Inject constructor(
 
     // ── 系统 ASR 语言（方言）（V2.43）──
     fun setAsrLanguage(language: String) = viewModelScope.launch { settingsRepository.setAsrLanguage(language) }
+
+    // ── 语音历史保存（V2.65）──
+    fun setVoiceHistoryEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setVoiceHistoryEnabled(enabled) }
 
     /** 「立即备份」：手动触发一次加密自动备份（写入私有目录，保留最近 N 份）。 */
     fun runAutoBackupNow() = viewModelScope.launch {

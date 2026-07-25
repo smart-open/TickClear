@@ -37,4 +37,5 @@ object Routes {
     const val DEBUG = "settings/debug"
     const val ABOUT = "settings/about"
     const val ASSISTANT_CONFIG = "assistant/config"
+    const val VOICE_HISTORY = "settings/voiceHistory"
 }

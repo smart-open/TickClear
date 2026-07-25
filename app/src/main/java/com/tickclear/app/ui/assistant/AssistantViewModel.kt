@@ -22,8 +22,10 @@ import com.tickclear.app.domain.assistant.XiaozhiTransport
 import com.tickclear.app.domain.assistant.TaskIntentParser
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
+import com.tickclear.app.data.local.entities.VoiceHistoryEntity
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.repository.TaskRepository
+import com.tickclear.app.domain.repository.VoiceHistoryRepository
 import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
 import com.tickclear.app.domain.usecase.UpdateTaskUseCase
 import com.tickclear.app.domain.usecase.ApplyOfflineCommandUseCase
@@ -63,6 +65,7 @@ class AssistantViewModel @Inject constructor(
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val softDeleteTaskUseCase: SoftDeleteTaskUseCase,
     private val applyOfflineCommand: ApplyOfflineCommandUseCase,
+    private val voiceHistoryRepository: VoiceHistoryRepository,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -467,6 +470,28 @@ class AssistantViewModel @Inject constructor(
         _messages.update { list ->
             val next = list + msg
             if (next.size > MAX_MESSAGES) next.takeLast(MAX_MESSAGES) else next
+        }
+        recordVoiceHistory(msg)
+    }
+
+    /**
+     * V2.65 语音历史：仅当设置开启（默认关闭）时，将用户/助手对话文本落库；系统提示不记录。
+     * 失败静默（历史保存非核心链路，不应阻断对话）。
+     */
+    private fun recordVoiceHistory(msg: ChatMessage) {
+        if (msg.role != "user" && msg.role != "assistant") return
+        viewModelScope.launch {
+            runCatching {
+                if (settingsRepository.voiceHistoryEnabled.first()) {
+                    voiceHistoryRepository.insert(
+                        VoiceHistoryEntity(
+                            createdAt = System.currentTimeMillis(),
+                            role = msg.role,
+                            text = msg.text,
+                        ),
+                    )
+                }
+            }
         }
     }
 

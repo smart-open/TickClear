@@ -126,8 +126,13 @@ class ReminderReceiver : BroadcastReceiver() {
         }
         if (level == "high") {
             // V2.31：音效开关关闭时不发声/不震动，仅保留灯光与渠道重要性。
+            // V2.63：开启音效时采用内置开源 CC0 提示音（Android 8.0- 由 builder 指定；8.0+ 由渠道控制，见 NotificationHelper）。
             if (soundOn) {
-                builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
+                val chime = android.net.Uri.parse(
+                    "${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",
+                )
+                builder.setSound(chime)
+                builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
             } else {
                 builder.setDefaults(NotificationCompat.DEFAULT_LIGHTS)
             }

@@ -53,6 +53,9 @@ interface SettingsRepository {
     /** 系统 ASR 语言（方言）代码，如 zh-CN / yue-Hant / zh-TW / en-US（V2.43）。 */
     val asrLanguage: Flow<String>
 
+    /** 语音历史保存开关（V2.65）：默认关闭，开启后记录与助手的语音对话。 */
+    val voiceHistoryEnabled: Flow<Boolean>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
@@ -86,6 +89,9 @@ interface SettingsRepository {
 
     /** 设置系统 ASR 语言（方言）代码（V2.43）。 */
     suspend fun setAsrLanguage(language: String)
+
+    /** 语音历史保存开关（V2.65）。 */
+    suspend fun setVoiceHistoryEnabled(enabled: Boolean)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

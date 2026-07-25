@@ -62,6 +62,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
+import com.tickclear.app.domain.assistant.WakeWordBus
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.ui.components.formatMinute
@@ -102,6 +103,25 @@ fun AssistantScreen(
     }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
+    // V2.66 常驻唤醒：被前台服务唤醒跳转到助手页后，消费待处理标记并监听后续唤醒事件，自动开始收音。
+    LaunchedEffect(Unit) {
+        if (WakeWordBus.consumePending()) {
+            if (recordPermission.status is PermissionStatus.Granted) {
+                viewModel.startVoice()
+            } else {
+                pendingVoiceStart = true
+                recordPermission.launchPermissionRequest()
+            }
+        }
+        WakeWordBus.events.collect {
+            if (recordPermission.status is PermissionStatus.Granted) {
+                viewModel.startVoice()
+            } else {
+                pendingVoiceStart = true
+                recordPermission.launchPermissionRequest()
+            }
+        }
     }
     // 运行时授权结果：已授予且此前点了麦克风，则开始录音。
     LaunchedEffect(recordPermission.status) {

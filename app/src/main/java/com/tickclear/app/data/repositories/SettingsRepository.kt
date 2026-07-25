@@ -105,6 +105,9 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 系统 ASR 语言（方言）（V2.43）：默认普通话 zh-CN。──
     override val asrLanguage: Flow<String> = dataStore.data.map { it[KEY_ASR_LANGUAGE] ?: SettingsRepository.DEFAULT_ASR_LANGUAGE }
 
+    // ── 语音历史保存（V2.65）：默认关闭。──
+    override val voiceHistoryEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_VOICE_HISTORY] ?: false }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
@@ -134,6 +137,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setClearConfirmEnabled(enabled: Boolean) { dataStore.edit { it[KEY_CLEAR_CONFIRM] = enabled } }
     override suspend fun setOfflineCommandEnabled(enabled: Boolean) { dataStore.edit { it[KEY_OFFLINE_CMD] = enabled } }
     override suspend fun setAsrLanguage(language: String) { dataStore.edit { it[KEY_ASR_LANGUAGE] = language } }
+    override suspend fun setVoiceHistoryEnabled(enabled: Boolean) { dataStore.edit { it[KEY_VOICE_HISTORY] = enabled } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -217,5 +221,6 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_CLEAR_CONFIRM = booleanPreferencesKey("clear_confirm_enabled")
         private val KEY_OFFLINE_CMD = booleanPreferencesKey("offline_command_enabled")
         private val KEY_ASR_LANGUAGE = stringPreferencesKey("asr_language")
+        private val KEY_VOICE_HISTORY = booleanPreferencesKey("voice_history_enabled")
     }
 }

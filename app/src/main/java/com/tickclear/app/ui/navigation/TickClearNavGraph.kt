@@ -22,6 +22,7 @@ import com.tickclear.app.ui.assistant.AssistantScreen
 import com.tickclear.app.ui.settings.AboutScreen
 import com.tickclear.app.ui.settings.DebugScreen
 import com.tickclear.app.ui.settings.SettingsScreen
+import com.tickclear.app.ui.settings.VoiceHistoryScreen
 import com.tickclear.app.ui.stats.StatsScreen
 import com.tickclear.app.ui.tasks.TasksScreen
 import com.tickclear.app.ui.tasks.RecycleBinScreen
@@ -146,12 +147,16 @@ private fun AppNavHost(
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
                 onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
                 onNavigateToDebug = { navController.navigate(Routes.DEBUG) },
+                onNavigateToVoiceHistory = { navController.navigate(Routes.VOICE_HISTORY) },
                 onBack = { navController.navigate(Routes.TODAY) },
                 isWide = isWide,
             )
         }
         composable(Routes.DEBUG) {
             DebugScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.VOICE_HISTORY) {
+            VoiceHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.RECYCLE_BIN) {

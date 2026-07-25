@@ -53,6 +53,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import com.tickclear.app.R
+import com.tickclear.app.domain.assistant.WakeWordService
 import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.ui.theme.ThemeMode
@@ -64,6 +65,7 @@ fun SettingsScreen(
     onNavigateToRecycleBin: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
+    onNavigateToVoiceHistory: () -> Unit = {},
     onBack: () -> Unit = {},
     isWide: Boolean = false,
 ) {
@@ -80,6 +82,10 @@ fun SettingsScreen(
     val lastBackupHealth by viewModel.lastBackupHealth.collectAsStateWithLifecycle()
     val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
     val assistantMode by viewModel.assistantMode.collectAsStateWithLifecycle()
+    // V2.65/V2.66 语音历史 + 常驻唤醒
+    val voiceHistoryEnabled by viewModel.voiceHistoryEnabled.collectAsStateWithLifecycle()
+    val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsStateWithLifecycle()
+    val wakeWord by viewModel.wakeWord.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
@@ -292,6 +298,43 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            // V2.65 语音对话历史：默认关闭；开启后助手对话保存本地，可随时清空。
+            SettingRow(
+                title = stringResource(R.string.settings_voice_history_title),
+                subtitle = stringResource(R.string.settings_voice_history_subtitle),
+            ) {
+                Switch(
+                    checked = voiceHistoryEnabled,
+                    onCheckedChange = { viewModel.setVoiceHistoryEnabled(it) },
+                )
+            }
+            if (voiceHistoryEnabled) {
+                ClickableRow(
+                    icon = Icons.Filled.Settings,
+                    title = stringResource(R.string.settings_voice_history_view_title),
+                    subtitle = stringResource(R.string.settings_voice_history_view_subtitle),
+                    onClick = onNavigateToVoiceHistory,
+                )
+            }
+            // V2.66 常驻语音唤醒：开启前台监听服务，说话即触发助手（能量级 VAD，本地处理）。
+            SettingRow(
+                title = stringResource(R.string.settings_wake_word_title),
+                subtitle = stringResource(R.string.settings_wake_word_subtitle),
+            ) {
+                Switch(
+                    checked = wakeWordEnabled,
+                    onCheckedChange = { on ->
+                        viewModel.setWakeWordEnabled(on)
+                        toggleWakeWordService(context, on)
+                    },
+                )
+            }
+            if (wakeWordEnabled) {
+                SettingRow(
+                    title = stringResource(R.string.settings_wake_word_phrase_title),
+                    subtitle = stringResource(R.string.settings_wake_word_phrase_subtitle, wakeWord),
+                ) {}
             }
         }
 
@@ -585,3 +628,19 @@ private val ASR_LANGUAGE_OPTIONS = listOf(
     "zh-TW" to R.string.settings_dialect_taiwan,
     "en-US" to R.string.settings_dialect_english,
 )
+
+/** V2.66 常驻唤醒：切换前台监听服务。开启用 startForegroundService，关闭用 stopService。 */
+private fun toggleWakeWordService(context: android.content.Context, enabled: Boolean) {
+    val intent = Intent(context, WakeWordService::class.java)
+    runCatching {
+        if (enabled) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } else {
+            context.stopService(intent)
+        }
+    }
+}

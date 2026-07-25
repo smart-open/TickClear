@@ -389,6 +389,26 @@
     <string name="settings_dialect_cantonese">粤语</string>
     <string name="settings_dialect_taiwan">台湾</string>
     <string name="settings_dialect_english">英语</string>
+
+    <!-- V2.65 语音对话历史 -->
+    <string name="settings_voice_history_title">保存语音对话历史</string>
+    <string name="settings_voice_history_subtitle">默认关闭；开启后助手对话保存在本地，可随时清空</string>
+    <string name="settings_voice_history_view_title">查看语音历史</string>
+    <string name="settings_voice_history_view_subtitle">浏览已保存的助手对话记录</string>
+    <string name="voice_history_title">语音历史</string>
+    <string name="voice_history_clear">清空</string>
+    <string name="voice_history_empty">暂无语音对话记录</string>
+    <string name="voice_history_role_user">我</string>
+    <string name="voice_history_role_assistant">助手</string>
+
+    <!-- V2.66 常驻语音唤醒 -->
+    <string name="settings_wake_word_title">常驻语音唤醒</string>
+    <string name="settings_wake_word_subtitle">后台聆听唤醒词，说出即唤起助手（依赖系统识别，可能耗电）</string>
+    <string name="settings_wake_word_phrase_title">唤醒词</string>
+    <string name="settings_wake_word_phrase_subtitle">当前：%1$s</string>
+    <string name="wake_listening_notification_title">语音唤醒运行中</string>
+    <string name="wake_listening_notification_text">正在后台聆听唤醒词</string>
+
     <string name="settings_section_assistant">小智助手</string>
     <string name="settings_mode_title">运行模式</string>
     <string name="settings_mode_subtitle">模拟：离线可用；真实：需配置网关与令牌</string>

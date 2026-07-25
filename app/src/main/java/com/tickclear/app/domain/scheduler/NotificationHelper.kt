@@ -2,7 +2,10 @@ package com.tickclear.app.domain.scheduler
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ContentResolver
 import android.content.Context
+import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import com.tickclear.app.R
@@ -40,6 +43,15 @@ object NotificationHelper {
             enableLights(true)
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 250, 250)
+            // V2.63：高优先级提醒采用内置开源 CC0 提示音（res/raw/notify_chime.wav），零版权风险。
+            val chime = Uri.parse(
+                "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",
+            )
+            val attrs = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .build()
+            setSound(chime, attrs)
         }
         val mid = NotificationChannel(
             CHANNEL_MID,
