@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -139,7 +142,17 @@ fun GroupEditDialog(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
             )
             if (repeatType != "NONE") {
-                Box(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm).clickable { showAnchorPicker = true }) {
+                val anchorDesc = stringResource(
+                    R.string.a11y_choose_prefix,
+                    stringResource(R.string.group_repeat_anchor),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = Spacing.sm)
+                        .clickable(role = Role.Button, onClick = { showAnchorPicker = true })
+                        .semantics { contentDescription = anchorDesc },
+                ) {
                     OutlinedTextField(
                         value = formatMinute(anchorMin),
                         onValueChange = {},

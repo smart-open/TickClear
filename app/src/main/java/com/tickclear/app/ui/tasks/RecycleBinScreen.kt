@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -88,7 +89,7 @@ fun RecycleBinScreen(
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
-            Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            Column(modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).padding(innerPadding)) {
                 Text(
                     stringResource(R.string.recycle_bin_auto_purge),
                     style = MaterialTheme.typography.bodySmall,

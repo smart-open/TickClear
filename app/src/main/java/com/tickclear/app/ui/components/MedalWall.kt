@@ -42,7 +42,7 @@ fun MedalWall(
 ) {
     val medals = MedalCatalog.ALL
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
+        columns = GridCells.Adaptive(minSize = 88.dp),
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -158,9 +158,6 @@ fun AssistantScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { showConfig = true }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.assistant_config_desc))
-                    }
                 },
             )
         },

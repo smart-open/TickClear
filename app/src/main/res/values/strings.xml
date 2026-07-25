@@ -492,5 +492,6 @@
     <string name="a11y_heatmap_cell">%1$s：完成 %2$d 个任务</string>
     <string name="a11y_progress_ring">完成率 %1$d%%</string>
     <string name="a11y_progress_ring_nav">完成率环，点击查看统计</string>
+    <string name="a11y_choose_prefix">选择%1$s</string>
 
 </resources>

@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -168,7 +169,8 @@ fun TodayScreen(
                         stroke = 5.dp,
                         modifier = Modifier
                             .clickable(onClick = onNavigateToStats)
-                            .semantics { role = Role.Button; contentDescription = ringDesc },
+                            .semantics { role = Role.Button; contentDescription = ringDesc }
+                            .minimumInteractiveComponentSize(),
                     )
                     IconButton(onClick = onNavigateToAssistant) {
                         Icon(Icons.Filled.SmartToy, contentDescription = stringResource(R.string.tab_assistant))
