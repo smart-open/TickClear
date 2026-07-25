@@ -8,6 +8,9 @@ import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.assistant.AudioCapture
 import com.tickclear.app.domain.assistant.LocalSpeechRecognizer
+import com.tickclear.app.domain.assistant.OfflineAction
+import com.tickclear.app.domain.assistant.OfflineCommand
+import com.tickclear.app.domain.assistant.OfflineCommandRecognizer
 import com.tickclear.app.domain.assistant.LlmProviderCatalog
 import com.tickclear.app.domain.assistant.LlmProviderResolver
 import com.tickclear.app.domain.assistant.OpusCodec
@@ -23,6 +26,8 @@ import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
 import com.tickclear.app.domain.usecase.UpdateTaskUseCase
+import com.tickclear.app.domain.usecase.ApplyOfflineCommandUseCase
+import com.tickclear.app.domain.usecase.OfflineCommandResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -57,6 +62,7 @@ class AssistantViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val softDeleteTaskUseCase: SoftDeleteTaskUseCase,
+    private val applyOfflineCommand: ApplyOfflineCommandUseCase,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -188,8 +194,10 @@ class AssistantViewModel @Inject constructor(
             val asr = settingsRepository.asrProvider.first()
             if (asr == AsrProviderCatalog.SYSTEM) {
                 _recording.value = true
+                val lang = settingsRepository.asrLanguage.first()
                 localRecognizer.start(
                     continuous = false,
+                    language = lang,
                     onPartial = { /* 系统识别仅以终句为准提交 */ },
                     onFinal = { text ->
                         _recording.value = false
@@ -251,6 +259,43 @@ class AssistantViewModel @Inject constructor(
         if (t.isEmpty()) return
         append(ChatMessage(nextId(), "user", t))
         viewModelScope.launch {
+            // V2.42：离线热词指令（暂停/启用/删除 + 任务名）。开启且识别为已知指令即本地闭环执行，
+            // 不再送 LLM；任务名需匹配真实任务，删除仅命中才生效，避免误删。
+            if (settingsRepository.offlineCommandEnabled.first()) {
+                val cmd = OfflineCommandRecognizer.parse(t)
+                if (cmd !is OfflineCommand.Unknown) {
+                    val tasks = taskRepository.observeAll().first()
+                    val result = applyOfflineCommand(cmd, tasks)
+                    val msg = when (result) {
+                        is OfflineCommandResult.Applied ->
+                            appContext.getString(
+                                R.string.offline_cmd_applied,
+                                when (result.action) {
+                                    OfflineAction.PAUSE -> appContext.getString(R.string.offline_action_pause)
+                                    OfflineAction.RESUME -> appContext.getString(R.string.offline_action_resume)
+                                    OfflineAction.DELETE -> appContext.getString(R.string.offline_action_delete)
+                                },
+                                result.task.title,
+                            )
+                        is OfflineCommandResult.NotFound -> {
+                            val kw = when (cmd) {
+                                is OfflineCommand.Pause -> cmd.keyword
+                                is OfflineCommand.Resume -> cmd.keyword
+                                is OfflineCommand.Delete -> cmd.keyword
+                                is OfflineCommand.Unknown -> null
+                            }
+                            appContext.getString(R.string.offline_cmd_not_found, kw.orEmpty())
+                        }
+                        is OfflineCommandResult.NoTarget ->
+                            appContext.getString(R.string.offline_cmd_no_target)
+                        // 不可达：外层已用 cmd !is Unknown 守卫，applyOfflineCommand 不会返回 Unknown；
+                        // 即便理论到达也直接结束本次处理，避免追加空消息触发无意义重组。
+                        is OfflineCommandResult.Unknown -> return@launch
+                    }
+                    append(ChatMessage(nextId(), "system", msg))
+                    return@launch
+                }
+            }
             // V2.18 多轮编辑：若存在「刚创建的任务」且本句是编辑指令，则本地闭环处理，不再送 LLM。
             if (lastCreatedTaskId != null && tryHandleEdit(t)) return@launch
             val llm = settingsRepository.llmProvider.first()

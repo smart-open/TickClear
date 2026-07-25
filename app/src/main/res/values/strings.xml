@@ -32,6 +32,7 @@
     <string name="today_clear_all_desc">一键清空今日</string>
     <string name="today_clear_all_title">清空今日全部任务？</string>
     <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>
+    <string name="today_clear_confirm_dont_show">不再提示</string>
     <string name="today_cleared_snack">今日已清空，继续保持！</string>
     <string name="today_done_section_title">已完成（%1$d）</string>
     <string name="today_collapse">折叠</string>
@@ -336,6 +337,31 @@
     <string name="settings_snooze_option">%1$d 分钟</string>
     <string name="settings_sound_title">提醒音效</string>
     <string name="settings_sound_subtitle">关闭后高优先级提醒不发声、不震动</string>
+    <string name="settings_clear_confirm_title">清空前确认</string>
+    <string name="settings_clear_confirm_subtitle">关闭后「一键清空」将直接执行，不再弹确认框</string>
+    <string name="settings_offline_command_title">离线语音指令</string>
+    <string name="settings_offline_command_subtitle">说出「暂停/启用/删除 + 任务名」直接操作，无需联网</string>
+    <string name="offline_cmd_applied">已%1$s：%2$s</string>
+    <string name="offline_cmd_not_found">没找到叫「%1$s」的任务</string>
+    <string name="offline_cmd_no_target">没听清要操作哪个任务</string>
+    <!-- 离线指令动作回显文案（枚举 label 抽离，避免源码硬编码中文） -->
+    <string name="offline_action_pause">暂停</string>
+    <string name="offline_action_resume">启用</string>
+    <string name="offline_action_delete">删除</string>
+    <!-- 助手人设默认文案（设置页可编辑框回退值） -->
+    <string name="assistant_prompt_default">你是用户的专属私人AI助手，说话简短温柔、口语化，回答不超过两句话，用户唤醒后主动友好回应，贴合日常对话场景。</string>
+    <!-- 唤醒词默认短语 -->
+    <string name="wake_word_default">小清</string>
+    <!-- Mock 模式下「非重复任务」的兜底日期文案 -->
+    <string name="assistant_mock_when_today">今天</string>
+
+    <!-- V2.43 方言识别 -->
+    <string name="settings_asr_dialect_title">识别语言（方言）</string>
+    <string name="settings_asr_dialect_subtitle">复用系统语音包，效果取决于设备是否装有对应语言</string>
+    <string name="settings_dialect_mandarin">普通话</string>
+    <string name="settings_dialect_cantonese">粤语</string>
+    <string name="settings_dialect_taiwan">台湾</string>
+    <string name="settings_dialect_english">英语</string>
     <string name="settings_section_assistant">小智助手</string>
     <string name="settings_mode_title">运行模式</string>
     <string name="settings_mode_subtitle">模拟：离线可用；真实：需配置网关与令牌</string>

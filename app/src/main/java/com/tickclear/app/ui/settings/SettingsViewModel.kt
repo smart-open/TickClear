@@ -176,6 +176,21 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true,
     )
 
+    // ── 清空前确认（V2.40）──
+    val clearConfirmEnabled: StateFlow<Boolean> = settingsRepository.clearConfirmEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true,
+    )
+
+    // ── 离线语音指令（V2.42）──
+    val offlineCommandEnabled: StateFlow<Boolean> = settingsRepository.offlineCommandEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true,
+    )
+
+    // ── 系统 ASR 语言（方言）（V2.43）──
+    val asrLanguage: StateFlow<String> = settingsRepository.asrLanguage.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_ASR_LANGUAGE,
+    )
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
     fun setQuietHoursEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setQuietHoursEnabled(enabled) }
@@ -230,6 +245,15 @@ class SettingsViewModel @Inject constructor(
 
     // ── 提醒音效开关（V2.31）──
     fun setSoundEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setSoundEnabled(enabled) }
+
+    // ── 清空前确认（V2.40）──
+    fun setClearConfirmEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setClearConfirmEnabled(enabled) }
+
+    // ── 离线语音指令（V2.42）──
+    fun setOfflineCommandEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setOfflineCommandEnabled(enabled) }
+
+    // ── 系统 ASR 语言（方言）（V2.43）──
+    fun setAsrLanguage(language: String) = viewModelScope.launch { settingsRepository.setAsrLanguage(language) }
 
     /** 「立即备份」：手动触发一次加密自动备份（写入私有目录，保留最近 N 份）。 */
     fun runAutoBackupNow() = viewModelScope.launch {

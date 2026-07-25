@@ -1,6 +1,7 @@
 package com.tickclear.app.data.repositories
 
 import android.content.Context
+import com.tickclear.app.R
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -58,8 +59,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val assistantMode: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_MODE] ?: "MOCK" }
     override val assistantEndpoint: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_ENDPOINT] ?: "wss://api.xiaozhi.me/ws" }
     override val assistantPrompt: Flow<String> = dataStore.data.map {
-        it[KEY_ASSISTANT_PROMPT]
-            ?: "你是用户的专属私人AI助手，说话简短温柔、口语化，回答不超过两句话，用户唤醒后主动友好回应，贴合日常对话场景。"
+        it[KEY_ASSISTANT_PROMPT] ?: context.getString(R.string.assistant_prompt_default)
     }
 
     // ── 多服务商 LLM（P5.4/P5.5；默认小智，可选 OpenAI 兼容；API Key 走 SecureStore）──
@@ -74,7 +74,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     // ── 语音唤醒词（离线 best-effort，系统识别服务兜底；默认关闭）──
     override val wakeWordEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_WAKE_WORD_ENABLED] ?: false }
-    override val wakeWord: Flow<String> = dataStore.data.map { it[KEY_WAKE_WORD] ?: SettingsRepository.DEFAULT_WAKE_WORD }
+    override val wakeWord: Flow<String> = dataStore.data.map { it[KEY_WAKE_WORD] ?: context.getString(R.string.wake_word_default) }
 
     // ── 信任模式（PRD D20：开启后语音建任务免确认；危险操作仍强制确认；默认关闭）──
     override val trustMode: Flow<Boolean> = dataStore.data.map { it[KEY_TRUST_MODE] ?: false }
@@ -98,6 +98,15 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 提醒音效开关（V2.31）：默认开启。──
     override val soundEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_SOUND_ENABLED] ?: true }
 
+    // ── 清空前确认（V2.40）：默认开启。──
+    override val clearConfirmEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CLEAR_CONFIRM] ?: true }
+
+    // ── 离线语音指令（V2.42）：默认开启。──
+    override val offlineCommandEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_OFFLINE_CMD] ?: true }
+
+    // ── 系统 ASR 语言（方言）（V2.43）：默认普通话 zh-CN。──
+    override val asrLanguage: Flow<String> = dataStore.data.map { it[KEY_ASR_LANGUAGE] ?: SettingsRepository.DEFAULT_ASR_LANGUAGE }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
@@ -117,7 +126,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setAsrBaseUrl(url: String) { dataStore.edit { it[KEY_ASR_BASE_URL] = url } }
     override suspend fun setAsrModel(model: String) { dataStore.edit { it[KEY_ASR_MODEL] = model } }
     override suspend fun setWakeWordEnabled(enabled: Boolean) { dataStore.edit { it[KEY_WAKE_WORD_ENABLED] = enabled } }
-    override suspend fun setWakeWord(word: String) { dataStore.edit { it[KEY_WAKE_WORD] = word.trim().ifEmpty { SettingsRepository.DEFAULT_WAKE_WORD } } }
+    override suspend fun setWakeWord(word: String) { dataStore.edit { it[KEY_WAKE_WORD] = word.trim().ifEmpty { context.getString(R.string.wake_word_default) } } }
     override suspend fun setTrustMode(enabled: Boolean) { dataStore.edit { it[KEY_TRUST_MODE] = enabled } }
     override suspend fun setAutoBackupEnabled(enabled: Boolean) { dataStore.edit { it[KEY_AUTO_BACKUP] = enabled } }
     override suspend fun setLastAutoBackupAt(at: Long) { dataStore.edit { it[KEY_LAST_BACKUP_AT] = at } }
@@ -126,6 +135,9 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { it[KEY_SNOOZE_MIN] = com.tickclear.app.domain.scheduler.ReminderPrefs.normalizeSnoozeMin(min) }
     }
     override suspend fun setSoundEnabled(enabled: Boolean) { dataStore.edit { it[KEY_SOUND_ENABLED] = enabled } }
+    override suspend fun setClearConfirmEnabled(enabled: Boolean) { dataStore.edit { it[KEY_CLEAR_CONFIRM] = enabled } }
+    override suspend fun setOfflineCommandEnabled(enabled: Boolean) { dataStore.edit { it[KEY_OFFLINE_CMD] = enabled } }
+    override suspend fun setAsrLanguage(language: String) { dataStore.edit { it[KEY_ASR_LANGUAGE] = language } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -208,5 +220,8 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_LAST_BACKUP_HEALTH = stringPreferencesKey("last_backup_health")
         private val KEY_SNOOZE_MIN = intPreferencesKey("snooze_default_min")
         private val KEY_SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
+        private val KEY_CLEAR_CONFIRM = booleanPreferencesKey("clear_confirm_enabled")
+        private val KEY_OFFLINE_CMD = booleanPreferencesKey("offline_command_enabled")
+        private val KEY_ASR_LANGUAGE = stringPreferencesKey("asr_language")
     }
 }

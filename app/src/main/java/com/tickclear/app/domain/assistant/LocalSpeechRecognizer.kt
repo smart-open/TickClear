@@ -32,6 +32,7 @@ class LocalSpeechRecognizer(private val context: Context) {
     private var recognizer: SpeechRecognizer? = null
     private var running = false
     private var continuous = false
+    private var language: String? = null
     private var onPartial: ((String) -> Unit)? = null
     private var onFinal: ((String) -> Unit)? = null
 
@@ -42,6 +43,7 @@ class LocalSpeechRecognizer(private val context: Context) {
         continuous: Boolean,
         onPartial: (String) -> Unit,
         onFinal: (String) -> Unit,
+        language: String? = null,
     ) {
         if (running) return
         if (!isAvailable) {
@@ -51,6 +53,7 @@ class LocalSpeechRecognizer(private val context: Context) {
         this.continuous = continuous
         this.onPartial = onPartial
         this.onFinal = onFinal
+        this.language = language
         running = true
         mainHandler.post { createAndStart() }
     }
@@ -65,7 +68,9 @@ class LocalSpeechRecognizer(private val context: Context) {
     private fun startListeningInternal() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.CHINESE.toString())
+            // V2.43：方言识别——优先用设置项指定的 ASR 语言（普通话/粤语/台湾/英语等），
+            // 未指定时回退系统默认中文。效果取决于设备是否装有对应语言包。
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, language ?: Locale.CHINESE.toString())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             // V2.16：尽力请求设备端离线识别（是否生效取决于系统是否装有 on-device 模型；
@@ -106,7 +111,9 @@ class LocalSpeechRecognizer(private val context: Context) {
                 startListeningInternal()
             } else {
                 onFinal?.invoke("")
-                running = false
+                // 非持续模式下出错：释放识别器（destroy 并复位 running），否则下次 start() 会新建实例、
+                // 旧实例持有的语音服务连接泄漏至进程死亡。
+                stop()
             }
         }
     }

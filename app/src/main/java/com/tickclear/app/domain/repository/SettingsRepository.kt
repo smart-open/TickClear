@@ -46,6 +46,15 @@ interface SettingsRepository {
     /** 提醒音效开关：关闭后高优先级提醒不发声/不震动（V2.31）。 */
     val soundEnabled: Flow<Boolean>
 
+    /** 清空前确认开关：关闭后「一键清空」直接执行，不再弹确认框（V2.40）。 */
+    val clearConfirmEnabled: Flow<Boolean>
+
+    /** 离线语音指令开关：开启后可用「暂停/启用/删除 + 任务名」热词直接操作（V2.42）。 */
+    val offlineCommandEnabled: Flow<Boolean>
+
+    /** 系统 ASR 语言（方言）代码，如 zh-CN / yue-Hant / zh-TW / en-US（V2.43）。 */
+    val asrLanguage: Flow<String>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
@@ -72,6 +81,15 @@ interface SettingsRepository {
     suspend fun setLastBackupHealth(health: BackupHealth)
     suspend fun setSnoozeDefaultMin(min: Int)
     suspend fun setSoundEnabled(enabled: Boolean)
+
+    /** 清空前确认开关（V2.40）。 */
+    suspend fun setClearConfirmEnabled(enabled: Boolean)
+
+    /** 离线语音指令开关（V2.42）。 */
+    suspend fun setOfflineCommandEnabled(enabled: Boolean)
+
+    /** 设置系统 ASR 语言（方言）代码（V2.43）。 */
+    suspend fun setAsrLanguage(language: String)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
@@ -116,12 +134,21 @@ interface SettingsRepository {
         const val DEFAULT_ASR_PROVIDER = "xiaozhi"
         const val DEFAULT_ASR_BASE_URL = "https://api.openai.com/v1"
         const val DEFAULT_ASR_MODEL = "whisper-1"
-        const val DEFAULT_WAKE_WORD = "小清"
+        // 唤醒词默认短语抽离到 strings.xml（wake_word_default），避免源码硬编码中文。
         const val DEFAULT_QUIET_START = 22 * 60 // 22:00
         const val DEFAULT_QUIET_END = 7 * 60    // 07:00
 
         /** 「稍后提醒」默认时长（分钟），须与 [com.tickclear.app.domain.scheduler.ReminderPrefs.SNOOZE_OPTIONS] 一致。 */
         const val DEFAULT_SNOOZE_MIN = com.tickclear.app.domain.scheduler.ReminderPrefs.DEFAULT_SNOOZE_MIN
+
+        /** 「清空前确认」默认开启（V2.40）。 */
+        const val DEFAULT_CLEAR_CONFIRM_ENABLED = true
+
+        /** 离线语音指令默认开启（V2.42）。 */
+        const val DEFAULT_OFFLINE_COMMAND_ENABLED = true
+
+        /** 系统 ASR 默认语言：普通话（V2.43）。 */
+        const val DEFAULT_ASR_LANGUAGE = "zh-CN"
 
         /** 判断某分钟数(0-1439)是否落在静音时段 [start,end)，支持跨午夜。 */
         fun isInQuietWindow(nowMin: Int, startMin: Int, endMin: Int): Boolean {

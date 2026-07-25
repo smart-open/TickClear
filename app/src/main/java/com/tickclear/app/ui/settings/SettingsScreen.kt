@@ -72,6 +72,9 @@ fun SettingsScreen(
     val quietHoursEnabled by viewModel.quietHoursEnabled.collectAsStateWithLifecycle()
     val snoozeDefaultMin by viewModel.snoozeDefaultMin.collectAsStateWithLifecycle()
     val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
+    val clearConfirmEnabled by viewModel.clearConfirmEnabled.collectAsStateWithLifecycle()
+    val offlineCommandEnabled by viewModel.offlineCommandEnabled.collectAsStateWithLifecycle()
+    val asrLanguage by viewModel.asrLanguage.collectAsStateWithLifecycle()
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastAutoBackupAt by viewModel.lastAutoBackupAt.collectAsStateWithLifecycle()
     val lastBackupHealth by viewModel.lastBackupHealth.collectAsStateWithLifecycle()
@@ -220,6 +223,26 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setSoundEnabled(it) },
                 )
             }
+            // V2.40 清空前确认：关闭后「一键清空」直接执行。
+            SettingRow(
+                title = stringResource(R.string.settings_clear_confirm_title),
+                subtitle = stringResource(R.string.settings_clear_confirm_subtitle),
+            ) {
+                Switch(
+                    checked = clearConfirmEnabled,
+                    onCheckedChange = { viewModel.setClearConfirmEnabled(it) },
+                )
+            }
+            // V2.42 离线语音指令：开启后可用「暂停/启用/删除 + 任务名」热词直接操作，无需联网。
+            SettingRow(
+                title = stringResource(R.string.settings_offline_command_title),
+                subtitle = stringResource(R.string.settings_offline_command_subtitle),
+            ) {
+                Switch(
+                    checked = offlineCommandEnabled,
+                    onCheckedChange = { viewModel.setOfflineCommandEnabled(it) },
+                )
+            }
 
             // ── 助手 ──
             SectionTitle(stringResource(R.string.settings_section_assistant))
@@ -253,6 +276,22 @@ fun SettingsScreen(
                     onClick = { viewModel.setAiMode("LOCAL_NLU") },
                     label = { Text(stringResource(R.string.settings_ai_local)) },
                 )
+            }
+            // V2.43 方言识别：选择系统 ASR 语言包（普通话/粤语/台湾/英语）。
+            // 效果取决于设备是否装有对应语音包；未装则回退系统默认。
+            SettingRow(
+                title = stringResource(R.string.settings_asr_dialect_title),
+                subtitle = stringResource(R.string.settings_asr_dialect_subtitle),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ASR_LANGUAGE_OPTIONS.forEach { (code, labelRes) ->
+                        FilterChip(
+                            selected = asrLanguage == code,
+                            onClick = { viewModel.setAsrLanguage(code) },
+                            label = { Text(stringResource(labelRes)) },
+                        )
+                    }
+                }
             }
         }
 
@@ -538,3 +577,11 @@ private fun themeLabelRes(mode: ThemeMode): Int = when (mode) {
     ThemeMode.DARK -> R.string.settings_theme_dark
     ThemeMode.DYNAMIC -> R.string.settings_theme_dynamic_short
 }
+
+/** V2.43 系统 ASR 方言选项：(语言代码, 标签资源)。效果取决于设备是否装有对应语音包。 */
+private val ASR_LANGUAGE_OPTIONS = listOf(
+    "zh-CN" to R.string.settings_dialect_mandarin,
+    "yue-Hant" to R.string.settings_dialect_cantonese,
+    "zh-TW" to R.string.settings_dialect_taiwan,
+    "en-US" to R.string.settings_dialect_english,
+)
