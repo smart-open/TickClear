@@ -37,6 +37,35 @@
 
 ---
 
+## v2.5.1（2026-07-25）· 复查修复（子日级冲突 / 红线中文 / OpusCodec 释放）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 8 / versionName 2.5.1
+**相对 v2.5.0**：封板后深度复查修复 3 项（V2.59–V2.61），无新功能、无功能回归、零新依赖。
+
+### 🛠 复查修复（V2.59–V2.61）
+- **子日级冲突逻辑修复（V2.59，P1 真实 bug）**：`GetTodayTasksUseCase` 原对「每 N 小时」等子日级重复任务的所有实例统一取单一锚点 `task.instanceDueMinute()`，导致多个实例（如 8:00 / 16:00）互相误判冲突，且与其它任务真实冲突漏判。`TodayItem` 新增 `dueMinute` 取实例自身 `inst.dueMinute ?: task.instanceDueMinute()`，排序与冲突窗口均改用实例分钟，冲突检测现在精确到每个子日级实例。
+- **红线中文抽离（V2.60，P1/P2）**：抽离残留硬编码用户可见中文至 `strings.xml` —— `MockXiaozhiTransport`「每天 / 每周」、`XiaozhiMcpTools`「已创建任务 / 时间冲突备注 / 未知工具 / 新任务默认」、`DebugScreen` yesNo「是 / 否」；`MedalCatalog` 8 枚勋章名/描述改为 `@StringRes`（`nameRes` / `descRes`），`MedalWall` / `StatsScreen` 经 `stringResource()` 取文案，勋章名/描述实现国际化。
+- **OpusCodec 资源释放（V2.61，P2）**：`@Singleton` 的 `OpusCodec.release()` 此前从未被调用，`WebSocketXiaozhiTransport.disconnect()` 新增 `runCatching { codec.release() }`，断开助手页即释放 `MediaCodec`（释放后惰性重建安全）。
+
+### 🛠 质量与工程
+- 全程守住红线：零新依赖、中文全抽离 `strings.xml`、Room 显式 Migration（1→5，无 `fallbackToDestructiveMigration`）、`.workbuddy/` 不提交、按功能拆 commit。
+- 本轮回查修复前已通过构建门禁（`lintRelease` 0 error / `testDebugUnitTest` 全绿）。
+
+### ⚠️ 已知限制 / 显式保留（结转）
+- 真机指标评测（V2.44–V2.46）与全量冒烟 QA（V2.47–V2.51）仍待物理设备轮次，已整合进 `docs/测试与验收清单.md`（原 `docs/开发计划_v2.5_任务清单.md` 二、三节），相关逻辑已通过单元 + lint 门禁。
+- 其余平台约束（Android 14+ 全屏提醒降级、位置提醒 OEM 省电影响、系统 ASR best-effort、Opus 编码依赖设备能力）同 v2.5.0。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 质量门禁
+```
+
+---
+
 ## v2.4.0（2026-07-25）· 语音增强与残留缺口收口
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
