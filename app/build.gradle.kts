@@ -92,6 +92,15 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        // 本机未安装 NDK，AGP 的 stripDebugDebugSymbols 无 strip 工具可用，
+        // 会对第三方原生库报 "Unable to strip"。此处显式保留这些库的调试符号，
+        // 让 strip 任务无可剥离对象，从而消除告警（零新依赖、无需 NDK）。
+        // 若后续安装 NDK 并声明 ndkVersion，可改为真正去符号以进一步缩小包体。
+        jniLibs {
+            keepDebugSymbols += "**/libsqlcipher.so"
+            keepDebugSymbols += "**/libandroidx.graphics.path.so"
+            keepDebugSymbols += "**/libdatastore_shared_counter.so"
+        }
     }
 
     lint {
