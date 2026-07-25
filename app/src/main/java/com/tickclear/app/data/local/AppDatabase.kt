@@ -67,17 +67,23 @@ abstract class AppDatabase : RoomDatabase() {
         /**
          * v4 → v5：
          *  - task 新增 repeat_interval_hours（每 N 小时重复，PRD §7 自定义间隔）；
-         *  - task_instance 唯一约束扩展到 (taskId, dueDateLocal, dueMinute)，
-         *    支持子日级重复（每 N 小时）同一天多个实例。
+         *  - task_instance 索引由 (taskId, dueDateLocal) 扩展到 (taskId, dueDateLocal, dueMinute)，
+         *    支持子日级重复（每 N 小时）同一天多个实例；
+         *  - V2.56 修正：v5 实体另声明单列 dueDateLocal 索引，迁移须显式补建，
+         *    否则 v4→v5 升级后实例表缺该索引，与导出 5.json 校验不一致导致崩溃。
+         *  所有 DROP/CREATE 均用 IF NOT EXISTS，幂等可重复执行。
          */
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE task ADD COLUMN repeat_interval_hours INTEGER")
+                // 旧 2 列索引（taskId, dueDateLocal）→ 3 列唯一索引
                 db.execSQL("DROP INDEX IF EXISTS index_task_instance_taskId_dueDateLocal")
                 db.execSQL(
-                    "CREATE UNIQUE INDEX index_task_instance_taskId_dueDateLocal_dueMinute " +
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_task_instance_taskId_dueDateLocal_dueMinute " +
                         "ON task_instance(taskId, dueDateLocal, dueMinute)",
                 )
+                // 补建单列 dueDateLocal 索引，对齐 v5 实体声明
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_instance_dueDateLocal ON task_instance(dueDateLocal)")
             }
         }
 
