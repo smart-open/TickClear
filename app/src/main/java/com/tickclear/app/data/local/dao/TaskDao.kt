@@ -25,6 +25,9 @@ interface TaskDao {
     @Query("UPDATE task SET deletedAt = NULL, updatedAt = :ts WHERE id = :id")
     suspend fun restore(id: String, ts: Long = System.currentTimeMillis())
 
+    @Query("UPDATE task SET deletedAt = NULL, updatedAt = :ts WHERE groupId = :groupId AND deletedAt IS NOT NULL")
+    suspend fun restoreByGroup(groupId: String, ts: Long = System.currentTimeMillis())
+
     @Query("DELETE FROM task WHERE id = :id")
     suspend fun hardDelete(id: String)
 
@@ -33,6 +36,9 @@ interface TaskDao {
 
     @Query("UPDATE task SET groupId = NULL WHERE groupId = :groupId")
     suspend fun detachByGroup(groupId: String)
+
+    @Query("UPDATE task SET groupId = NULL WHERE id = :id")
+    suspend fun detachFromGroup(id: String)
 
     @Query("SELECT * FROM task WHERE deletedAt IS NULL AND groupId = :groupId ORDER BY scheduledStartMin ASC")
     fun observeByGroup(groupId: String): Flow<List<TaskEntity>>

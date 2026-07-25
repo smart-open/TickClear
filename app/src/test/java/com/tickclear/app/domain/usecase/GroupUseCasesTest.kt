@@ -58,6 +58,26 @@ class GroupUseCasesTest {
     }
 
     @Test
+    fun `delete group detaches pre-soft-deleted children instead of re-deleting`() = runTest {
+        val taskRepo = mockk<TaskRepository>(relaxed = true)
+        val groupRepo = mockk<GroupRepository>(relaxed = true)
+        // t1 活跃；t2 此前已单独软删（groupId 仍保留），应脱离组而非重复软删，
+        // 以免后续「恢复组」经 restoreByGroup 将其一并复活。
+        val children = listOf(
+            task("t1", "g1"),
+            Task(id = "t2", title = "t2", groupId = "g1", status = 0, deletedAt = 1L),
+        )
+        coEvery { taskRepo.observeByGroup("g1") } returns flowOf(children)
+
+        DeleteGroupCascadeUseCase(groupRepo, taskRepo)("g1")
+
+        coVerify { taskRepo.softDelete("t1") }
+        coVerify { taskRepo.detachFromGroup("t2") }
+        coVerify(exactly = 0) { taskRepo.softDelete("t2") }
+        coVerify { groupRepo.softDelete("g1") }
+    }
+
+    @Test
     fun `pause task sets paused status`() = runTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
         PauseTaskUseCase(taskRepo)(task("t1", "g1"))
@@ -69,5 +89,14 @@ class GroupUseCasesTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
         ResumeTaskUseCase(taskRepo)(task("t1", "g1", status = TaskStatus.PAUSED.code))
         coVerify { taskRepo.setStatus("t1", TaskStatus.ACTIVE, null) }
+    }
+
+    @Test
+    fun `restore group cascade restores children`() = runTest {
+        val taskRepo = mockk<TaskRepository>(relaxed = true)
+        val groupRepo = mockk<GroupRepository>(relaxed = true)
+        RestoreGroupCascadeUseCase(groupRepo, taskRepo)("g1")
+        coVerify { groupRepo.restore("g1") }
+        coVerify { taskRepo.restoreByGroup("g1") }
     }
 }

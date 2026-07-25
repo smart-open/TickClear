@@ -17,6 +17,10 @@ interface TaskRepository {
     suspend fun setStatus(id: String, status: TaskStatus, completedAt: Long?)
     suspend fun softDelete(id: String)
     suspend fun restore(id: String)
+    /** 级联恢复某组下所有被软删的任务（V2.41，与 DeleteGroupCascadeUseCase 对称）。 */
+    suspend fun restoreByGroup(groupId: String)
+    /** 将单个任务脱离组（保留数据），用于级联删组前隔离历史单独软删任务（V2.41 对称修正）。 */
+    suspend fun detachFromGroup(id: String)
     suspend fun hardDelete(id: String)
     suspend fun purgeExpired(cutoff: Long)
 }

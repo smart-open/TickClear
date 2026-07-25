@@ -28,6 +28,8 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun softDelete(id: String) { dao.softDelete(id) }
     override suspend fun restore(id: String) { dao.restore(id) }
+    override suspend fun restoreByGroup(groupId: String) { dao.restoreByGroup(groupId) }
+    override suspend fun detachFromGroup(id: String) { dao.detachFromGroup(id) }
     override suspend fun hardDelete(id: String) { dao.hardDelete(id) }
     override suspend fun purgeExpired(cutoff: Long) { dao.purgeExpired(cutoff) }
 }
