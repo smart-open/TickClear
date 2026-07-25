@@ -207,8 +207,11 @@ class AssistantViewModel @Inject constructor(
                     },
                 )
             } else {
-                val ok = capture.startAccumulate { pcm -> handleCloudAsr(pcm) }
+                // V2.58：云 ASR 路径先边录边写裸 PCM 临时文件，停止时回调该文件，避免整段驻留内存。
+                val pcmFile = File(appContext.cacheDir, "asr_upload.pcm")
+                val ok = capture.startAccumulate(pcmFile = pcmFile) { handleCloudAsr(it) }
                 if (!ok) {
+                    runCatching { pcmFile.delete() }
                     _voiceSupported.value = false
                     return@launch
                 }
@@ -229,12 +232,12 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    /** 云 ASR 路径：整段 PCM → WAV 临时文件 → 转写 → 作为文本发送；失败回显错误。 */
-    private fun handleCloudAsr(pcm: ByteArray) {
+    /** 云 ASR 路径：裸 PCM 文件 → 流式封装 WAV → 转写 → 作为文本发送；失败回显错误。 */
+    private fun handleCloudAsr(pcmFile: File) {
         viewModelScope.launch {
             val wav = File(appContext.cacheDir, "asr_upload.wav")
             runCatching {
-                WavUtil.writePcm(pcm, wav)
+                WavUtil.writePcmFromFile(pcmFile, wav)
                 val provider = asrResolver.resolve()
                     ?: throw AppException(ErrorCode.ASSISTANT_NOT_CONFIGURED, detail = "ASR 服务商未配置")
                 provider.transcribe(wav)
@@ -251,6 +254,7 @@ class AssistantViewModel @Inject constructor(
                 )
             }
             runCatching { wav.delete() }
+            runCatching { pcmFile.delete() }
         }
     }
 
@@ -454,8 +458,16 @@ class AssistantViewModel @Inject constructor(
         append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_cancelled)))
     }
 
+    /** V2.57：长会话消息上限，超过则丢弃最旧，避免 messages 随会话无限增长导致内存单调上升。 */
+    private companion object {
+        private const val MAX_MESSAGES = 100
+    }
+
     private fun append(msg: ChatMessage) {
-        _messages.update { it + msg }
+        _messages.update { list ->
+            val next = list + msg
+            if (next.size > MAX_MESSAGES) next.takeLast(MAX_MESSAGES) else next
+        }
     }
 
     override fun onCleared() {

@@ -40,6 +40,40 @@ object WavUtil {
         return out
     }
 
+    /**
+     * V2.58：从裸 PCM 文件流式封装为 WAV，避免把整段录音读入内存（长录音 OOM 风险）。
+     * 头部写出后按 8KB 缓冲从 [rawPcm] 拷贝数据，峰值内存仅一个缓冲区。
+     */
+    fun writePcmFromFile(rawPcm: File, out: File, sampleRate: Int = SAMPLE_RATE): File {
+        val dataSize = rawPcm.length().toInt()
+        val totalSize = 36 + dataSize
+        RandomAccessFile(out, "rw").use { raf ->
+            raf.write("RIFF".toAscii())
+            raf.writeIntLe(totalSize)
+            raf.write("WAVE".toAscii())
+            raf.write("fmt ".toAscii())
+            raf.writeIntLe(16)
+            raf.writeShortLe(1)
+            raf.writeShortLe(CHANNELS)
+            raf.writeIntLe(sampleRate)
+            val byteRate = sampleRate * CHANNELS * BITS_PER_SAMPLE / 8
+            raf.writeIntLe(byteRate)
+            val blockAlign = CHANNELS * BITS_PER_SAMPLE / 8
+            raf.writeShortLe(blockAlign)
+            raf.writeShortLe(BITS_PER_SAMPLE)
+            raf.write("data".toAscii())
+            raf.writeIntLe(dataSize)
+            rawPcm.inputStream().use { inStream ->
+                val buf = ByteArray(8192)
+                var read: Int
+                while (inStream.read(buf).also { read = it } != -1) {
+                    raf.write(buf, 0, read)
+                }
+            }
+        }
+        return out
+    }
+
     private fun String.toAscii(): ByteArray = toByteArray(Charsets.US_ASCII)
 
     private fun RandomAccessFile.writeIntLe(v: Int) {

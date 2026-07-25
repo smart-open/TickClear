@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.tickclear.app.domain.log.AppLogger
+import java.io.File
 import kotlin.math.min
 
 /**
@@ -84,12 +85,17 @@ class AudioCapture {
     }
 
     /**
-     * 累积采集模式：将整段录音缓冲进内存，停止时一次性回调完整 PCM（16bit）。
-     * 用于云 ASR（需整段音频文件而非实时帧流）。其余语义同 [start]。
+     * 累积采集模式（V2.58）：边录边把裸 PCM 写入 [pcmFile]，停止时回调该文件，
+     * 由调用方流式封装为 WAV。相比旧实现「整段缓冲进内存再拼接」，峰值内存仅一个音频缓冲区，
+     * 彻底消除超长录音（>5min）的 OOM 风险。回调参数为原始 PCM 文件，调用方负责使用/清理。
      * 权限：与 [start] 一致，调用前须已授予 RECORD_AUDIO（由 UI 层守卫）。
      */
     @SuppressLint("MissingPermission")
-    fun startAccumulate(sampleRate: Int = 16000, onComplete: (ByteArray) -> Unit): Boolean {
+    fun startAccumulate(
+        sampleRate: Int = 16000,
+        pcmFile: File,
+        onComplete: (File) -> Unit,
+    ): Boolean {
         if (running) return true
         val minBuf = AudioRecord.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
@@ -116,29 +122,24 @@ class AudioCapture {
         rec.startRecording()
 
         val readBuf = ByteArray(minBuf)
-        val chunks = mutableListOf<ByteArray>()
-        var total = 0
         thread = Thread({
-            while (running) {
-                val n = try {
-                    rec.read(readBuf, 0, readBuf.size)
-                } catch (e: Exception) {
-                    AppLogger.w("AudioCapture", "read failed", e)
-                    break
+            try {
+                // 边录边写临时文件，避免整段 PCM 驻留内存
+                pcmFile.outputStream().use { out ->
+                    while (running) {
+                        val n = try {
+                            rec.read(readBuf, 0, readBuf.size)
+                        } catch (e: Exception) {
+                            AppLogger.w("AudioCapture", "read failed", e)
+                            break
+                        }
+                        if (n <= 0) break
+                        out.write(readBuf, 0, n)
+                    }
                 }
-                if (n <= 0) break
-                val copy = readBuf.copyOf(n)
-                chunks.add(copy)
-                total += n
+            } finally {
+                runCatching { onComplete(pcmFile) }
             }
-            // 拼接全部 PCM 片段
-            val pcm = ByteArray(total)
-            var off = 0
-            for (c in chunks) {
-                System.arraycopy(c, 0, pcm, off, c.size)
-                off += c.size
-            }
-            runCatching { onComplete(pcm) }
         }, "AudioCapture-accum").also { it.start() }
         return true
     }
