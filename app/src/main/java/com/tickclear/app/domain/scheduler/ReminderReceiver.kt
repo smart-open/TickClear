@@ -106,22 +106,22 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(priority)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(context, instanceId.hashCode()))
+            .setContentIntent(openAppIntent(context, ReminderIds.contentRequestCode(instanceId)))
             .addAction(
                 R.drawable.ic_notification,
                 context.getString(R.string.notify_action_complete),
-                actionIntent(context, ACTION_COMPLETE, taskId, instanceId, instanceId.hashCode()),
+                actionIntent(context, ACTION_COMPLETE, taskId, instanceId, ReminderIds.completeRequestCode(instanceId)),
             )
             .addAction(
                 R.drawable.ic_notification,
                 context.getString(R.string.notify_action_snooze),
-                actionIntent(context, ACTION_SNOOZE, taskId, instanceId, (instanceId + "z").hashCode(), snoozeMin),
+                actionIntent(context, ACTION_SNOOZE, taskId, instanceId, ReminderIds.snoozeRequestCode(instanceId), snoozeMin),
             )
         if (RepeatType.fromCode(task.repeatType) != RepeatType.NONE) {
             builder.addAction(
                 R.drawable.ic_notification,
                 context.getString(R.string.notify_action_skip),
-                actionIntent(context, ACTION_SKIP, taskId, instanceId, (instanceId + "k").hashCode()),
+                actionIntent(context, ACTION_SKIP, taskId, instanceId, ReminderIds.skipRequestCode(instanceId)),
             )
         }
         if (level == "high") {
@@ -137,8 +137,9 @@ class ReminderReceiver : BroadcastReceiver() {
                 builder.setFullScreenIntent(fullScreenIntent(context, taskId, instanceId), true)
             }
         }
-        // 以 instanceId 作为通知键：避免不同任务 hashCode 碰撞，且重复任务多实例各自独立（互不覆盖）。
-        notificationManager(context).notify(instanceId.hashCode(), builder.build())
+        // 以 instanceId 的稳定 FNV-1a 哈希作为通知键：避免不同任务哈希碰撞互相覆盖，
+        // 且重复任务多实例各自独立（互不覆盖）。
+        notificationManager(context).notify(ReminderIds.notificationId(instanceId), builder.build())
     }
 
     private suspend fun complete(context: Context, taskId: String, instanceId: String) {
@@ -192,7 +193,7 @@ class ReminderReceiver : BroadcastReceiver() {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     private fun cancelNotification(context: Context, instanceId: String) {
-        notificationManager(context).cancel(instanceId.hashCode())
+        notificationManager(context).cancel(ReminderIds.notificationId(instanceId))
     }
 
     /** 全屏提醒意图：跳转 [FullScreenAlertActivity] 展示醒目提醒。 */
@@ -203,7 +204,7 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra(EXTRA_INSTANCE_ID, instanceId)
         }
         return PendingIntent.getActivity(
-            context, taskId.hashCode(), intent,
+            context, ReminderIds.fullScreenRequestCode(taskId), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
@@ -217,7 +218,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(context, "test".hashCode()))
-        notificationManager(context).notify("tickclear_test".hashCode(), builder.build())
+            .setContentIntent(openAppIntent(context, ReminderIds.fnv1a("test_content")))
+        notificationManager(context).notify(ReminderIds.fnv1a("tickclear_test"), builder.build())
     }
 }

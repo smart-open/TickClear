@@ -99,15 +99,18 @@ object ReminderScheduler {
     /** 取消某任务当天所有已排程的提醒（逐实例 + 兼容旧格式）。 */
     suspend fun cancelForTask(context: Context, taskId: String) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        // 旧格式（兼容历史闹钟）：requestCode 仅基于 taskId。
+        // 旧旧格式（兼容历史闹钟）：requestCode 仅基于 taskId。
         runCatching { am.cancel(showPendingIntentLegacy(context, taskId)) }
-        // 新格式：按当日所有实例逐一取消。
         runCatching {
             val ep = entryPoint(context)
             ep.taskInstanceRepository().observeOn(LocalDate.now()).first()
                 .filter { it.taskId == taskId }
-                .forEach { am.cancel(showPendingIntent(context, taskId, it.id)) }
+                .forEach { inst ->
+                    // 新格式（FNV-1a）。
+                    runCatching { am.cancel(showPendingIntent(context, taskId, inst.id)) }
+                    // 上一版本遗留格式（instanceId.hashCode），升级后一并撤销。
+                    runCatching { am.cancel(showPendingIntentOldHash(context, taskId, inst.id)) }
+                }
         }
     }
 
@@ -141,10 +144,26 @@ object ReminderScheduler {
 
     /**
      * 构造提醒广播 PendingIntent。
-     * requestCode 使用 instanceId 哈希（而非 taskId），避免同一任务多个实例
-     * （子日级重复 / 稍后提醒）互相覆盖（PRD 多实例提醒可靠性）。
+     * requestCode 使用 [ReminderIds.notificationId]（instanceId 的 FNV-1a 哈希，而非 taskId），
+     * 避免同一任务多个实例（子日级重复 / 稍后提醒）互相覆盖（PRD 多实例提醒可靠性）。
      */
     private fun showPendingIntent(context: Context, taskId: String, instanceId: String): PendingIntent {
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ACTION_SHOW
+            putExtra(EXTRA_TASK_ID, taskId)
+            putExtra(EXTRA_INSTANCE_ID, instanceId)
+        }
+        return PendingIntent.getBroadcast(
+            context, ReminderIds.notificationId(instanceId), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * 兼容上一版本（v2.4.0 及更早）的 PendingIntent：requestCode 直接取 [instanceId.hashCode]。
+     * 升级后旧闹钟仍可能 pending，cancel 时一并撤销，避免孤立闹钟触发旧映射。
+     */
+    private fun showPendingIntentOldHash(context: Context, taskId: String, instanceId: String): PendingIntent {
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             action = ACTION_SHOW
             putExtra(EXTRA_TASK_ID, taskId)
