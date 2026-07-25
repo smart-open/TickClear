@@ -27,7 +27,6 @@ class SeedUseCase @Inject constructor(
     suspend fun ensureSeeded() {
         if (settingsRepository.firstRunDone.first()) return
 
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE).let { null }
         val gMorning = "seed_g_morning"
         val gHealth = "seed_g_health"
         val gWork = "seed_g_work"

@@ -38,6 +38,19 @@ class TaskInstanceRepository @Inject constructor(
         for (task in tasks.filter { it.isEnabled() }) {
             if (!shouldGenerateInstance(task, date)) continue
             val minutes = task.dueMinutesForDate(date)
+            if (minutes.isEmpty()) {
+                // 全天 / 无具体时刻（随时任务）等：生成恰好一个 dueMinute=null 的实例，
+                // 使其在「今日」可见、可完成、可纳入统计；无具体时刻故不排程定点提醒（ReminderScheduler 已跳过 null）。
+                dao.upsert(
+                    TaskInstanceEntity(
+                        id = "${task.id}@$dateStr",
+                        taskId = task.id,
+                        dueDateLocal = dateStr,
+                        dueMinute = null,
+                    ),
+                )
+                continue
+            }
             val single = minutes.size == 1
             for (min in minutes) {
                 val id = if (single) "${task.id}@$dateStr" else "${task.id}@$dateStr@$min"

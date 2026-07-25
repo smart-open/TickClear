@@ -19,6 +19,8 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** 「未分组」分组在统计柱状图中的哨兵 id；UI 据其取 strings.xml 的 tasks_no_group，避免 domain 层硬编码中文（红线）。 */
+const val UNGROUPED_GROUP_ID = "__ungrouped__"
 data class DailyStat(val date: String, val completed: Int)
 data class GroupStat(val groupName: String, val completed: Int, val total: Int)
 data class TaskStats(
@@ -66,7 +68,7 @@ class GetStatsUseCase @Inject constructor(
                         it.deletedAt == null && it.groupId == null && RepeatType.fromCode(it.repeatType) == RepeatType.NONE
                     }
                     if (ungrouped.isNotEmpty()) {
-                        add(GroupStat("未分组", ungrouped.count { it.status == TaskStatus.COMPLETED.code }, ungrouped.size))
+                        add(GroupStat(UNGROUPED_GROUP_ID, ungrouped.count { it.status == TaskStatus.COMPLETED.code }, ungrouped.size))
                     }
                 }
 

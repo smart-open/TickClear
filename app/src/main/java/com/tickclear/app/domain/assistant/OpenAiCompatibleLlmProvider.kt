@@ -73,21 +73,21 @@ open class OpenAiCompatibleLlmProvider(
                 .post(body.toString().toRequestBody(MEDIA_TYPE_JSON))
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                throw AppException(
-                    ErrorCode.ASSISTANT_CONNECT_FAILED,
-                    detail = "HTTP ${response.code}",
-                )
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw AppException(
+                        ErrorCode.ASSISTANT_CONNECT_FAILED,
+                        detail = "HTTP ${response.code}",
+                    )
+                }
+                val raw = response.body?.string()
+                    ?: throw AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, detail = "empty body")
+                JSONObject(raw)
+                    .getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
             }
-            val raw = response.body?.string()
-                ?: throw AppException(ErrorCode.ASSISTANT_CONNECT_FAILED, detail = "empty body")
-            val content = JSONObject(raw)
-                .getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .getString("content")
-            content
         }
 
     companion object {

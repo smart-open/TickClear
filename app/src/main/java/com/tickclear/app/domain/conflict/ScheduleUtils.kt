@@ -102,11 +102,9 @@ fun Task.effectiveStartMin(): Int? = instanceDueMinute()
  */
 fun Task.effectiveEndMin(): Int {
     val start = instanceDueMinute() ?: 0
-    val end = if (RepeatType.fromCode(repeatType) == RepeatType.NONE) {
-        (scheduledEndMin ?: scheduledStartMin ?: 0)
-    } else {
-        scheduledEndMin ?: (start + 30)
-    }
+    // 与 GetTodayTasksUseCase 的今日视图冲突窗口保持一致：无结束时间时默认取「开始 + 30 分钟」时长，
+    // 避免编辑期与今日页对同名任务冲突判定相互矛盾（R3）。
+    val end = scheduledEndMin ?: (start + 30)
     // 跨午夜：结束分钟早于开始分钟时视为次日（+1440），避免晚间接续任务漏判冲突。
     return if (end < start) end + 1440 else end
 }

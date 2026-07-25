@@ -157,7 +157,7 @@ class BackupManager @Inject constructor(
      * 备份健康校验（V2.23 自愈校验）：纯解析 + 版本 + 结构校验，不落盘、不依赖 Android 上下文，
      * 供自动备份写入后即时自检与设置页回显。JVM 单测可覆盖。
      *
-     * 规则对齐 [importFromJson]：版本缺失/非法或不高于当前 schema 视为 [BackupHealth.CORRUPT]；
+     * 规则对齐 [importFromJson]：版本缺失/非法（≤0）或高于当前 schema（不支持）视为 [BackupHealth.CORRUPT]；
      * 结构合法但五类数据全空视为 [BackupHealth.EMPTY]；否则 [BackupHealth.OK]。
      */
     fun validateBackupJson(json: String): BackupHealth {

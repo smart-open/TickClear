@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.domain.model.Medal
 import com.tickclear.app.domain.model.MedalProgress
 import com.tickclear.app.domain.usecase.GroupStat
+import com.tickclear.app.domain.usecase.UNGROUPED_GROUP_ID
 import com.tickclear.app.ui.components.HeatmapCalendar
 import com.tickclear.app.ui.components.MedalWall
 import com.tickclear.app.ui.components.ProgressRing
@@ -408,7 +409,8 @@ private fun GroupBarRow(g: GroupStat) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(g.groupName, style = MaterialTheme.typography.bodyMedium)
+            val groupName = if (g.groupName == UNGROUPED_GROUP_ID) stringResource(R.string.tasks_no_group) else g.groupName
+            Text(groupName, style = MaterialTheme.typography.bodyMedium)
             Text(
                 stringResource(R.string.stats_group_count, g.completed, g.total),
                 style = MaterialTheme.typography.labelSmall,
