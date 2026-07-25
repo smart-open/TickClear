@@ -3,6 +3,8 @@ package com.tickclear.app.di
 import android.content.Context
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.data.local.AppDatabase
+import com.tickclear.app.domain.backup.RoomTransactionRunner
+import com.tickclear.app.domain.backup.TransactionRunner
 import com.tickclear.app.data.local.dao.CheckInDao
 import com.tickclear.app.data.local.dao.CompletionLogDao
 import com.tickclear.app.data.local.dao.MedalUnlockDao
@@ -32,4 +34,8 @@ object DatabaseModule {
     @Provides fun provideCompletionLogDao(db: AppDatabase) = db.completionLogDao()
     @Provides fun provideMedalUnlockDao(db: AppDatabase) = db.medalUnlockDao()
     @Provides fun provideCheckInDao(db: AppDatabase) = db.checkInDao()
+
+    @Provides
+    @Singleton
+    fun provideTransactionRunner(db: AppDatabase): TransactionRunner = RoomTransactionRunner(db)
 }

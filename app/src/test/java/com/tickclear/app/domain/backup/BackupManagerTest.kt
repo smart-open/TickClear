@@ -44,7 +44,8 @@ class BackupManagerTest {
         every { groupRepo.observeActive() } returns flowOf(emptyList())
         every { completionRepo.observeAll() } returns flowOf(emptyList())
 
-        val bm = BackupManager(taskRepo, groupRepo, completionRepo, checkInRepo, medalRepo)
+        val txn = TestTransactionRunner()
+        val bm = BackupManager(taskRepo, groupRepo, completionRepo, checkInRepo, medalRepo, txn)
         val json = bm.exportToJson()
 
         // 导出必须包含易遗漏的字段（子日级重复 + 位置提醒）
@@ -56,11 +57,21 @@ class BackupManagerTest {
 
         // 导入后 taskRepository.upsert 的参数应保留这些字段
         bm.importFromJson(json)
+        assertTrue("导入应在数据库事务中执行（R5 接线）", txn.ran)
         val slot = slot<Task>()
         coVerify(exactly = 1) { taskRepo.upsert(capture(slot)) }
         val imported = slot.captured
         assertEquals(8, imported.repeatIntervalHours)
         assertEquals(31.2304, imported.geoLat!!, 0.0001)
         assertEquals(200, imported.geoRadius)
+    }
+}
+
+/** 测试替身：记录 [run] 是否被调用，并直接执行 block（验证 R5 事务接线）。 */
+private class TestTransactionRunner : TransactionRunner {
+    var ran = false
+    override suspend fun <T> run(block: suspend () -> T): T {
+        ran = true
+        return block()
     }
 }

@@ -18,7 +18,7 @@ class BackupManagerHealthTest {
 
     private fun bm() = BackupManager(
         mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
-        mockk(relaxed = true), mockk(relaxed = true),
+        mockk(relaxed = true), mockk(relaxed = true), NoOpTransactionRunner,
     )
 
     @Test

@@ -43,6 +43,7 @@ class BackupManager @Inject constructor(
     private val completionRepository: CompletionRepository,
     private val checkInRepository: CheckInRepository,
     private val medalRepository: MedalRepository,
+    private val txn: TransactionRunner,
 ) {
     companion object {
         const val SCHEMA_VERSION = 1
@@ -101,25 +102,28 @@ class BackupManager @Inject constructor(
         }
 
         try {
-            // 先导入组，再导入任务（外键 groupId 依赖组）。
-            for (i in 0 until groupsArr.length()) {
-                groupRepository.upsert(jsonToGroup(groupsArr.getJSONObject(i)))
-            }
-            val validGroupIds = groupRepository.observeActive().first().map { it.id }.toSet()
-            for (i in 0 until tasksArr.length()) {
-                val t = jsonToTask(tasksArr.getJSONObject(i))
-                // groupId 指向不存在的组时置空，避免外键冲突。
-                val safe = if (t.groupId != null && t.groupId !in validGroupIds) t.copy(groupId = null) else t
-                taskRepository.upsert(safe)
-            }
-            for (i in 0 until completionsArr.length()) {
-                completionRepository.insert(jsonToCompletion(completionsArr.getJSONObject(i)))
-            }
-            for (i in 0 until checkInsArr.length()) {
-                checkInRepository.upsert(jsonToCheckIn(checkInsArr.getJSONObject(i)))
-            }
-            for (i in 0 until medalsArr.length()) {
-                medalRepository.upsert(jsonToMedal(medalsArr.getJSONObject(i)))
+            // 整体包裹在数据库事务中（R5）：任一写入失败整体回滚，避免留下部分导入脏数据。
+            txn.run {
+                // 先导入组，再导入任务（外键 groupId 依赖组）。
+                for (i in 0 until groupsArr.length()) {
+                    groupRepository.upsert(jsonToGroup(groupsArr.getJSONObject(i)))
+                }
+                val validGroupIds = groupRepository.observeActive().first().map { it.id }.toSet()
+                for (i in 0 until tasksArr.length()) {
+                    val t = jsonToTask(tasksArr.getJSONObject(i))
+                    // groupId 指向不存在的组时置空，避免外键冲突。
+                    val safe = if (t.groupId != null && t.groupId !in validGroupIds) t.copy(groupId = null) else t
+                    taskRepository.upsert(safe)
+                }
+                for (i in 0 until completionsArr.length()) {
+                    completionRepository.insert(jsonToCompletion(completionsArr.getJSONObject(i)))
+                }
+                for (i in 0 until checkInsArr.length()) {
+                    checkInRepository.upsert(jsonToCheckIn(checkInsArr.getJSONObject(i)))
+                }
+                for (i in 0 until medalsArr.length()) {
+                    medalRepository.upsert(jsonToMedal(medalsArr.getJSONObject(i)))
+                }
             }
         } catch (e: AppException) {
             throw e
