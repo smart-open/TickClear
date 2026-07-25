@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -119,6 +120,14 @@ fun TodayScreen(
                 SnackbarResult.ActionPerformed -> viewModel.undoDelete()
                 SnackbarResult.Dismissed -> viewModel.clearPending()
             }
+        }
+    }
+
+    // V2.55：编辑中任务被软删（从 state.items 消失）后，关闭编辑页而非让表单回退为「新建」，
+    // 避免用户保存时误建重复任务。仅当确实处于「编辑某具体任务」态（editingTaskId 非空）时才触发。
+    LaunchedEffect(editingTaskId, showEditor) {
+        if (showEditor && editingTaskId != null && editingTask == null) {
+            showEditor = false
         }
     }
 
@@ -278,9 +287,6 @@ private fun TodayMainContent(
     // 采用 View 级监听而非 Modifier.focusable，规避本环境对 focusable 符号的解析差异，且无需强制焦点。
     var focusedIndex by rememberSaveable { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    // 键盘监听闭包在 DisposableEffect 内创建，但 state 每次重组都会变化；用 rememberUpdatedState 让
-    // 闭包始终读取最新 state.items，避免操作后作用于过期数据（误完成错误项）。
-    val currentState = rememberUpdatedState(state)
     val view = LocalView.current
 
     // V2.32：拆分进行中/已完成；已完成数超过阈值时默认折叠（用户可手动展开）。
@@ -288,6 +294,9 @@ private fun TodayMainContent(
     // 不能放在 LazyColumn 的 LazyListScope（仅 item/items 内部是 composable 上下文）。
     val activeItems = state.items.filter { !it.done }
     val doneItems = state.items.filter { it.done }
+    // V2.54：键盘焦点只在「进行中」段内移动，故持有 active 列表的最新引用，
+    // 让监听闭包始终读取最新 activeItems，避免按合并序号（active+done）索引导致的跨段错位。
+    val currentActive = rememberUpdatedState(activeItems)
     var collapseDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size)) collapseDone = true
@@ -295,26 +304,33 @@ private fun TodayMainContent(
     DisposableEffect(view, shortcutsEnabled) {
         val listener = View.OnKeyListener { _, keyCode, event ->
             if (!shortcutsEnabled || event.action != KeyEvent.ACTION_DOWN) return@OnKeyListener false
-            val count = currentState.value.items.size
+            // 焦点仅在 active（进行中）段内移动：以 activeItems 本地序号为准，
+            // 与 LazyColumn 的 active/done 分段一致，消除高亮与操作目标错位（V2.54）。
+            val active = currentActive.value
+            val count = active.size
             if (count == 0) return@OnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     val next = (focusedIndex + 1).coerceAtMost(count - 1)
                     focusedIndex = next
-                    scope.launch { listState.scrollToItem(next) }
+                    // LazyColumn 第 0 项为鼓励语头部，active 项 j 位于 1 + j
+                    scope.launch { listState.scrollToItem(1 + next) }
                     true
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     val prev = (focusedIndex - 1).coerceAtLeast(0)
                     focusedIndex = prev
-                    scope.launch { listState.scrollToItem(prev) }
+                    scope.launch { listState.scrollToItem(1 + prev) }
                     true
                 }
                 KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER -> {
-                    // 完成当前聚焦项；若已完成的则顺延到首个未完成项
-                    val target = currentState.value.items.getOrNull(focusedIndex)?.takeIf { !it.done }
-                        ?: currentState.value.items.firstOrNull { !it.done }
-                    if (target != null) onComplete(target)
+                    // 完成当前聚焦的进行中项
+                    val target = active.getOrNull(focusedIndex)
+                    if (target != null) {
+                        onComplete(target)
+                        // 完成聚焦项后 active 数量减一，夹住索引避免越界高亮
+                        focusedIndex = focusedIndex.coerceAtMost(active.size - 2).coerceAtLeast(0)
+                    }
                     true
                 }
                 KeyEvent.KEYCODE_N -> {
@@ -370,7 +386,8 @@ private fun TodayMainContent(
                         }
                     }
 
-                    items(activeItems, key = { it.instanceId }) { item ->
+                    // V2.54：以 active 段本地序号 index 判断高亮，与键盘焦点一致；done 段不可键盘聚焦。
+                    itemsIndexed(activeItems, key = { _, item -> item.instanceId }) { index, item ->
                         // V2.21 列表项进入/重排动画
                         Box(modifier = Modifier.animateItem()) {
                             TaskItem(
@@ -380,7 +397,7 @@ private fun TodayMainContent(
                                 onComplete = { onComplete(item) },
                                 onDelete = { onDelete(item) },
                                 onEdit = { onEdit(item) },
-                                isFocused = state.items.getOrNull(focusedIndex)?.instanceId == item.instanceId,
+                                isFocused = index == focusedIndex,
                             )
                         }
                     }
@@ -404,7 +421,7 @@ private fun TodayMainContent(
                                         onComplete = { onComplete(item) },
                                         onDelete = { onDelete(item) },
                                         onEdit = { onEdit(item) },
-                                        isFocused = state.items.getOrNull(focusedIndex)?.instanceId == item.instanceId,
+                                        isFocused = false,
                                     )
                                 }
                             }
