@@ -17,8 +17,6 @@ interface SettingsRepository {
     val quietEndMin: Flow<Int>
     val firstRunDone: Flow<Boolean>
     val aiMode: Flow<String>
-    val asrType: Flow<String>
-    val llmType: Flow<String>
     val assistantMode: Flow<String>
     val assistantEndpoint: Flow<String>
     val assistantPrompt: Flow<String>
@@ -62,8 +60,6 @@ interface SettingsRepository {
     suspend fun setQuietEndMin(min: Int)
     suspend fun setFirstRunDone(done: Boolean)
     suspend fun setAiMode(mode: String)
-    suspend fun setAsrType(type: String)
-    suspend fun setLlmType(type: String)
     suspend fun setAssistantMode(mode: String)
     suspend fun setAssistantEndpoint(endpoint: String)
     suspend fun setAssistantPrompt(prompt: String)

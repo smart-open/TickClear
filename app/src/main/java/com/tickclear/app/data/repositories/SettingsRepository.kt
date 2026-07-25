@@ -52,8 +52,6 @@ class SettingsRepositoryImpl @Inject constructor(
 
     // ── AI 助手选型（Phase 5 填充；此处先定义契约）──
     override val aiMode: Flow<String> = dataStore.data.map { it[KEY_AI_MODE] ?: "LOCAL_NLU" }
-    override val asrType: Flow<String> = dataStore.data.map { it[KEY_ASR] ?: "NONE" }
-    override val llmType: Flow<String> = dataStore.data.map { it[KEY_LLM] ?: "NONE" }
 
     // ── 小智助手配置（Phase 6；token 等敏感值走 SecureStore）──
     override val assistantMode: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_MODE] ?: "MOCK" }
@@ -114,8 +112,6 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setQuietEndMin(min: Int) { dataStore.edit { it[KEY_QUIET_END] = min.coerceIn(0, 1439) } }
     override suspend fun setFirstRunDone(done: Boolean) { dataStore.edit { it[KEY_FIRST_RUN] = done } }
     override suspend fun setAiMode(mode: String) { dataStore.edit { it[KEY_AI_MODE] = mode } }
-    override suspend fun setAsrType(type: String) { dataStore.edit { it[KEY_ASR] = type } }
-    override suspend fun setLlmType(type: String) { dataStore.edit { it[KEY_LLM] = type } }
     override suspend fun setAssistantMode(mode: String) { dataStore.edit { it[KEY_ASSISTANT_MODE] = mode } }
     override suspend fun setAssistantEndpoint(endpoint: String) { dataStore.edit { it[KEY_ASSISTANT_ENDPOINT] = endpoint } }
     override suspend fun setAssistantPrompt(prompt: String) { dataStore.edit { it[KEY_ASSISTANT_PROMPT] = prompt } }
@@ -200,8 +196,6 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_QUIET_START = intPreferencesKey("quiet_start_min")
         private val KEY_QUIET_END = intPreferencesKey("quiet_end_min")
         private val KEY_AI_MODE = stringPreferencesKey("ai_mode")
-        private val KEY_ASR = stringPreferencesKey("asr_type")
-        private val KEY_LLM = stringPreferencesKey("llm_type")
         private val KEY_FIRST_RUN = booleanPreferencesKey("first_run_done")
         private val KEY_ASSISTANT_MODE = stringPreferencesKey("assistant_mode")
         private val KEY_ASSISTANT_ENDPOINT = stringPreferencesKey("assistant_endpoint")
