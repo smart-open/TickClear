@@ -105,7 +105,7 @@ object TaskIntentParser {
         title = title.replace(RE_TIME_WORDS, " ")
         title = title.replace(RE_OFFSET, " ")
         title = title.replace(RE_WS, " ").trim()
-        if (title.isEmpty()) title = "新任务"
+        // 标题为空时不在此兜底中文，交由消费端（MockXiaozhiTransport）用 string 资源默认（task_default_title）。
 
         val dateStr = if (repeatType == "NONE") {
             LocalDate.now().plusDays(dayOffset.toLong()).format(DATE_FMT)

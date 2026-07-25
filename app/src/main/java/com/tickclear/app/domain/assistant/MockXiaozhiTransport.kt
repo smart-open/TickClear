@@ -42,7 +42,7 @@ class MockXiaozhiTransport(
                 XiaozhiEvent.McpToolCall(
                     tool = "create_task",
                     arguments = mapOf(
-                        "title" to parsed.title,
+                        "title" to parsed.title.ifEmpty { context.getString(R.string.task_default_title) },
                         "date" to parsed.dateStr,
                         "minute" to parsed.minute,
                         "repeatType" to parsed.repeatType,
@@ -54,7 +54,7 @@ class MockXiaozhiTransport(
             val whenText = when (parsed.repeatType) {
                 "DAILY" -> "每天"
                 "WEEKLY" -> "每周${parsed.weekdays}"
-                else -> parsed.dateStr ?: "今天"
+                else -> parsed.dateStr ?: context.getString(R.string.assistant_mock_when_today)
             }
             _events.emit(XiaozhiEvent.LlmText(context.getString(R.string.assistant_mock_task_saved, parsed.title, whenText)))
         } else {

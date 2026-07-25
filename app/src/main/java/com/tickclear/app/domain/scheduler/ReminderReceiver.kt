@@ -143,7 +143,8 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private suspend fun complete(context: Context, taskId: String, instanceId: String) {
         val ep = EntryPointAccessors.fromApplication(context, ReminderScheduler.ReminderEntryPoint::class.java)
-        val task = ep.taskRepository().getActiveById(taskId) ?: ep.taskRepository().getById(taskId) ?: return
+        // 仅对未软删任务生效：已软删任务其通知应已被取消，此处不再兜底 getById，避免误完成已删除任务。
+        val task = ep.taskRepository().getActiveById(taskId) ?: return
         ep.completeTaskUseCase()(task, instanceId)
         cancelNotification(context, instanceId)
     }

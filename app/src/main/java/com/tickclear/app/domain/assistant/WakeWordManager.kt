@@ -28,12 +28,15 @@ class WakeWordManager(
             continuous = true,
             onPartial = { /* 唤醒词检测以终句为准，减少误触发 */ },
             onFinal = { text ->
-                if (!active) return@start
-                val hit = text.trim().replace(WS, "").lowercase()
-                    .let { it == phrase || (phrase.isNotEmpty() && it.contains(phrase)) }
-                if (hit) {
-                    stop()
-                    onWake()
+                // 守卫而非 return：该 lambda 传入非内联函数，非局部 return 被禁止；
+                // 且 start 早已返回，return 会触发 Already resumed。用 if(active) 局部守卫等价且安全。
+                if (active) {
+                    val hit = text.trim().replace(WS, "").lowercase()
+                        .let { it == phrase || (phrase.isNotEmpty() && it.contains(phrase)) }
+                    if (hit) {
+                        stop()
+                        onWake()
+                    }
                 }
             },
         )
