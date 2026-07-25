@@ -4,6 +4,39 @@
 
 ---
 
+## v2.5.0（2026-07-24）· 健壮性收口（通知 id / 迁移一致性 / 内存边界）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 7 / versionName 2.5.0
+**相对 v2.4.0**：结清 v2.4 封板前代码复查发现的 7 项 P2 级健壮性隐患（V2.52–V2.58），无新功能、无功能回归、零新依赖。
+
+### 🛠 健壮性修复（V2.52–V2.58）
+- **通知 id 稳定化（V2.52）**：新增 `ReminderIds`，以 FNV-1a 32 位哈希（非负、用途前缀隔离）替代 `String.hashCode()` 生成通知 id 与 content/complete/snooze/skip/fullScreen 各 PendingIntent requestCode，显著降低碰撞覆盖风险；`cancelForTask` 兼容撤销 v2.4.0 遗留旧 hash 闹钟。新增 `ReminderIdsTest`（4 用例）。
+- **死代码清理（V2.53）**：删除无引用的 `SettingsRepository.asrType/llmType`（Flow、setter、key）；`aiMode` 经核实仍被设置页 AI 引擎选择器与调试页使用，保留。
+- **键盘焦点跨段错位修复（V2.54）**：今日视图键盘焦点索引改为仅在「进行中」段内计算（`itemsIndexed` 段内高亮），`↑↓` 索引夹取并补偿列表头部偏移；顺带修复 `DPAD_UP` 从不更新焦点索引的固有 bug。已完成段不再被误高亮/误操作。
+- **编辑态软删防误建（V2.55）**：正在编辑的任务被软删（如语音指令删除）时自动关闭编辑页，不再以空白「新建」表单回退，杜绝误建重复任务。
+- **迁移一致性修复（V2.56）**：核对导出 schema `5.json`，发现 `MIGRATION_4_5` 漏建单列索引 `index_task_instance_dueDateLocal`（老库升级将触发 Room 校验崩溃），已补建；DROP/CREATE 全部幂等（`IF [NOT] EXISTS`）。空迁移 1→2、2→3 经核验与实体一致。
+- **助手消息内存上限（V2.57）**：会话消息保留最近 100 条（`takeLast`），超长会话内存不再单调增长。
+- **长录音内存边界（V2.58）**：云 ASR 录音由整段内存累积改为边录边写 `cacheDir` 临时 PCM 文件，`WavUtil.writePcmFromFile` 以 8KB 缓冲流式转 WAV，上传后清理临时文件；峰值内存从约 2× 全量 PCM 降至单个音频缓冲区，>5min 长录音不再有 OOM 风险。
+
+### 🛠 质量与工程
+- 全程守住红线：零新依赖、中文全抽离 `strings.xml`、Room 显式 Migration（含本次索引补正）、`.workbuddy/` 不提交、按功能拆 commit。
+- `./gradlew :app:lintRelease` 0 error；`./gradlew :app:testDebugUnitTest` 全绿（含新增 `ReminderIdsTest`）。
+
+### ⚠️ 已知限制 / 显式保留（结转）
+- **真机指标评测（V2.44–V2.46）与全量冒烟 QA（V2.47–V2.51）**：仍待物理设备轮次，见 `docs/开发计划_v2.5_任务清单.md` 二、三节；相关逻辑已通过单元 + lint 门禁。
+- 其余平台约束（Android 14+ 全屏提醒降级、位置提醒 OEM 省电影响、系统 ASR best-effort）同 v2.4.0。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 质量门禁
+```
+
+---
+
 ## v2.4.0（2026-07-25）· 语音增强与残留缺口收口
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
