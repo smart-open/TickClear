@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.scheduler.ReminderScheduler
 import com.tickclear.app.domain.scheduler.GeofenceScheduler
@@ -18,6 +19,7 @@ import com.tickclear.app.domain.usecase.UpdateTaskUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -46,6 +48,7 @@ class TodayViewModel @Inject constructor(
     private val addTaskUseCase: AddTaskUseCase,
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val geofenceScheduler: GeofenceScheduler,
+    private val settingsRepository: SettingsRepository,
     @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
     private val pendingDelete = MutableStateFlow<Task?>(null)
@@ -97,6 +100,15 @@ class TodayViewModel @Inject constructor(
 
     fun clearPending() {
         pendingDelete.value = null
+    }
+
+    /** 清空前确认开关（V2.40）：关闭后一键清空直接执行。 */
+    val clearConfirmEnabled: StateFlow<Boolean> = settingsRepository.clearConfirmEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true,
+    )
+
+    fun setClearConfirmEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setClearConfirmEnabled(enabled)
     }
 
     /** 一键清空：将今日所有未完成任务标记为完成（复用 complete 逻辑 + 记打卡）。 */

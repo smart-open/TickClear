@@ -26,6 +26,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -89,6 +90,7 @@ fun TodayScreen(
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showClearConfirm by rememberSaveable { mutableStateOf(false) }
+    val clearConfirmEnabled by viewModel.clearConfirmEnabled.collectAsStateWithLifecycle()
     val ptrState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -100,6 +102,12 @@ fun TodayScreen(
     val snackbarMsg = pending?.let { stringResource(R.string.today_deleted_snack, it.title) } ?: ""
     val clearedSnack = stringResource(R.string.today_cleared_snack)
     val restoreLabel = stringResource(R.string.action_restore)
+    val confirmClear: () -> Unit = {
+        viewModel.clearAll()
+        scope.launch {
+            snackbarHostState.showSnackbar(message = clearedSnack, duration = SnackbarDuration.Short)
+        }
+    }
     LaunchedEffect(pending?.id) {
         if (pending != null) {
             val result = snackbarHostState.showSnackbar(
@@ -135,7 +143,10 @@ fun TodayScreen(
                     val hasIncomplete = state.total > 0 && state.done < state.total
                     IconButton(
                         enabled = hasIncomplete,
-                        onClick = { showClearConfirm = true },
+                        onClick = {
+                            if (clearConfirmEnabled) showClearConfirm = true
+                            else confirmClear()
+                        },
                     ) {
                         Icon(
                             Icons.Filled.DoneAll,
@@ -201,20 +212,29 @@ fun TodayScreen(
     }
 
     if (showClearConfirm) {
+        var dontShow by rememberSaveable { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
             title = { Text(stringResource(R.string.today_clear_all_title)) },
-            text = { Text(stringResource(R.string.today_clear_all_msg)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.today_clear_all_msg))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(top = Spacing.sm)
+                            .clickable { dontShow = !dontShow },
+                    ) {
+                        Checkbox(checked = dontShow, onCheckedChange = { dontShow = it })
+                        Text(stringResource(R.string.today_clear_confirm_dont_show))
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showClearConfirm = false
-                    viewModel.clearAll()
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = clearedSnack,
-                            duration = SnackbarDuration.Short,
-                        )
-                    }
+                    if (dontShow) viewModel.setClearConfirmEnabled(false)
+                    confirmClear()
                 }) { Text(stringResource(R.string.action_confirm)) }
             },
             dismissButton = {
