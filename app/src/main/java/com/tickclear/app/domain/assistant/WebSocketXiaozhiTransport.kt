@@ -82,6 +82,9 @@ class WebSocketXiaozhiTransport(
         pendingPrompt = prompt
         userDisconnect = false
         reconnectAttempt = 0
+        // 若重连进行中，先取消旧作用域，避免旧延迟重连与新连接竞建重复 WebSocket（P2）。
+        scope?.cancel()
+        scope = null
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         openSocket()
     }
@@ -91,6 +94,7 @@ class WebSocketXiaozhiTransport(
      * 用户在设置页更新 token 后无需重启应用，下一次（重）连接即生效。
      */
     private suspend fun openSocket() {
+        if (ws != null) return // 已有连接，避免重复建连（与 connect 重建作用域配合消除竞态）
         pendingToken = settings.getAssistantToken()
         val endpoint = settings.assistantEndpoint.first().ifEmpty { "wss://api.xiaozhi.me/ws" }
         val builder = Request.Builder().url(endpoint)
@@ -173,14 +177,15 @@ class WebSocketXiaozhiTransport(
 
     override suspend fun disconnect() {
         userDisconnect = true
-        if (!connected) return
+        // 无论如何都释放资源：旧实现在「重连中」(connected=false) 时早退，
+        // 导致 AudioTrack / Opus MediaCodec 未释放、声音残留，且作用域/WS 滞留（P2）。
         connected = false
-        player.release()
+        runCatching { player.release() }
         // 会话结束释放 Opus MediaCodec，避免编解码器终生死占（下次 encode/decode 惰性重建）。
         runCatching { codec.release() }
         scope?.cancel()
         scope = null
-        ws?.close(1000, "bye")
+        runCatching { ws?.close(1000, "bye") }
         ws = null
     }
 

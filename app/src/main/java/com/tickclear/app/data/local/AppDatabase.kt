@@ -84,8 +84,15 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 // 补建单列 dueDateLocal 索引，对齐 v5 实体声明
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_task_instance_dueDateLocal ON task_instance(dueDateLocal)")
+                // 单列 taskId 索引：v5 实体声明要求；v4 升级时本由 v1 遗留保留，
+                // 此处显式补建使迁移自包含（不依赖历史索引残留），幂等安全。
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_task_instance_taskId ON task_instance(taskId)")
             }
         }
+
+        /** 全部显式迁移，供仪器化契约测试（MigrationTestHelper）引用，无需新增依赖。 */
+        internal val MIGRATIONS: Array<Migration> =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         fun create(context: Context, passphrase: String): AppDatabase {
             // L2：sqlcipher-android 需在打开数据库前显式加载 native 库（该 artifact 不自动加载）。

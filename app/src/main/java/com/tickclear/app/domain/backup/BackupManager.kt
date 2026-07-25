@@ -102,13 +102,21 @@ class BackupManager @Inject constructor(
         }
 
         try {
+            // 有效组 id 集合 = 备份内组 ∪ 现有活跃组，置于事务外计算：
+            // 既避免「事务内嵌套读」在 SQLCipher 单连接池下死锁/ANR（P1），
+            // 也保证「组与任务同备份」时任务引用的组不被误置空。
+            val importedGroupIds = (0 until groupsArr.length()).mapNotNull { gi ->
+                runCatching { groupsArr.getJSONObject(gi).getString("id") }.getOrNull()
+            }.toSet()
+            val existingGroupIds = groupRepository.observeActive().first().map { it.id }.toSet()
+            val validGroupIds = importedGroupIds + existingGroupIds
+
             // 整体包裹在数据库事务中（R5）：任一写入失败整体回滚，避免留下部分导入脏数据。
             txn.run {
                 // 先导入组，再导入任务（外键 groupId 依赖组）。
                 for (i in 0 until groupsArr.length()) {
                     groupRepository.upsert(jsonToGroup(groupsArr.getJSONObject(i)))
                 }
-                val validGroupIds = groupRepository.observeActive().first().map { it.id }.toSet()
                 for (i in 0 until tasksArr.length()) {
                     val t = jsonToTask(tasksArr.getJSONObject(i))
                     // groupId 指向不存在的组时置空，避免外键冲突。
