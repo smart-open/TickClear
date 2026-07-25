@@ -62,7 +62,7 @@ di/         Hilt 模块
 - SQLCipher 与 Room 共用 SQLite：已在 `app/build.gradle.kts` 排除 `androidx.sqlite:sqlite-framework`。
 
 ## 7. 分支与任务追踪
-- 任务清单见 `docs/开发计划_任务清单.md`：Phase 0–7 子任务带 `- [ ]` / `- [x]` ✅ 勾选位与验收标准。
+- 当前任务清单见 `docs/开发计划_v2.5_任务清单.md`；历史版本（Phase 0–7 + v2.0–v2.4）归档于 `docs/archive/`。
 - 每完成一个子任务，在任务清单中勾选 ✅ 并（按需）追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志。
 - **提交纪律（红线）**：每一次编码 / 修改完成、进入下一项事项前必须 `git commit`（功能自洽、可独立回滚）；禁止把多个不相关改动攒成一次大提交。提交信息用中文，类型前缀 + 简述，例如：`[fix] 子日级实例完成状态脱节`、`[feature] 新增日志查看页`、`[config] release 签名注入`、`[test] 新增备份往返测试`、`[docs] 更新发布说明`、`[refactor] 拆分 Repository 边界`、`[chore] 升级依赖`。
 - 工程纪律（全程保持）：中文全抽离 `strings.xml`、数据库迁移显式 `Migration` 禁 `fallbackToDestructiveMigration`、不引入新依赖（复用 OkHttp/DataStore/系统框架）。
@@ -71,4 +71,4 @@ di/         Hilt 模块
 - Opus 编解码：语音链路优先用 Android `MediaCodec`(audio/opus)；Mock 模式不需真实 Opus。集中封装在 `domain/assistant/OpusCodec`。
 - 真实小智服务端联调（Real 模式）依赖外部 token；Mock 模式为默认演示路径（v1.0 已含）。
 - 动态取色(DYNAMIC)仅 API31+，低版本回退浅色。
-- **平台限制（v1.0 已知）**：Android 14+ 对 `setFullScreenIntent` 全屏提醒与 `LocationManager.addProximityAlert` 邻近警报均有限制/降级，详见 `release-notes.md` 的「已知限制」。后续增强见 `docs/开发计划_v2.0_任务清单.md`。
+- **平台限制（v1.0 已知）**：Android 14+ 对 `setFullScreenIntent` 全屏提醒与 `LocationManager.addProximityAlert` 邻近警报均有限制/降级，详见 `release-notes.md` 的「已知限制」。后续增强见 `docs/开发计划_v2.5_任务清单.md`。

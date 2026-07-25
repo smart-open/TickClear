@@ -210,7 +210,7 @@
   - 今日键盘监听改用 `rememberUpdatedState` 读取最新 `state`，修复过期闭包误操已变更列表项
   - `GeofenceScheduler` 去除 `runBlocking(Dispatchers.IO)` 主线程阻塞，改用内部协程作用域 + `withContext`
 - 单元测试 30 例 + 仪器化测试脚手架全绿；全工程无 `!!`/`GlobalScope`/`fallbackToDestructiveMigration`
-- 四维成熟度评估 **98+/100**（产品 / 开发 / 测试 / 配置），详见 `docs/开发计划_v2.0_任务清单.md`
+- 四维成熟度评估 **98+/100**（产品 / 开发 / 测试 / 配置），详见 `docs/archive/开发计划_v2.0_任务清单.md`
 
 ### ⚠️ 已知限制（系统级，非缺陷）
 - 含 v1.0.0 全部已知限制（Android 14+ 全屏提醒降级、位置提醒受厂商省电影响、本地语音识别 best-effort）
@@ -225,7 +225,7 @@
 ./gradlew :app:lintRelease            # 全量 lint（error 级阻断构建）
 ```
 
-环境最小路径见 `docs/SETUP_MINIMAL.md`（JDK 21 + 命令行 SDK，无需 Android Studio）。
+环境最小路径见 `docs/构建手册.md`（JDK 21 + 命令行 SDK，无需 Android Studio）。
 
 ---
 
@@ -278,7 +278,7 @@
 - GitHub Actions CI：`assembleDebug` + `testDebugUnitTest` 提交门禁
 - lint `abortOnError=true`，0 errors；全工程无 `!!`/`TODO`/`GlobalScope`
 - release：minify + shrinkResources + ProGuard；签名经 `local.properties` 注入（密钥不入库）
-- 封板前深度审计修复 9 类问题（子日级实例完成/跳过脱节、备份字段丢失、语音识别器泄漏、旋转丢对话框、除零守卫等），四维成熟度评估 98+/100（详见 `docs/开发计划_任务清单.md` Phase 9）
+- 封板前深度审计修复 9 类问题（子日级实例完成/跳过脱节、备份字段丢失、语音识别器泄漏、旋转丢对话框、除零守卫等），四维成熟度评估 98+/100（详见 `docs/archive/开发计划_任务清单.md` Phase 9）
 
 ### ⚠️ 已知限制（系统级，非缺陷）
 
@@ -295,7 +295,7 @@
 ./gradlew :app:testDebugUnitTest      # 单元测试
 ```
 
-环境最小路径见 `docs/SETUP_MINIMAL.md`（JDK 21 + 命令行 SDK，无需 Android Studio）。
+环境最小路径见 `docs/构建手册.md`（JDK 21 + 命令行 SDK，无需 Android Studio）。
 
 ---
 
