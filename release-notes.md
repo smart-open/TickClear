@@ -4,6 +4,46 @@
 
 ---
 
+## v2.5.2（2026-07-25）· 复查修复（全天/随时任务实例 + 迁移自包含 + 导入事务嵌套读 + WebSocket 资源）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 9 / versionName 2.5.2
+**相对 v2.5.1**：封板后深度复查再修复 10 项（R1–R10，其中 3 项本轮「整体代码复查」新发现），无新功能、无功能回归、零新依赖。
+
+### 🛠 复查修复（R1–R10）
+- **全天/随时任务永不生成实例（R1，P1 真实功能缺陷）**：`TaskInstanceRepository.ensureInstancesForDate` 对全天/「随时任务」原不生成实例 → 今日消失、无提醒、无法完成。修复：列表为空时插入 `dueMinute=null` 实例（今日可见/可完成/入统计）。
+- **统计页「未分组」硬编码（R2，P2 红线）**：改用哨兵 `UNGROUPED_GROUP_ID` + `strings.xml`，源码零可见中文。
+- **冲突窗口口径不一致（R3，P3）**：`ScheduleUtils.effectiveEndMin()` NONE 分支与今日视图统一为 `scheduledEndMin ?: (start + 30)`。
+- **OkHttp 响应未关闭（R4，P3）**：`OpenAiCompatibleLlmProvider` 改 `execute().use{}`。
+- **备份导入事务原子性（R5，P3）**：`TransactionRunner` 抽象重做——生产 `RoomTransactionRunner` 走 `AppDatabase.withTransaction`，测试 `NoOpTransactionRunner`，中途异常整体回滚；零新依赖、保留 mock 仓储单测范式。
+- **备份校验 KDoc 误导（R6，P3）**：`validateBackupJson` KDoc 与代码对齐。
+- **SeedUseCase 死代码（R7，P3）**：删除计算后丢弃的 `LocalDate.now().format(...).let { null }`。
+- **MIGRATION_4_5 缺建 taskId 单列索引（R8，P2）**：补 `CREATE INDEX IF NOT EXISTS index_task_instance_taskId`，迁移幂等且自包含（`AppDatabase` 暴露 `internal MIGRATIONS` 供仪器化测试引用）。
+- **备份导入事务内嵌套读 + 组引用误置空（R9，P1）**：`validGroupIds`（备份内组 ∪ 现有活跃组）移到事务外计算，消除 SQLCipher 单连接池死锁/ANR，且保备份内组引用不被误清空。
+- **小智 WebSocket 重连竞态与资源泄漏（R10，P2）**：`connect()` 重建作用域前取消旧作用域 + `openSocket` 守卫避免重复 socket；`disconnect()` 始终释放 `AudioTrack`/`OpusCodec`/作用域/WS（重连中离开也不再残留声音）。
+
+### 🧪 仪器化契约测试（CI 模拟器通道）
+- 新增 `app/src/androidTest/.../AppDatabaseMigrationAndTransactionTest.kt`：真实 SQLCipher+Room 库打开/DAO 往返、`RoomTransactionRunner` 提交/回滚、`task_instance` 三索引齐备；由 `ci.yml` `connectedDebugAndroidTest` 在模拟器通道执行（零新依赖，复用已声明 `androidx.room.testing`/`androidx.junit`/`sqlcipher`）。
+
+### 🛠 质量与工程
+- 全程守住红线：零新依赖、中文全抽离 `strings.xml`、Room 显式 Migration（1→5，无 `fallbackToDestructiveMigration`）、`.workbuddy/` 不提交、按功能拆 commit。
+- `./gradlew :app:testDebugUnitTest :app:lintRelease` 全绿（0 error）；`assembleDebugAndroidTest` 编译通过（仪器化契约测试随 CI 实跑）。
+
+### ⚠️ 已知限制 / 显式保留（同 v2.5.1）
+- 真机指标评测（V2.44–V2.46）与全量冒烟 QA（V2.47–V2.51）仍待物理设备轮次，已整合进 `docs/测试与验收清单.md`。
+- 其余平台约束（Android 14+ 全屏提醒降级、位置提醒 OEM 省电影响、系统 ASR best-effort、Opus 编码依赖设备能力）同前。
+
+### 📦 构建
+```bash
+./gradlew :app:assembleDebug          # 调试包
+./gradlew :app:assembleRelease        # 正式包
+./gradlew :app:testDebugUnitTest      # 单元测试
+./gradlew :app:lintRelease            # 质量门禁
+./gradlew :app:connectedDebugAndroidTest  # 仪器化测试（CI 模拟器通道）
+```
+
+---
+
 ## v2.5.0（2026-07-24）· 健壮性收口（通知 id / 迁移一致性 / 内存边界）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
