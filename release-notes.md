@@ -4,11 +4,32 @@
 
 ---
 
+## v2.7.0（2026-07-26）· 整体代码复审与健壮性修复（零新功能）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 13 / versionName 2.7.0
+**相对 v2.6.1**：封板后整体代码复审（v2.6.2 开发态已并入本版本），结清 1×P0 + 2×P1 + 5×P2 隐患，无新功能、零新依赖、中文全抽离、未升 DB 版本（仍为 v8）。
+
+### 🛠 代码复审修复（P0 / P1 / P2）
+- **P0 · 真实小智连接崩溃 + 卡死（WebSocketXiaozhiTransport）**：`openSocket()` 原在 `connected=true` 之后才建连，端点非法（`Request.Builder().url()` 抛 `IllegalArgumentException`）或建连异常会冒泡出 `connect()` 协程导致崩溃，且异常后 `connected` 卡死使后续 `connect()` 永远早退。修复：URL 构建与建连整体 `try/catch`，成功才置 `connected=true`，失败复位状态并经新增 `XiaozhiEvent.Error(detail)` 回显「连接失败：…」，不再崩溃、可重试。
+- **P1 · 麦克风采集泄漏（AudioCapture）**：`start()`/`startAccumulate()` 的 `rec.startRecording()` 原在 try 之外，部分设备抛异常会使 `record` 已赋值且 `running=true` 残留（AudioRecord 泄漏 + 调用方崩溃）。修复：包裹 `try/catch`，失败即释放并复位返回 `false`。
+- **P1 · 位置提醒服务主线程阻塞（LocationReminderService）**：`onStartCommand`（主线程）原 `runBlocking(Dispatchers.IO)` 查询全量任务，数据量大时 ANR 风险。修复：改服务作用域 `CoroutineScope(SupervisorJob()+Dispatchers.IO)`，查询在 IO 线程执行、完成后再决定是否轮询/停止，并在 `onDestroy` 取消作用域。
+- **P2 · 主题皮肤非空断言（Color.kt）**：`skinScheme`/`skinPreviewColor` 的 `SKIN_SEEDS[ThemeSkin.BLUE]!!` 改为 `SKIN_SEEDS.getValue(ThemeSkin.BLUE)`，消除 `!!`。
+- **P2 · 习惯删除对话框空断言（HabitsScreen）**：`pendingDelete!!.habit.id` 改为 `pendingDelete ?: return@TextButton`，消除潜在 NPE。
+- **P2 · 语音历史逐条读 DataStore（AssistantViewModel）**：`recordVoiceHistory` 原每条消息都读 `voiceHistoryEnabled.first()`（每会话最多 100 次）。修复：新增 `voiceHistoryOn` 缓存 StateFlow，`init` 中收集一次，避免重复读取。
+- **P2 · 本地识别器回调滞留（LocalSpeechRecognizer）**：`stop()` 原仅 `destroy()` 识别器，未清 `onPartial/onFinal`，到 `destroy` 执行前短暂持有回调。修复：`stop()` 同步置空两个回调。
+- **P2 · 唤醒服务空重启（WakeWordService）**：识别器不可用时 `startListening()` 内部 `stopSelf()`，但 `onStartCommand` 仍返回 `START_STICKY` 导致系统可能重建空服务；并补 `NotificationHelper.createChannels(this)` 兜底防 `startForeground` 渠道缺失崩溃。修复：`startListening()` 返回 `Boolean`，不可用路径返回 `START_NOT_STICKY`。
+
+### 🧪 质量门禁
+- `./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（+ `assembleDebugAndroidTest` 编译）全绿；红线守住（零新依赖 / 中文全抽离 `strings.xml` / Room 显式 Migration 1→8 无 `fallbackToDestructiveMigration` / `.workbuddy/` 不提交）。
+
+---
+
 ## v2.6.1（2026-07-26）· 产品规划功能缺口五项落地（标签 + 皮肤 + 习惯 + 迁移 + 模板）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
 **版本标识**：versionCode 11 / versionName 2.6.1
-**相对 v2.6.0**：落地 `docs/开发计划_v2.6_任务清单.md` 二节产品规划功能缺口 V2.67–V2.71 五项用户可见功能，V2.72–V2.75 评估落档显式保留，零新依赖。
+**相对 v2.6.0**：落地 `docs/成熟度评估.md` 二节产品规划功能缺口 V2.67–V2.71 五项用户可见功能，V2.72–V2.75 评估落档显式保留，零新依赖。
 
 ### ✨ 新功能（V2.67–V2.71）
 - **任务标签 / 分类（V2.67）**：任务可打多个标签（编辑表单输入 + 已有标签快捷 chips），任务列表顶部标签筛选条多选并集过滤，任务行显示 `#标签`。`task` 表新增 `tags` CSV 列（Room v6→7 显式 `MIGRATION_6_7`，schema `7.json`）；备份序列化携带 `tags`（向后兼容旧备份）。
@@ -43,7 +64,7 @@
 ### ⚠️ 局限
 - 常驻唤醒依赖系统识别服务、并非端侧神经网络模型，受厂商识别服务与联网状态影响、可能耗电；真正端侧离线唤醒词需 ML 运行时（破「零新依赖」红线，记为后续 V2.72/V2.75）。
 
-### 🗺 v2.6 后续 backlog（未实现，见 `docs/开发计划_v2.6_任务清单.md`）
+### 🗺 v2.6 后续 backlog（未实现，见 `docs/成熟度评估.md`）
 - V2.67 任务标签/分类 · V2.68 更多主题皮肤 · V2.69 习惯养成模式 · V2.70 设备间本地迁移 · V2.71 分享任务组模板 · V2.72/73/74/75 语音/ASR/NLU 真机与端侧模型（部分需破红线评估）
 
 ### 🧪 质量门禁
