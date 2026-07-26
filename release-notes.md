@@ -4,6 +4,28 @@
 
 ---
 
+## v2.6.1（2026-07-26）· 产品规划功能缺口五项落地（标签 + 皮肤 + 习惯 + 迁移 + 模板）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 11 / versionName 2.6.1
+**相对 v2.6.0**：落地 `docs/开发计划_v2.6_任务清单.md` 二节产品规划功能缺口 V2.67–V2.71 五项用户可见功能，V2.72–V2.75 评估落档显式保留，零新依赖。
+
+### ✨ 新功能（V2.67–V2.71）
+- **任务标签 / 分类（V2.67）**：任务可打多个标签（编辑表单输入 + 已有标签快捷 chips），任务列表顶部标签筛选条多选并集过滤，任务行显示 `#标签`。`task` 表新增 `tags` CSV 列（Room v6→7 显式 `MIGRATION_6_7`，schema `7.json`）；备份序列化携带 `tags`（向后兼容旧备份）。
+- **更多主题皮肤（V2.68）**：新增六套配色皮肤（清蓝/薄荷/紫罗兰/落日橙/玫瑰/青碧），与浅色/深色/动态取色模式**正交**——最终配色 = 模式 × 皮肤。种子色经 HSL 派生明/暗 `ColorScheme`（零依赖实现），默认清蓝完全复用原配色零回归；设置页皮肤选择行带主色圆点预览，关于页回显「模式 · 皮肤」。
+- **习惯养成模式（V2.69）**：新增「习惯」顶级页——创建周期性习惯（名称/emoji/星期重复），每日打卡/取消，卡片展示**连续打卡 streak**（今天未打卡时从昨天起算不断链）、休息日标识。`habit` + `habit_checkin` 表（Room v7→8 显式 `MIGRATION_7_8`，schema `8.json`），streak 纯函数 Calendar 实现兼容 minSdk 24。
+- **设备间本地迁移（V2.70）**：设置页「导出/导入备份」（SAF JSON，无云）补全 V2.69 习惯数据——`BackupManager` 导出/导入 `habits`/`habitCheckIns`，事务内按主键合并；**兼容旧备份**（缺失数组按空处理，不升备份 SCHEMA_VERSION）；导入回执含习惯计数，副标题明确跨设备迁移用途。
+- **分享任务组模板（V2.71）**：设置页新增「分享任务组模板」——选择任务组后经 SAF 导出 `type=groupTemplate` 的 JSON（单组+其任务，`group_<名称>_template.json`）；对方设备用现有「导入备份」即可按主键合并成组。
+
+### 🧭 评估落档（V2.72–V2.75，显式保留）
+- **V2.72 端侧识别 / V2.75 端侧 NLU**：需 ML 推理运行时 + 模型文件，破「零新依赖」红线（同 V2.27/V2.28 结论），红线放宽后重评；现有离线热词指令（V2.42）+ 常驻唤醒 spotting（V2.66）+ 本地规则 NLU 为轻量替代。
+- **V2.73 真实 ASR SDK 联调 / V2.74 Real 模式连真实小智服务端**：代码侧已就绪（多服务商 ASR 协议 + WebSocket/Opus/Function Calling 框架），剩余为真机 + 用户密钥/服务端联调，随真机 QA 轮次（V2.44–V2.51）结转。
+
+### 🧪 质量门禁
+- `./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest :app:assembleDebugAndroidTest` 全绿；新增习惯备份导出→导入往返单测；Room schema `7.json`/`8.json` 导出提交；红线守住（零新依赖 / 中文全抽离 `strings.xml` / Room 显式 Migration 1→8 无 `fallbackToDestructiveMigration` / `.workbuddy/` 不提交）。
+
+---
+
 ## v2.6.0（2026-07-25）· §13 开放问题决策落地（开源音效 + 语音历史 + 常驻唤醒）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
