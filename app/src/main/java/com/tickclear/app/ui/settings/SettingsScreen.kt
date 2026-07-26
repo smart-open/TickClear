@@ -40,9 +40,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +93,10 @@ fun SettingsScreen(
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastAutoBackupAt by viewModel.lastAutoBackupAt.collectAsStateWithLifecycle()
     val lastBackupHealth by viewModel.lastBackupHealth.collectAsStateWithLifecycle()
+    // V2.71 分享任务组模板：活跃任务组列表 + 选择对话框状态。
+    val groups by viewModel.groups.collectAsStateWithLifecycle()
+    var showGroupTemplateDialog by remember { mutableStateOf(false) }
+    var selectedTemplateGroupId by remember { mutableStateOf<String?>(null) }
     val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
     val assistantMode by viewModel.assistantMode.collectAsStateWithLifecycle()
     // V2.65/V2.66 语音历史 + 常驻唤醒
@@ -114,6 +122,10 @@ fun SettingsScreen(
     val icsImportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) viewModel.importIcsFrom(uri) }
+    // V2.71 分享任务组模板：导出选中组为 JSON（先弹选择对话框，再启动 SAF）。
+    val groupTemplateLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> if (uri != null) selectedTemplateGroupId?.let { viewModel.exportGroupTemplateTo(uri, it) } }
     val icsExportName = "tickclear_${
         java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
     }.ics"
@@ -159,6 +171,50 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    // V2.71 分享任务组模板：选择要导出的任务组，确认后启动 SAF 保存。
+    if (showGroupTemplateDialog) {
+        AlertDialog(
+            onDismissRequest = { showGroupTemplateDialog = false },
+            title = { Text(stringResource(R.string.settings_group_template_pick_title)) },
+            text = {
+                if (groups.isEmpty()) {
+                    Text(stringResource(R.string.settings_group_template_pick_empty))
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        groups.forEach { g ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedTemplateGroupId = g.id
+                                        showGroupTemplateDialog = false
+                                        val safe = g.name.trim()
+                                            .replace(Regex("""[\\/:*?"<>|\s]+"""), "_")
+                                            .take(40)
+                                            .ifEmpty { "group" }
+                                        groupTemplateLauncher.launch("group_${safe}_template.json")
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    g.name.ifBlank { stringResource(R.string.settings_group_template_untitled) },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showGroupTemplateDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -442,6 +498,14 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_ics_import_title),
                 subtitle = stringResource(R.string.settings_ics_import_subtitle),
                 onClick = { icsImportLauncher.launch(arrayOf("text/calendar", "application/octet-stream", "*/*")) },
+            )
+
+            // ── 分享任务组模板（V2.71）：本地导出单组+任务为可分享 JSON ──
+            ClickableRow(
+                icon = Icons.Filled.Upload,
+                title = stringResource(R.string.settings_group_template_title),
+                subtitle = stringResource(R.string.settings_group_template_subtitle),
+                onClick = { showGroupTemplateDialog = true },
             )
 
             // ── 通知与权限 ──
