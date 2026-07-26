@@ -12,6 +12,7 @@ import com.tickclear.app.data.SecureStore
 import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.ui.theme.ThemeMode
+import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
         runCatching { ThemeMode.valueOf(prefs[KEY_THEME] ?: ThemeMode.LIGHT.name) }
             .getOrDefault(ThemeMode.LIGHT)
+    }
+
+    override val themeSkin: Flow<ThemeSkin> = dataStore.data.map { prefs ->
+        runCatching { ThemeSkin.valueOf(prefs[KEY_THEME_SKIN] ?: ThemeSkin.BLUE.name) }
+            .getOrDefault(ThemeSkin.BLUE)
     }
 
     override val animationEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -109,6 +115,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val voiceHistoryEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_VOICE_HISTORY] ?: false }
 
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
+    override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
     override suspend fun setQuietHoursEnabled(enabled: Boolean) { dataStore.edit { it[KEY_QUIET_ENABLED] = enabled } }
     override suspend fun setQuietStartMin(min: Int) { dataStore.edit { it[KEY_QUIET_START] = min.coerceIn(0, 1439) } }
@@ -195,6 +202,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private companion object {
         private val KEY_THEME = stringPreferencesKey("theme_mode")
+        private val KEY_THEME_SKIN = stringPreferencesKey("theme_skin")
         private val KEY_ANIMATION = booleanPreferencesKey("animation_enabled")
         private val KEY_QUIET_ENABLED = booleanPreferencesKey("quiet_enabled")
         private val KEY_QUIET_START = intPreferencesKey("quiet_start_min")

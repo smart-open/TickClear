@@ -18,6 +18,7 @@ import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.ui.theme.ThemeMode
+import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -108,6 +109,9 @@ class SettingsViewModel @Inject constructor(
     val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.LIGHT,
     )
+    val themeSkin: StateFlow<ThemeSkin> = settingsRepository.themeSkin.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeSkin.BLUE,
+    )
     val animationEnabled: StateFlow<Boolean> = settingsRepository.animationEnabled.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true,
     )
@@ -197,6 +201,7 @@ class SettingsViewModel @Inject constructor(
     )
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    fun setThemeSkin(skin: ThemeSkin) = viewModelScope.launch { settingsRepository.setThemeSkin(skin) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }
     fun setQuietHoursEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setQuietHoursEnabled(enabled) }
     fun setAiMode(mode: String) = viewModelScope.launch { settingsRepository.setAiMode(mode) }

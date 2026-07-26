@@ -2,8 +2,10 @@ package com.tickclear.app.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -57,6 +63,8 @@ import com.tickclear.app.domain.assistant.WakeWordService
 import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import com.tickclear.app.ui.theme.ThemeMode
+import com.tickclear.app.ui.theme.ThemeSkin
+import com.tickclear.app.ui.theme.skinPreviewColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +78,7 @@ fun SettingsScreen(
     isWide: Boolean = false,
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val themeSkin by viewModel.themeSkin.collectAsStateWithLifecycle()
     val animationEnabled by viewModel.animationEnabled.collectAsStateWithLifecycle()
     val quietHoursEnabled by viewModel.quietHoursEnabled.collectAsStateWithLifecycle()
     val snoozeDefaultMin by viewModel.snoozeDefaultMin.collectAsStateWithLifecycle()
@@ -179,6 +188,28 @@ fun SettingsScreen(
                             selected = themeMode == mode,
                             onClick = { viewModel.setThemeMode(mode) },
                             label = { Text(stringResource(themeLabelRes(mode))) },
+                        )
+                    }
+                }
+            }
+            // V2.68 主题皮肤：预设配色（独立于明/暗/动态模式）
+            SettingRow(
+                title = stringResource(R.string.settings_skin_title),
+                subtitle = stringResource(R.string.settings_skin_subtitle),
+            ) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(ThemeSkin.entries) { skin ->
+                        FilterChip(
+                            selected = themeSkin == skin,
+                            onClick = { viewModel.setThemeSkin(skin) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .background(skinPreviewColor(skin), CircleShape),
+                                )
+                            },
+                            label = { Text(stringResource(skinLabelRes(skin))) },
                         )
                     }
                 }
@@ -619,6 +650,16 @@ private fun themeLabelRes(mode: ThemeMode): Int = when (mode) {
     ThemeMode.LIGHT -> R.string.settings_theme_light
     ThemeMode.DARK -> R.string.settings_theme_dark
     ThemeMode.DYNAMIC -> R.string.settings_theme_dynamic_short
+}
+
+/** V2.68 主题皮肤名称映射。 */
+private fun skinLabelRes(skin: ThemeSkin): Int = when (skin) {
+    ThemeSkin.BLUE -> R.string.settings_skin_blue
+    ThemeSkin.GREEN -> R.string.settings_skin_green
+    ThemeSkin.PURPLE -> R.string.settings_skin_purple
+    ThemeSkin.ORANGE -> R.string.settings_skin_orange
+    ThemeSkin.ROSE -> R.string.settings_skin_rose
+    ThemeSkin.TEAL -> R.string.settings_skin_teal
 }
 
 /** V2.43 系统 ASR 方言选项：(语言代码, 标签资源)。效果取决于设备是否装有对应语音包。 */

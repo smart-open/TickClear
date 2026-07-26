@@ -36,10 +36,11 @@ fun TickClearApp(
     onStartActionConsumed: () -> Unit = {},
 ) {
     val themeMode by rootViewModel.themeMode.collectAsStateWithLifecycle()
+    val themeSkin by rootViewModel.themeSkin.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val sizeClass = rememberAppSizeClass()
 
-    TickClearTheme(mode = themeMode) {
+    TickClearTheme(mode = themeMode, skin = themeSkin) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
         // V2.9：动态快捷方式启动动作 → 跳转对应目的地（消费后置空，支持重复点击）。

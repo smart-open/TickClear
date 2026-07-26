@@ -15,18 +15,20 @@ enum class ThemeMode {
 @Composable
 fun TickClearTheme(
     mode: ThemeMode = ThemeMode.LIGHT,
+    skin: ThemeSkin = ThemeSkin.BLUE,
     content: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
     val colorScheme = when (mode) {
-        ThemeMode.LIGHT -> LightColorScheme
-        ThemeMode.DARK -> DarkColorScheme
+        ThemeMode.LIGHT -> skinScheme(skin, dark = false)
+        ThemeMode.DARK -> skinScheme(skin, dark = true)
         ThemeMode.DYNAMIC -> {
-            // 低于 API 31 无动态取色，回退到浅色
+            // 低于 API 31 无动态取色，回退到该皮肤浅色方案
             if (Build.VERSION.SDK_INT >= 31) {
-                if (isSystemInDarkTheme()) dynamicDarkColorScheme(LocalContext.current)
-                else dynamicLightColorScheme(LocalContext.current)
+                if (isSystemInDarkTheme()) dynamicDarkColorScheme(context)
+                else dynamicLightColorScheme(context)
             } else {
-                LightColorScheme
+                skinScheme(skin, dark = false)
             }
         }
     }

@@ -2,6 +2,7 @@ package com.tickclear.app.domain.repository
 
 import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.ui.theme.ThemeMode
+import com.tickclear.app.ui.theme.ThemeSkin
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -11,6 +12,8 @@ import kotlinx.coroutines.flow.Flow
  */
 interface SettingsRepository {
     val themeMode: Flow<ThemeMode>
+    /** 主题皮肤（预设配色，V2.68）：独立于明/暗/动态模式。 */
+    val themeSkin: Flow<ThemeSkin>
     val animationEnabled: Flow<Boolean>
     val quietHoursEnabled: Flow<Boolean>
     val quietStartMin: Flow<Int>
@@ -57,6 +60,7 @@ interface SettingsRepository {
     val voiceHistoryEnabled: Flow<Boolean>
 
     suspend fun setThemeMode(mode: ThemeMode)
+    suspend fun setThemeSkin(skin: ThemeSkin)
     suspend fun setAnimationEnabled(enabled: Boolean)
     suspend fun setQuietHoursEnabled(enabled: Boolean)
     suspend fun setQuietStartMin(min: Int)

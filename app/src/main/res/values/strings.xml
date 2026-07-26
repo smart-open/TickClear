@@ -84,6 +84,15 @@
     <string name="settings_title">设置</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
+    <!-- V2.68 主题皮肤 -->
+    <string name="settings_skin_title">皮肤</string>
+    <string name="settings_skin_subtitle">预设配色主题</string>
+    <string name="settings_skin_blue">清蓝</string>
+    <string name="settings_skin_green">薄荷</string>
+    <string name="settings_skin_purple">紫罗兰</string>
+    <string name="settings_skin_orange">落日橙</string>
+    <string name="settings_skin_rose">玫瑰</string>
+    <string name="settings_skin_teal">青碧</string>
     <string name="settings_recycle_bin">回收站</string>
 
     <!-- 关于 -->
@@ -483,7 +492,7 @@
     <string name="about_storage_body">• 任务数据使用 SQLCipher 本地加密存储，口令仅保存在设备 Keystore 中。\n• 语音助手配置（网关令牌等敏感值）存入 EncryptedSharedPreferences。\n• 我们不上传你的任务内容；云端对话仅在「真实」模式下发生。</string>
     <string name="about_assistant_title">小智助手</string>
     <string name="about_assistant_body">默认「模拟」模式离线可用：与小智风格助手聊天，说出「提醒我明天9点开会」等，即可通过 MCP 工具自动建任务。切换「真实」模式需自行配置网关与令牌。</string>
-    <string name="about_current_theme">当前主题：%1$s</string>
+    <string name="about_current_theme">当前外观：%1$s · %2$s</string>
 
     <string name="heatmap_less">少</string>
     <string name="heatmap_more">多</string>

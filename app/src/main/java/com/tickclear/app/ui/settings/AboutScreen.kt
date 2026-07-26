@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.ThemeMode
+import com.tickclear.app.ui.theme.ThemeSkin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +36,7 @@ fun AboutScreen(
     onBack: () -> Unit = {},
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val themeSkin by viewModel.themeSkin.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -87,7 +89,26 @@ fun AboutScreen(
                 }
             }
             Text(
-                stringResource(R.string.about_current_theme, themeMode.name),
+                stringResource(
+                    R.string.about_current_theme,
+                    stringResource(
+                        when (themeMode) {
+                            ThemeMode.LIGHT -> R.string.settings_theme_light
+                            ThemeMode.DARK -> R.string.settings_theme_dark
+                            ThemeMode.DYNAMIC -> R.string.settings_theme_dynamic_short
+                        },
+                    ),
+                    stringResource(
+                        when (themeSkin) {
+                            ThemeSkin.BLUE -> R.string.settings_skin_blue
+                            ThemeSkin.GREEN -> R.string.settings_skin_green
+                            ThemeSkin.PURPLE -> R.string.settings_skin_purple
+                            ThemeSkin.ORANGE -> R.string.settings_skin_orange
+                            ThemeSkin.ROSE -> R.string.settings_skin_rose
+                            ThemeSkin.TEAL -> R.string.settings_skin_teal
+                        },
+                    ),
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )
