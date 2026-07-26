@@ -3,6 +3,7 @@ package com.tickclear.app.domain.backup
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.HabitRepository
 import com.tickclear.app.domain.repository.MedalRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import io.mockk.mockk
@@ -18,7 +19,7 @@ class BackupManagerHealthTest {
 
     private fun bm() = BackupManager(
         mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
-        mockk(relaxed = true), mockk(relaxed = true), NoOpTransactionRunner,
+        mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), NoOpTransactionRunner,
     )
 
     @Test

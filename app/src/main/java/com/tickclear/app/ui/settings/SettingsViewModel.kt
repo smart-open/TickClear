@@ -17,6 +17,8 @@ import com.tickclear.app.domain.ics.IcsManager
 import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import com.tickclear.app.domain.repository.TaskRepository
+import com.tickclear.app.domain.model.TaskGroup
+import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.ui.theme.ThemeMode
 import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +44,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val backupManager: BackupManager,
     private val taskRepository: TaskRepository,
+    private val groupRepository: GroupRepository,
     private val asrResolver: AsrProviderResolver,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -70,7 +73,7 @@ class SettingsViewModel @Inject constructor(
             } ?: throw AppException(ErrorCode.IMPORT_READ_FAILED)
             val r = backupManager.importFromJson(json)
             backupToasts.tryEmit(
-                BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups)),
+                BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups, r.habits)),
             )
         } catch (e: Exception) {
             backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
@@ -106,8 +109,25 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** 导出单个任务组为可分享模板（V2.71，SAF）。 */
+    fun exportGroupTemplateTo(uri: Uri, groupId: String) = viewModelScope.launch {
+        try {
+            val json = backupManager.exportGroupTemplate(groupId)
+            appContext.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(json.toByteArray(Charsets.UTF_8))
+            } ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED)
+            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.group_template_export_ok)))
+        } catch (e: Exception) {
+            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
+        }
+    }
+
     val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.LIGHT,
+    )
+    /** 活跃任务组列表（V2.71 分享任务组模板选择器）。 */
+    val groups: StateFlow<List<TaskGroup>> = groupRepository.observeActive().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList(),
     )
     val themeSkin: StateFlow<ThemeSkin> = settingsRepository.themeSkin.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeSkin.BLUE,

@@ -3,11 +3,13 @@ package com.tickclear.app.domain.backup
 import com.tickclear.app.data.local.entities.CheckInEntity
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
+import com.tickclear.app.domain.model.Habit
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.HabitRepository
 import com.tickclear.app.domain.repository.MedalRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.model.AppException
@@ -27,6 +29,8 @@ data class ImportResult(
     val completions: Int,
     val checkIns: Int,
     val medals: Int,
+    val habits: Int,
+    val habitCheckIns: Int,
 )
 
 /**
@@ -43,6 +47,7 @@ class BackupManager @Inject constructor(
     private val completionRepository: CompletionRepository,
     private val checkInRepository: CheckInRepository,
     private val medalRepository: MedalRepository,
+    private val habitRepository: HabitRepository,
     private val txn: TransactionRunner,
 ) {
     companion object {
@@ -60,6 +65,11 @@ class BackupManager @Inject constructor(
             val completions = completionRepository.observeAll().first()
             val checkIns = checkInRepository.getAll()
             val medals = medalRepository.all()
+            // V2.70 设备间本地迁移：习惯定义与打卡一并导出，保证跨设备迁移完整。
+            val habits = habitRepository.observeHabits().first()
+            val habitCheckIns = habits.flatMap { h ->
+                habitRepository.getCheckinDates(h.id).map { d -> h.id to d }
+            }
 
             JSONObject().apply {
                 put(KEY_APP, "TickClear")
@@ -70,6 +80,8 @@ class BackupManager @Inject constructor(
                 put("completionLogs", JSONArray().apply { completions.forEach { put(completionToJson(it)) } })
                 put("checkIns", JSONArray().apply { checkIns.forEach { put(checkInToJson(it)) } })
                 put("medals", JSONArray().apply { medals.forEach { put(medalToJson(it)) } })
+                put("habits", JSONArray().apply { habits.forEach { put(habitToJson(it)) } })
+                put("habitCheckIns", JSONArray().apply { habitCheckIns.forEach { (hid, d) -> put(habitCheckInToJson(hid, d)) } })
             }.toString(2)
         } catch (e: Exception) {
             throw AppException(ErrorCode.EXPORT_WRITE_FAILED, e)
@@ -94,9 +106,13 @@ class BackupManager @Inject constructor(
         val completionsArr = root.optJSONArray("completionLogs") ?: JSONArray()
         val checkInsArr = root.optJSONArray("checkIns") ?: JSONArray()
         val medalsArr = root.optJSONArray("medals") ?: JSONArray()
+        // V2.70：习惯数组缺失时（旧备份）按空处理，向前兼容。
+        val habitsArr = root.optJSONArray("habits") ?: JSONArray()
+        val habitCheckInsArr = root.optJSONArray("habitCheckIns") ?: JSONArray()
 
         if (groupsArr.length() == 0 && tasksArr.length() == 0 &&
-            completionsArr.length() == 0 && checkInsArr.length() == 0 && medalsArr.length() == 0
+            completionsArr.length() == 0 && checkInsArr.length() == 0 &&
+            medalsArr.length() == 0 && habitsArr.length() == 0 && habitCheckInsArr.length() == 0
         ) {
             throw AppException(ErrorCode.IMPORT_EMPTY)
         }
@@ -123,11 +139,19 @@ class BackupManager @Inject constructor(
                     val safe = if (t.groupId != null && t.groupId !in validGroupIds) t.copy(groupId = null) else t
                     taskRepository.upsert(safe)
                 }
+                // V2.70：习惯定义先于其打卡写入。
+                for (i in 0 until habitsArr.length()) {
+                    habitRepository.createHabit(jsonToHabit(habitsArr.getJSONObject(i)))
+                }
                 for (i in 0 until completionsArr.length()) {
                     completionRepository.insert(jsonToCompletion(completionsArr.getJSONObject(i)))
                 }
                 for (i in 0 until checkInsArr.length()) {
                     checkInRepository.upsert(jsonToCheckIn(checkInsArr.getJSONObject(i)))
+                }
+                for (i in 0 until habitCheckInsArr.length()) {
+                    val (hid, d) = jsonToHabitCheckIn(habitCheckInsArr.getJSONObject(i))
+                    habitRepository.checkIn(hid, d)
                 }
                 for (i in 0 until medalsArr.length()) {
                     medalRepository.upsert(jsonToMedal(medalsArr.getJSONObject(i)))
@@ -145,6 +169,8 @@ class BackupManager @Inject constructor(
             completions = completionsArr.length(),
             checkIns = checkInsArr.length(),
             medals = medalsArr.length(),
+            habits = habitsArr.length(),
+            habitCheckIns = habitCheckInsArr.length(),
         )
     }
 
@@ -166,6 +192,31 @@ class BackupManager @Inject constructor(
     }
 
     /**
+     * 导出单个任务组为可分享模板（V2.71）：含该组及其任务，可经 SAF 保存后分享，
+     * 在另一设备通过 [importFromJson]（按主键合并）重建。
+     * 模板仅含 groups + tasks，其余数组缺省，导入时按「空数组」兼容处理。
+     */
+    suspend fun exportGroupTemplate(groupId: String): String = withContext(Dispatchers.IO) {
+        try {
+            val group = groupRepository.getById(groupId)
+                ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED, IllegalStateException("group not found: $groupId"))
+            val tasks = taskRepository.observeByGroup(groupId).first()
+            JSONObject().apply {
+                put(KEY_APP, "TickClear")
+                put(KEY_VERSION, SCHEMA_VERSION)
+                put(KEY_EXPORTED_AT, System.currentTimeMillis())
+                put("type", "groupTemplate")
+                put("groups", JSONArray().apply { put(groupToJson(group)) })
+                put("tasks", JSONArray().apply { tasks.forEach { put(taskToJson(it)) } })
+            }.toString(2)
+        } catch (e: AppException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppException(ErrorCode.EXPORT_WRITE_FAILED, e)
+        }
+    }
+
+    /**
      * 备份健康校验（V2.23 自愈校验）：纯解析 + 版本 + 结构校验，不落盘、不依赖 Android 上下文，
      * 供自动备份写入后即时自检与设置页回显。JVM 单测可覆盖。
      *
@@ -181,7 +232,9 @@ class BackupManager @Inject constructor(
             (root.optJSONArray("tasks")?.length() ?: 0) +
             (root.optJSONArray("completionLogs")?.length() ?: 0) +
             (root.optJSONArray("checkIns")?.length() ?: 0) +
-            (root.optJSONArray("medals")?.length() ?: 0)
+            (root.optJSONArray("medals")?.length() ?: 0) +
+            (root.optJSONArray("habits")?.length() ?: 0) +
+            (root.optJSONArray("habitCheckIns")?.length() ?: 0)
         return if (total == 0) BackupHealth.EMPTY else BackupHealth.OK
     }
 
@@ -246,6 +299,18 @@ class BackupManager @Inject constructor(
 
     private fun medalToJson(m: MedalUnlockEntity) = JSONObject().apply {
         put("medalKey", m.medalKey); put("unlockedAt", m.unlockedAt)
+    }
+
+    // ── V2.70 习惯序列化（设备间本地迁移）──
+    private fun habitToJson(h: Habit) = JSONObject().apply {
+        put("id", h.id); put("title", h.title); put("emoji", h.emoji)
+        put("repeatDays", h.repeatDays); put("reminderMin", h.reminderMin)
+        put("colorIndex", h.colorIndex); put("createdAt", h.createdAt)
+        put("archived", h.archived); put("orderIndex", h.orderIndex)
+    }
+
+    private fun habitCheckInToJson(habitId: String, date: String) = JSONObject().apply {
+        put("habitId", habitId); put("dateLocal", date)
     }
 
     // ── 反序列化 ──
@@ -318,4 +383,18 @@ class BackupManager @Inject constructor(
         medalKey = o.getString("medalKey"),
         unlockedAt = o.optLong("unlockedAt", System.currentTimeMillis()),
     )
+
+    private fun jsonToHabit(o: JSONObject) = Habit(
+        id = o.getString("id"),
+        title = o.optString("title", ""),
+        emoji = o.optString("emoji", ""),
+        repeatDays = o.optString("repeatDays", "1,2,3,4,5,6,7"),
+        reminderMin = o.optInt("reminderMin", -1),
+        colorIndex = o.optInt("colorIndex", 0),
+        createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+        archived = o.optBoolean("archived", false),
+        orderIndex = o.optInt("orderIndex", 0),
+    )
+
+    private fun jsonToHabitCheckIn(o: JSONObject) = o.getString("habitId") to o.getString("dateLocal")
 }
