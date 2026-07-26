@@ -4,6 +4,35 @@
 
 ---
 
+## v2.7.1（2026-07-26）· UI 紧凑化与统计崩溃防御（零新功能）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 14 / versionName 2.7.1
+**相对 v2.7.0**：九项 UI/视觉与崩溃修复 + 复审增量三项收敛，零新功能、零新依赖、中文全抽离、DB 版本不变（v8）。
+
+### 🎨 UI / 视觉（用户九项反馈）
+- **应用图标重绘**：居中白色描边对勾（`M38,54 L49,65 L70,42`，strokeWidth 9），蓝底 `#2F6BFF` + 22dp 圆角（自适应图标 + legacy 矢量回退双路径）。
+- **图标名称**：桌面应用名改为「点清」（`app_name`）。
+- **底部导航紧凑化**：`NavigationBar` 高度 80dp → 60dp（约降 1/4），点击热区覆盖「图标 + 文字」整块。
+- **顶栏统一降高**：全部 10 处 `TopAppBar` 统一 48dp（原 M3 默认 64dp）；今日页完成率环 44dp → 36dp、问候语 `titleLarge` → `titleMedium` 防低顶栏裁切。
+- **FAB 缩小**：今日/习惯/任务三页新建按钮 56dp → 40dp 圆形（约减 1/3）。
+- **今日列表柔化**：冲突横幅由 `errorContainer` 红改 `surfaceVariant`（图标保留 error tint 提示语义）；任务行纵向内边距收紧（行高约减 1/3）。
+- **设置页外观区间距**：`SectionTitle`/`SettingRow` 上下间距与其余分区统一。
+
+### 🛡 崩溃防御（统计链路，双层兜底）
+- **加任务后点统计崩 / 今日点完成率环崩**：`GetStatsUseCase.invoke()` 整段 `runCatching`（失败发射空 `TaskStats` + `Log.e`）；`StatsViewModel` 三处 Flow 补 `.catch` 兜底（completions / uiState / trend）。统计页在底层异常时降级为空态而非崩溃；真实根因待 logcat 堆栈进一步定位。
+
+### 🔍 复审增量（本轮整体代码审查收敛，1×P2 逻辑 + 1×P2 视觉 + 1×P3）
+- **P2 · 习惯 streak DST 偏差（HabitDates）**：`toEpochDay` 原用 `Calendar` 毫秒 `/86_400_000` 计算，DST 切换日（23h/25h）会偏差 1 天误断连续打卡 → 改 `java.time.LocalDate.toEpochDay()`（工程已启用 desugaring，minSdk 24 可用；原注释「避免 java.time minSdk 限制」为错误前提）。
+- **P2 · 今日页 48dp 顶栏双行标题裁切**：见上「顶栏统一降高」。
+- **P3 · 统计实例生成静默失败**：内层 `ensureInstancesForDate` 的 `runCatching` 补 `onFailure Log.e`，失败可追溯。
+
+### 🧪 质量门禁
+- 待本地执行：`./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（沙箱无 JDK）；红线守住（零新依赖 / 中文全抽离 / 显式 Migration 1→8 / `.workbuddy/` 不提交）。
+- 待真机走查：60dp 底栏 label 是否裁切（M3 默认 80dp，如有裁切可调 item 内边距）、48dp 顶栏各页视觉。
+
+---
+
 ## v2.7.0（2026-07-26）· 整体代码复审与健壮性修复（零新功能）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板

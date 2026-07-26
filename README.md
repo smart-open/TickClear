@@ -6,15 +6,16 @@
 
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
-- 版本基线：v2.7.0（v2.6.1 五项功能落地 + v2.7.0 封板前整体代码复审 P0/P1/P2 结清，零新功能、零新依赖）
+- 版本基线：v2.7.1（v2.7.0 整体代码复审结清 P0/P1/P2 + v2.7.1 九项 UI/视觉与统计崩溃防御修复、顶栏/底栏/FAB 紧凑化，零新功能、零新依赖）
 
 ---
 
 ## 功能特性
 
-### 五大 Tab（底部 / 左导航轨自适应）
+### 六大 Tab（底部 / 左导航轨自适应）
 - **今日**：分组展示今日任务；完成 / 编辑 / 左滑软删（带撤销）/ 右滑完成；时间窗冲突角标 + 冲突横幅；完成率环；一键清空「今日全部」。
-- **任务**：全部任务 + 任务组 CRUD（级联软删）；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
+- **任务**：全部任务 + 任务组 CRUD（级联软删）；任务标签筛选；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
+- **习惯**：周期性习惯打卡（星期重复、连续 streak、休息日标识）。
 - **统计**：按组 / 日 / 周 / 月完成情况、完成率、连续打卡天数（基于 `CheckInEntity`，不可补卡）；8 枚勋章墙 + 热力图日历。
 - **助手**：模拟硬件设备对接**小智（Xiaozhi）WebSocket** 协议，语音 + 文字聊天；对话触发任务时经 **MCP 函数调用（`create_task`）** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 **Mock 模式离线可跑**。
 - **设置**：主题（浅色 / 深色 / 动态）、语音 / ASR / LLM 配置 + 测试、回收站管理、调试（日志 / 测试按钮）、关于。
@@ -48,7 +49,7 @@
 | 语言 / 构建 | Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 |
 | 平台 | minSdk 24 / targetSdk 34 / compileSdk 34 |
 | UI | Jetpack Compose + Material3 |
-| DI | Hilt（KAPT） |
+| DI | Hilt（KSP） |
 | 本地存储 | Room（SQLCipher）+ DataStore（偏好）+ EncryptedSharedPreferences（密钥 / 口令） |
 | 网络 | OkHttp（小智 WebSocket 二进制帧） |
 | 序列化 | kotlinx-serialization |
@@ -117,7 +118,7 @@ di/           Hilt 模块
 
 1. **零新依赖** —— 复用 OkHttp / DataStore / 系统框架，不引入新第三方库。
 2. **中文全抽离 `strings.xml`** —— 用户可见中文不得硬编码在源码（识别词典 / 日志 `detail` / 注释允许）。
-3. **Room 显式 Migration** —— 版本 1→5 递增，禁用 `fallbackToDestructiveMigration`。
+3. **Room 显式 Migration** —— 版本 1→8 递增（schema 导出至 `app/schemas/`），禁用 `fallbackToDestructiveMigration`。
 4. **`.workbuddy/` 不提交 git** —— 仅本地工作区数据。
 5. **提交纪律** —— 每次自洽改动独立 `git commit`，中文类型前缀（`[fix]` / `[feature]` / `[docs]` / `[config]` / `[test]`）；默认不 `git push`。
 
