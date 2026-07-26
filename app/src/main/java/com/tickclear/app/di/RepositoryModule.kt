@@ -3,6 +3,7 @@ package com.tickclear.app.di
 import com.tickclear.app.data.repositories.CheckInRepositoryImpl
 import com.tickclear.app.data.repositories.CompletionRepositoryImpl
 import com.tickclear.app.data.repositories.GroupRepositoryImpl
+import com.tickclear.app.data.repositories.HabitRepositoryImpl
 import com.tickclear.app.data.repositories.MedalRepositoryImpl
 import com.tickclear.app.data.repositories.RecycleBinRepositoryImpl
 import com.tickclear.app.data.repositories.SettingsRepositoryImpl
@@ -11,6 +12,7 @@ import com.tickclear.app.data.repositories.VoiceHistoryRepositoryImpl
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.repository.HabitRepository
 import com.tickclear.app.domain.repository.MedalRepository
 import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.repository.SettingsRepository
@@ -40,6 +42,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHabitRepository(impl: HabitRepositoryImpl): HabitRepository
 
     @Binds
     @Singleton

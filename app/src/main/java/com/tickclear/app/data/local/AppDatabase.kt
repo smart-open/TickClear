@@ -13,6 +13,8 @@ import com.tickclear.app.data.local.dao.TaskDao
 import com.tickclear.app.data.local.dao.TaskGroupDao
 import com.tickclear.app.data.local.dao.TaskInstanceDao
 import com.tickclear.app.data.local.dao.VoiceHistoryDao
+import com.tickclear.app.data.local.dao.HabitCheckInDao
+import com.tickclear.app.data.local.dao.HabitDao
 import com.tickclear.app.data.local.entities.CheckInEntity
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
@@ -20,6 +22,8 @@ import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
 import com.tickclear.app.data.local.entities.VoiceHistoryEntity
+import com.tickclear.app.data.local.entities.HabitEntity
+import com.tickclear.app.data.local.entities.HabitCheckInEntity
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
@@ -31,8 +35,10 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         MedalUnlockEntity::class,
         CheckInEntity::class,
         VoiceHistoryEntity::class,
+        HabitEntity::class,
+        HabitCheckInEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,6 +49,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun medalUnlockDao(): MedalUnlockDao
     abstract fun checkInDao(): CheckInDao
     abstract fun voiceHistoryDao(): VoiceHistoryDao
+    abstract fun habitDao(): HabitDao
+    abstract fun habitCheckInDao(): HabitCheckInDao
 
     companion object {
         private const val DB_NAME = "tickclear.db"
@@ -118,9 +126,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v7 → v8：新增 habit（习惯定义）与 habit_checkin（每日打卡）两表（V2.69 习惯养成模式）。 */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS habit (
+                        id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        emoji TEXT NOT NULL DEFAULT '',
+                        repeatDays TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7',
+                        reminderMin INTEGER NOT NULL DEFAULT -1,
+                        colorIndex INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL DEFAULT 0,
+                        archived INTEGER NOT NULL DEFAULT 0,
+                        orderIndex INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS habit_checkin (
+                        habitId TEXT NOT NULL,
+                        dateLocal TEXT NOT NULL,
+                        checkedAt INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(habitId, dateLocal)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         /** 全部显式迁移，供仪器化契约测试（MigrationTestHelper）引用，无需新增依赖。 */
         internal val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 
         fun create(context: Context, passphrase: String): AppDatabase {
             // L2：sqlcipher-android 需在打开数据库前显式加载 native 库（该 artifact 不自动加载）。
@@ -137,7 +177,7 @@ abstract class AppDatabase : RoomDatabase() {
                 // 刻意不启用 fallbackToDestructiveMigration：版本升级且缺显式 Migration 时，
                 // Room 会显式抛异常（而非静默清空用户数据）。上线前必须在此追加 addMigrations(...)，
                 // 严禁在未提供 Migration 的情况下 bump schema version。
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
         }
     }

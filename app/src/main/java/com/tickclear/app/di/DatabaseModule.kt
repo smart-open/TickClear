@@ -7,6 +7,8 @@ import com.tickclear.app.domain.backup.RoomTransactionRunner
 import com.tickclear.app.domain.backup.TransactionRunner
 import com.tickclear.app.data.local.dao.CheckInDao
 import com.tickclear.app.data.local.dao.CompletionLogDao
+import com.tickclear.app.data.local.dao.HabitCheckInDao
+import com.tickclear.app.data.local.dao.HabitDao
 import com.tickclear.app.data.local.dao.MedalUnlockDao
 import com.tickclear.app.data.local.dao.TaskDao
 import com.tickclear.app.data.local.dao.TaskGroupDao
@@ -36,6 +38,8 @@ object DatabaseModule {
     @Provides fun provideMedalUnlockDao(db: AppDatabase) = db.medalUnlockDao()
     @Provides fun provideCheckInDao(db: AppDatabase) = db.checkInDao()
     @Provides fun provideVoiceHistoryDao(db: AppDatabase): VoiceHistoryDao = db.voiceHistoryDao()
+    @Provides fun provideHabitDao(db: AppDatabase): HabitDao = db.habitDao()
+    @Provides fun provideHabitCheckInDao(db: AppDatabase): HabitCheckInDao = db.habitCheckInDao()
 
     @Provides
     @Singleton

@@ -26,6 +26,7 @@ import com.tickclear.app.ui.settings.VoiceHistoryScreen
 import com.tickclear.app.ui.stats.StatsScreen
 import com.tickclear.app.ui.tasks.TasksScreen
 import com.tickclear.app.ui.tasks.RecycleBinScreen
+import com.tickclear.app.ui.habits.HabitsScreen
 import com.tickclear.app.ui.theme.TickClearTheme
 import com.tickclear.app.ui.today.TodayScreen
 
@@ -129,6 +130,9 @@ private fun AppNavHost(
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
                 initialOpenEditor = entry.arguments?.getBoolean("openEditor") ?: false,
             )
+        }
+        composable(Routes.HABITS) {
+            HabitsScreen(isWide = isWide)
         }
         composable(Routes.STATS) {
             StatsScreen(

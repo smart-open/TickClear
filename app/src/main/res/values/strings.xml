@@ -494,6 +494,28 @@
     <string name="about_assistant_body">默认「模拟」模式离线可用：与小智风格助手聊天，说出「提醒我明天9点开会」等，即可通过 MCP 工具自动建任务。切换「真实」模式需自行配置网关与令牌。</string>
     <string name="about_current_theme">当前外观：%1$s · %2$s</string>
 
+    <!-- V2.69 习惯养成 -->
+    <string name="tab_habits">习惯</string>
+    <string name="habits_title">习惯养成</string>
+    <string name="habits_empty">还没有习惯，点右下角按钮添加第一个</string>
+    <string name="habits_add">新建习惯</string>
+    <string name="habits_name_hint">习惯名称（如 每天喝水）</string>
+    <string name="habits_emoji_hint">图标 emoji（可选）</string>
+    <string name="habits_repeat">重复</string>
+    <string name="habits_streak">连续 %1$d 天</string>
+    <string name="habits_checkin">打卡</string>
+    <string name="habits_uncheck">取消打卡</string>
+    <string name="habits_rest_day">今天休息日</string>
+    <string name="habits_delete_title">删除习惯</string>
+    <string name="habits_delete_confirm">确定删除该习惯及其全部打卡记录？</string>
+    <string name="habits_week_mon">一</string>
+    <string name="habits_week_tue">二</string>
+    <string name="habits_week_wed">三</string>
+    <string name="habits_week_thu">四</string>
+    <string name="habits_week_fri">五</string>
+    <string name="habits_week_sat">六</string>
+    <string name="habits_week_sun">日</string>
+
     <string name="heatmap_less">少</string>
     <string name="heatmap_more">多</string>
 
