@@ -25,8 +25,8 @@ android {
         applicationId = "com.tickclear.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "2.6.0"
+        versionCode = 11
+        versionName = "2.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
