@@ -28,12 +28,12 @@ import androidx.compose.ui.unit.dp
 fun EmptyStateGuide(
     icon: String,
     title: String,
+    modifier: Modifier = Modifier,
     message: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),

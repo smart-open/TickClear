@@ -63,6 +63,7 @@ fun RecycleBinScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = { Text(stringResource(R.string.recycle_bin_title), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

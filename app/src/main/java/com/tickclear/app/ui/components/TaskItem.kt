@@ -161,7 +161,8 @@ private fun TaskCardContent(
             )
             .clickable { onEdit() }
             .semantics { contentDescription = taskItemCd }
-            .padding(vertical = Spacing.sm, horizontal = Spacing.md),
+            // 任务行高度约减三分之一：压缩上下内边距（8dp → 4dp）。
+            .padding(vertical = Spacing.xs, horizontal = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
@@ -177,7 +178,7 @@ private fun TaskCardContent(
                 color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             )
             Row(
-                modifier = Modifier.padding(top = Spacing.xs),
+                modifier = Modifier.padding(top = 0.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {

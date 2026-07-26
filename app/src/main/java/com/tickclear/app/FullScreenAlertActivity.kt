@@ -18,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +47,7 @@ class FullScreenAlertActivity : ComponentActivity() {
         val taskId = intent.getStringExtra(ReminderReceiver.EXTRA_TASK_ID) ?: run { finish(); return }
         val instanceId = intent.getStringExtra(ReminderReceiver.EXTRA_INSTANCE_ID) ?: "$taskId@today"
 
-        var snoozeMin by mutableStateOf(ReminderReceiver.SNOOZE_DEFAULT_MIN)
+        var snoozeMin by mutableIntStateOf(ReminderReceiver.SNOOZE_DEFAULT_MIN)
         lifecycleScope.launch {
             val ep = EntryPointAccessors.fromApplication(this@FullScreenAlertActivity, ReminderScheduler.ReminderEntryPoint::class.java)
             title = ep.taskRepository().getById(taskId)?.title ?: getString(R.string.fullscreen_reminder_unknown)

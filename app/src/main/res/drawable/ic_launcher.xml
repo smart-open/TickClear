@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- API 24-25 传统启动图标回退（无 adaptive-icon）：蓝底 + 白色对勾。 -->
+<!-- 启动图标（API 24+ 矢量回退）：圆角蓝底 + 居中白色对勾，干净现代。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,14 +7,12 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#2F6BFF"
-        android:pathData="M0,0h108v108h-108z" />
-    <group
-        android:scaleX="2.4"
-        android:scaleY="2.4"
-        android:translateX="30"
-        android:translateY="30">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM10,17l-5,-5 1.41,-1.41L10,14.17l7.59,-7.59L19,8z" />
-    </group>
+        android:pathData="M26,4 h56 a22,22 0 0 1 22,22 v56 a22,22 0 0 1 -22,22 h-56 a22,22 0 0 1 -22,-22 v-56 a22,22 0 0 1 22,-22 z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M38,54 L49,65 L70,42" />
 </vector>

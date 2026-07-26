@@ -56,6 +56,7 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = { Text(stringResource(R.string.debug_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

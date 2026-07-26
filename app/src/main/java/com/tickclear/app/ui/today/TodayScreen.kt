@@ -143,9 +143,11 @@ fun TodayScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = {
+                    // 48dp 低顶栏内双行文本需控制总高：titleMedium(~24dp) + labelSmall(~16dp) ≈ 40dp，避免 titleLarge 导致裁切
                     Column {
-                        Text(greeting, style = MaterialTheme.typography.titleLarge)
+                        Text(greeting, style = MaterialTheme.typography.titleMedium)
                         Text(dateStr, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
@@ -165,8 +167,8 @@ fun TodayScreen(
                     }
                     ProgressRing(
                         progress = if (state.total > 0) state.done.toFloat() / state.total else 0f,
-                        size = 44.dp,
-                        stroke = 5.dp,
+                        size = 36.dp,
+                        stroke = 4.dp,
                         modifier = Modifier
                             .clickable(onClick = onNavigateToStats)
                             .semantics { role = Role.Button; contentDescription = ringDesc }
@@ -282,8 +284,8 @@ private fun TodayMainContent(
     onDelete: (TodayItem) -> Unit,
     onEdit: (TodayItem) -> Unit,
     onAdd: () -> Unit,
-    shortcutsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    shortcutsEnabled: Boolean = true,
 ) {
     // V2.10 键盘快捷键：在 Compose 宿主 View 上挂 OnKeyListener 捕获 ↑↓ 选择 / 空格·回车完成 / N 新建。
     // 采用 View 级监听而非 Modifier.focusable，规避本环境对 focusable 符号的解析差异，且无需强制焦点。
@@ -434,7 +436,8 @@ private fun TodayMainContent(
 
             FloatingActionButton(
                 onClick = onAdd,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.lg),
+                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形。
+                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.lg).size(40.dp),
             ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
             }

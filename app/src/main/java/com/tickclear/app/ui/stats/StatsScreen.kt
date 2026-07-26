@@ -58,7 +58,7 @@ fun StatsScreen(
     onGoToday: (() -> Unit)? = null,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) },
+        topBar = { TopAppBar(modifier = Modifier.height(48.dp), title = { Text(stringResource(R.string.stats_title)) }) },
     ) { padding ->
         StatsContent(
             viewModel = viewModel,
@@ -77,9 +77,9 @@ fun StatsScreen(
 @Composable
 fun StatsContent(
     viewModel: StatsViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier,
     isWide: Boolean = false,
     onGoToday: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()

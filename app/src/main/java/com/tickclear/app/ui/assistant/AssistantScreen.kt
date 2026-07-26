@@ -144,6 +144,7 @@ fun AssistantScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = { Text(stringResource(R.string.assistant_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

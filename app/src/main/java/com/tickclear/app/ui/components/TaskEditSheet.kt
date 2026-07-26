@@ -129,7 +129,9 @@ fun TaskEditSheet(
  * - 保存时调用 onSave 返回冲突列表，存在冲突则显示红条但仍可「仍要保存」。
  */
 // getLastKnownLocation 调用已由 accompanist fineLocationPermission.status is Granted 运行时守卫，lint 无法识别该守卫，故显式抑制。
-@SuppressLint("MissingPermission")
+// ACCESS_BACKGROUND_LOCATION（API 29）由 accompanist rememberPermissionState 内部按 SDK 守卫，lint 无法识别，同样抑制。
+// 注意：@SuppressLint 非 @Repeatable，同一声明不能叠两个 @SuppressLint，须合并为单个注解的多个 id。
+@SuppressLint("MissingPermission", "InlinedApi")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun TaskEditContent(

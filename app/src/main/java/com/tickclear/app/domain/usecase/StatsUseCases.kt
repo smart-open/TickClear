@@ -44,40 +44,43 @@ class GetStatsUseCase @Inject constructor(
     operator fun invoke(): Flow<TaskStats> =
         taskRepository.observeAll().flatMapLatest { tasks ->
             flow {
-                val completions = completionRepository.observeAll().first()
-                val today = LocalDate.now()
-                val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val result = runCatching {
+                    val completions = completionRepository.observeAll().first()
+                    val today = LocalDate.now()
+                    val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-                // 今日完成率基于当日实例（active + completed），统一口径
-                instanceRepository.ensureInstancesForDate(today)
-                val todayInstances = instanceRepository.observeOn(today).first()
-                val todayDone = todayInstances.count { it.status == TaskStatus.COMPLETED.code }
-                val todayTotal = todayInstances.size
-                val todayRate = if (todayTotal > 0) todayDone.toFloat() / todayTotal else 0f
+                    // 今日完成率基于当日实例（active + completed），统一口径
+                    // ensureInstancesForDate 可能因底层存储异常而失败；该失败不应中断整页统计，
+                    // 降级为「不保证当日实例完整」继续聚合（todayTotal 可能偏低）。
+                    runCatching { instanceRepository.ensureInstancesForDate(today) }
+                        .onFailure { android.util.Log.e("GetStatsUseCase", "ensureInstancesForDate failed, todayTotal may be low", it) }
+                    val todayInstances = instanceRepository.observeOn(today).first()
+                    val todayDone = todayInstances.count { it.status == TaskStatus.COMPLETED.code }
+                    val todayTotal = todayInstances.size
+                    val todayRate = if (todayTotal > 0) todayDone.toFloat() / todayTotal else 0f
 
-                // 连续天数基于 CompletionLog 日期（PRD §7.3）
-                val streak = StreakUtils.computeStreak(completions.map { it.dateLocal })
+                    // 连续天数基于 CompletionLog 日期（PRD §7.3）
+                    val streak = StreakUtils.computeStreak(completions.map { it.dateLocal })
 
-                val groups = groupRepository.observeActive().first()
-                val byGroup = buildList {
-                    groups.forEach { g ->
-                        val gt = tasks.filter { it.deletedAt == null && it.groupId == g.id }
-                        add(GroupStat(g.name, gt.count { it.status == TaskStatus.COMPLETED.code }, gt.size))
+                    val groups = groupRepository.observeActive().first()
+                    val byGroup = buildList {
+                        groups.forEach { g ->
+                            val gt = tasks.filter { it.deletedAt == null && it.groupId == g.id }
+                            add(GroupStat(g.name, gt.count { it.status == TaskStatus.COMPLETED.code }, gt.size))
+                        }
+                        val ungrouped = tasks.filter {
+                            it.deletedAt == null && it.groupId == null && RepeatType.fromCode(it.repeatType) == RepeatType.NONE
+                        }
+                        if (ungrouped.isNotEmpty()) {
+                            add(GroupStat(UNGROUPED_GROUP_ID, ungrouped.count { it.status == TaskStatus.COMPLETED.code }, ungrouped.size))
+                        }
                     }
-                    val ungrouped = tasks.filter {
-                        it.deletedAt == null && it.groupId == null && RepeatType.fromCode(it.repeatType) == RepeatType.NONE
-                    }
-                    if (ungrouped.isNotEmpty()) {
-                        add(GroupStat(UNGROUPED_GROUP_ID, ungrouped.count { it.status == TaskStatus.COMPLETED.code }, ungrouped.size))
-                    }
-                }
 
-                val daily = (0 until 30).map { offset ->
-                    val ds = today.minusDays(offset.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
-                    DailyStat(ds, completions.count { it.dateLocal == ds })
-                }.reversed()
+                    val daily = (0 until 30).map { offset ->
+                        val ds = today.minusDays(offset.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        DailyStat(ds, completions.count { it.dateLocal == ds })
+                    }.reversed()
 
-                emit(
                     TaskStats(
                         totalCompleted = completions.size,
                         todayCompleted = todayDone,
@@ -86,8 +89,16 @@ class GetStatsUseCase @Inject constructor(
                         streakDays = streak,
                         byGroup = byGroup,
                         daily = daily,
-                    ),
-                )
+                    )
+                }
+                if (result.isSuccess) {
+                    emit(result.getOrThrow())
+                } else {
+                    // 统计聚合失败（多为底层 Room 查询/实例生成异常）不应让统计页崩溃，
+                    // 降级为安全空状态；真实异常已打 logcat 供定位根因。
+                    android.util.Log.e("GetStatsUseCase", "stats compute failed, fallback safe", result.exceptionOrNull())
+                    emit(TaskStats(0, 0, 0, 0f, 0, emptyList(), emptyList()))
+                }
             }
         }
 }

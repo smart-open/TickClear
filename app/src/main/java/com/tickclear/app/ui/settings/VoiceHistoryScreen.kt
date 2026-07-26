@@ -43,6 +43,7 @@ fun VoiceHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = { Text(stringResource(R.string.voice_history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

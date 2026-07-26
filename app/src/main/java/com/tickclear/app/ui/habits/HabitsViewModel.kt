@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -43,6 +44,7 @@ class HabitsViewModel @Inject constructor(
     )
 
     /** 每个习惯叠加「今日已打卡」与「连续天数」，习惯列表变化时用 flatMapLatest 重新组合。 */
+    @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<HabitsUiState> = habits.flatMapLatest { list ->
         if (list.isEmpty()) {
             flowOf(HabitsUiState(emptyList(), isEmpty = true))

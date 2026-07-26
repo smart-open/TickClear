@@ -1,8 +1,15 @@
+@file:Suppress("DEPRECATION")
+// security-crypto 1.1.0 已将 EncryptedSharedPreferences / MasterKey 整体标记 @Deprecated（官方自 1.1.0-alpha07 起弃用该库，
+// 推荐迁移到 Jetpack DataStore + Google Tink）。但本项目「零新依赖」红线不允许引入 Tink / protobuf 等，且无功能等价、零依赖的
+// 替代实现；该 API 在 minSdk 24 上仍完全可用、行为正确，故在此文件级抑制弃用告警，而非改用会破坏红线的新依赖。
+// 后续若放宽红线，再评估迁移到 DataStore + Tink（需配套迁移既有密文格式与用户密钥）。
+
 package com.tickclear.app.data
 
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import android.annotation.SuppressLint
 import java.util.UUID
 
 /**
@@ -25,6 +32,7 @@ object SecureStore {
     )
 
     /** 首次调用惰性生成并持久化 SQLCipher 口令。 */
+    @SuppressLint("ApplySharedPref")
     fun getDbPassphrase(context: Context): String {
         val p = prefs(context)
         var pass = p.getString(KEY_DB_PASS, null)

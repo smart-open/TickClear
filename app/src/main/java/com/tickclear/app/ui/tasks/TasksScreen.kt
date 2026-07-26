@@ -134,6 +134,7 @@ fun TasksScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(48.dp),
                 title = { Text(stringResource(R.string.tasks_title), style = MaterialTheme.typography.titleLarge) },
                 actions = {
                     IconButton(onClick = onNavigateToRecycleBin) {
@@ -152,7 +153,8 @@ fun TasksScreen(
                 } else {
                     { editingTaskId = null; showEditor = true }
                 },
-                modifier = Modifier.padding(Spacing.lg),
+                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形。
+                modifier = Modifier.padding(Spacing.lg).size(40.dp),
             ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
             }

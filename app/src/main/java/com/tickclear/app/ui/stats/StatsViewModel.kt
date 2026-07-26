@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -61,6 +62,11 @@ class StatsViewModel @Inject constructor(
 
     private val completionsFlow = completionRepository.observeAll()
         .map { list -> list.groupingBy { it.dateLocal }.eachCount() }
+        .catch { e ->
+            // 任一上游流异常（如 Room 查询/实例生成失败）不应让统计页崩溃，降级为空映射。
+            android.util.Log.e("StatsViewModel", "completionsFlow failed, fallback empty", e)
+            emit(emptyMap())
+        }
 
     val uiState: StateFlow<StatsUiState> = combine(
         getStatsUseCase(),
@@ -94,6 +100,10 @@ class StatsViewModel @Inject constructor(
             unlockedDates = unlockedDates,
             medalProgress = computeMedalProgress(stats, completions, stats.streakDays),
         )
+    }.catch { e ->
+        // 整条统计聚合流异常时降级为安全空状态，避免 UI 崩溃；真实异常已打 logcat 供定位。
+        android.util.Log.e("StatsViewModel", "stats combine failed, fallback safe state", e)
+        emit(StatsUiState(isLoading = false))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatsUiState())
 
     private val _period = MutableStateFlow(StatsPeriod.DAY)
@@ -105,6 +115,9 @@ class StatsViewModel @Inject constructor(
 
     val trend: StateFlow<List<TrendBucket>> = combine(_period, completionsFlow) { p, completions ->
         computeTrend(p, completions)
+    }.catch { e ->
+        android.util.Log.e("StatsViewModel", "trend failed, fallback empty", e)
+        emit(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun computeTrend(period: StatsPeriod, completions: Map<String, Int>): List<TrendBucket> {

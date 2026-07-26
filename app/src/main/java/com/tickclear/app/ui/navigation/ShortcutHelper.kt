@@ -3,6 +3,7 @@ package com.tickclear.app.ui.navigation
 import android.content.Context
 import android.content.Intent
 import android.annotation.TargetApi
+import android.annotation.SuppressLint
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
@@ -21,6 +22,7 @@ object ShortcutHelper {
     const val ACTION_ASSISTANT = "assistant"
     const val ACTION_TODAY = "today"
 
+    @SuppressLint("ReportShortcutUsage")
     fun register(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         val manager = context.getSystemService(ShortcutManager::class.java) ?: return

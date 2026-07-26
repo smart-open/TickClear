@@ -36,9 +36,9 @@ import com.tickclear.app.domain.model.MedalProgress
 @Composable
 fun MedalWall(
     unlocked: Set<String>,
+    modifier: Modifier = Modifier,
     onMedalClick: (Medal) -> Unit = {},
     progress: Map<String, MedalProgress> = emptyMap(),
-    modifier: Modifier = Modifier,
 ) {
     val medals = MedalCatalog.ALL
     LazyVerticalGrid(

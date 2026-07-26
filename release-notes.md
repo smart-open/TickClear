@@ -20,6 +20,24 @@
 - **P2 · 本地识别器回调滞留（LocalSpeechRecognizer）**：`stop()` 原仅 `destroy()` 识别器，未清 `onPartial/onFinal`，到 `destroy` 执行前短暂持有回调。修复：`stop()` 同步置空两个回调。
 - **P2 · 唤醒服务空重启（WakeWordService）**：识别器不可用时 `startListening()` 内部 `stopSelf()`，但 `onStartCommand` 仍返回 `START_STICKY` 导致系统可能重建空服务；并补 `NotificationHelper.createChannels(this)` 兜底防 `startForeground` 渠道缺失崩溃。修复：`startListening()` 返回 `Boolean`，不可用路径返回 `START_NOT_STICKY`。
 
+### 🔧 工程改进（构建工具链，零功能变化）
+- **Hilt 注解处理 Kapt → KSP**：原 `kapt(libs.hilt.compiler)` 在 Kotlin 2.0 下触发 `Kapt currently doesn't support language version 2.0+. Falling back to 1.9.2` 告警并以 1.9.2 回退处理。Hilt `2.51.1` 已支持 KSP，且 Room 早已使用 KSP（`2.0.21-1.0.28`），故将 Hilt 改走 `ksp(libs.hilt.compiler)` / `kspAndroidTest(...)`，并移除 `kotlinKapt` 插件。告警消除、构建提速，零新依赖（KSP 插件本就存在）。
+
+### 🔍 Lint 全量告警清理与 Opt-in 治理（release 版报告）
+- **背景**：分析 `app/build/reports/lint-results-release.html`，真正启用的告警 15 条（非折叠区 69 条附加检查 / 41 条未启用检查）。按「可逆修复」与「带注释显式抑制」分级处理，未采用全盘 `lintOptions { disable }`，保留门禁价值。
+- **Opt-in 治理**：`HabitsViewModel.kt` 第 46 行 `flatMapLatest` 触发 `ExperimentalCoroutinesApi`，在 `uiState` 声明上方加 `@OptIn(ExperimentalCoroutinesApi::class)`，消除告警。
+- **可逆修复（改代码）**：
+  - `ModifierParameter`（5 处）：`EmptyStateGuide`/`MedalWall`/`StatsContent`/`TodayMainContent` 将 `modifier` 重排为首个可选参数（调用点均具名传参，无破坏）；`widget_today.xml` 根 `LinearLayout` 加 `tools:ignore="Overdraw"`（App Widget 根背景与主题背景固有重叠）。
+  - `AutoboxingStateCreation`（1 处）：`FullScreenAlertActivity.kt` 的 `mutableStateOf(Int)` 改 `mutableIntStateOf`，消除 `Int` 自动装箱。
+  - `ContentDescription`（1 处）：`widget_today_item.xml` 装饰性勾选 `ImageView` 加 `android:contentDescription="@null"`，修复无障碍声明。
+  - `GradleDependency`（2 处）：`securityCrypto` alpha `1.1.0-alpha06` → 稳定版 `1.1.0`；`testImplementation("org.json:json:20231013")` 移入 `libs.versions.toml`（`orgJson`），消除 `UseTomlInstead`。
+- **带注释显式抑制（保正确性）**：
+  - `ApplySharedPref`（`SecureStore.getDbPassphrase`）：保留 `commit()` 同步落盘避免首启「建库读口令 / 写口令」竞态丢库，加 `@SuppressLint("ApplySharedPref")`。
+  - `InlinedApi`（3 处）：`SettingsScreen`（API 26 通知设置常量，已 `SDK_INT >= O` 守卫）、`TaskEditSheet`（API 29 后台定位权限，accompanist 内部按 SDK 守卫）加 `@SuppressLint("InlinedApi")`。
+  - `ReportShortcutUsage`（`ShortcutHelper.register`）：动态快捷方式无需 usage 上报，加 `@SuppressLint("ReportShortcutUsage")`。
+  - `OldTargetApi`（lint 配置）：锁定 `targetSdk 34` 不升 35 以免行为变更，在 `lint {}` 块 `disable += "OldTargetApi"`（AGP 8.x Kotlin DSL 中 `disable` 是 `MutableSet<String>` 属性，须用 `+=` 而非 Groovy 方法式 `disable("id")`，否则脚本编译期 Unresolved reference），仅屏蔽该检查不卡构建。
+  - `security-crypto` 弃用告警（带注释抑制，受零依赖红线约束）：`androidx.security:security-crypto` 自 `1.1.0-alpha07` 起将 `EncryptedSharedPreferences`/`MasterKey` 整体标记 `@Deprecated`（官方推荐迁移到 Jetpack DataStore + Google Tink）。为清 `GradleDependency` 告警已将依赖升到稳定版 `1.1.0`，但稳定版同样带弃用标记，于 `SecureStore.kt` 文件级 `@file:Suppress("DEPRECATION")`。不迁 DataStore+Tink 的原因：会引入 Tink/protobuf 等新依赖，破「零新依赖」红线，且无功能等价、零依赖的替代实现；该 API 在 minSdk 24 上仍完全可用、行为正确。后续若放宽红线再评估迁移。
+
 ### 🧪 质量门禁
 - `./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（+ `assembleDebugAndroidTest` 编译）全绿；红线守住（零新依赖 / 中文全抽离 `strings.xml` / Room 显式 Migration 1→8 无 `fallbackToDestructiveMigration` / `.workbuddy/` 不提交）。
 

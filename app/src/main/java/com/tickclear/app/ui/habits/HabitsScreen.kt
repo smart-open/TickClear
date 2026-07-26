@@ -55,10 +55,14 @@ fun HabitsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.habits_title)) })
+            TopAppBar(modifier = Modifier.height(48.dp), title = { Text(stringResource(R.string.habits_title)) })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAdd = true }) {
+            FloatingActionButton(
+                onClick = { showAdd = true },
+                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形。
+                modifier = Modifier.size(40.dp),
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
             }
         },

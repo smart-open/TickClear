@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlinCompose)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.hilt)
 }
 
@@ -25,8 +24,8 @@ android {
         applicationId = "com.tickclear.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 13
-        versionName = "2.7.0"
+        versionCode = 14
+        versionName = "2.7.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -109,6 +108,10 @@ android {
         checkReleaseBuilds = true
         // 仅告警不阻断（历史遗留 i18n/未用资源等，非正确性问题），保留可见性但不卡构建。
         warningsAsErrors = false
+        // 锁定 targetSdk 34，暂不升 35 以免行为变更；OldTargetApi 告警非正确性问题，用 disable += 抑制该检查。
+        // 注意：AGP 8.x Kotlin DSL 中 disable/enable/warning/error/fatal 是 MutableSet<String> 属性，须用 `disable += "id"`，
+        // 不能用 Groovy 遗留的方法式 `disable("id")`（会 Unresolved reference 编译失败）。
+        disable += "OldTargetApi"
     }
 }
 
@@ -156,7 +159,7 @@ dependencies {
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
 
     coreLibraryDesugaring(libs.coreDesugar)
 
@@ -168,7 +171,7 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.mockk)
     // test-only：android.jar 的 org.json 为 stub（方法抛异常），纯 JVM 单测需真实实现；不进 release 体积
-    testImplementation("org.json:json:20231013")
+    testImplementation(libs.orgJson)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -176,6 +179,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.tooling)
     kspAndroidTest(libs.androidx.room.compiler)
     androidTestImplementation(libs.hilt.android.testing)
-    kaptAndroidTest(libs.hilt.compiler)
+    kspAndroidTest(libs.hilt.compiler)
     androidTestImplementation(libs.androidx.room.testing)
 }

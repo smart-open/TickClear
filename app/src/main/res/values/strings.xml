@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">点清 TickClear</string>
+    <string name="app_name">点清</string>
 
     <!-- 底部导航 -->
     <string name="tab_today">今日</string>

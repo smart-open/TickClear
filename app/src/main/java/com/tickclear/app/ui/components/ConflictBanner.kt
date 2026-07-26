@@ -21,7 +21,8 @@ fun ConflictBanner(count: Int, modifier: Modifier = Modifier) {
     if (count <= 0) return
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.errorContainer,
+        // 由刺眼红底改为中性浅底 + 小号红色警示图标，降低视觉冲击（保留语义）。
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = Spacing.xs,
     ) {
@@ -37,7 +38,7 @@ fun ConflictBanner(count: Int, modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.today_conflict_count, count),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = Spacing.sm),
             )
         }
