@@ -4,6 +4,31 @@
 
 ---
 
+## v2.6.0（2026-07-25）· §13 开放问题决策落地（开源音效 + 语音历史 + 常驻唤醒）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 10 / versionName 2.6.0
+**相对 v2.5.2**：落地产品设计文档 §13 四项开放问题决策，新增 3 项用户可见功能，零新依赖。
+
+### ✨ 新功能（§13 决策）
+- **开源提示音（Q2 / V2.63）**：内置自创作 CC0 双音提示音 `res/raw/notify_chime.wav`（880Hz→1320Hz），高优先级提醒改用内置开源音效（Android 8.0+ 由高优先级渠道 `USAGE_ALARM` 播放，8.0- 由通知 builder 指定），规避系统默认音的版权/一致性问题。音效开关关闭时仍仅震动+灯光。
+- **语音对话历史（Q8 / V2.65）**：新增 `voice_history` 表（Room v5→v6 显式 `MIGRATION_5_6`）+ 仓储/DAO/设置开关/历史页。**默认关闭**；开启后助手的用户/助手对话文本落库，设置页可进入「查看语音历史」并一键清空。系统提示消息不记录。
+- **常驻语音唤醒（Q9 / V2.66）**：新增前台服务 `WakeWordService`（`foregroundServiceType=microphone`），复用 `WakeWordManager`（系统 `SpeechRecognizer` 持续识别，零新依赖）做关键词 spotting，命中设置中的唤醒词（默认「小清」）即经 `WakeWordBus` 跳转助手页自动收音。设置开关默认关，开/关联动启停服务。
+
+### 🧭 决策落档（不改代码）
+- **位置提醒选型（Q3 / V2.64）**：维持系统定位（`FusedLocationProvider`/`GeofenceScheduler`，零 GMS、零新依赖）；高德地图 SDK 记为未来「选点/逆地理编码」选型，**v2.6 不引入 SDK**（守零新依赖红线）。
+
+### ⚠️ 局限
+- 常驻唤醒依赖系统识别服务、并非端侧神经网络模型，受厂商识别服务与联网状态影响、可能耗电；真正端侧离线唤醒词需 ML 运行时（破「零新依赖」红线，记为后续 V2.72/V2.75）。
+
+### 🗺 v2.6 后续 backlog（未实现，见 `docs/开发计划_v2.6_任务清单.md`）
+- V2.67 任务标签/分类 · V2.68 更多主题皮肤 · V2.69 习惯养成模式 · V2.70 设备间本地迁移 · V2.71 分享任务组模板 · V2.72/73/74/75 语音/ASR/NLU 真机与端侧模型（部分需破红线评估）
+
+### 🧪 质量门禁
+- `./gradlew :app:assembleDebug :app:lintRelease :app:assembleDebugAndroidTest :app:testDebugUnitTest` 全绿；Room schema 6.json 已导出提交；红线守住（零新依赖 / 中文全抽离 `strings.xml` / Room 显式 Migration 1→6 无 `fallbackToDestructiveMigration` / `.workbuddy/` 不提交）。
+
+---
+
 ## v2.5.2（2026-07-25）· 复查修复（全天/随时任务实例 + 迁移自包含 + 导入事务嵌套读 + WebSocket 资源）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
