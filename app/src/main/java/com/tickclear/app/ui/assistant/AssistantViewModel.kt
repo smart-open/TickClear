@@ -117,7 +117,13 @@ class AssistantViewModel @Inject constructor(
     private var seq = 0L
     private fun nextId() = ++seq
 
+    /** 语音历史开关缓存：避免每条消息都读一次 DataStore（V2.65 优化）。 */
+    private val voiceHistoryOn = MutableStateFlow(false)
+
     init {
+        viewModelScope.launch {
+            settingsRepository.voiceHistoryEnabled.collect { voiceHistoryOn.value = it }
+        }
         viewModelScope.launch {
             transport.events.collect { onEvent(it) }
         }
@@ -363,6 +369,10 @@ class AssistantViewModel @Inject constructor(
                 ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_reconnecting, ev.attempt, ev.max)),
             )
             is XiaozhiEvent.Disconnected -> _connected.value = false
+            is XiaozhiEvent.Error -> {
+                _connected.value = false
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_connect_error, ev.detail)))
+            }
             is XiaozhiEvent.SttText -> Unit // 用户输入已在 sendText 体现
             is XiaozhiEvent.TtsText -> Unit // 界面无需展示 TTS
             is XiaozhiEvent.LlmText -> append(ChatMessage(nextId(), "assistant", ev.text))
@@ -480,17 +490,17 @@ class AssistantViewModel @Inject constructor(
      */
     private fun recordVoiceHistory(msg: ChatMessage) {
         if (msg.role != "user" && msg.role != "assistant") return
+        // 复用缓存开关，避免每条消息都触发一次 DataStore 读取（最多 100 条/会话）。
+        if (!voiceHistoryOn.value) return
         viewModelScope.launch {
             runCatching {
-                if (settingsRepository.voiceHistoryEnabled.first()) {
-                    voiceHistoryRepository.insert(
-                        VoiceHistoryEntity(
-                            createdAt = System.currentTimeMillis(),
-                            role = msg.role,
-                            text = msg.text,
-                        ),
-                    )
-                }
+                voiceHistoryRepository.insert(
+                    VoiceHistoryEntity(
+                        createdAt = System.currentTimeMillis(),
+                        role = msg.role,
+                        text = msg.text,
+                    ),
+                )
             }
         }
     }

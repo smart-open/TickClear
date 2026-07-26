@@ -121,6 +121,8 @@ class LocalSpeechRecognizer(private val context: Context) {
     /** 停止并释放识别器。 */
     fun stop() {
         running = false
+        onPartial = null
+        onFinal = null
         mainHandler.post {
             recognizer?.destroy()
             recognizer = null

@@ -538,6 +538,7 @@
     <string name="err_task_not_found">任务不存在或已删除</string>
     <string name="err_assistant_not_configured">助手尚未配置网关或令牌</string>
     <string name="err_assistant_connect">助手连接失败，请检查网络</string>
+    <string name="assistant_connect_error">连接失败：%1$s</string>
 
     <string name="a11y_task_item">任务：%1$s，点击编辑</string>
     <string name="a11y_group_header">任务组：%1$s，点击编辑</string>

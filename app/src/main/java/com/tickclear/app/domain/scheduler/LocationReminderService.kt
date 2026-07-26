@@ -27,9 +27,12 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * 位置提醒前台服务（V2.13）：以主动轮询 [LocationManager] 替代系统 [LocationManager.addProximityAlert]，
@@ -50,6 +53,8 @@ class LocationReminderService : Service() {
     private var listener: LocationListener? = null
     private val inside = mutableSetOf<String>()
     private var geoTasks: List<Task> = emptyList()
+    // 服务作用域：查询在 IO 线程执行，避免 onStartCommand（主线程）被 runBlocking 阻塞引发 ANR。
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -58,20 +63,22 @@ class LocationReminderService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIF_ID, buildNotification())
-        loadTasks()
-        if (geoTasks.isEmpty()) {
-            stopSelf()
-            return START_NOT_STICKY
+        serviceScope.launch {
+            loadTasks()
+            if (geoTasks.isEmpty()) {
+                stopSelf()
+            } else {
+                startPolling()
+            }
         }
-        startPolling()
         // 进程被回收后重建：若仍有位置提醒任务则系统重启服务（START_STICKY）。
         return START_STICKY
     }
 
-    private fun loadTasks() {
+    private suspend fun loadTasks() {
         val ep = EntryPointAccessors.fromApplication(this, LocationReminderEntryPoint::class.java)
         geoTasks = runCatching {
-            runBlocking(Dispatchers.IO) { ep.taskRepository().observeAll().first() }
+            ep.taskRepository().observeAll().first()
         }.getOrDefault(emptyList())
             .filter { it.isEnabled() && it.geoLat != null && it.geoLng != null && it.geoRadius != null }
     }
@@ -154,6 +161,7 @@ class LocationReminderService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceScope.cancel()
         runCatching { listener?.let { locationManager.removeUpdates(it) } }
         handlerThread?.quitSafely()
         handlerThread = null

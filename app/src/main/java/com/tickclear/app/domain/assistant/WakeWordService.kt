@@ -47,6 +47,8 @@ class WakeWordService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 防御性确保静音通知渠道存在（正常流程 Application.onCreate 已建，这里兜底防重构遗漏导致 startForeground 崩溃）。
+        NotificationHelper.createChannels(this)
         startForeground(NOTIF_ID, buildNotification())
         // 无录音权限则无法监听，直接停止（设置页会引导授权）。
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -55,18 +57,19 @@ class WakeWordService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!running) startListening()
-        return START_STICKY
+        val started = if (!running) startListening() else true
+        return if (started) START_STICKY else START_NOT_STICKY
     }
 
-    private fun startListening() {
+    /** 启动持续监听；识别器不可用时返回 false（调用方据此返回 START_NOT_STICKY，避免系统重启空服务）。 */
+    private fun startListening(): Boolean {
         val settings = EntryPointAccessors
             .fromApplication(this, WakeWordEntryPoint::class.java)
             .settingsRepository()
         val mgr = WakeWordManager(applicationContext, settings)
         if (!mgr.isAvailable) {
             stopSelf()
-            return
+            return false
         }
         manager = mgr
         running = true
@@ -74,6 +77,7 @@ class WakeWordService : Service() {
             // 命中即触发助手；WakeWordManager 单次触发后自停，这里重新拉起持续监听。
             mgr.start { onWake() }
         }
+        return true
     }
 
     private fun onWake() {

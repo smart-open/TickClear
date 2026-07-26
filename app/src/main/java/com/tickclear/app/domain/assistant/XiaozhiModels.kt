@@ -29,5 +29,8 @@ sealed interface XiaozhiEvent {
     /** V2.17：连接意外断开后正在自动重连（第 attempt/max 次，指数退避）。 */
     data class Reconnecting(val attempt: Int, val max: Int) : XiaozhiEvent
 
+    /** 连接建立失败（如端点非法 / 建连异常）：用于 UI 回显，不触发重连（P0）。 */
+    data class Error(val detail: String) : XiaozhiEvent
+
     data object Disconnected : XiaozhiEvent
 }

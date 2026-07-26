@@ -106,7 +106,8 @@ fun HabitsScreen(
             text = { Text(stringResource(R.string.habits_delete_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.deleteHabit(pendingDelete!!.habit.id)
+                    val habit = pendingDelete ?: return@TextButton
+                    viewModel.deleteHabit(habit.habit.id)
                     pendingDelete = null
                 }) { Text(stringResource(R.string.action_delete)) }
             },

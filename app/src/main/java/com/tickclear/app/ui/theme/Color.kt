@@ -185,10 +185,10 @@ private fun buildSkinScheme(seeds: SkinSeeds, dark: Boolean): ColorScheme {
 /** 解析某皮肤在指定明暗下的 ColorScheme；BLUE 直接复用既有方案以保证零回归。 */
 fun skinScheme(skin: ThemeSkin, dark: Boolean): ColorScheme {
     if (skin == ThemeSkin.BLUE) return if (dark) DarkColorScheme else LightColorScheme
-    val seeds = SKIN_SEEDS[skin] ?: SKIN_SEEDS[ThemeSkin.BLUE]!!
+    val seeds = SKIN_SEEDS[skin] ?: SKIN_SEEDS.getValue(ThemeSkin.BLUE)
     return buildSkinScheme(seeds, dark)
 }
 
 /** 设置页皮肤选择器用的预览主色。 */
 fun skinPreviewColor(skin: ThemeSkin): Color =
-    (SKIN_SEEDS[skin] ?: SKIN_SEEDS[ThemeSkin.BLUE]!!).primary
+    (SKIN_SEEDS[skin] ?: SKIN_SEEDS.getValue(ThemeSkin.BLUE)).primary

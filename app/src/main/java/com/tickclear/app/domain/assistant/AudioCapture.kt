@@ -44,7 +44,16 @@ class AudioCapture {
 
         record = rec
         running = true
-        rec.startRecording()
+        // startRecording 可能抛异常（部分设备状态异常）；失败须释放并复位，否则 record/running 残留导致 AudioRecord 泄漏。
+        try {
+            rec.startRecording()
+        } catch (e: Exception) {
+            AppLogger.w("AudioCapture", "startRecording failed", e)
+            running = false
+            rec.release()
+            record = null
+            return false
+        }
 
         val frameSize = sampleRate * 60 / 1000 * 2 // 1920 字节
         val readBuf = ByteArray(minBuf)
@@ -119,7 +128,15 @@ class AudioCapture {
 
         record = rec
         running = true
-        rec.startRecording()
+        try {
+            rec.startRecording()
+        } catch (e: Exception) {
+            AppLogger.w("AudioCapture", "startRecording failed", e)
+            running = false
+            rec.release()
+            record = null
+            return false
+        }
 
         val readBuf = ByteArray(minBuf)
         thread = Thread({

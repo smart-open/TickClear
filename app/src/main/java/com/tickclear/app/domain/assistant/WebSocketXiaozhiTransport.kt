@@ -95,14 +95,28 @@ class WebSocketXiaozhiTransport(
      */
     private suspend fun openSocket() {
         if (ws != null) return // 已有连接，避免重复建连（与 connect 重建作用域配合消除竞态）
-        pendingToken = settings.getAssistantToken()
-        val endpoint = settings.assistantEndpoint.first().ifEmpty { "wss://api.xiaozhi.me/ws" }
-        val builder = Request.Builder().url(endpoint)
-        pendingToken?.takeIf { it.isNotBlank() }?.let {
-            builder.addHeader("Authorization", "Bearer $it")
+        // P0：端点非法 / 建连异常必须捕获 —— 否则异常冒泡出 connect() 协程导致崩溃，
+        // 且原实现先置 connected=true 再建连，异常后 connected 卡死使后续 connect() 永远早退。
+        val request = try {
+            pendingToken = settings.getAssistantToken()
+            val endpoint = settings.assistantEndpoint.first().ifEmpty { "wss://api.xiaozhi.me/ws" }
+            Request.Builder().url(endpoint).apply {
+                pendingToken?.takeIf { it.isNotBlank() }?.let { addHeader("Authorization", "Bearer $it") }
+            }.build()
+        } catch (e: Exception) {
+            connected = false
+            ws = null
+            _events.tryEmit(XiaozhiEvent.Error(e.message ?: "unknown"))
+            return
         }
-        connected = true
-        ws = client.newWebSocket(builder.build(), listener)
+        try {
+            ws = client.newWebSocket(request, listener)
+            connected = true
+        } catch (e: Exception) {
+            connected = false
+            ws = null
+            _events.tryEmit(XiaozhiEvent.Error(e.message ?: "unknown"))
+        }
     }
 
     /** 意外断线处理：未超上限则退避重连，否则最终失联。 */
