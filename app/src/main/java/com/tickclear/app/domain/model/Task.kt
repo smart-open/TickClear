@@ -31,6 +31,7 @@ data class Task(
     val reminderLevel: String = "mid", // high/mid/low
     val reminderOffsetMin: Int? = null,
     val source: String = "manual", // manual/voice/llm/xiaozhi
+    val tags: List<String> = emptyList(), // V2.67 标签列表（领域侧用 List，持久化边界转 CSV）
     val geoLat: Double? = null,
     val geoLng: Double? = null,
     val geoRadius: Int? = null,

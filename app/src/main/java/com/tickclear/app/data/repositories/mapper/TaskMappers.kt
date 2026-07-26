@@ -32,6 +32,7 @@ fun TaskEntity.toDomain(): Task = Task(
     reminderLevel = reminderLevel,
     reminderOffsetMin = reminderOffsetMin,
     source = source,
+    tags = tags.toTagList(),
     geoLat = geoLat,
     geoLng = geoLng,
     geoRadius = geoRadius,
@@ -40,6 +41,14 @@ fun TaskEntity.toDomain(): Task = Task(
     completedAt = completedAt,
     deletedAt = deletedAt,
 )
+
+/** CSV 标签串 → 去空去重列表（读取边界）。 */
+internal fun String.toTagList(): List<String> =
+    split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+/** 标签列表 → CSV（写入边界，去空去重）。 */
+internal fun List<String>.toTagCsv(): String =
+    map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString(",")
 
 /** 领域模型 [Task] → TaskEntity（仓库写入边界）。 */
 fun Task.toEntity(): TaskEntity = TaskEntity(
@@ -63,6 +72,7 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     reminderLevel = reminderLevel,
     reminderOffsetMin = reminderOffsetMin,
     source = source,
+    tags = tags.toTagCsv(),
     geoLat = geoLat,
     geoLng = geoLng,
     geoRadius = geoRadius,

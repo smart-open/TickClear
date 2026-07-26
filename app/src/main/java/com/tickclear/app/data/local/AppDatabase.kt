@@ -32,7 +32,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         CheckInEntity::class,
         VoiceHistoryEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -111,9 +111,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v6 → v7：为 task 新增 tags 列（V2.67 任务标签，CSV 存储）。 */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE task ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         /** 全部显式迁移，供仪器化契约测试（MigrationTestHelper）引用，无需新增依赖。 */
         internal val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
         fun create(context: Context, passphrase: String): AppDatabase {
             // L2：sqlcipher-android 需在打开数据库前显式加载 native 库（该 artifact 不自动加载）。
@@ -130,7 +137,7 @@ abstract class AppDatabase : RoomDatabase() {
                 // 刻意不启用 fallbackToDestructiveMigration：版本升级且缺显式 Migration 时，
                 // Room 会显式抛异常（而非静默清空用户数据）。上线前必须在此追加 addMigrations(...)，
                 // 严禁在未提供 Migration 的情况下 bump schema version。
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
         }
     }

@@ -37,6 +37,7 @@ data class TaskEntity(
     @ColumnInfo(defaultValue = "mid") val reminderLevel: String = "mid", // high/mid/low
     @ColumnInfo(defaultValue = "0") val reminderOffsetMin: Int? = null, // 提前 N 分钟提醒（null/0=准时；>0 提前）
     @ColumnInfo(defaultValue = "manual") val source: String = "manual", // manual/voice/llm/xiaozhi
+    @ColumnInfo(defaultValue = "") val tags: String = "", // V2.67 标签 CSV，如 "工作,健康"
     // ── 位置提醒（地理围栏；nullable 表示该任务无位置触发）──
     val geoLat: Double? = null,  // 纬度
     val geoLng: Double? = null,  // 经度

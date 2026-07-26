@@ -29,9 +29,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TasksUiState(
-    val tasks: List<Task> = emptyList(),     // 仅启用（未软删）任务
+    val tasks: List<Task> = emptyList(),     // 按标签筛选后的启用（未软删）任务
     val groups: List<TaskGroup> = emptyList(), // 仅启用任务组
     val pendingDelete: Task? = null,
+    val allTags: List<String> = emptyList(),   // V2.67 全部在用标签（并集，用于筛选 chips）
+    val selectedTags: Set<String> = emptySet(), // V2.67 当前选中的筛选标签（空=不筛选）
 )
 
 @HiltViewModel
@@ -52,18 +54,40 @@ class TasksViewModel @Inject constructor(
     @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
     private val pendingDelete = MutableStateFlow<Task?>(null)
+    private val selectedTags = MutableStateFlow<Set<String>>(emptySet())
 
     val uiState: StateFlow<TasksUiState> = combine(
         taskRepository.observeAll(),
         groupRepository.observeActive(),
         pendingDelete,
-    ) { tasks, groups, pending ->
-        TasksUiState(tasks = tasks, groups = groups, pendingDelete = pending)
+        selectedTags,
+    ) { tasks, groups, pending, selTags ->
+        // allTags 取自全量任务（未筛选），保证 chips 不因筛选而消失。
+        val allTags = tasks.flatMap { it.tags }.distinct().sorted()
+        // 多选按「任一命中」（并集）过滤；无效标签（已不存在）自动被忽略。
+        val filtered = if (selTags.isEmpty()) tasks else tasks.filter { t -> t.tags.any { it in selTags } }
+        TasksUiState(
+            tasks = filtered,
+            groups = groups,
+            pendingDelete = pending,
+            allTags = allTags,
+            selectedTags = selTags,
+        )
     }.stateIn(
         viewModelScope,
         kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
         TasksUiState(),
     )
+
+    /** 切换某标签的筛选选中状态。 */
+    fun toggleTagFilter(tag: String) {
+        selectedTags.value = selectedTags.value.let { if (tag in it) it - tag else it + tag }
+    }
+
+    /** 清空标签筛选。 */
+    fun clearTagFilter() {
+        selectedTags.value = emptySet()
+    }
 
     fun deleteTask(id: String) {
         viewModelScope.launch {

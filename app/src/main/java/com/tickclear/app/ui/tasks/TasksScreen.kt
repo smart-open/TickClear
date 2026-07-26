@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -156,8 +158,63 @@ fun TasksScreen(
             }
         },
     ) { innerPadding ->
-        if (isWide) {
-            Row(Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(Modifier.fillMaxSize().padding(innerPadding)) {
+            // V2.67 标签筛选条：仅在存在标签时显示
+            if (state.allTags.isNotEmpty()) {
+                TagFilterRow(
+                    allTags = state.allTags,
+                    selected = state.selectedTags,
+                    onToggle = { viewModel.toggleTagFilter(it) },
+                    onClear = { viewModel.clearTagFilter() },
+                )
+            }
+            if (isWide) {
+                Row(Modifier.fillMaxSize()) {
+                    TasksList(
+                        state = state,
+                        onTaskClick = onTaskClick,
+                        onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
+                        onGroupDelete = { groupToDeleteId = it.id },
+                        onGroupPause = { viewModel.pauseGroup(it.id) },
+                        onGroupResume = { viewModel.resumeGroup(it.id) },
+                        onDeleteTask = { viewModel.deleteTask(it) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = Spacing.sm),
+                    )
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                    ) {
+                        val selected = state.tasks.find { it.id == selectedTaskId }
+                        if (selectedTaskId == null) {
+                            Box(Modifier.fillMaxSize().padding(Spacing.xl), contentAlignment = Alignment.Center) {
+                                Text(
+                                    stringResource(R.string.tasks_dual_pane_hint),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            key(selectedTaskId) {
+                                TaskEditContent(
+                                    groups = state.groups,
+                                    initial = selected,
+                                    onDismiss = { selectedTaskId = null },
+                                    onSave = { task -> viewModel.saveTask(task).also { selectedTaskId = null } },
+                                    knownTags = state.allTags,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
                 TasksList(
                     state = state,
                     onTaskClick = onTaskClick,
@@ -166,54 +223,9 @@ fun TasksScreen(
                     onGroupPause = { viewModel.pauseGroup(it.id) },
                     onGroupResume = { viewModel.resumeGroup(it.id) },
                     onDeleteTask = { viewModel.deleteTask(it) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(horizontal = Spacing.sm),
+                    modifier = Modifier.fillMaxSize(),
                 )
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                ) {
-                    val selected = state.tasks.find { it.id == selectedTaskId }
-                    if (selectedTaskId == null) {
-                        Box(Modifier.fillMaxSize().padding(Spacing.xl), contentAlignment = Alignment.Center) {
-                            Text(
-                                stringResource(R.string.tasks_dual_pane_hint),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    } else {
-                        key(selectedTaskId) {
-                            TaskEditContent(
-                                groups = state.groups,
-                                initial = selected,
-                                onDismiss = { selectedTaskId = null },
-                                onSave = { task -> viewModel.saveTask(task).also { selectedTaskId = null } },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                            )
-                        }
-                    }
-                }
             }
-        } else {
-            TasksList(
-                state = state,
-                onTaskClick = onTaskClick,
-                onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
-                onGroupDelete = { groupToDeleteId = it.id },
-                onGroupPause = { viewModel.pauseGroup(it.id) },
-                onGroupResume = { viewModel.resumeGroup(it.id) },
-                onDeleteTask = { viewModel.deleteTask(it) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
         }
     }
 
@@ -223,6 +235,7 @@ fun TasksScreen(
             initial = editingTask,
             onDismiss = { showEditor = false },
             onSave = { viewModel.saveTask(it) },
+            knownTags = state.allTags,
         )
     }
 
@@ -249,6 +262,37 @@ fun TasksScreen(
                 TextButton(onClick = { groupToDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
+    }
+}
+
+@Composable
+private fun TagFilterRow(
+    allTags: List<String>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (selected.isNotEmpty()) {
+            item(key = "__tag_filter_clear__") {
+                FilterChip(
+                    selected = false,
+                    onClick = onClear,
+                    label = { Text(stringResource(R.string.tasks_filter_clear)) },
+                )
+            }
+        }
+        items(allTags, key = { it }) { tag ->
+            FilterChip(
+                selected = tag in selected,
+                onClick = { onToggle(tag) },
+                label = { Text(tag) },
+            )
+        }
     }
 }
 
@@ -444,6 +488,13 @@ private fun TaskRow(
                                 stringResource(R.string.task_paused),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
+                        if (task.tags.isNotEmpty()) {
+                            Text(
+                                text = task.tags.joinToString(" ") { "#$it" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }

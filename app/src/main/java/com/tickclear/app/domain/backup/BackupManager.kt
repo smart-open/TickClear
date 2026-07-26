@@ -230,6 +230,7 @@ class BackupManager @Inject constructor(
         put("geoLng", t.geoLng ?: JSONObject.NULL)
         put("geoRadius", t.geoRadius ?: JSONObject.NULL)
         put("source", t.source); put("createdAt", t.createdAt); put("updatedAt", t.updatedAt)
+        put("tags", JSONArray().apply { t.tags.forEach { put(it) } })
         put("completedAt", t.completedAt ?: JSONObject.NULL)
         put("deletedAt", t.deletedAt ?: JSONObject.NULL)
     }
@@ -291,6 +292,9 @@ class BackupManager @Inject constructor(
         reminderLevel = o.optString("reminderLevel", "mid"),
         reminderOffsetMin = o.optIntOrNull("reminderOffsetMin"),
         source = o.optString("source", "manual"),
+        tags = o.optJSONArray("tags")?.let { arr ->
+            (0 until arr.length()).mapNotNull { arr.optString(it, null)?.trim()?.takeIf(String::isNotEmpty) }.distinct()
+        } ?: emptyList(),
         createdAt = o.optLong("createdAt", System.currentTimeMillis()),
         updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
         completedAt = o.optLongOrNull("completedAt"),

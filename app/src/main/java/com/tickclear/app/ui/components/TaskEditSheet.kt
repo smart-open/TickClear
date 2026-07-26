@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +25,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +103,7 @@ fun TaskEditSheet(
     initial: Task?,
     onDismiss: () -> Unit,
     onSave: suspend (Task) -> List<Task>,
+    knownTags: List<String> = emptyList(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -111,6 +115,7 @@ fun TaskEditSheet(
             initial = initial,
             onDismiss = onDismiss,
             onSave = onSave,
+            knownTags = knownTags,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Spacing.lg, vertical = Spacing.md),
@@ -133,11 +138,13 @@ fun TaskEditContent(
     onDismiss: () -> Unit,
     onSave: suspend (Task) -> List<Task>,
     modifier: Modifier = Modifier,
+    knownTags: List<String> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
 
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var notes by remember { mutableStateOf(initial?.notes ?: "") }
+    var tagsText by remember { mutableStateOf(initial?.tags?.joinToString(", ") ?: "") }
     var groupId by remember { mutableStateOf(initial?.groupId) }
     var allDay by remember { mutableStateOf(initial?.allDay ?: false) }
     var startMin by remember { mutableIntStateOf(initial?.scheduledStartMin ?: (9 * 60)) }
@@ -216,6 +223,36 @@ fun TaskEditContent(
             label = { Text(stringResource(R.string.task_note_hint)) },
             modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
         )
+
+        // V2.67 标签：逗号分隔文本 + 已有标签快捷 chips（点选切换）
+        OutlinedTextField(
+            value = tagsText,
+            onValueChange = { tagsText = it },
+            label = { Text(stringResource(R.string.task_tags_hint)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+        )
+        if (knownTags.isNotEmpty()) {
+            val currentTags = tagsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+            ) {
+                items(knownTags) { tag ->
+                    val selected = tag in currentTags
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            val next = currentTags.toMutableList()
+                            if (selected) next.remove(tag) else next.add(tag)
+                            tagsText = next.joinToString(", ")
+                        },
+                        label = { Text(tag) },
+                    )
+                }
+            }
+        }
 
         // 任务组
         DropdownField(
@@ -455,11 +492,13 @@ fun TaskEditContent(
                 val geoLat = if (locationEnabled) geoLatText.toDoubleOrNull() else null
                 val geoLng = if (locationEnabled) geoLngText.toDoubleOrNull() else null
                 val geoRadius = if (locationEnabled) geoRadiusText.toIntOrNull() ?: 100 else null
+                val tags = tagsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
                 val task = buildTask(
                     initial = initial,
                     title = title,
                     defaultTitle = defaultTaskTitle,
                     notes = notes,
+                    tags = tags,
                     groupId = groupId,
                     allDay = allDay,
                     startMin = startMin,
@@ -551,6 +590,7 @@ private fun buildTask(
     title: String,
     defaultTitle: String,
     notes: String,
+    tags: List<String>,
     groupId: String?,
     allDay: Boolean,
     startMin: Int,
@@ -600,6 +640,7 @@ private fun buildTask(
         reminderLevel = reminderLevel,
         reminderOffsetMin = if (reminderEnabled) reminderOffset else null,
         source = initial?.source ?: "manual",
+        tags = tags,
         geoLat = if (geoLat != null && geoLng != null) geoLat else null,
         geoLng = if (geoLat != null && geoLng != null) geoLng else null,
         geoRadius = if (geoLat != null && geoLng != null) geoRadius else null,
