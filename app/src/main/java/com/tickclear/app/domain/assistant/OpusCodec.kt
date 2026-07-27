@@ -32,6 +32,10 @@ class OpusCodec {
     private var encoderProbed: Boolean? = null
     private var decoderProbed: Boolean? = null
 
+    /** 解码目标采样率（由服务端 audio_params / tts-start 动态设定，默认 16000）。 */
+    @Volatile var preferredDecodeRate: Int = 16000
+    private var decoderRate: Int = -1
+
     private fun encFormat(): MediaFormat =
         MediaFormat.createAudioFormat(mime, sampleRate, channels).apply {
             setInteger(MediaFormat.KEY_BIT_RATE, 24_000)
@@ -39,8 +43,8 @@ class OpusCodec {
         }
 
     private fun decFormat(): MediaFormat =
-        MediaFormat.createAudioFormat(mime, sampleRate, channels).apply {
-            setByteBuffer("csd-0", buildOpusHead())
+        MediaFormat.createAudioFormat(mime, preferredDecodeRate, channels).apply {
+            setByteBuffer("csd-0", buildOpusHead(preferredDecodeRate))
         }
 
     /** 设备是否提供 Opus 编码器（决定是否启用语音输入）。结果缓存避免逐帧重探。 */
@@ -127,24 +131,30 @@ class OpusCodec {
     }
 
     private fun ensureDecoder(): MediaCodec? {
-        decoder?.let { return it }
+        decoder?.let { if (decoderRate == preferredDecodeRate) return it }
+        // 采样率变化：旧解码器输出 PCM 速率不匹配，必须释放重建（codec 配置不可热改）。
+        if (decoder != null) {
+            runCatching { decoder?.release() }
+            decoder = null
+            decoderRate = -1
+        }
         if (!isDecoderAvailable()) return null
         val name = MediaCodecList(MediaCodecList.ALL_CODECS).findDecoderForFormat(decFormat()) ?: return null
         return MediaCodec.createByCodecName(name).apply {
             configure(decFormat(), null, null, 0)
             start()
-        }.also { decoder = it }
+        }.also { decoder = it; decoderRate = preferredDecodeRate }
     }
 
     /** 构造最小 OpusHead（csd-0）：magic(8) ver(1) ch(1) preskip(2) rate(4) gain(2) map(1)。 */
-    private fun buildOpusHead(): ByteBuffer =
+    private fun buildOpusHead(rate: Int): ByteBuffer =
         ByteBuffer.allocate(19).apply {
             order(java.nio.ByteOrder.LITTLE_ENDIAN)
             put("OpusHead".toByteArray(Charsets.US_ASCII))
             put(1)                 // version
             put(channels.toByte()) // channels
             putShort(0)            // pre-skip
-            putInt(sampleRate)     // sample rate
+            putInt(rate)           // sample rate
             putShort(0)            // gain
             put(0)                 // channel mapping family
             rewind()
@@ -162,6 +172,7 @@ class OpusCodec {
             runCatching { decoder?.release() }
             decoder = null
             decoderProbed = null
+            decoderRate = -1
         }
     }
 }

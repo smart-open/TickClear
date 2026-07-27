@@ -8,9 +8,10 @@ import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.domain.model.TaskStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,8 +45,11 @@ class GetTodayTasksUseCase @Inject constructor(
                 val today = LocalDate.now()
                 // 懒生成当日实例（幂等），复用已在流中持有的 allTasks，避免二次全量查询（L4 性能）
                 instanceRepository.ensureInstancesForDate(today, allTasks)
-                val instances = instanceRepository.observeOn(today).first()
-
+                // ⚠️ 必须持续订阅实例表（emitAll），不能 .first() 快照：
+                // 完成重复任务只写 task_instance/completion_log、不改 task 表，
+                // 快照模式下外层 observeAll 不会重发 → 勾选复选框 UI 无任何反馈（问题5根因）。
+                emitAll(instanceRepository.observeOn(today))
+            }.map { instances ->
                 val taskMap = allTasks.associateBy { it.id }
                 val items = instances.mapNotNull { inst ->
                     val task = taskMap[inst.taskId] ?: return@mapNotNull null
@@ -72,13 +76,11 @@ class GetTodayTasksUseCase @Inject constructor(
                 }
                 val conflictIds = conflictChecker.findConflictIds(windows)
 
-                emit(
-                    TodayTasks(
-                        items = items,
-                        conflictIds = conflictIds,
-                        total = items.size,
-                        done = items.count { it.done },
-                    ),
+                TodayTasks(
+                    items = items,
+                    conflictIds = conflictIds,
+                    total = items.size,
+                    done = items.count { it.done },
                 )
             }
         }

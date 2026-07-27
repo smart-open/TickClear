@@ -145,7 +145,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), "MOCK",
     )
     val assistantEndpoint: StateFlow<String> = settingsRepository.assistantEndpoint.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), "wss://api.xiaozhi.me/ws",
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "wss://api.tenclass.net/xiaozhi/v1/",
     )
     val assistantPrompt: StateFlow<String> = settingsRepository.assistantPrompt.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), "",
@@ -254,6 +254,15 @@ class SettingsViewModel @Inject constructor(
     fun setAliyunAccessKeySecret(v: String) = viewModelScope.launch { settingsRepository.setAliyunAccessKeySecret(v) }
     suspend fun getAliyunAppKey(): String? = settingsRepository.getAliyunAppKey()
     fun setAliyunAppKey(v: String) = viewModelScope.launch { settingsRepository.setAliyunAppKey(v) }
+
+    // ── V2.8 小智 ESP32 设备模拟：UI 层不直接持有 Repository，经 VM 中转调用模拟器。──
+    /** 确保设备标识已生成并持久化（幂等）。@return Pair(Device-Id, Client-Id) */
+    suspend fun ensureXzDeviceIdentity(): Pair<String, String> =
+        com.tickclear.app.domain.assistant.XiaozhiDeviceSimulator.ensureDeviceIdentity(appContext, settingsRepository)
+
+    /** 重新生成设备标识（换一台「虚拟设备」，原绑定作废）。 */
+    suspend fun regenerateXzDeviceIdentity(): Pair<String, String> =
+        com.tickclear.app.domain.assistant.XiaozhiDeviceSimulator.regenerateDeviceIdentity(appContext, settingsRepository)
 
     // ── 唤醒词 ──
     fun setWakeWordEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setWakeWordEnabled(enabled) }

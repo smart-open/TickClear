@@ -64,10 +64,20 @@ fun TickClearApp(
             onStartActionConsumed()
         }
         val onNavigate: (String) -> Unit = { route ->
-            navController.navigate(route) {
-                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
+            if (route == Routes.TODAY) {
+                // 回「今日」（start destination）：直接弹回栈底，绕开
+                // navigate(start) + popUpTo(start){saveState} + restoreState 组合在
+                // start destination 上的 no-op 问题（从助手页点「今日」tab 无法切换）。
+                val popped = navController.popBackStack(navController.graph.startDestinationId, false)
+                if (!popped) {
+                    navController.navigate(route) { launchSingleTop = true }
+                }
+            } else {
+                navController.navigate(route) {
+                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
             }
         }
 
@@ -146,14 +156,20 @@ private fun AppNavHost(
                 },
             )
         }
-        composable(Routes.ASSISTANT) { AssistantScreen(isWide = isWide, onBack = { navController.navigate(Routes.TODAY) }) }
+        composable(Routes.ASSISTANT) {
+            AssistantScreen(
+                isWide = isWide,
+                // 回「今日」用 popBackStack 弹回栈底，避免 navigate(TODAY) 堆叠重复 entry 导致脏栈。
+                onBack = { navController.popBackStack(navController.graph.startDestinationId, false) },
+            )
+        }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
                 onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
                 onNavigateToDebug = { navController.navigate(Routes.DEBUG) },
                 onNavigateToVoiceHistory = { navController.navigate(Routes.VOICE_HISTORY) },
-                onBack = { navController.navigate(Routes.TODAY) },
+                onBack = { navController.popBackStack(navController.graph.startDestinationId, false) },
                 isWide = isWide,
             )
         }

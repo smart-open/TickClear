@@ -166,14 +166,25 @@ fun TaskEditContent(
     // 后台定位：Android 10+（API 29+）地理围栏后台触发需「始终允许」；低版本随 fine 隐式授予。
     val backgroundLocationPermission = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     val context = LocalContext.current
-    // V2.12/V2.14：高优先级提醒前置权限引导（跳系统设置，复用 V2.11 同款 Intent）。
+    // V2.12/V2.14：高优先级提醒前置权限引导（跳系统设置）。
+    // ⚠️ 这两个 Action 规范要求用 data URI（package:包名）定位应用，用 EXTRA_APP_PACKAGE
+    // 多数 ROM 直接启动失败且被 runCatching 吞掉 → 表现为「去开启」点了没反应（问题4根因）。
+    // 失败时兜底跳应用详情页。
     val openFullScreenPermission: () -> Unit = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             runCatching {
                 context.startActivity(
-                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    },
+                    Intent(
+                        Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }.recoverCatching {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
                 )
             }
         }
@@ -182,9 +193,17 @@ fun TaskEditContent(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching {
                 context.startActivity(
-                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    },
+                    Intent(
+                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }.recoverCatching {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
                 )
             }
         }

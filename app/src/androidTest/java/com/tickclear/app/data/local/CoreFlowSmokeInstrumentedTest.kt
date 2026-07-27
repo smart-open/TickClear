@@ -31,7 +31,7 @@ import java.time.format.DateTimeFormatter
  *
  * 不引入任何新依赖（复用已声明的 androidx.room / androidx.junit / sqlcipher）。
  * 该测试是 V2.47「核心流程冒烟」在模拟器通道的可自动化部分；人工真机走查仍结转
- * （见 docs/开发计划_v2.5_任务清单.md、docs/测试与验收清单.md）。
+ * （见 docs/成熟度评估.md、docs/测试与验收清单.md）。
  */
 @RunWith(AndroidJUnit4::class)
 class CoreFlowSmokeInstrumentedTest {

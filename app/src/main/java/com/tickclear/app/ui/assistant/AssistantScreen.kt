@@ -8,12 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -143,9 +142,17 @@ fun AssistantScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示。
             TopAppBar(
                 modifier = Modifier.height(48.dp),
-                title = { Text(stringResource(R.string.assistant_screen_title)) },
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(stringResource(R.string.assistant_screen_title))
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
@@ -186,7 +193,7 @@ fun AssistantScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val micDesc = when {
@@ -214,14 +221,27 @@ fun AssistantScreen(
                         tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                // V2.8X：去除固定 height(36.dp) —— 与 OutlinedTextField 内边距冲突，文字被压缩至不可见。
+                // 默认高度 56dp 内容垂直居中，placeholder 用 onSurfaceVariant 颜色确保可见。
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.assistant_input_placeholder)) },
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.assistant_input_placeholder),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { submit(input, viewModel) { input = it } }),
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    ),
                 )
                 IconButton(onClick = { submit(input, viewModel) { input = it } }) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send))
@@ -248,11 +268,10 @@ fun AssistantScreen(
                         .width(1.dp),
                 )
                 Column(
+                    // 滚动交由 AssistantConfigContent 内部处理，外层不再嵌套同向 verticalScroll
                     modifier = Modifier
                         .widthIn(max = 440.dp)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        .fillMaxHeight(),
                 ) {
                     AssistantConfigContent(settingsViewModel = settingsVm, onDismiss = {})
                 }

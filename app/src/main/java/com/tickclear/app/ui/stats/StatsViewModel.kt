@@ -124,12 +124,14 @@ class StatsViewModel @Inject constructor(
         val today = LocalDate.now()
         val fmt = DateTimeFormatter.ISO_LOCAL_DATE
         return when (period) {
+            // V2.8X：日柱底部坐标只显「日」（1~30），不再用 M/d 让 7 月每天都被「7」开头遮蔽。
             StatsPeriod.DAY -> (0 until 30).map { i ->
                 val d = today.minusDays(i.toLong())
                 val key = d.format(fmt)
-                TrendBucket("${d.monthValue}/${d.dayOfMonth}", completions[key] ?: 0)
+                TrendBucket("${d.dayOfMonth}", completions[key] ?: 0)
             }.reversed()
 
+            // 周柱：起点日期用「M-d」更易读（一个月内仍可能撞月）。
             StatsPeriod.WEEK -> (0 until 12).map { i ->
                 val ref = today.minusDays(i.toLong() * 7)
                 val weekStart = ref.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -137,9 +139,10 @@ class StatsViewModel @Inject constructor(
                 for (k in 0..6) {
                     sum += completions[weekStart.plusDays(k.toLong()).format(fmt)] ?: 0
                 }
-                TrendBucket("${weekStart.monthValue}/${weekStart.dayOfMonth}", sum)
+                TrendBucket("${weekStart.monthValue}-${weekStart.dayOfMonth}", sum)
             }.reversed()
 
+            // 月柱：保持「X月」，由 TrendBars 渲染。
             StatsPeriod.MONTH -> (0 until 6).map { i ->
                 val d = today.minusMonths(i.toLong())
                 val key = "${d.year}-${String.format(Locale.ROOT, "%02d", d.monthValue)}"

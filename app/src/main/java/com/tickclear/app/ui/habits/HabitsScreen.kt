@@ -1,24 +1,33 @@
 package com.tickclear.app.ui.habits
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,8 +46,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -55,7 +66,19 @@ fun HabitsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(modifier = Modifier.height(48.dp), title = { Text(stringResource(R.string.habits_title)) })
+            // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示，
+            // 避免「设置/习惯/统计/任务」等 Tab 标题贴顶。
+            TopAppBar(
+                modifier = Modifier.height(48.dp),
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(stringResource(R.string.habits_title))
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -129,59 +152,97 @@ private fun HabitCard(
     onDelete: () -> Unit,
 ) {
     val habit = item.habit
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // V2.8X：卡片高度减少约 1/3（80→48dp），内部 icon + 文字 + 操作行 单行展示 + 居中对齐。
+    Card(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (habit.emoji.isNotEmpty()) {
-                Text(habit.emoji, style = MaterialTheme.typography.titleLarge)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(habit.emoji, style = MaterialTheme.typography.titleMedium)
+                }
             } else {
                 Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(habit.title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                 Text(
-                    stringResource(R.string.habits_streak, item.streak),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    habit.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
                 )
-                if (!item.dueToday) {
-                    Text(
-                        stringResource(R.string.habits_rest_day),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
+                val streakText = stringResource(R.string.habits_streak, item.streak)
+                val subText = if (!item.dueToday) {
+                    "$streakText · ${stringResource(R.string.habits_rest_day)}"
+                } else {
+                    streakText
                 }
+                Text(
+                    subText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Button(onClick = onToggle) {
-                    Text(
-                        if (item.todayChecked) {
-                            stringResource(R.string.habits_uncheck)
-                        } else {
-                            stringResource(R.string.habits_checkin)
-                        },
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.action_delete),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
+            TextButton(
+                onClick = onToggle,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    if (item.todayChecked) {
+                        stringResource(R.string.habits_uncheck)
+                    } else {
+                        stringResource(R.string.habits_checkin)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * V2.8X：内置 36 个常用 emoji，覆盖健康/学习/工作/情绪/家庭等高频习惯主题。
+ * 点击即替换当前 emoji 文本框内容；不再依赖系统键盘手输。
+ */
+private val HABIT_EMOJIS = listOf(
+    "💧", "🏃", "📚", "🧘", "🥗", "🍎", "☕", "💤",
+    "🦷", "💪", "🚶", "🧠", "✍️", "🎨", "🎵", "📝",
+    "🧹", "🌱", "🐶", "🧴", "💊", "🍵", "🥛", "🥦",
+    "⏰", "🛏️", "🪥", "🧺", "📅", "💻", "📖", "🧗",
+    "🎯", "🚴", "🏊", "🧶",
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun AddHabitDialog(
     onDismiss: () -> Unit,
@@ -220,19 +281,54 @@ private fun AddHabitDialog(
                     label = { Text(stringResource(R.string.habits_name_hint)) },
                     singleLine = true,
                 )
-                OutlinedTextField(
-                    value = emoji,
-                    onValueChange = { emoji = it },
-                    label = { Text(stringResource(R.string.habits_emoji_hint)) },
-                    singleLine = true,
+                // V2.8X：emoji 选择 —— 文本框展示当前选择，下方 36 颗 emoji 候选网格可点选。
+                Text(
+                    stringResource(R.string.habits_emoji_hint),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = emoji,
+                        onValueChange = { emoji = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                    )
+                    if (emoji.isNotEmpty()) {
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { emoji = "" }) { Text("×") }
+                    }
+                }
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    HABIT_EMOJIS.forEach { e ->
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (emoji == e) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                )
+                                .clickable { emoji = e },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(e, fontSize = 18.sp)
+                        }
+                    }
+                }
+                // V2.8X：星期选择改用 LazyRow —— 单行 7 个 chip 必溢出，FlowRow 在窄屏也不易选，
+                // 横向滑动既能完整显示又避免被裁剪。
                 Text(
                     stringResource(R.string.habits_repeat),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    weekLabels.forEachIndexed { idx, label ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(weekLabels.size) { idx ->
                         val day = idx + 1
                         val isSel = day in selected
                         androidx.compose.material3.FilterChip(
@@ -240,7 +336,7 @@ private fun AddHabitDialog(
                             onClick = {
                                 if (isSel) selected.remove(day) else selected.add(day)
                             },
-                            label = { Text(label) },
+                            label = { Text(weekLabels[idx]) },
                         )
                     }
                 }

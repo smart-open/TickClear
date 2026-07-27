@@ -61,7 +61,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     // ── 小智助手配置（Phase 6；token 等敏感值走 SecureStore）──
     override val assistantMode: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_MODE] ?: "MOCK" }
-    override val assistantEndpoint: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_ENDPOINT] ?: "wss://api.xiaozhi.me/ws" }
+    override val assistantEndpoint: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_ENDPOINT] ?: "wss://api.tenclass.net/xiaozhi/v1/" }
     override val assistantPrompt: Flow<String> = dataStore.data.map {
         it[KEY_ASSISTANT_PROMPT] ?: context.getString(R.string.assistant_prompt_default)
     }
@@ -145,6 +145,29 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setOfflineCommandEnabled(enabled: Boolean) { dataStore.edit { it[KEY_OFFLINE_CMD] = enabled } }
     override suspend fun setAsrLanguage(language: String) { dataStore.edit { it[KEY_ASR_LANGUAGE] = language } }
     override suspend fun setVoiceHistoryEnabled(enabled: Boolean) { dataStore.edit { it[KEY_VOICE_HISTORY] = enabled } }
+
+    // ── 小智设备模拟（V2.8）：模拟 ESP32 设备标识，首次访问时自动生成。──
+    override val xzDeviceId: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_XZ_DEVICE_ID] ?: generateMacAddress().also { mac ->
+            // 惰性生成后立即持久化，避免每次重新生成不同 MAC
+            runCatching { dataStore.edit { it[KEY_XZ_DEVICE_ID] = mac } }
+        }
+    }
+    override val xzClientId: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_XZ_CLIENT_ID] ?: java.util.UUID.randomUUID().toString().also { uuid ->
+            runCatching { dataStore.edit { it[KEY_XZ_CLIENT_ID] = uuid } }
+        }
+    }
+
+    // 注意：dataStore.edit 返回 Preferences，接口声明返回 Unit → 必须用块体而非表达式体。
+    override suspend fun setXzDeviceId(deviceId: String) { dataStore.edit { it[KEY_XZ_DEVICE_ID] = deviceId } }
+    override suspend fun setXzClientId(clientId: String) { dataStore.edit { it[KEY_XZ_CLIENT_ID] = clientId } }
+
+    /** 生成随机 MAC 地址格式字符串（如 "AA:BB:CC:DD:EE:FF"），用于模拟 ESP32 设备标识。 */
+    private fun generateMacAddress(): String {
+        val bytes = ByteArray(6).apply { java.security.SecureRandom().nextBytes(this) }
+        return bytes.joinToString(":") { "%02X".format(it) }
+    }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -230,5 +253,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_OFFLINE_CMD = booleanPreferencesKey("offline_command_enabled")
         private val KEY_ASR_LANGUAGE = stringPreferencesKey("asr_language")
         private val KEY_VOICE_HISTORY = booleanPreferencesKey("voice_history_enabled")
+        private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
+        private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
     }
 }

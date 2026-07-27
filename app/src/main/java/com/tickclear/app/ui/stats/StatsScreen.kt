@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -58,7 +59,20 @@ fun StatsScreen(
     onGoToday: (() -> Unit)? = null,
 ) {
     Scaffold(
-        topBar = { TopAppBar(modifier = Modifier.height(48.dp), title = { Text(stringResource(R.string.stats_title)) }) },
+        topBar = {
+            // V2.8X 顶栏单行标题：Box 强制 48dp 高度下垂直居中。
+            TopAppBar(
+                modifier = Modifier.height(48.dp),
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(stringResource(R.string.stats_title))
+                    }
+                },
+            )
+        },
     ) { padding ->
         StatsContent(
             viewModel = viewModel,
@@ -363,9 +377,10 @@ private fun RateRingCard(
 private fun TrendBars(data: List<TrendBucket>, period: StatsPeriod, modifier: Modifier = Modifier) {
     if (data.isEmpty()) return
     val max = (data.maxOf { it.count }).coerceAtLeast(1)
+    // V2.8X：底部坐标用更密步长，30 柱时每 3 步一个标签，避免「1 4 7 ... 28」稀疏遮挡。
     val labelStep = when {
-        data.size <= 8 -> 1
-        data.size <= 16 -> 2
+        data.size <= 6 -> 1
+        data.size <= 12 -> 2
         else -> 3
     }
     Box(modifier.fillMaxWidth().height(140.dp)) {
@@ -390,9 +405,13 @@ private fun TrendBars(data: List<TrendBucket>, period: StatsPeriod, modifier: Mo
                     )
                     if (i % labelStep == 0) {
                         Spacer(Modifier.height(4.dp))
-                        val displayLabel = if (period == StatsPeriod.MONTH) {
-                            stringResource(R.string.stats_trend_month, b.label.toIntOrNull() ?: 0)
-                        } else b.label
+                        // V2.8X：日柱只显「日」(b.label 为 dayOfMonth)；
+                        // 周柱「M-d」；月柱用「X月」模板。
+                        val displayLabel = when (period) {
+                            StatsPeriod.MONTH -> stringResource(R.string.stats_trend_month, b.label.toIntOrNull() ?: 0)
+                            StatsPeriod.WEEK -> b.label
+                            StatsPeriod.DAY -> b.label
+                        }
                         Text(displayLabel, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     }
                 }

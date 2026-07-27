@@ -59,6 +59,15 @@ interface SettingsRepository {
     /** 语音历史保存开关（V2.65）：默认关闭，开启后记录与助手的语音对话。 */
     val voiceHistoryEnabled: Flow<Boolean>
 
+    // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
+    /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
+    val xzDeviceId: Flow<String>
+    /** 模拟客户端 ID（UUID 格式），用于 WS 认证头。 */
+    val xzClientId: Flow<String>
+
+    suspend fun setXzDeviceId(deviceId: String)
+    suspend fun setXzClientId(clientId: String)
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setThemeSkin(skin: ThemeSkin)
     suspend fun setAnimationEnabled(enabled: Boolean)
@@ -134,6 +143,8 @@ interface SettingsRepository {
         const val PREF_ALIYUN_ACCESS_KEY = "aliyun_asr_access_key"
         const val PREF_ALIYUN_ACCESS_SECRET = "aliyun_asr_access_secret"
         const val PREF_ALIYUN_APP_KEY = "aliyun_asr_app_key"
+        const val PREF_XZ_DEVICE_ID = "xz_device_id"
+        const val PREF_XZ_CLIENT_ID = "xz_client_id"
         const val DEFAULT_LLM_PROVIDER = "xiaozhi"
         const val DEFAULT_LLM_BASE_URL = "https://api.openai.com/v1"
         const val DEFAULT_LLM_MODEL = "gpt-4o-mini"

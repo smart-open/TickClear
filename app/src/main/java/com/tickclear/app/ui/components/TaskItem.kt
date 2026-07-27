@@ -66,6 +66,7 @@ fun formatMinute(min: Int?): String =
 /**
  * 今日任务行：右滑完成、左滑软删（带撤销由 Screen 负责）。
  * confirmValueChange 返回 false，使滑动后回弹（真实删除/完成由数据库驱动列表更新）。
+ * [index] 用于隔行变色：偶数行浅底色增强视觉分隔，奇数行纯 surface。
  */
 @Composable
 fun TaskItem(
@@ -76,6 +77,7 @@ fun TaskItem(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     isFocused: Boolean = false,
+    index: Int = 0,
 ) {
     val task = item.task
     val dismissState = rememberSwipeToDismissBoxState(
@@ -94,7 +96,13 @@ fun TaskItem(
         backgroundContent = {
             val dir = dismissState.dismissDirection
             val isComplete = dir == SwipeToDismissBoxValue.StartToEnd
-            val bg = if (isComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+            // Settled（未滑动）时用主题 surface，避免静止状态透出 errorContainer 底色
+            // 导致每行背景与主题不匹配（问题3）。
+            val bg = when (dir) {
+                SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                else -> MaterialTheme.colorScheme.errorContainer
+            }
             val fg = if (isComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
             Box(
                 modifier = Modifier
@@ -121,6 +129,7 @@ fun TaskItem(
                 onComplete = onComplete,
                 onEdit = onEdit,
                 isFocused = isFocused,
+                index = index,
             )
         },
     )
@@ -135,6 +144,7 @@ private fun TaskCardContent(
     onComplete: () -> Unit,
     onEdit: () -> Unit,
     isFocused: Boolean = false,
+    index: Int = 0,
 ) {
     val timeText = if (task.allDay) stringResource(R.string.task_all_day) else formatMinute(task.instanceDueMinute())
     val taskItemCd = stringResource(R.string.a11y_task_item, task.title)
@@ -149,11 +159,21 @@ private fun TaskCardContent(
         animationSpec = spring(stiffness = 300f, dampingRatio = 0.7f),
         label = "contentAlpha",
     )
+    // 隔行浅底色：偶数行用 surfaceContainer 配 0.55 alpha，奇数行用 surface 略微透明，
+    // 强化行间分隔；旧版用 surfaceVariant 0.1f 在浅色主题下几乎不可见。
+    val rowBackground = if (index % 2 == 0) {
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    // 焦点边框：仅在 focusedIndex 显式 >= 0 时绘制对应行；focusedIndex 初始为 -1 时全列表无边框。
+    val drawFocus = isFocused && index >= 0
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(rowBackground)
             .then(
-                if (isFocused) {
+                if (drawFocus) {
                     Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
                 } else {
                     Modifier
@@ -161,7 +181,6 @@ private fun TaskCardContent(
             )
             .clickable { onEdit() }
             .semantics { contentDescription = taskItemCd }
-            // 任务行高度约减三分之一：压缩上下内边距（8dp → 4dp）。
             .padding(vertical = Spacing.xs, horizontal = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -133,9 +134,17 @@ fun TasksScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            // V2.8X 顶栏单行标题：Box 强制 48dp 高度下垂直居中。
             TopAppBar(
                 modifier = Modifier.height(48.dp),
-                title = { Text(stringResource(R.string.tasks_title), style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(stringResource(R.string.tasks_title), style = MaterialTheme.typography.titleLarge)
+                    }
+                },
                 actions = {
                     IconButton(onClick = onNavigateToRecycleBin) {
                         Icon(Icons.Filled.DeleteSweep, contentDescription = stringResource(R.string.recycle_bin_title))

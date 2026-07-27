@@ -13,9 +13,13 @@ import com.tickclear.app.domain.log.AppLogger
 class AudioPlayer {
 
     private var track: AudioTrack? = null
+    private var rate = -1
 
     fun init(sampleRate: Int = 16000): Boolean {
-        if (track != null) return true
+        // 采样率变化时必须重建 AudioTrack，否则以错误速率播放（变速/无声）。
+        if (track != null && rate == sampleRate) return true
+        release()
+        rate = sampleRate
         val minBuf = AudioTrack.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
         )

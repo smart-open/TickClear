@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -145,10 +147,20 @@ fun TodayScreen(
             TopAppBar(
                 modifier = Modifier.height(48.dp),
                 title = {
-                    // 48dp 低顶栏内双行文本需控制总高：titleMedium(~24dp) + labelSmall(~16dp) ≈ 40dp，避免 titleLarge 导致裁切
-                    Column {
-                        Text(greeting, style = MaterialTheme.typography.titleMedium)
-                        Text(dateStr, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // V2.8X 顶栏双行：title slot 默认 Start 对齐，48dp 限制下文字易贴顶，
+                    // 用 Box 强制 fillMaxHeight + CenterStart 居中显示。
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Column {
+                            Text(greeting, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -289,7 +301,9 @@ private fun TodayMainContent(
 ) {
     // V2.10 键盘快捷键：在 Compose 宿主 View 上挂 OnKeyListener 捕获 ↑↓ 选择 / 空格·回车完成 / N 新建。
     // 采用 View 级监听而非 Modifier.focusable，规避本环境对 focusable 符号的解析差异，且无需强制焦点。
-    var focusedIndex by rememberSaveable { mutableIntStateOf(0) }
+    // V2.8X：初始 focusedIndex = -1（无键盘焦点时不绘制任何「焦点边框」），
+    // 避免「今日」首次进入就看到第一项被高亮——用户描述的"任务列表每个边框"实际是默认 focus 边框。
+    var focusedIndex by rememberSaveable { mutableIntStateOf(-1) }
     val scope = rememberCoroutineScope()
     val view = LocalView.current
 
@@ -391,6 +405,7 @@ private fun TodayMainContent(
                     }
 
                     // V2.54：以 active 段本地序号 index 判断高亮，与键盘焦点一致；done 段不可键盘聚焦。
+                    // V2.8：index 同时驱动隔行底色（偶数浅色/奇数纯 surface）。
                     itemsIndexed(activeItems, key = { _, item -> item.instanceId }) { index, item ->
                         // V2.21 列表项进入/重排动画
                         Box(modifier = Modifier.animateItem()) {
@@ -402,6 +417,7 @@ private fun TodayMainContent(
                                 onDelete = { onDelete(item) },
                                 onEdit = { onEdit(item) },
                                 isFocused = index == focusedIndex,
+                                index = index,
                             )
                         }
                     }
@@ -416,7 +432,7 @@ private fun TodayMainContent(
                             )
                         }
                         if (!collapseDone) {
-                            items(doneItems, key = { it.instanceId }) { item ->
+                            itemsIndexed(doneItems, key = { _, item -> item.instanceId }) { index, item ->
                                 Box(modifier = Modifier.animateItem()) {
                                     TaskItem(
                                         item = item,
@@ -426,6 +442,7 @@ private fun TodayMainContent(
                                         onDelete = { onDelete(item) },
                                         onEdit = { onEdit(item) },
                                         isFocused = false,
+                                        index = activeItems.size + 1 + index,
                                     )
                                 }
                             }

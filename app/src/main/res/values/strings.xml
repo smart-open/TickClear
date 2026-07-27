@@ -266,6 +266,18 @@
     <string name="assistant_mode_real_chip">真实小智</string>
     <string name="assistant_endpoint_label">网关地址</string>
     <string name="assistant_token_label">令牌（真实模式，存于加密存储）</string>
+    <!-- V2.8 小智 ESP32 设备模拟 -->
+    <string name="assistant_device_section_title">设备模拟（接入官方小智）</string>
+    <string name="assistant_device_id_label">设备 ID（Device-Id）</string>
+    <string name="assistant_client_id_label">客户端 ID（Client-Id）</string>
+    <string name="assistant_activate_btn">激活设备 / 获取验证码</string>
+    <string name="assistant_regenerate_btn">重新生成设备标识</string>
+    <string name="assistant_activation_code_title">验证码</string>
+    <string name="assistant_activation_hint">请打开 xiaozhi.me 控制台 → 添加设备 → 输入上方 6 位验证码完成绑定。绑定后重新连接即可使用。</string>
+    <string name="assistant_activation_success">验证码获取成功！请在 5 分钟内到官网绑定。</string>
+    <string name="assistant_activation_already_bound">设备已绑定，可直接连接。</string>
+    <string name="assistant_activation_error">激活失败：%1$s</string>
+    <string name="assistant_copy_id">复制</string>
     <string name="assistant_prompt_label">AI 人设 / 欢迎话术</string>
     <string name="assistant_provider_label">LLM 服务商</string>
     <string name="assistant_provider_xiaozhi">小智（语音+建任务）</string>

@@ -4,14 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +33,13 @@ import com.tickclear.app.domain.model.Medal
 import com.tickclear.app.domain.model.MedalCatalog
 import com.tickclear.app.domain.model.MedalProgress
 
-/** 勋章墙：展示全部勋章，已解锁彩色高亮，未解锁灰显 + 🔒；可点击查看详情，未解锁且可计算时显示进度。 */
+/**
+ * 勋章墙：展示全部勋章，已解锁彩色高亮，未解锁灰显 + 🔒；可点击查看详情，未解锁且可计算时显示进度。
+ *
+ * 实现说明：勋章总数固定且很少，用非 Lazy 的 chunked 行网格渲染。
+ * ⚠️ 切勿改回 LazyVerticalGrid——本组件被 StatsScreen 的 Column(verticalScroll) 包裹，
+ * Lazy 组件在无限高度约束下测量会抛 IllegalStateException 直接崩溃（即使 userScrollEnabled=false）。
+ */
 @Composable
 fun MedalWall(
     unlocked: Set<String>,
@@ -41,20 +48,31 @@ fun MedalWall(
     progress: Map<String, MedalProgress> = emptyMap(),
 ) {
     val medals = MedalCatalog.ALL
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 88.dp),
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        userScrollEnabled = false,
-    ) {
-        items(medals, key = { it.key }) { medal ->
-            MedalCell(
-                medal = medal,
-                isUnlocked = medal.key in unlocked,
-                progress = progress[medal.key],
-                onClick = onMedalClick,
-            )
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        // 模拟 GridCells.Adaptive(minSize = 88.dp)：按可用宽度自适应列数
+        val spacing = 8.dp
+        val columns = ((maxWidth + spacing) / (88.dp + spacing)).toInt().coerceAtLeast(1)
+        // V2.8X：每行 cell 等高——靠 MedalCell 内部统一保留进度区固定高度实现，
+        // 避免解锁/未解锁 cell 内部多出的 LinearProgressIndicator+Text 把行末 cell 顶高（已移除 IntrinsicSize 依赖）。
+        Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
+            medals.chunked(columns).forEach { rowMedals ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                ) {
+                    rowMedals.forEach { medal ->
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            MedalCell(
+                                medal = medal,
+                                isUnlocked = medal.key in unlocked,
+                                progress = progress[medal.key],
+                                onClick = onMedalClick,
+                            )
+                        }
+                    }
+                    // 末行补空位，保持各格等宽
+                    repeat(columns - rowMedals.size) { Spacer(Modifier.weight(1f).fillMaxHeight()) }
+                }
+            }
         }
     }
 }
@@ -76,6 +94,7 @@ private fun MedalCell(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .fillMaxHeight()
             .clip(RoundedCornerShape(12.dp))
             .background(container)
             .clickable(role = Role.Button, onClick = { onClick(medal) })
@@ -104,23 +123,32 @@ private fun MedalCell(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
-        // 未解锁且可计算进度时，展示 x/y 进度条
-        if (!isUnlocked && progress != null && progress.target > 0 && progress.current >= 0) {
-            val frac = (progress.current.toFloat() / progress.target).coerceIn(0f, 1f)
-            LinearProgressIndicator(
-                progress = { frac },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                color = scheme.primary,
-                trackColor = scheme.surfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.medal_progress, progress.current, progress.target),
-                style = MaterialTheme.typography.labelSmall,
-                color = content,
-                textAlign = TextAlign.Center,
-            )
+        // 统一高度：无论是否解锁都保留进度区固定高度，避免同行星章 cell 高度不一致（无需 IntrinsicSize）
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!isUnlocked && progress != null && progress.target > 0 && progress.current >= 0) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val frac = (progress.current.toFloat() / progress.target).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { frac },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        color = scheme.primary,
+                        trackColor = scheme.surfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.medal_progress, progress.current, progress.target),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = content,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
         }
     }
 }

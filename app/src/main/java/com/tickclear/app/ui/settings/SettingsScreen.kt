@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -131,9 +132,22 @@ fun SettingsScreen(
     val icsExportName = "tickclear_${
         java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
     }.ics"
-
     // V2.11 通知与权限引导：跳转系统设置（纯 Intent，零依赖），规避 Android 14+ 全屏/精确闹钟限制。
     val context = LocalContext.current
+    // V2.66 常驻唤醒：开启前必须先拿到 RECORD_AUDIO 运行时权限，
+    // 否则 Android 14 上启动 type=microphone 前台服务会抛 SecurityException 崩溃。
+    val micPermissionDeniedMsg = stringResource(R.string.error_permission_record)
+    val wakeWordPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            viewModel.setWakeWordEnabled(true)
+            toggleWakeWordService(context, true)
+        } else {
+            viewModel.setWakeWordEnabled(false)
+            viewModel.backupToasts.tryEmit(BackupToast(micPermissionDeniedMsg))
+        }
+    }
     val openNotificationChannel: () -> Unit = {
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -152,13 +166,23 @@ fun SettingsScreen(
             }
         }
     }
+    // ⚠️ 这两个 Action 规范要求用 data URI（package:包名），EXTRA_APP_PACKAGE 在多数 ROM 上
+    // 启动失败且被 runCatching 吞掉 → 点击无反应（问题10根因）。失败兜底跳应用详情页。
     val openFullScreenPermission: () -> Unit = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             runCatching {
                 context.startActivity(
-                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    },
+                    Intent(
+                        Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }.recoverCatching {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
                 )
             }
         }
@@ -167,9 +191,17 @@ fun SettingsScreen(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching {
                 context.startActivity(
-                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    },
+                    Intent(
+                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }.recoverCatching {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
                 )
             }
         }
@@ -222,9 +254,17 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            // V2.8X 顶栏单行标题：Box 强制 48dp 高度下垂直居中。
             TopAppBar(
                 modifier = Modifier.height(48.dp),
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(stringResource(R.string.settings_title))
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
@@ -237,41 +277,62 @@ fun SettingsScreen(
         val leftContent: @Composable ColumnScope.() -> Unit = {
             // ── 外观 ──
             SectionTitle(stringResource(R.string.settings_section_appearance))
-            SettingRow(
-                title = stringResource(R.string.settings_theme_title),
-                subtitle = stringResource(R.string.settings_theme_subtitle),
+            // 主题/皮肤区域极致紧凑化：绕过通用 SettingRow（其 padding+divider 累积导致红框大空白），
+            // 用零外边距的专用布局直接渲染 chip 行。
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp,
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ThemeMode.entries.forEach { mode ->
-                        FilterChip(
-                            selected = themeMode == mode,
-                            onClick = { viewModel.setThemeMode(mode) },
-                            label = { Text(stringResource(themeLabelRes(mode))) },
-                        )
+                // 主题模式行
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_theme_title), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.settings_theme_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ThemeMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = themeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) },
+                                label = { Text(stringResource(themeLabelRes(mode))) },
+                            )
+                        }
                     }
                 }
-            }
-            // V2.68 主题皮肤：预设配色（独立于明/暗/动态模式）
-            SettingRow(
-                title = stringResource(R.string.settings_skin_title),
-                subtitle = stringResource(R.string.settings_skin_subtitle),
-            ) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(ThemeSkin.entries) { skin ->
-                        FilterChip(
-                            selected = themeSkin == skin,
-                            onClick = { viewModel.setThemeSkin(skin) },
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(skinPreviewColor(skin), CircleShape),
-                                )
-                            },
-                            label = { Text(stringResource(skinLabelRes(skin))) },
-                        )
+                HorizontalDivider()
+                // 皮肤行
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_skin_title), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.settings_skin_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(ThemeSkin.entries) { skin ->
+                            FilterChip(
+                                selected = themeSkin == skin,
+                                onClick = { viewModel.setThemeSkin(skin) },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .background(skinPreviewColor(skin), CircleShape),
+                                    )
+                                },
+                                label = { Text(stringResource(skinLabelRes(skin))) },
+                            )
+                        }
                     }
                 }
+                HorizontalDivider()
             }
             SettingRow(
                 title = stringResource(R.string.settings_animation_title),
@@ -415,8 +476,16 @@ fun SettingsScreen(
                 Switch(
                     checked = wakeWordEnabled,
                     onCheckedChange = { on ->
-                        viewModel.setWakeWordEnabled(on)
-                        toggleWakeWordService(context, on)
+                        if (on && androidx.core.content.ContextCompat.checkSelfPermission(
+                                context, android.Manifest.permission.RECORD_AUDIO,
+                            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            // 未授权：先请求麦克风权限，授予后在回调中开启（拒绝则保持关闭并提示）。
+                            wakeWordPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        } else {
+                            viewModel.setWakeWordEnabled(on)
+                            toggleWakeWordService(context, on)
+                        }
                     },
                 )
             }
@@ -626,7 +695,7 @@ private fun SettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {

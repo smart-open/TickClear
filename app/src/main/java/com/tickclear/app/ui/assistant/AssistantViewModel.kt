@@ -132,8 +132,16 @@ class AssistantViewModel @Inject constructor(
             val llm = settingsRepository.llmProvider.first()
             val asr = settingsRepository.asrProvider.first()
             val cloudAsrReady = (llm != LlmProviderCatalog.XIAOZHI) && asrSupportsVoice(asr) && asrCredentialsPresent(asr)
-            _voiceSupported.value = ((llm == LlmProviderCatalog.XIAOZHI) && (mode == "REAL") && opusCodec.isEncoderAvailable())
-                || cloudAsrReady
+            // V2.8X：小智 REAL 模式语音输入扩展为「系统 ASR 或 任一可用云 ASR 取文本」，
+            // 解决 localRecognizer.isAvailable=false 时麦克风按钮永久 disabled 的问题。
+            // 取到的文本走 sendText() → listen 帧，与文本输入框等价，无需 Opus 编码。
+            val xzReal = (llm == LlmProviderCatalog.XIAOZHI) && (mode == "REAL")
+            val xzAsrReady = xzReal && (
+                localRecognizer.isAvailable ||
+                opusCodec.isEncoderAvailable() ||
+                (asrSupportsVoice(asr) && asrCredentialsPresent(asr))
+            )
+            _voiceSupported.value = xzAsrReady || cloudAsrReady
         }
     }
 
@@ -196,10 +204,47 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch { _configured.value = computeConfigured() }
     }
 
+    /**
+     * V2.8X：配置页保存后调用 —— 串行写完所有 settings 后，断开旧 transport 再用新配置重连，
+     * 解决「保存 token/endpoint 仍显示未连接、回答还是本地（mock）」问题。
+     * 同时重新计算 voiceSupported，使麦克风按钮 enable 状态与新 ASR 配置一致。
+     */
+    fun reconnectAfterConfig() {
+        viewModelScope.launch {
+            // 先释放旧连接：若继续用旧 transport 会复用 cached ws，新建连接配置不会生效。
+            if (_recording.value) stopVoice()
+            stopWakeWord()
+            val llm = settingsRepository.llmProvider.first()
+            if (llm == LlmProviderCatalog.XIAOZHI) {
+                transport.disconnect()
+            }
+            _connected.value = false
+            // 重新计算语音可用性。
+            val mode = settingsRepository.assistantMode.first()
+            val asr = settingsRepository.asrProvider.first()
+            val cloudAsrReady = (llm != LlmProviderCatalog.XIAOZHI) && asrSupportsVoice(asr) && asrCredentialsPresent(asr)
+            val xzReal = (llm == LlmProviderCatalog.XIAOZHI) && (mode == "REAL")
+            val xzAsrReady = xzReal && (
+                localRecognizer.isAvailable ||
+                opusCodec.isEncoderAvailable() ||
+                (asrSupportsVoice(asr) && asrCredentialsPresent(asr))
+            )
+            _voiceSupported.value = xzAsrReady || cloudAsrReady
+            _configured.value = computeConfigured()
+            // 触发新连接。
+            connect()
+        }
+    }
+
     /** 开始语音采集：根据 ASR 服务商路由到系统实时识别或整段 PCM 累积（云 ASR）。 */
     fun startVoice() {
         if (!_voiceSupported.value || _recording.value) return
         viewModelScope.launch {
+            // 小智 REAL 模式：麦克风经系统 ASR 取文本后送 listen 帧（无 Opus 依赖）。
+            if (settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI) {
+                startXiaozhiVoice()
+                return@launch
+            }
             val asr = settingsRepository.asrProvider.first()
             if (asr == AsrProviderCatalog.SYSTEM) {
                 _recording.value = true
@@ -230,14 +275,71 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 小智 REAL 模式语音输入：经系统 SpeechRecognizer 取文本，再走 [sendText]（listen 帧）上送。
+     * 零依赖方案，规避设备无 Opus 编码器导致麦克风被禁用；与文本输入框输入等价。
+     */
+    private fun startXiaozhiVoice() {
+        viewModelScope.launch {
+            // 小智 REAL 语音输入：优先系统 SpeechRecognizer（转文字→listen 帧，零依赖）；
+            // 无系统识别器但有 Opus 编码器时，走真·语音流（mic PCM→Opus 二进制帧），由服务端完成 ASR。
+            if (localRecognizer.isAvailable) {
+                _recording.value = true
+                val lang = settingsRepository.asrLanguage.first()
+                localRecognizer.start(
+                    continuous = false,
+                    language = lang,
+                    onPartial = { /* 系统识别仅以终句为准提交 */ },
+                    onFinal = { text ->
+                        _recording.value = false
+                        if (text.isNotBlank()) sendText(text) else append(
+                            ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)),
+                        )
+                    },
+                )
+            } else if (opusCodec.isEncoderAvailable()) {
+                startXiaozhiOpusVoice()
+            } else {
+                _recording.value = false
+                _voiceSupported.value = false
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
+            }
+        }
+    }
+
+    /** 小智 REAL 真·语音流：麦克风采集 16kHz PCM → Opus 编码 → 二进制帧上送，由服务端 ASR。 */
+    private fun startXiaozhiOpusVoice() {
+        viewModelScope.launch {
+            _recording.value = true
+            // 通知服务端进入实时聆听（realtime 模式，由服务端 VAD 判定语句边界）。
+            transport.sendListenStart()
+            val ok = capture.start(16000) { pcm ->
+                opusCodec.encodeFrame(pcm)?.let { transport.sendAudio(it) }
+            }
+            if (!ok) {
+                _recording.value = false
+                transport.sendListenStop()
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
+            }
+        }
+    }
+
     /** 停止语音采集。云 ASR 路径下，停止会触发转写；系统路径下停止实时识别。 */
     fun stopVoice() {
         if (!_recording.value) return
         viewModelScope.launch {
+            val isXz = settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI
+            if (isXz) {
+                // 小智 REAL 模式语音走系统 ASR（或 Opus 流）：停止识别器/采集并通知服务端结束聆听。
+                localRecognizer.stop()
+                capture.stop()
+                transport.sendListenStop()
+                _recording.value = false
+                return@launch
+            }
             val isSystem = settingsRepository.asrProvider.first() == AsrProviderCatalog.SYSTEM
             if (isSystem) localRecognizer.stop() else capture.stop()
             _recording.value = false
-            if (settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI) transport.sendListenStop()
         }
     }
 
@@ -477,6 +579,13 @@ class AssistantViewModel @Inject constructor(
     }
 
     private fun append(msg: ChatMessage) {
+        // 去重：小智服务端常在 llm 与 tts.sentence_start 各下发一遍相同回复文本，
+        // 若直接追加会出现两条一模一样的助手消息；此处跳过与末条（同角色同文本）的连续重复。
+        val last = _messages.value.lastOrNull()
+        if (last != null && last.role == msg.role && last.text == msg.text && msg.role != "user") {
+            recordVoiceHistory(msg)
+            return
+        }
         _messages.update { list ->
             val next = list + msg
             if (next.size > MAX_MESSAGES) next.takeLast(MAX_MESSAGES) else next

@@ -3,6 +3,8 @@ package com.tickclear.app.ui.components
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,17 +29,19 @@ fun ConflictBanner(count: Int, modifier: Modifier = Modifier) {
         tonalElevation = Spacing.xs,
     ) {
         Row(
-            modifier = Modifier.padding(Spacing.md),
+            // 高度减半：上下内边距 md→xs，图标改小号，文字降为 labelMedium。
+            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_notification),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(16.dp),
             )
             Text(
                 text = stringResource(R.string.today_conflict_count, count),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = Spacing.sm),
             )

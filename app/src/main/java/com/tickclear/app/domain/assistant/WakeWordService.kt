@@ -47,13 +47,21 @@ class WakeWordService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 防御性确保静音通知渠道存在（正常流程 Application.onCreate 已建，这里兜底防重构遗漏导致 startForeground 崩溃）。
-        NotificationHelper.createChannels(this)
-        startForeground(NOTIF_ID, buildNotification())
-        // 无录音权限则无法监听，直接停止（设置页会引导授权）。
+        // ⚠️ 权限检查必须在 startForeground 之前：Android 14 上启动 type=microphone 的前台服务
+        // 若运行时 RECORD_AUDIO 未授权，startForeground 会直接抛 SecurityException 令 App 崩溃。
+        // 无权限时不调 startForeground，直接 stopSelf（设置页开关处已先请求权限，这里是兜底）。
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        // 防御性确保静音通知渠道存在（正常流程 Application.onCreate 已建，这里兜底防重构遗漏导致 startForeground 崩溃）。
+        NotificationHelper.createChannels(this)
+        // 再兜一层：权限在检查后被撤销等竞态下 startForeground 仍可能抛 SecurityException，捕获降级为停止服务。
+        try {
+            startForeground(NOTIF_ID, buildNotification())
+        } catch (e: SecurityException) {
             stopSelf()
             return START_NOT_STICKY
         }
