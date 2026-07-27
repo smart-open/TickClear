@@ -4,6 +4,40 @@
 
 ---
 
+## v2.7.2（2026-07-27）· 小智连接/语音修复 + 十一处 UI 打磨（零新功能）
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**版本标识**：versionCode 15 / versionName 2.7.2
+**相对 v2.7.1**：十一处 UI 修复 + 小智 REAL 连接/语音深度修复，零新功能、零新依赖、中文全抽离、DB 版本不变（v8）。
+
+### 🔌 小智 REAL 连接 / 语音（深度修复，根因级）
+- **WS 端点纠正（P0 · 一直「未连接」主因）**：三处默认 WS 地址由错误主机 `wss://api.xiaozhi.me/ws` 改为官方真实域名 `wss://api.tenclass.net/xiaozhi/v1/`（`api.xiaozhi.me` 仅为官网管理后台，非 WS 主机）。`WebSocketXiaozhiTransport` / `SettingsRepository` / `SettingsViewModel` 默认值同步修正，并在 `openSocket()` 内对已存 DataStore 的遗留错误主机做归一化纠正。
+- **握手顺序纠正（P0 · 连不上的次因）**：原实现错误地「等待服务端先发 hello」，但权威协议（xiaozhi.me 文档 / ESP32 固件 / py-xiaozhi 三方一致）要求**客户端连接建立后先发 hello**。修正为 `onOpen` 立即发送客户端 hello（携带 `version`/`transport`/`audio_params`/`prompt`/`device_id`/`client_id`/`token`），服务端回 hello 后 `handshakeDone=true` 并广播 `Connected`。
+- **TTS 回复播放/展示（P0 · 连上却看不到回复）**：原传输层只处理 `hello/stt/llm/mcp`，漏掉服务端主回复通道 `tts`（`sentence_start` 携带文本 + 二进制 Opus 帧）。新增 `tts` 处理：`sentence_start` 文本 → `LlmText`（界面展示），`start` 承载采样率初始化播放器，`stop` 释放；二进制帧按服务端声明采样率解码播放。
+- **握手超时守卫（P1 · 之前「无日志无报错」）**：设备未在 xiaozhi.me 控制台绑定时，服务端不回 hello，原逻辑无限「连接中」。新增 10s 超时，超时经 `XiaozhiEvent.Error` 明确提示「请确认设备已在控制台绑定 / 检查网络」，便于排查。
+- **采样率自适应（P2）**：服务端 `hello`/`tts-start` 的 `audio_params.sample_rate` 现驱动 `OpusCodec.preferredDecodeRate` 与 `AudioPlayer` 重建，避免 16k/24k 错配导致的无声或变调。
+- **语音链路打通（P1 · 麦克风无反应）**：`voiceSupported` 门控由「仅系统识别器可用」扩展为「小智 REAL 且（系统 ASR ‖ Opus 编码器 ‖ 云 ASR 就绪）」；无系统识别器但有 Opus 编码器的设备走真·语音流（mic PCM→Opus 二进制帧→服务端 ASR）。`stopVoice()` 清理嵌套逻辑。
+- **回复去重（P3）**：部分服务端在 `llm` 与 `tts.sentence_start` 各下发一遍相同文本，新增末条同角色同文本连续去重，避免两条一模一样的助手消息。
+- 激活设备 OTA 返回 `websocket.url` 时自动填入并持久化 endpoint（免手填出错）。
+
+### 🎨 UI / 视觉（用户十一处反馈）
+1. **今日列表**：去掉首个任务默认 focus 边框（`focusedIndex` 初始 `-1` + `drawFocus` 门控）；任务行隔行浅底色交替（`surfaceContainer`/`surface`）。
+2. **顶栏标题垂直居中**：今日/统计/习惯/设置/任务/助手/关于/调试 八处 `TopAppBar` 统一 `Box(fillMaxHeight)+CenterStart` 包裹问候/时间/标题文字。
+3. **助手输入框**：移除与 M3 内部 padding 冲突的固定 `height(36.dp)`（导致文字不可见），改 `weight(1f)` + 显式 `colors`（文字 `onSurface`、占位 `onSurfaceVariant`）。
+4. **习惯新建 emoji**：内置 `HABIT_EMOJIS`（36 个）+ `FlowRow` 可点选网格。
+5. **习惯重复星期**：由 `Row(FilterChip)` 改 `LazyRow` 横向滚动，解决显示不全/无法横滑。
+6. **习惯卡片**：`Card heightIn(min=48dp)`，单行 `Row` 垂直居中（高度约减 1/3）。
+7. **统计日趋势坐标**：DAILY 标签由 `"M/d"`（7 月每日开头都是 7，显示成「77777」）改为纯日号 `dayOfMonth`。
+8. **勋章墙高度一致**：同行 cell 等高（移除 `IntrinsicSize` 依赖，未解锁 cell 进度区统一包入固定高度 `Box`，避免被进度条/文字顶高）。
+9. **设置主题块间距**：主题/皮肤行加 `HorizontalDivider()` + 统一 `padding(vertical=3.dp)`，与其余 `SettingRow` 间距一致。
+10. **子页面底栏高亮**：关于/调试/语音历史进入时「设置」tab 保持高亮，回收站→「任务」，助手配置→「助手」（选中逻辑由精确相等改为「精确相等或路由以该 tab 路由 + '/' 开头」）。
+
+### 🧪 质量门禁
+- 待本地执行：`./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（沙箱无 JDK/Gradle）。本轮修复历经多轮 `compileDebugKotlin` 静态核对，重点补齐 `fillMaxHeight`/`IntrinsicSize`/`Row`/`Spacer` 等遗漏 import。
+- 真机回归：① 隔行底色深浅 ② 关于/调试标题居中 + 底栏「设置」高亮 ③ 星期 chip 横滑 ④ 小智 REAL 保存后即「已连接」且走真实对话、点话筒可说→转文字发送 ⑤ 设备未绑定时 10s 内给出明确错误提示。
+
+---
+
 ## v2.7.1（2026-07-26）· UI 紧凑化与统计崩溃防御（零新功能）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板

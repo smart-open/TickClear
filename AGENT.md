@@ -62,8 +62,8 @@ di/         Hilt 模块
 - SQLCipher 与 Room 共用 SQLite：已在 `app/build.gradle.kts` 排除 `androidx.sqlite:sqlite-framework`。
 
 ## 7. 分支与任务追踪
-- 当前状态与任务追踪见 `docs/成熟度评估.md`（v2.7.0 封板四维成熟度评估，含 V2.63–V2.83 全量记录）；历史任务清单（v2.5 阶段）见 `docs/开发计划_v2.5_任务清单.md`，更早版本（Phase 0–7 + v2.0–v2.4）归档于 `docs/archive/`。
-- 每完成一个子任务，在任务清单中勾选 ✅ 并（按需）追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志。
+- 当前状态与任务追踪见 `docs/成熟度评估.md`（v2.7.1 封板四维成熟度评估，含 V2.63–V2.83 全量记录 + 已知限制 §6）；历史阶段任务清单（v1.0 / v2.0–v2.5 各版本「开发计划_*_任务清单」及「未完成任务清单」）已于 2026-07-27 整理删除，其内容（R1–R10、V2.44–V2.51、Q4/Q5 等）已并入该评估，单一可信源即此文档。
+- 每完成一个子任务，按需追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志（状态总览见 `docs/成熟度评估.md`）。
 - **提交纪律（红线）**：每一次编码 / 修改完成、进入下一项事项前必须 `git commit`（功能自洽、可独立回滚）；禁止把多个不相关改动攒成一次大提交。提交信息用中文，类型前缀 + 简述，例如：`[fix] 子日级实例完成状态脱节`、`[feature] 新增日志查看页`、`[config] release 签名注入`、`[test] 新增备份往返测试`、`[docs] 更新发布说明`、`[refactor] 拆分 Repository 边界`、`[chore] 升级依赖`。
 - 工程纪律（全程保持）：中文全抽离 `strings.xml`、数据库迁移显式 `Migration` 禁 `fallbackToDestructiveMigration`、不引入新依赖（复用 OkHttp/DataStore/系统框架）。
 
