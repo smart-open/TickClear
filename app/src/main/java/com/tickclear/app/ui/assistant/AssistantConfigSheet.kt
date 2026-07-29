@@ -136,10 +136,14 @@ internal fun AssistantConfigContent(
     // ── V2.8 小智设备模拟状态 ──
     var xzDeviceId by remember { mutableStateOf("") }
     var xzClientId by remember { mutableStateOf("") }
+    var xzSerialNumber by remember { mutableStateOf("") }
     var otaCode by remember { mutableStateOf<String?>(null) }          // 6 位验证码
     var otaMessage by remember { mutableStateOf<String?>(null) }      // 状态消息
     var otaLoading by remember { mutableStateOf(false) }
     var otaDone by remember { mutableStateOf(false) }                  // 是否已执行过 OTA
+    // V2.8X 连接测试：UI 触发后调用 XiaozhiConnectionTester，返回 Ok/Fail 结果。
+    var testLoading by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result?>(null) }
 
     // 切换 LLM 服务商：载入该服务商默认值与密钥
     LaunchedEffect(localProvider) {
@@ -166,9 +170,10 @@ internal fun AssistantConfigContent(
     // V2.8：切换到小智时自动加载设备标识
     LaunchedEffect(localProvider) {
         if (localProvider == LlmProviderCatalog.XIAOZHI) {
-            val (did, cid) = settingsViewModel.ensureXzDeviceIdentity()
+            val (did, cid, sn) = settingsViewModel.ensureXzDeviceIdentity()
             xzDeviceId = did
             xzClientId = cid
+            xzSerialNumber = sn
         }
     }
 
@@ -249,14 +254,25 @@ internal fun AssistantConfigContent(
                         style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
                         color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                     )
-                    // Device-Id 显示 + 复制
+                    // Device-Id：可手动编辑（V2.8X+）。可从 xiaozhi.me 控制台「我的设备」抄入【已绑定设备】的 MAC，
+                    // 服务端鉴权仅基于 device-id（client-id 不参与校验、不读 Authorization 头），
+                    // 粘贴已知可用的 Device-Id 即可让 App 以该设备身份完成握手，用于验证 App 协议是否正确。
+                    // V2.8X++：Device-Id 必须由用户输入真实设备 MAC，并做格式校验。
+                    // 实时归一化（去空白/转大写/连字符转冒号，12 位连续 hex 自动补冒号）以便校验与激活复用。
+                    val xzMacValid = xzDeviceId.isBlank() || XiaozhiDeviceSimulator.isValidMacAddress(xzDeviceId)
                     OutlinedTextField(
                         value = xzDeviceId,
-                        onValueChange = {},
+                        onValueChange = { newId ->
+                            xzDeviceId = XiaozhiDeviceSimulator.normalizeMac(newId)
+                            scope.launch { settingsViewModel.setXzDeviceId(xzDeviceId) }
+                        },
                         label = { Text(stringResource(R.string.assistant_device_id_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        readOnly = true,
+                        isError = !xzMacValid,
+                        supportingText = if (!xzMacValid) {
+                            { Text(stringResource(R.string.assistant_mac_invalid)) }
+                        } else null,
                         trailingIcon = {
                             // 零新依赖红线：ContentCopy 图标在 material-icons-extended 中，改用文字按钮。
                             TextButton(onClick = {
@@ -267,14 +283,23 @@ internal fun AssistantConfigContent(
                             }
                         },
                     )
-                    // Client-Id 显示 + 复制
+                    Text(
+                        text = stringResource(R.string.assistant_device_id_hint),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    // Client-Id：可手动编辑（V2.8X+）。服务端不参与校验（仅作 API 第二参数、缺省回退为 device-id），
+                    // 一般无需改动；保留可编辑以便对照测试时按需粘贴。
                     OutlinedTextField(
                         value = xzClientId,
-                        onValueChange = {},
+                        onValueChange = { newId ->
+                            xzClientId = newId
+                            scope.launch { settingsViewModel.setXzClientId(newId) }
+                        },
                         label = { Text(stringResource(R.string.assistant_client_id_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        readOnly = true,
                         trailingIcon = {
                             TextButton(onClick = {
                                 val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
@@ -294,6 +319,8 @@ internal fun AssistantConfigContent(
                                 scope.launch {
                                     otaLoading = true
                                     otaMessage = null
+                                    otaCode = null
+                                    otaDone = false
                                     // OTA 端点：官方（xiaozhi.me/tenclass）固定用 DEFAULT_OTA_URL；
                                     // 自建服务器按约定路径 /xiaozhi/ota/ 从 WS 地址推导。
                                     val otaUrl = if (localEndpoint.isBlank() ||
@@ -308,34 +335,58 @@ internal fun AssistantConfigContent(
                                             .substringBefore("/xiaozhi")
                                             .trimEnd('/') + "/xiaozhi/ota/"
                                     }
-                                    val result = XiaozhiDeviceSimulator.activateDevice(
-                                        deviceId = xzDeviceId,
+                                    // V2.8X++ py-xiaozhi 同款激活流程：
+                                    // Step1 拿 code 后立即展示（onActivationCode 回调），用户此时去官网输码；
+                                    // Step2 在后台持续轮询 /activate（202=等输码，最多 5 分钟），
+                                    // 官网绑定校验的 serial_number 正是该轮询请求提交的 —— 轮询必须保持在线。
+                                    // V2.8X++：激活前用归一化后的真实 MAC 派生 serial_number 并持久化，
+                                    // 确保走激活流程的身份与用户输入一致（旧的 xzSerialNumber 可能基于旧 MAC）。
+                                    val cleanMac = XiaozhiDeviceSimulator.normalizeMac(xzDeviceId)
+                                    settingsViewModel.setXzDeviceId(cleanMac)
+                                    xzDeviceId = cleanMac
+                                    val sn = XiaozhiDeviceSimulator.generateSerialNumber(cleanMac)
+                                    settingsViewModel.setXzSerialNumber(sn)
+                                    xzSerialNumber = sn
+                                    val result = XiaozhiDeviceSimulator.activateDeviceTwoStep(
+                                        deviceId = cleanMac,
                                         clientId = xzClientId,
+                                        serialNumber = sn,
                                         otaUrl = otaUrl,
+                                        onActivationCode = { code ->
+                                            otaCode = code
+                                            otaMessage = context.getString(R.string.assistant_two_step_waiting)
+                                        },
                                     )
                                     otaLoading = false
                                     otaDone = true
-                                    // 协程 onClick 内非 Composable 上下文：必须用 context.getString 而非 stringResource。
-                                    if (result.error != null) {
-                                        otaMessage = context.getString(R.string.assistant_activation_error, result.error)
-                                        otaCode = null
-                                    } else {
-                                        otaCode = result.code
-                                        // V2.8X：OTA 响应带回权威 WebSocket 地址，自动填入并持久化 endpoint，
-                                        // 避免手填/遗留错误主机（wss://api.xiaozhi.me/ws 不存在）导致一直「未连接」。
-                                        if (!result.websocketUrl.isNullOrBlank()) {
-                                            localEndpoint = result.websocketUrl
-                                            settingsViewModel.setAssistantEndpoint(result.websocketUrl)
-                                        }
-                                        otaMessage = if (result.needsBinding) {
-                                            context.getString(R.string.assistant_activation_success)
-                                        } else {
-                                            context.getString(R.string.assistant_activation_already_bound)
-                                        }
+                                    if (!result.websocketUrl.isNullOrBlank()) {
+                                        localEndpoint = result.websocketUrl
+                                        settingsViewModel.setAssistantEndpoint(result.websocketUrl)
+                                    }
+                                    // OTA 下发的 WS token 自动保存（官方云通常为 "test-token"，自建服务端可能是真 token）
+                                    if (!result.websocketToken.isNullOrBlank()) {
+                                        localToken = result.websocketToken
+                                        SecureStore.putSecret(context, SettingsRepository.PREF_XZ_TOKEN, result.websocketToken)
+                                    }
+                                    // 激活成功后清空 6 位码（绑定已完成，无需再输）
+                                    otaCode = if (result.isActivated) null else result.code
+                                    // 文案按 step1 / step2 分状态给精准反馈。
+                                    otaMessage = when {
+                                        result.isActivated -> context.getString(R.string.assistant_two_step_ok)
+                                        result.step1Error != null -> context.getString(
+                                            R.string.assistant_two_step_step1_error,
+                                            result.step1Error,
+                                        )
+                                        result.step2Status == "TIMEOUT" -> context.getString(R.string.assistant_two_step_timeout)
+                                        result.step2Error != null -> context.getString(
+                                            R.string.assistant_two_step_step2_error,
+                                            result.step2Error,
+                                        )
+                                        else -> context.getString(R.string.assistant_two_step_unknown)
                                     }
                                 }
                             },
-                            enabled = !otaLoading && xzDeviceId.isNotEmpty(),
+                            enabled = !otaLoading && xzDeviceId.isNotBlank() && XiaozhiDeviceSimulator.isValidMacAddress(xzDeviceId),
                         ) {
                             if (otaLoading) {
                                 androidx.compose.material3.CircularProgressIndicator(
@@ -344,15 +395,16 @@ internal fun AssistantConfigContent(
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
-                                Text(stringResource(R.string.assistant_activate_btn))
+                                Text(stringResource(R.string.assistant_activate_two_step_btn))
                             }
                         }
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
-                                    val (newDid, newCid) = settingsViewModel.regenerateXzDeviceIdentity()
+                                    val (newDid, newCid, newSn) = settingsViewModel.regenerateXzDeviceIdentity()
                                     xzDeviceId = newDid
                                     xzClientId = newCid
+                                    xzSerialNumber = newSn
                                     otaCode = null
                                     otaMessage = null
                                     otaDone = false
@@ -405,6 +457,69 @@ internal fun AssistantConfigContent(
                                 else
                                     androidx.compose.material3.MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
+                    // V2.8X 「测试连接」：用当前 endpoint/token/device 走一次握手，零副作用探针。
+                    // 用户已绑定官网但仍「握手超时」时，按此按钮即时拿到诊断（端点不可达 / Device-Id 未绑定 / 协议不匹配），
+                    // 不必每次打开助手页等满 10s 握手超时。
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.assistant_test_section_title),
+                        style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    testLoading = true
+                                    testResult = null
+                                    // 即时把当前 endpoint 持久化后再测试，避免「填了新地址但未保存」导致测的是旧值。
+                                    settingsViewModel.setAssistantEndpoint(localEndpoint)
+                                    testResult = settingsViewModel.testXiaozhiConnection()
+                                    testLoading = false
+                                }
+                            },
+                            enabled = !testLoading && xzDeviceId.isNotBlank() && XiaozhiDeviceSimulator.isValidMacAddress(xzDeviceId),
+                        ) {
+                            if (testLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text(stringResource(R.string.assistant_test_btn))
+                            }
+                        }
+                        testResult?.let { r ->
+                            Text(
+                                text = when (r) {
+                                    is com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result.Ok ->
+                                        context.getString(
+                                            R.string.assistant_test_ok,
+                                            r.endpoint,
+                                            r.sessionId ?: "-",
+                                            r.sampleRate ?: 0,
+                                        )
+                                    is com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result.Fail ->
+                                        context.getString(R.string.assistant_test_fail, r.reason)
+                                },
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                color = when (r) {
+                                    is com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result.Ok ->
+                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                    is com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result.Fail ->
+                                        androidx.compose.material3.MaterialTheme.colorScheme.error
+                                },
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }

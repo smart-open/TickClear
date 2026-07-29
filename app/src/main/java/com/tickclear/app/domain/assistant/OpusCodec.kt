@@ -3,6 +3,7 @@ package com.tickclear.app.domain.assistant
 import android.media.MediaCodec
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import com.tickclear.app.domain.log.AppLogger
 import java.nio.ByteBuffer
 
 /**
@@ -69,13 +70,24 @@ class OpusCodec {
         return ok
     }
 
-    /** 编码一帧 PCM(1920B) 为 Opus 包；长度不足或失败返回 null。 */
+    /** 编码一帧 PCM(1920B) 为 Opus 包；长度不足或失败返回 null。
+     *  V2.8X+：补关键失败路径 w 级日志（编码器 null / 输入不足 / dequeueInputBuffer 超时 /
+     *  dequeueOutputBuffer 失败 / BUFFER_FLAG_CODEC_CONFIG），便于"语音不能用"时区分根因。 */
     fun encodeFrame(pcm16: ByteArray): ByteArray? = synchronized(encLock) {
-        if (pcm16.size < frameBytes) return null
+        if (pcm16.size < frameBytes) {
+            AppLogger.w("OpusCodec", "encodeFrame 失败：pcm 长度 ${pcm16.size} < ${frameBytes}B")
+            return null
+        }
         runCatching {
-            val codec = ensureEncoder() ?: return null
+            val codec = ensureEncoder() ?: run {
+                AppLogger.w("OpusCodec", "encodeFrame 失败：ensureEncoder 返回 null（设备无 Opus 编码器）")
+                return null
+            }
             val inIdx = codec.dequeueInputBuffer(timeoutUs)
-            if (inIdx < 0) return null
+            if (inIdx < 0) {
+                AppLogger.w("OpusCodec", "encodeFrame 失败：dequeueInputBuffer 返回 $inIdx（编码器繁忙或 timeout=${timeoutUs}us）")
+                return null
+            }
             codec.getInputBuffer(inIdx)?.apply {
                 clear()
                 put(pcm16, 0, frameBytes)
@@ -88,11 +100,19 @@ class OpusCodec {
                 val data = ByteArray(info.size)
                 out?.get(data)
                 codec.releaseOutputBuffer(outIdx, false)
-                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) return null
+                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
+                    AppLogger.v("OpusCodec", "encodeFrame 收到 CODEC_CONFIG 包，已忽略")
+                    return null
+                }
+                AppLogger.v("OpusCodec", "→ encodeFrame OK 输出 ${data.size}B")
                 return data
             }
+            AppLogger.w("OpusCodec", "encodeFrame 失败：dequeueOutputBuffer 返回 $outIdx（编码器未就绪或流格式不接受 60ms 帧）")
             null
-        }.getOrDefault(null)
+        }.getOrElse { e ->
+            AppLogger.e("OpusCodec", "encodeFrame 异常", e)
+            null
+        }
     }
 
     /** 解码一帧 Opus 包为 PCM(16bit)；失败返回 null。 */

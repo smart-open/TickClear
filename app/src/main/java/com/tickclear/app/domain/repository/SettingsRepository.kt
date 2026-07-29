@@ -64,9 +64,12 @@ interface SettingsRepository {
     val xzDeviceId: Flow<String>
     /** 模拟客户端 ID（UUID 格式），用于 WS 认证头。 */
     val xzClientId: Flow<String>
+    /** 模拟设备序列号（serial_number）。ESP32 固件烧录在 NVS，官方服务端 OTA 注册与「用验证码添加设备」强制要求非空（缺则报"serial_number 是必须的"）。 */
+    val xzSerialNumber: Flow<String>
 
     suspend fun setXzDeviceId(deviceId: String)
     suspend fun setXzClientId(clientId: String)
+    suspend fun setXzSerialNumber(sn: String)
 
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setThemeSkin(skin: ThemeSkin)
@@ -145,6 +148,7 @@ interface SettingsRepository {
         const val PREF_ALIYUN_APP_KEY = "aliyun_asr_app_key"
         const val PREF_XZ_DEVICE_ID = "xz_device_id"
         const val PREF_XZ_CLIENT_ID = "xz_client_id"
+        const val PREF_XZ_SERIAL_NUMBER = "xz_serial_number"
         const val DEFAULT_LLM_PROVIDER = "xiaozhi"
         const val DEFAULT_LLM_BASE_URL = "https://api.openai.com/v1"
         const val DEFAULT_LLM_MODEL = "gpt-4o-mini"

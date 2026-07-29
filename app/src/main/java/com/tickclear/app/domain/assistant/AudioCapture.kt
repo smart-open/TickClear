@@ -44,9 +44,11 @@ class AudioCapture {
 
         record = rec
         running = true
+        val frameSize = sampleRate * 60 / 1000 * 2 // 1920 字节
         // startRecording 可能抛异常（部分设备状态异常）；失败须释放并复位，否则 record/running 残留导致 AudioRecord 泄漏。
         try {
             rec.startRecording()
+            AppLogger.d("AudioCapture", "start OK sampleRate=$sampleRate minBuf=$minBuf frameSize=$frameSize")
         } catch (e: Exception) {
             AppLogger.w("AudioCapture", "startRecording failed", e)
             running = false
@@ -55,19 +57,36 @@ class AudioCapture {
             return false
         }
 
-        val frameSize = sampleRate * 60 / 1000 * 2 // 1920 字节
         val readBuf = ByteArray(minBuf)
         thread = Thread({
             val frame = ByteArray(frameSize)
             var filled = 0
+            // V2.8X+：诊断计数器，便于"语音不能用"时定位"录音没起/read 阻塞/回调未触发"。
+            var readCount = 0
+            var readErrCount = 0
+            var readZeroCount = 0
+            var frameCount = 0
             while (running) {
                 val n = try {
                     rec.read(readBuf, 0, readBuf.size)
                 } catch (e: Exception) {
-                    AppLogger.w("AudioCapture", "read failed", e)
-                    break
+                    // V2.8X+：不再静默 break；v 级日志后继续循环，让后续帧有机会。
+                    // 旧实现一遇异常就退出线程，导致"语音不能用"无任何线索。
+                    readErrCount++
+                    if (readErrCount <= 3 || readErrCount % 50 == 0) {
+                        AppLogger.w("AudioCapture", "read 异常 第${readErrCount}次（继续）", e)
+                    }
+                    continue
                 }
-                if (n <= 0) break
+                readCount++
+                if (n <= 0) {
+                    // 首次返回 0 是某些设备的预热行为，v 级记录但不退出。
+                    readZeroCount++
+                    if (readZeroCount <= 5 || readZeroCount % 50 == 0) {
+                        AppLogger.v("AudioCapture", "read 返回 $n（可能是设备预热，第${readZeroCount}次）")
+                    }
+                    continue
+                }
                 var off = 0
                 while (off < n) {
                     val need = min(frameSize - filled, n - off)
@@ -75,11 +94,16 @@ class AudioCapture {
                     filled += need
                     off += need
                     if (filled == frameSize) {
-                        runCatching { onFrame(frame.copyOf()) }
+                        frameCount++
+                        val payload = frame.copyOf()
+                        // v 级日志：每帧触发即打，避免被高频日志淹没但又能完整跟踪。
+                        AppLogger.v("AudioCapture", "→ onFrame ${payload.size}B 第${frameCount}帧")
+                        runCatching { onFrame(payload) }
                         filled = 0
                     }
                 }
             }
+            AppLogger.d("AudioCapture", "线程退出 readCount=$readCount readErr=$readErrCount readZero=$readZeroCount frameCount=$frameCount")
         }, "AudioCapture").also { it.start() }
         return true
     }

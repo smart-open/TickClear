@@ -146,28 +146,27 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setAsrLanguage(language: String) { dataStore.edit { it[KEY_ASR_LANGUAGE] = language } }
     override suspend fun setVoiceHistoryEnabled(enabled: Boolean) { dataStore.edit { it[KEY_VOICE_HISTORY] = enabled } }
 
-    // ── 小智设备模拟（V2.8）：模拟 ESP32 设备标识，首次访问时自动生成。──
+    // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
+    // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
+    // 未设置时返回空字符串，由 UI 强制用户先输入真实 MAC。
     override val xzDeviceId: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_XZ_DEVICE_ID] ?: generateMacAddress().also { mac ->
-            // 惰性生成后立即持久化，避免每次重新生成不同 MAC
-            runCatching { dataStore.edit { it[KEY_XZ_DEVICE_ID] = mac } }
-        }
+        prefs[KEY_XZ_DEVICE_ID] ?: ""
     }
     override val xzClientId: Flow<String> = dataStore.data.map { prefs ->
         prefs[KEY_XZ_CLIENT_ID] ?: java.util.UUID.randomUUID().toString().also { uuid ->
             runCatching { dataStore.edit { it[KEY_XZ_CLIENT_ID] = uuid } }
         }
     }
+    override val xzSerialNumber: Flow<String> = dataStore.data.map { prefs ->
+        prefs[KEY_XZ_SERIAL_NUMBER] ?: java.util.UUID.randomUUID().toString().also { sn ->
+            runCatching { dataStore.edit { it[KEY_XZ_SERIAL_NUMBER] = sn } }
+        }
+    }
 
     // 注意：dataStore.edit 返回 Preferences，接口声明返回 Unit → 必须用块体而非表达式体。
     override suspend fun setXzDeviceId(deviceId: String) { dataStore.edit { it[KEY_XZ_DEVICE_ID] = deviceId } }
     override suspend fun setXzClientId(clientId: String) { dataStore.edit { it[KEY_XZ_CLIENT_ID] = clientId } }
-
-    /** 生成随机 MAC 地址格式字符串（如 "AA:BB:CC:DD:EE:FF"），用于模拟 ESP32 设备标识。 */
-    private fun generateMacAddress(): String {
-        val bytes = ByteArray(6).apply { java.security.SecureRandom().nextBytes(this) }
-        return bytes.joinToString(":") { "%02X".format(it) }
-    }
+    override suspend fun setXzSerialNumber(sn: String) { dataStore.edit { it[KEY_XZ_SERIAL_NUMBER] = sn } }
 
     override suspend fun getAssistantToken(): String? = withContext(Dispatchers.IO) {
         SecureStore.getSecret(context, SettingsRepository.PREF_XZ_TOKEN)
@@ -255,5 +254,6 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_VOICE_HISTORY = booleanPreferencesKey("voice_history_enabled")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
+        private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")
     }
 }

@@ -19,6 +19,8 @@
     <string name="action_restore">恢复</string>
     <string name="action_back">返回</string>
     <string name="action_refresh">刷新</string>
+    <string name="action_copy">复制</string>
+    <string name="action_select_all">全选</string>
 
     <!-- 今日 -->
     <string name="today_greeting_morning">早上好 ☀️</string>
@@ -257,6 +259,11 @@
     <string name="assistant_voice_stop">停止聆听</string>
     <string name="assistant_voice_unsupported">本机不支持语音编码，请使用文字输入</string>
     <string name="assistant_input_placeholder">说点什么，或点麦克风试试</string>
+    <string name="assistant_mic_opening">正在打开麦克风…</string>
+    <string name="assistant_mic_listening">开始聆听，请说话…</string>
+    <string name="assistant_mic_already_open">已在录音中</string>
+    <string name="assistant_mic_unavailable">当前无可用语音通道</string>
+    <string name="assistant_connection_banner_dismiss">关闭</string>
     <string name="assistant_config_title">助手配置</string>
     <string name="assistant_config_desc">助手配置</string>
     <string name="assistant_unconfigured_title">还没有配置助手</string>
@@ -270,14 +277,44 @@
     <string name="assistant_device_section_title">设备模拟（接入官方小智）</string>
     <string name="assistant_device_id_label">设备 ID（Device-Id）</string>
     <string name="assistant_client_id_label">客户端 ID（Client-Id）</string>
-    <string name="assistant_activate_btn">激活设备 / 获取验证码</string>
-    <string name="assistant_regenerate_btn">重新生成设备标识</string>
+    <string name="assistant_device_id_hint">请输入【真实设备 MAC】作为 Device-Id（如面包板 ESP32 的 MAC：AA:BB:CC:DD:EE:FF）。虚拟/随机 MAC 在 xiaozhi.me 官方云无法完成绑定与握手（服务端 license 绑定硬件 MAC）。格式须为 6 组十六进制，字母大小写均可。</string>
+    <string name="assistant_regenerate_btn">重置软件身份</string>
+    <string name="assistant_mac_invalid">设备 MAC 格式不正确，应为 6 组十六进制（如 AA:BB:CC:DD:EE:FF），且须为真实设备 MAC。</string>
     <string name="assistant_activation_code_title">验证码</string>
-    <string name="assistant_activation_hint">请打开 xiaozhi.me 控制台 → 添加设备 → 输入上方 6 位验证码完成绑定。绑定后重新连接即可使用。</string>
-    <string name="assistant_activation_success">验证码获取成功！请在 5 分钟内到官网绑定。</string>
-    <string name="assistant_activation_already_bound">设备已绑定，可直接连接。</string>
-    <string name="assistant_activation_error">激活失败：%1$s</string>
+    <string name="assistant_activation_hint">请立即打开 xiaozhi.me 控制台 → 添加设备 → 输入上方 6 位验证码。App 正在后台自动轮询激活（最长 5 分钟），输码期间请勿离开本页；官网绑定成功后 App 会自动提示激活完成。</string>
     <string name="assistant_copy_id">复制</string>
+
+    <!-- V2.8X++ 两步激活（对齐 py-xiaozhi 官方云已验证流程：OTA 拿码 → 展示码 → 后台轮询 /activate 至用户官网输码完成） -->
+    <string name="assistant_activate_two_step_btn">激活设备（获取验证码）</string>
+    <string name="assistant_two_step_waiting">已获取验证码，正在等待你到官网输码（自动轮询中，最长 5 分钟）…</string>
+    <string name="assistant_two_step_ok">激活成功！设备已在官网完成绑定，serial_number 与 hmac 已写入服务端设备记录。现在可直接点「测试连接」。</string>
+    <string name="assistant_two_step_step1_error">Step1 失败（OTA 注册/拿 challenge）：%1$s</string>
+    <string name="assistant_two_step_step2_error">激活轮询异常：%1$s。请重新点击「激活设备」再试。</string>
+    <string name="assistant_two_step_timeout">未在 5 分钟内检测到官网输码完成。请重新点击「激活设备」获取新验证码，并在轮询期间（不要离开本页）到 xiaozhi.me 控制台 → 添加设备 → 输入验证码。</string>
+    <string name="assistant_two_step_unknown">激活流程状态未知，请查看「设置 → 调试日志」中 XzSim 标签的详细记录。</string>
+    <!-- V2.8X 助手配置页「测试连接」：用 endpoint+token+device 走一次独立握手，给出端点可达性即时反馈。 -->
+    <string name="assistant_test_section_title">测试连接</string>
+    <string name="assistant_test_btn">测试连接</string>
+    <string name="assistant_test_ok">握手成功（%1$s，session=%2$s，%3$dHz）</string>
+    <string name="assistant_test_fail">连接失败：%1$s</string>
+    <!-- V2.8X 助手语音按钮「点击无反应」深度排查：明确告诉用户为什么本机不支持语音输入，给出可执行修复路径。 -->
+    <string name="assistant_voice_no_system_asr">本机未提供系统语音识别服务且无 Opus 编码器，请到「助手 → ASR」切换为云 ASR（OpenAI/腾讯/阿里），或换用文字输入。</string>
+    <string name="assistant_voice_no_asr_configured">请先在「助手 → ASR」选择可用服务商并填入凭据，再使用语音输入。</string>
+    <!-- V2.8X+ 握手超时（25s）：App 已发 hello 6 字段但服务端 12s 内没回 welcome。
+         关键事实：服务端 helloHandle.py 源码对 hello 字段无任何校验（无 v1.6/v2.x 区分），
+         所以"加 features.mcp= true / 改 version=1/2/3"都救不了——问题在更上层：
+         服务端收到 hello 后会异步调 get_private_config_from_api 校验 device-id/client-id，
+         如果该虚拟设备在 API 中查不到（或网关 idle timeout），welcome 不会发。
+         常见可能：①服务端 API 校验该 App 端 client-id 失败（虚拟设备不被服务端信任）；
+         ②服务端 _initialize_components 加载 TTS/ASR 慢，welcome 延迟；
+         ③网关/反代 idle timeout 提前 RST 关闭（CloudFront 默认 10s）。 -->
+    <string name="assistant_handshake_timeout">握手超时：App 已发送 hello（version=1, features.mcp=true）但服务端 %2$d 秒内未返回 welcome。当前 Device-Id=%1$s。已核对服务端源码（connection.py / helloHandle.py）：hello 字段无校验、服务端不主动 close、鉴权仅基于 device-id（client-id 不参与校验、不读 Authorization 头）。故超时的真实含义是：服务端对该 device-id 调用 get_private_config_from_api 返回「未找到/未绑定」→ need_bind=True → 直接丢弃 hello、不发 welcome。最可能原因是 App 自动生成的【虚拟 device-id】在官网后端未真正激活（尽管控制台显示「已绑定」）。最快验证：把 xiaozhi.me 控制台「我的设备」中一台【已知可用】设备的 Device-Id（MAC）粘进下方「设备 ID」输入框（现已可编辑），再点测试；若能连上，即证明 App 协议完全正确，问题只在该虚拟 device-id 未被官网激活。详细时序见「设置 → 调试日志」中 XzTester 标签。</string>
+    <!-- V2.8X+：服务端「WebSocket 升级成功、但握手前被关闭」的明确报错。
+         关键事实：服务端 connection.py 源码不主动 close 连接（仅 AuthenticationError 或 idle 超时）。
+         close code=1005=TCP 裸 RST（网关行为），1006=连接异常，1011=服务端内部错误。
+         即使服务端源码证明 hello 协议无字段校验，App 端发送的 hello 仍可能被网关/反代层
+         检测为"非标准 ESP32 客户端"而提前 RST（虚拟 client-id 不被反代白名单信任）。 -->
+    <string name="assistant_connection_rejected">连接被提前关闭（WebSocket 升级成功、但握手前被掐断）。当前 Device-Id=%1$s。已核对服务端源码：服务端不主动 close 连接（仅 AuthenticationError 或 idle 超时），close code 见调试日志 XzTransport 标签：1005/1006=网关/网络层裸关闭、1011=服务端内部错误。这类提前关闭通常对应：①该 device-id 在网关/反代层被判定为不可用；②网关 idle timeout 到点 RST。最快验证：把控制台「我的设备」中一台【已知可用】设备的 Device-Id（MAC）粘进下方「设备 ID」输入框（现已可编辑）后重试；若能连上，证明 App 协议无误，根因是此虚拟 device-id 未被官网后端激活。详见「设置 → 调试日志」。</string>
     <string name="assistant_prompt_label">AI 人设 / 欢迎话术</string>
     <string name="assistant_provider_label">LLM 服务商</string>
     <string name="assistant_provider_xiaozhi">小智（语音+建任务）</string>
@@ -308,6 +345,18 @@
     <string name="assistant_edit_conflict_note">（与现有任务时间冲突，已保留）</string>
     <string name="assistant_draft_pending">已解析到任务，请确认是否创建</string>
     <string name="assistant_draft_unknown">收到暂不支持的指令</string>
+    <!-- V2.8X 助手消息交互：长按复制 / 左滑删除。 -->
+    <string name="assistant_msg_copied">已复制到剪贴板</string>
+    <string name="assistant_msg_deleted">已删除该消息</string>
+    <string name="assistant_msg_delete">删除</string>
+    <!-- V2.8X++：长按多选/单条菜单（参考微信） -->
+    <string name="assistant_msg_actions">消息操作</string>
+    <string name="assistant_msg_select_more">多选</string>
+    <string name="assistant_msg_delete_confirm_title">删除所选消息？</string>
+    <string name="assistant_msg_delete_confirm_body">即将从助手 tab 与语音历史中移除共 %1$d 条消息，此操作不可撤销。</string>
+    <string name="assistant_msg_deleted_count">已删除 %1$d 条消息</string>
+    <string name="assistant_selected_count">已选 %1$d 项</string>
+    <string name="assistant_msg_long_press_hint">长按复制・左滑删除</string>
     <string name="assistant_draft_cancelled">已取消创建任务</string>
     <string name="assistant_draft_title">确认创建任务</string>
     <string name="assistant_draft_confirm">创建</string>

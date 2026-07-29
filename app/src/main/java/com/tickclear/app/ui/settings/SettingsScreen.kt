@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -275,10 +276,16 @@ fun SettingsScreen(
     ) { padding ->
         // 左列：外观 / 提醒 / 助手
         val leftContent: @Composable ColumnScope.() -> Unit = {
+            // V2.8X 深度修复：把 leftContent 整体包成 Column(0dp spacedBy)，外层
+            // Column 的 spacedBy(8.dp) 不再插入到段内行间（之前是 SectionTitle(外观) → 8dp →
+            // 主题行 → 1dp → divider → 1dp → 皮肤行 → ... → 8dp → 下一段 SectionTitle，段内段间
+            // 都被外层 8dp 干扰，"主题下方空白太大" 即由此而来）。现改为段内 0dp + 段间 Spacer(8.dp)
+            // 显式控距，行内 padding(vertical=2.dp) + 1dp divider（紧凑但留有视觉空气）。
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             // ── 外观 ──
             SectionTitle(stringResource(R.string.settings_section_appearance))
-            // 主题/皮肤区域极致紧凑化：绕过通用 SettingRow（其 padding+divider 累积导致红框大空白），
-            // 用零外边距的专用布局直接渲染 chip 行。
+            // 主题/皮肤/动画三行紧凑化（V2.8X）：行 padding(vertical=2.dp) + 1dp divider，
+            // 行内 0dp spacedBy + CompositionLocalProvider 压住 48dp 最小触摸目标。
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp,
             ) {
@@ -286,7 +293,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 3.dp),
+                        .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -308,7 +315,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 3.dp),
+                        .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -334,15 +341,25 @@ fun SettingsScreen(
                 }
                 HorizontalDivider()
             }
-            SettingRow(
-                title = stringResource(R.string.settings_animation_title),
-                subtitle = stringResource(R.string.settings_animation_subtitle),
+            // 动画开关也压进这个紧凑组，padding 与其它两行对齐，去掉 SettingRow 的 trailing Divider（紧凑组末尾）。
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_animation_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_animation_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Switch(
                     checked = animationEnabled,
                     onCheckedChange = { viewModel.setAnimationEnabled(it) },
                 )
             }
+
+            // 段间距：与「提醒」段 SectionTitle 间隔 8dp（视觉上等同原 8dp spacedBy，但只作用一次）
+            Spacer(Modifier.height(8.dp))
 
             // ── 提醒 ──
             SectionTitle(stringResource(R.string.settings_section_reminder))
@@ -400,6 +417,8 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setOfflineCommandEnabled(it) },
                 )
             }
+
+            Spacer(Modifier.height(8.dp))
 
             // ── 助手 ──
             SectionTitle(stringResource(R.string.settings_section_assistant))
@@ -495,6 +514,7 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_wake_word_phrase_subtitle, wakeWord),
                 ) {}
             }
+            }  // 关闭 leftContent 内部的 Column(0dp spacedBy)
         }
 
         // 右列：数据与隐私 / 关于 / 后续能力
@@ -678,11 +698,15 @@ fun SettingsScreen(
 
 @Composable
 private fun SectionTitle(text: String) {
+    // V2.8X 收紧：原 padding(top=4, bottom=4)=8dp 现改为 top=6dp + bottom=2dp，
+    // 给段首留出呼吸（避免与上方 divider/row 黏连），段尾仅 2dp（紧凑）。与 leftContent 内
+    // 显式 Spacer(8.dp) 组合后，段间总距离 = 2(SectionTitle 底) + 8(Spacer) + 6(下段 SectionTitle 顶) = 16dp，
+    // 与旧实现（8 外层 spacedBy + 8 SectionTitle padding）持平，但段内不受外层 8dp 干扰。
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
     )
 }
 

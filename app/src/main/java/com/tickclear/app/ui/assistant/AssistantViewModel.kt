@@ -13,6 +13,7 @@ import com.tickclear.app.domain.assistant.OfflineCommand
 import com.tickclear.app.domain.assistant.OfflineCommandRecognizer
 import com.tickclear.app.domain.assistant.LlmProviderCatalog
 import com.tickclear.app.domain.assistant.LlmProviderResolver
+import com.tickclear.app.domain.assistant.MessageTextFilter
 import com.tickclear.app.domain.assistant.OpusCodec
 import com.tickclear.app.domain.assistant.WakeWordManager
 import com.tickclear.app.domain.assistant.WavUtil
@@ -33,6 +34,7 @@ import com.tickclear.app.domain.usecase.OfflineCommandResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import com.tickclear.app.domain.log.AppLogger
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -99,6 +101,16 @@ class AssistantViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
 
+    /** V2.8X++：启动期连接诊断（握手超时/ws-rejected 等），顶栏 banner 展示，不进消息流。 */
+    private val _connectionBanner = MutableStateFlow<String?>(null)
+    val connectionBanner: StateFlow<String?> = _connectionBanner.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), null,
+    )
+
+    fun dismissConnectionBanner() {
+        _connectionBanner.value = null
+    }
+
     /** 唤醒词监听是否激活。 */
     private val _wakeWordActive = MutableStateFlow(false)
     val wakeWordActive: StateFlow<Boolean> = _wakeWordActive.stateIn(
@@ -120,9 +132,27 @@ class AssistantViewModel @Inject constructor(
     /** 语音历史开关缓存：避免每条消息都读一次 DataStore（V2.65 优化）。 */
     private val voiceHistoryOn = MutableStateFlow(false)
 
+    /** V2.8X++：麦克风按下的即时反馈（避免「按下去没反应」的哑失败）。 */
+    private val _micToast = MutableStateFlow<String?>(null)
+    val micToast: StateFlow<String?> = _micToast.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), null,
+    )
+
+    fun consumeMicToast() {
+        _micToast.value = null
+    }
+
     init {
         viewModelScope.launch {
             settingsRepository.voiceHistoryEnabled.collect { voiceHistoryOn.value = it }
+        }
+        // V2.8X++：从 voice_history 库加载历史对话作为 _messages 初值 —— 之前只存内存，
+        // 切到其他 tab / 杀进程后消息全丢。加载完后正向时间排序（dao.observeAll 按 createdAt DESC，
+        // 内存展示需 ASC；reversed() 在小数据集上 OK，未来量大再换 SQL ASC）。
+        viewModelScope.launch {
+            val initial = voiceHistoryRepository.observeAll().first().reversed()
+            _messages.value = initial.toChatMessages()
+            AppLogger.d(TAG, "init 从 voice_history 加载历史消息 ${initial.size} 条")
         }
         viewModelScope.launch {
             transport.events.collect { onEvent(it) }
@@ -165,13 +195,18 @@ class AssistantViewModel @Inject constructor(
 
     fun connect() {
         viewModelScope.launch {
-            _configured.value = computeConfigured()
+            val configured = computeConfigured()
+            _configured.value = configured
             val llm = settingsRepository.llmProvider.first()
+            AppLogger.d(TAG, "connect() llm=$llm configured=$configured")
             if (llm == LlmProviderCatalog.XIAOZHI) {
                 val prompt = settingsRepository.assistantPrompt.first()
+                val mode = settingsRepository.assistantMode.first()
+                AppLogger.d(TAG, "connect() 小智模式=$mode 发起 transport.connect（prompt.len=${prompt.length}）")
                 transport.connect(prompt)
             } else {
                 // OpenAI 兼容系（含豆包/通义千问）为请求/响应文本通道，无长连接。
+                AppLogger.d(TAG, "connect() 非小智（${llm}），置为已连接文本通道")
                 _connected.value = true
             }
         }
@@ -182,6 +217,7 @@ class AssistantViewModel @Inject constructor(
         stopWakeWord()
         viewModelScope.launch {
             val llm = settingsRepository.llmProvider.first()
+            AppLogger.d(TAG, "disconnect() llm=$llm")
             if (llm == LlmProviderCatalog.XIAOZHI) transport.disconnect()
             _connected.value = false
         }
@@ -236,17 +272,59 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    /** 开始语音采集：根据 ASR 服务商路由到系统实时识别或整段 PCM 累积（云 ASR）。 */
+    /**
+     * 开始语音采集：根据 ASR 服务商路由到系统实时识别或整段 PCM 累积（云 ASR）。
+     *
+     * V2.8X 调整：不再以 `_voiceSupported` 早退（UI 已移除按钮 enabled 门控，避免哑失败）。
+     * 改为在协程内**动态**重新计算 ASR 能力并明确提示：
+     * - 系统 ASR / Opus 编码器 / 文件式云 ASR 三者皆不可用时，弹一条 system message 解释，
+     *   并把 `_voiceSupported` 同步置为 false（让 UI 灰显）。
+     */
     fun startVoice() {
-        if (!_voiceSupported.value || _recording.value) return
+        // V2.8X++：先发一条即时反馈，避免「按下无反应」的哑失败体感。
+        // 成功启动后会再次发出不同 toast；失败时由下面分支覆盖更明确的信息。
+        _micToast.value = appContext.getString(R.string.assistant_mic_opening)
         viewModelScope.launch {
+            // 动态计算（不等 init 阶段的异步快照）—— 进页面后用户可能改了 ASR 设置。
+            val mode = settingsRepository.assistantMode.first()
+            val llm = settingsRepository.llmProvider.first()
+            val asr = settingsRepository.asrProvider.first()
+            val cloudAsrReady = (llm != LlmProviderCatalog.XIAOZHI) && asrSupportsVoice(asr) && asrCredentialsPresent(asr)
+            val xzReal = (llm == LlmProviderCatalog.XIAOZHI) && (mode == "REAL")
+            val xzAsrReady = xzReal && (
+                localRecognizer.isAvailable ||
+                    opusCodec.isEncoderAvailable() ||
+                    (asrSupportsVoice(asr) && asrCredentialsPresent(asr))
+            )
+            val actuallySupported = xzAsrReady || cloudAsrReady
+            AppLogger.d(TAG, "startVoice mode=$mode llm=$llm asr=$asr sysAsr=${localRecognizer.isAvailable} opusEnc=${opusCodec.isEncoderAvailable()} cloudReady=$cloudAsrReady xzReal=$xzReal → supported=$actuallySupported")
+            _voiceSupported.value = actuallySupported
+            if (!actuallySupported) {
+                // 给用户明确反馈（而不是按钮按了无反应）。文案走 strings.xml（红线② 禁止硬编码中文）。
+                val msg = if (xzReal) {
+                    appContext.getString(R.string.assistant_voice_no_system_asr)
+                } else {
+                    appContext.getString(R.string.assistant_voice_no_asr_configured)
+                }
+                append(ChatMessage(nextId(), "system", msg))
+                _micToast.value = msg
+                return@launch
+            }
+            if (_recording.value) {
+                _micToast.value = appContext.getString(R.string.assistant_mic_already_open)
+                return@launch
+            }
+            // V2.8X++：成功路径的更明确反馈（覆盖"正在打开"占位）。
+            _micToast.value = appContext.getString(R.string.assistant_mic_listening)
+
             // 小智 REAL 模式：麦克风经系统 ASR 取文本后送 listen 帧（无 Opus 依赖）。
-            if (settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI) {
+            if (llm == LlmProviderCatalog.XIAOZHI) {
+                AppLogger.d(TAG, "startVoice → 路由到小智 REAL 语音")
                 startXiaozhiVoice()
                 return@launch
             }
-            val asr = settingsRepository.asrProvider.first()
             if (asr == AsrProviderCatalog.SYSTEM) {
+                AppLogger.d(TAG, "startVoice → 路由到系统 ASR 实时识别")
                 _recording.value = true
                 val lang = settingsRepository.asrLanguage.first()
                 localRecognizer.start(
@@ -262,15 +340,18 @@ class AssistantViewModel @Inject constructor(
                 )
             } else {
                 // V2.58：云 ASR 路径先边录边写裸 PCM 临时文件，停止时回调该文件，避免整段驻留内存。
+                AppLogger.d(TAG, "startVoice → 路由到云 ASR($asr) 边录边传 PCM")
                 val pcmFile = File(appContext.cacheDir, "asr_upload.pcm")
                 val ok = capture.startAccumulate(pcmFile = pcmFile) { handleCloudAsr(it) }
                 if (!ok) {
+                    AppLogger.e(TAG, "startVoice 云 ASR 采集启动失败（capture.startAccumulate 返回 false）")
                     runCatching { pcmFile.delete() }
                     _voiceSupported.value = false
                     return@launch
                 }
                 _recording.value = true
-                if (settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI) transport.sendListenStart()
+                AppLogger.d(TAG, "startVoice 云 ASR 采集已启动 pcmFile=${pcmFile.absolutePath}")
+                if (llm == LlmProviderCatalog.XIAOZHI) transport.sendListenStart()
             }
         }
     }
@@ -284,6 +365,7 @@ class AssistantViewModel @Inject constructor(
             // 小智 REAL 语音输入：优先系统 SpeechRecognizer（转文字→listen 帧，零依赖）；
             // 无系统识别器但有 Opus 编码器时，走真·语音流（mic PCM→Opus 二进制帧），由服务端完成 ASR。
             if (localRecognizer.isAvailable) {
+                AppLogger.d(TAG, "startXiaozhiVoice → 系统 SpeechRecognizer 路径")
                 _recording.value = true
                 val lang = settingsRepository.asrLanguage.first()
                 localRecognizer.start(
@@ -291,6 +373,7 @@ class AssistantViewModel @Inject constructor(
                     language = lang,
                     onPartial = { /* 系统识别仅以终句为准提交 */ },
                     onFinal = { text ->
+                        AppLogger.d(TAG, "startXiaozhiVoice 系统识别终句 len=${text.length}")
                         _recording.value = false
                         if (text.isNotBlank()) sendText(text) else append(
                             ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)),
@@ -298,8 +381,10 @@ class AssistantViewModel @Inject constructor(
                     },
                 )
             } else if (opusCodec.isEncoderAvailable()) {
+                AppLogger.d(TAG, "startXiaozhiVoice → Opus 编码语音流路径（服务端 ASR）")
                 startXiaozhiOpusVoice()
             } else {
+                AppLogger.e(TAG, "startXiaozhiVoice 无可用语音通道（系统 ASR 与 Opus 编码器均不可用）")
                 _recording.value = false
                 _voiceSupported.value = false
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
@@ -312,11 +397,23 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch {
             _recording.value = true
             // 通知服务端进入实时聆听（realtime 模式，由服务端 VAD 判定语句边界）。
+            AppLogger.d(TAG, "startXiaozhiOpusVoice → sendListenStart + capture.start(16000)")
             transport.sendListenStart()
             val ok = capture.start(16000) { pcm ->
-                opusCodec.encodeFrame(pcm)?.let { transport.sendAudio(it) }
+                // V2.8X+：补诊断日志链路，定位"语音不能用"是录音没起、编码失败还是 sendAudio 失败。
+                // 三处日志分布在 AudioCapture/OpusCodec/XzTransport，结合 frameCount 即可定位。
+                AppLogger.v(TAG, "startXiaozhiOpusVoice → 收到 pcm ${pcm.size}B，开始编码")
+                val opus = opusCodec.encodeFrame(pcm)
+                if (opus != null) {
+                    AppLogger.v(TAG, "startXiaozhiOpusVoice → Opus 编码完成 ${opus.size}B，调用 sendAudio")
+                    transport.sendAudio(opus)
+                } else {
+                    // OpusCodec 自身已 w 级日志 encodeFrame 失败原因，此处不再重复
+                    AppLogger.w(TAG, "startXiaozhiOpusVoice Opus 编码返回 null（详见 OpusCodec 标签）")
+                }
             }
             if (!ok) {
+                AppLogger.e(TAG, "startXiaozhiOpusVoice 麦克风采集启动失败（capture.start 返回 false）")
                 _recording.value = false
                 transport.sendListenStop()
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
@@ -326,9 +423,13 @@ class AssistantViewModel @Inject constructor(
 
     /** 停止语音采集。云 ASR 路径下，停止会触发转写；系统路径下停止实时识别。 */
     fun stopVoice() {
-        if (!_recording.value) return
+        if (!_recording.value) {
+            AppLogger.d(TAG, "stopVoice 被忽略：当前未在录音")
+            return
+        }
         viewModelScope.launch {
             val isXz = settingsRepository.llmProvider.first() == LlmProviderCatalog.XIAOZHI
+            AppLogger.d(TAG, "stopVoice isXz=$isXz")
             if (isXz) {
                 // 小智 REAL 模式语音走系统 ASR（或 Opus 流）：停止识别器/采集并通知服务端结束聆听。
                 localRecognizer.stop()
@@ -471,13 +572,25 @@ class AssistantViewModel @Inject constructor(
                 ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_reconnecting, ev.attempt, ev.max)),
             )
             is XiaozhiEvent.Disconnected -> _connected.value = false
+            is XiaozhiEvent.ConnectionIssue -> {
+                // V2.8X++：启动期连接诊断只走 banner，不污染消息流。
+                // 用户进 tab 默认空白；连接问题由顶栏红/黄条展示。
+                AppLogger.w(TAG, "ConnectionIssue 启动期连接诊断: ${ev.detail.take(80)}…")
+                _connected.value = false
+                _connectionBanner.value = ev.detail
+            }
             is XiaozhiEvent.Error -> {
                 _connected.value = false
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_connect_error, ev.detail)))
             }
             is XiaozhiEvent.SttText -> Unit // 用户输入已在 sendText 体现
             is XiaozhiEvent.TtsText -> Unit // 界面无需展示 TTS
-            is XiaozhiEvent.LlmText -> append(ChatMessage(nextId(), "assistant", ev.text))
+            is XiaozhiEvent.LlmText -> {
+                // V2.8X+ 防御：即便传输层未 strip（如 Mock/未来其他来源），UI 层再 strip 一次
+                // 多模态资源 token（@image#xxx），避免技术串进入消息列表；空串则不 append。
+                val cleaned = MessageTextFilter.strip(ev.text)
+                if (cleaned.isNotBlank()) append(ChatMessage(nextId(), "assistant", cleaned))
+            }
             is XiaozhiEvent.McpToolCall -> handleTool(ev)
             is XiaozhiEvent.McpToolResult -> append(
                 ChatMessage(nextId(), "system", ev.message, taskCreated = ev.taskCreated),
@@ -573,9 +686,13 @@ class AssistantViewModel @Inject constructor(
         append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_cancelled)))
     }
 
-    /** V2.57：长会话消息上限，超过则丢弃最旧，避免 messages 随会话无限增长导致内存单调上升。 */
+    /** V2.57：长会话消息上限，超过则丢弃最旧，避免 messages 随会话无限增长导致内存单调上升。
+     *  V2.8X++：从 100 提到 2000 — voice_history 持久化后用户期望"消息不要丢失"，
+     *  硬截断会让用户疑惑（库里存着但 UI 不显示）。2000 条基本覆盖 1~2 个月的日常对话，
+     *  且按文本大小通常 < 1MB 内存可承受。超此上限才截断首部（防 OOM）。 */
     private companion object {
-        private const val MAX_MESSAGES = 100
+        const val TAG = "AssistantVM"
+        private const val MAX_MESSAGES = 2000
     }
 
     private fun append(msg: ChatMessage) {
@@ -594,23 +711,76 @@ class AssistantViewModel @Inject constructor(
     }
 
     /**
-     * V2.65 语音历史：仅当设置开启（默认关闭）时，将用户/助手对话文本落库；系统提示不记录。
-     * 失败静默（历史保存非核心链路，不应阻断对话）。
+     * VoiceHistoryEntity → ChatMessage 转换（V2.8X++）。
+     * - id: 用 DB 自增 id（保证与 DB 同步，UI 删除/刷新能正确命中）；
+     * - role: DB 已规范为 "user" | "assistant" | "system" 三种；
+     * - taskCreated: 仅 assistant + kind=result 时为 true（任务创建回执）。
+     */
+    private fun List<VoiceHistoryEntity>.toChatMessages(): List<ChatMessage> = map { e ->
+        ChatMessage(
+            id = e.id,
+            role = e.role,
+            text = e.text,
+            taskCreated = e.role == "assistant" && e.kind == "result",
+        )
+    }
+
+    /** V2.8X++ 助手消息：左滑/长按删除单条。同步删库（system 也走相同路径）。 */
+    fun removeMessage(id: Long) {
+        AppLogger.d(TAG, "removeMessage id=$id")
+        var removed: VoiceHistoryEntity? = null
+        _messages.update { list ->
+            removed = list.firstOrNull { it.id == id }?.let { msg ->
+                VoiceHistoryEntity(
+                    id = msg.id,
+                    createdAt = 0L, // 仅用于占位匹配，下面会按 id 真删
+                    role = msg.role,
+                    text = msg.text,
+                )
+            }
+            list.filterNot { it.id == id }
+        }
+        // 同步清理 voice_history 库对应记录（按 id 主键精确删除；id=0 表示内存临时项，无库可删）。
+        val target = removed
+        if (target != null && target.id > 0L) {
+            viewModelScope.launch {
+                runCatching { voiceHistoryRepository.deleteById(target.id) }
+                    .onFailure { AppLogger.e(TAG, "removeMessage 删库失败 id=${target.id}", it) }
+            }
+        }
+    }
+
+    /** V2.8X++ 助手消息：一键清空整段对话（保留「草稿」状态）。同步清空 voice_history 库。 */
+    fun clearAllMessages() {
+        AppLogger.d(TAG, "clearAllMessages 清空整段对话（库+内存）")
+        _messages.value = emptyList()
+        viewModelScope.launch {
+            runCatching { voiceHistoryRepository.clearAll() }
+                .onFailure { AppLogger.e(TAG, "clearAllMessages 清库失败", it) }
+        }
+    }
+
+    /**
+     * V2.8X++ 消息落库：assistant tab 的对话**主存储**就是 voice_history，
+     * 不再受 voiceHistoryOn 守门——用户要求「消息不要丢失，除非用户清除」，
+     * 所以每次 append 都落库，按 createdAt 升序展示。
+     * `voiceHistoryOn`（设置页开关）仅控制"语音历史页面"是否可访问，不再影响主对话存留。
+     * 失败静默（落库非核心链路，不应阻断对话）。
      */
     private fun recordVoiceHistory(msg: ChatMessage) {
-        if (msg.role != "user" && msg.role != "assistant") return
-        // 复用缓存开关，避免每条消息都触发一次 DataStore 读取（最多 100 条/会话）。
-        if (!voiceHistoryOn.value) return
+        val now = System.currentTimeMillis()
+        val kind = if (msg.role == "assistant" && msg.taskCreated) "result" else "utterance"
         viewModelScope.launch {
             runCatching {
                 voiceHistoryRepository.insert(
                     VoiceHistoryEntity(
-                        createdAt = System.currentTimeMillis(),
+                        createdAt = now,
                         role = msg.role,
                         text = msg.text,
+                        kind = kind,
                     ),
                 )
-            }
+            }.onFailure { AppLogger.e(TAG, "recordVoiceHistory 落库失败 role=${msg.role}", it) }
         }
     }
 

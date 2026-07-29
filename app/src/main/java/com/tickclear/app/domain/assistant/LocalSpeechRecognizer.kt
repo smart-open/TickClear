@@ -8,6 +8,7 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import com.tickclear.app.domain.log.AppLogger
 import java.util.Locale
 
 /**
@@ -28,6 +29,23 @@ import java.util.Locale
  */
 class LocalSpeechRecognizer(private val context: Context) {
 
+    private companion object {
+        const val TAG = "LocalASR"
+        /** SpeechRecognizer 错误码 → 可读名，便于 Logcat 排查。 */
+        fun errName(code: Int) = when (code) {
+            SpeechRecognizer.ERROR_AUDIO -> "AUDIO"
+            SpeechRecognizer.ERROR_CLIENT -> "CLIENT"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "INSUFFICIENT_PERMISSIONS"
+            SpeechRecognizer.ERROR_NETWORK -> "NETWORK"
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "NETWORK_TIMEOUT"
+            SpeechRecognizer.ERROR_NO_MATCH -> "NO_MATCH"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RECOGNIZER_BUSY"
+            SpeechRecognizer.ERROR_SERVER -> "SERVER"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "SPEECH_TIMEOUT"
+            else -> "UNKNOWN($code)"
+        }
+    }
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var running = false
@@ -45,11 +63,16 @@ class LocalSpeechRecognizer(private val context: Context) {
         onFinal: (String) -> Unit,
         language: String? = null,
     ) {
-        if (running) return
+        if (running) {
+            AppLogger.w(TAG, "start 被忽略：识别器已在运行")
+            return
+        }
         if (!isAvailable) {
+            AppLogger.e(TAG, "start 失败：系统未提供语音识别服务（SpeechRecognizer.isRecognitionAvailable=false）")
             onFinal("")
             return
         }
+        AppLogger.d(TAG, "start continuous=$continuous language=${language ?: "默认中文"}")
         this.continuous = continuous
         this.onPartial = onPartial
         this.onFinal = onFinal
@@ -91,12 +114,16 @@ class LocalSpeechRecognizer(private val context: Context) {
         override fun onPartialResults(partialResults: Bundle?) {
             val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull().orEmpty()
-            if (text.isNotEmpty()) onPartial?.invoke(text)
+            if (text.isNotEmpty()) {
+                AppLogger.v(TAG, "onPartialResults: ${text.take(40)}")
+                onPartial?.invoke(text)
+            }
         }
 
         override fun onResults(results: Bundle?) {
             val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull().orEmpty()
+            AppLogger.i(TAG, "onResults: len=${text.length} text=${text.take(40)}")
             onFinal?.invoke(text)
             // 单句（非持续）识别：回执后释放识别器，避免 SpeechRecognizer 连接泄漏，
             // 且令 running 复位，否则后续 start() 直接 return 导致麦克风永久不可用。
@@ -104,6 +131,7 @@ class LocalSpeechRecognizer(private val context: Context) {
         }
 
         override fun onError(error: Int) {
+            AppLogger.w(TAG, "onError: ${errName(error)}")
             // 持续监听模式：无匹配 / 超时自动重启；其余错误停止避免空转。
             if (continuous && running &&
                 (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)

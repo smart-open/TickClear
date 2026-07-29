@@ -29,6 +29,13 @@ sealed interface XiaozhiEvent {
     /** V2.17：连接意外断开后正在自动重连（第 attempt/max 次，指数退避）。 */
     data class Reconnecting(val attempt: Int, val max: Int) : XiaozhiEvent
 
+    /**
+     * V2.8X++：启动期连接诊断（握手超时 / 升级成功但握手前被关 / 服务端拒绝）。
+     * 由 UI 层用顶栏 banner 展示，**不写入消息流**——用户进 tab 时不希望看到一堆连接错误。
+     * 真正的对话期错误（用户已发消息后链路断）仍走 [Error] 进消息流。
+     */
+    data class ConnectionIssue(val detail: String) : XiaozhiEvent
+
     /** 连接建立失败（如端点非法 / 建连异常）：用于 UI 回显，不触发重连（P0）。 */
     data class Error(val detail: String) : XiaozhiEvent
 

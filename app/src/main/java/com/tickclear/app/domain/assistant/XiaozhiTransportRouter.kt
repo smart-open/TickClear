@@ -27,7 +27,7 @@ class XiaozhiTransportRouter(
     override val events: Flow<XiaozhiEvent> = _events.asSharedFlow()
 
     private val mock = MockXiaozhiTransport(context)
-    private val real = WebSocketXiaozhiTransport(settings, mcpTools, codec)
+    private val real = WebSocketXiaozhiTransport(context, settings, mcpTools, codec)
 
     @Volatile private var active: XiaozhiTransport = mock
     private var forwardJob: Job? = null

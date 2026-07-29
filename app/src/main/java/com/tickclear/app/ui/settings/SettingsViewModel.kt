@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
 import com.tickclear.app.data.SecureStore
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.tickclear.app.domain.assistant.XiaozhiConnectionTester
 
 sealed class SettingsEvent {
     data object NavigateToRecycleBin : SettingsEvent()
@@ -256,13 +258,52 @@ class SettingsViewModel @Inject constructor(
     fun setAliyunAppKey(v: String) = viewModelScope.launch { settingsRepository.setAliyunAppKey(v) }
 
     // ── V2.8 小智 ESP32 设备模拟：UI 层不直接持有 Repository，经 VM 中转调用模拟器。──
-    /** 确保设备标识已生成并持久化（幂等）。@return Pair(Device-Id, Client-Id) */
-    suspend fun ensureXzDeviceIdentity(): Pair<String, String> =
+    /** 确保设备标识已生成并持久化（幂等）。@return Triple(Device-Id, Client-Id, Serial-Number) */
+    suspend fun ensureXzDeviceIdentity(): Triple<String, String, String> =
         com.tickclear.app.domain.assistant.XiaozhiDeviceSimulator.ensureDeviceIdentity(appContext, settingsRepository)
 
     /** 重新生成设备标识（换一台「虚拟设备」，原绑定作废）。 */
-    suspend fun regenerateXzDeviceIdentity(): Pair<String, String> =
+    suspend fun regenerateXzDeviceIdentity(): Triple<String, String, String> =
         com.tickclear.app.domain.assistant.XiaozhiDeviceSimulator.regenerateDeviceIdentity(appContext, settingsRepository)
+
+    /**
+     * 手动覆盖设备标识（V2.8X+）。
+     * 用途：从 xiaozhi.me 控制台「我的设备」抄入【已绑定设备】的 Device-Id（MAC）做对照测试——
+     * 服务端鉴权仅基于 device-id（client-id 不参与校验、不读 Authorization 头），
+     * 故把已知可用的设备 Device-Id 粘进来，App 即可「以该设备身份」完成握手，用于验证 App 协议是否正确。
+     */
+    suspend fun setXzDeviceId(id: String) = settingsRepository.setXzDeviceId(id)
+    suspend fun setXzClientId(id: String) = settingsRepository.setXzClientId(id)
+    suspend fun setXzSerialNumber(sn: String) = settingsRepository.setXzSerialNumber(sn)
+
+    private companion object {
+        const val TAG = "SettingsVM"
+    }
+
+    // V2.8X 助手配置页「测试连接」：用当前 endpoint/token/device 走一次握手，不污染 transport 状态。
+    suspend fun testXiaozhiConnection(): XiaozhiConnectionTester.Result {
+        val endpoint = settingsRepository.assistantEndpoint.first()
+        val deviceId = settingsRepository.xzDeviceId.first()
+        val clientId = settingsRepository.xzClientId.first()
+        val token = settingsRepository.getAssistantToken()
+        val prompt = settingsRepository.assistantPrompt.first()
+        AppLogger.d(TAG, "testXiaozhiConnection 入参 endpoint='$endpoint' deviceId='$deviceId' clientId='$clientId' token=${if (token.isNullOrBlank()) "∅" else token.take(4) + "…(len=${token.length})"} prompt.len=${prompt.length}")
+        val result = XiaozhiConnectionTester.test(
+            endpoint = endpoint,
+            deviceId = deviceId,
+            clientId = clientId,
+            token = token,
+            prompt = prompt,
+            isActivated = !token.isNullOrBlank(),
+        )
+        when (result) {
+            is XiaozhiConnectionTester.Result.Ok ->
+                AppLogger.d(TAG, "testXiaozhiConnection 结果=OK endpoint=${result.endpoint} session=${result.sessionId} sampleRate=${result.sampleRate}")
+            is XiaozhiConnectionTester.Result.Fail ->
+                AppLogger.d(TAG, "testXiaozhiConnection 结果=FAIL ${result.reason}")
+        }
+        return result
+    }
 
     // ── 唤醒词 ──
     fun setWakeWordEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setWakeWordEnabled(enabled) }

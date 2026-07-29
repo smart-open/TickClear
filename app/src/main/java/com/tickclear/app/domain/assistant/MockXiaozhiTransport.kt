@@ -24,10 +24,8 @@ class MockXiaozhiTransport(
         if (connected) return
         connected = true
         _events.emit(XiaozhiEvent.Connected)
-        // 拦截官方默认 welcome，改用本地自定义欢迎词（见落地文档 4.1/4.2）
-        val welcome = context.getString(R.string.assistant_mock_welcome)
-        _events.emit(XiaozhiEvent.LlmText(welcome))
-        _events.emit(XiaozhiEvent.TtsText(welcome))
+        // V2.8X++：去掉默认欢迎语（"我是小九..."等）—— 用户希望「首次进入助手 tab 默认空白」，
+        // 不再主动 seed 一条助手消息。等用户首条输入后再走 sendText 文本通道返回回复。
     }
 
     override suspend fun sendText(text: String) {

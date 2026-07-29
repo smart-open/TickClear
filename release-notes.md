@@ -4,6 +4,45 @@
 
 ---
 
+## v2.8X（2026-XX-XX · 在做未封板）· 消息净化 + 语音诊断日志 + 协议实证补漏
+
+**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**相对 v2.7.2**：四条 P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 文档同步），零新功能、零新依赖、中文全抽离、DB 版本不变（v8）。
+
+### 🧹 消息列表净化（P0 · 用户可见）
+- **剥离多模态资源 token**（@image#xxx）：小智官方服务端在 LLM/TTS 文本中插入形如 `@image#1:23e150c406a50b91e200450bf3d94b31.jpg` 的多模态资源引用（用于 TTS 朗读时插入图片/表情包合成播放），TTS 音频会念"图片"，但**给 UI 展示用的 text 字段是带 token 的原文**——直接显示给用户会出现纯技术串。修复：
+  - 新增 `MessageTextFilter.strip(s)` 纯 Kotlin 单例，匹配 `@image#\d+:[hex]{8,128}\.(jpg|jpeg|png|gif|webp)`，整句被过滤为空则不 emit（避免空气泡）。
+  - **源头过滤**（`WebSocketXiaozhiTransport.handleServerMessage`）：`llm` 帧与 `tts` `sentence_start` 帧在 emit `LlmText` 前先 strip。
+  - **UI 层防御**（`AssistantViewModel.onEvent` 的 `LlmText` 分支）：再 strip 一次，兜底 Mock / 未来其他来源。
+
+### 🎙 语音上行诊断日志（P0 · 用户"语音不能用"排查）
+- 之前"语音不能用"完全无定位线索（启动看起来都成功，但 7+ 秒内 0 帧上行）。逐盲区补全链路日志，不改行为：
+  - `WebSocketXiaozhiTransport.sendAudio`：v 级发送日志 + send 失败 e 级错误日志 + `ws=null` w 级丢弃日志。
+  - `AudioCapture` 采集线程：启动 d 级"start OK"；`onFrame` v 级触发日志；read 异常**不再静默 break**（旧实现一遇异常就退出线程，导致"无声无息失败"），改 v 级日志后继续循环；read 返回 0/负值不退出（设备预热正常现象）；线程退出时打印 `readCount / readErr / readZero / frameCount` 汇总。
+  - `OpusCodec.encodeFrame`：关键失败路径 w 级（pcm 长度不足 / ensureEncoder 返回 null / dequeueInputBuffer 失败 / dequeueOutputBuffer 失败 / 整体异常）各自打日志；成功路径 v 级。
+  - `AssistantViewModel.startXiaozhiOpusVoice` 的 onFrame 回调：v 级 pcm→opus→sendAudio 三段日志，便于对账。
+- **本轮目标**：用户本地 `./gradlew assembleDebug` + 真机回归一次，复制 logcat `XzTransport / AudioCapture / OpusCodec / AssistantVM` 四个标签的输出给项目组，按日志区分"录音未起 / read 阻塞 / 编码失败 / send 失败"四类根因后，再二次定位并出方案 B（3s 自愈）/ 方案 C（60ms→3×20ms）。
+
+### 🔌 小智协议实证补漏（文档同步，非代码改动）
+- **Device-Id 大小写敏感**：xiaozhi.me 控制台对 Device-Id(MAC) 做大小写敏感匹配。已绑定小写 MAC（如 `e8:06:90:98:6c:d4`）必须以小写发送，大写会被静默拒 → close code 1005。已通过独立探针实证。
+- **listen 帧 state 必须 detect**：服务端仅当 listen `state="detect"` 且带 `text` 时才把文本当作用户输入处理；`state="stop"+text` 服务端静默忽略 → "测试连接正常但发消息无回复"。已用真机 MAC 实证完整 STT→LLM→TTS→MCP 工具调用链路。
+- **握手 25s 超时**：服务端 connection.py 源码显示收到 hello 后会异步调 `get_private_config_from_api` 校验设备 + `_initialize_components` 加载 TTS/ASR（默认 FunASR 加载数秒），给服务端留足初始化时间。原 10/12s 容易误判"被拒"。
+- **MCP 协议 25s 死锁**：服务端 `method=initialize` 必须回（已修），`tools/list`/`tools/call` 的 `result.tools`/`result.content` 必须是 JSON 数组（已修），`required`/`enum` 必须是字符串数组（已修）。
+
+### 📖 文档同步
+- `release-notes.md`：本章节。
+- `XIAOZHI_DIAGNOSTIC_README.md`：新增「image token 过滤」段、「语音上行诊断」段；「已知雷点」表加 listen state=detect / Device-Id 必须小写 / 25s 超时说明。
+- `docs/用户配置手册.md`：新增「语音不能用排查步骤」——看 logcat `XzTransport/AudioCapture/OpusCodec/AssistantVM` 四个标签。
+- `docs/语音助手实现说明.md`：在差异点处标注"REAL 模式语音上行日志路径"。
+- `.workbuddy/memory/MEMORY.md`：本次根因 + 方案 + 关键代码位置（`MessageTextFilter` / `WebSocketXiaozhiTransport.sendAudio` / `AudioCapture.start` / `OpusCodec.encodeFrame`）。
+
+### 🧪 质量门禁
+- 待本地执行：`./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（沙箱无 JDK/Gradle）。
+- 真机回归：① 消息列表不再出现 `@image#xxx`（带真实带 token 的 LLM 回复验证）② 语音启动后 logcat `AudioCapture` 标签出现"start OK ... frameCount=N" ③ 端到端语音对话可正常 stt→llm→tts（带真实 e8:06 真机或控制台已绑定设备 MAC）。
+- **已知红线待办**（封板前必修）：`XiaozhiConnectionTester` 的诊断文案（onFailure / onClosed / 超时）仍硬编码中文，需抽离 `strings.xml`。
+
+---
+
 ## v2.7.2（2026-07-27）· 小智连接/语音修复 + 十一处 UI 打磨（零新功能）
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板

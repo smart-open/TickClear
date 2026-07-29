@@ -1,10 +1,13 @@
 package com.tickclear.app.ui.assistant
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,11 +27,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,13 +57,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,12 +76,16 @@ import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
 import com.tickclear.app.domain.assistant.WakeWordBus
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.ui.components.formatMinute
 import com.tickclear.app.ui.components.EmptyStateGuide
 import com.tickclear.app.ui.settings.SettingsViewModel
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -83,6 +101,9 @@ fun AssistantScreen(
     val recording by viewModel.recording.collectAsStateWithLifecycle()
     val pendingDraft by viewModel.pendingDraft.collectAsStateWithLifecycle()
     val wakeWordActive by viewModel.wakeWordActive.collectAsStateWithLifecycle()
+    // V2.8X++：启动期连接诊断 banner + 麦克风即时反馈 toast
+    val connectionBanner by viewModel.connectionBanner.collectAsStateWithLifecycle()
+    val micToast by viewModel.micToast.collectAsStateWithLifecycle()
     val settingsVm: SettingsViewModel = hiltViewModel()
     val wakeEnabled by settingsVm.wakeWordEnabled.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
@@ -91,6 +112,14 @@ fun AssistantScreen(
     var pendingVoiceStart by remember { mutableStateOf(false) }
     var pendingWakeStart by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val appContext = androidx.compose.ui.platform.LocalContext.current
+    // V2.8X++：长按进入多选模式（参考微信：长按消息→多选→顶部固定「删除」按钮）。
+    // 状态在 AssistantScreen 顶层，跨 LazyColumn item 共享。messageMenuFor：长按单条弹菜单时锁定。
+    val selectedIds = remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val selectionMode = selectedIds.value.isNotEmpty()
+    var messageMenuFor by remember { mutableStateOf<Long?>(null) }
+    var confirmClearAll by remember { mutableStateOf(false) }
     val permissionDeniedMsg = stringResource(R.string.error_permission_record)
 
     val recordPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
@@ -102,6 +131,15 @@ fun AssistantScreen(
     }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
+    // V2.8X++：麦克风按下即时反馈 → 短 toast。
+    LaunchedEffect(micToast) {
+        micToast?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar(it)
+                viewModel.consumeMicToast()
+            }
+        }
     }
     // V2.66 常驻唤醒：被前台服务唤醒跳转到助手页后，消费待处理标记并监听后续唤醒事件，自动开始收音。
     LaunchedEffect(Unit) {
@@ -141,8 +179,43 @@ fun AssistantScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // V2.8X++：启动期连接诊断 banner（紧贴顶栏下方，红底，可关闭）。
+        // 不进消息流，避免「用户进 tab 默认空白」诉求被破坏。
         topBar = {
+            Column {
+                connectionBanner?.let { banner ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = banner,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(
+                                onClick = { viewModel.dismissConnectionBanner() },
+                            ) {
+                                Text(stringResource(R.string.assistant_connection_banner_dismiss))
+                            }
+                        }
+                    }
+                }
             // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示。
+            // V2.8X++：多选模式下替换为「已选 N 项」+ 全选/取消/删除 顶栏（参考微信）。
             TopAppBar(
                 modifier = Modifier.height(48.dp),
                 title = {
@@ -150,46 +223,85 @@ fun AssistantScreen(
                         modifier = Modifier.fillMaxHeight(),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        Text(stringResource(R.string.assistant_screen_title))
+                        if (selectionMode) {
+                            Text(stringResource(R.string.assistant_selected_count, selectedIds.value.size))
+                        } else {
+                            Text(stringResource(R.string.assistant_screen_title))
+                        }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                    if (selectionMode) {
+                        // 多选模式下返回按钮 = 退出多选
+                        IconButton(onClick = { selectedIds.value = emptySet() }) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel))
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        }
                     }
                 },
                 actions = {
-                    ConnectionChip(connected)
-                    // V2.19 宽屏常驻配置侧栏，隐藏齿轮避免重复入口
-                    if (!isWide) {
-                        IconButton(onClick = { showConfig = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.assistant_config_desc))
-                        }
-                    }
-                    if (wakeEnabled) {
+                    if (selectionMode) {
+                        // 全选 / 删除
+                        val allSelected = selectedIds.value.size == messages.size && messages.isNotEmpty()
                         IconButton(onClick = {
-                            if (wakeWordActive) {
-                                viewModel.stopWakeWord()
-                            } else if (recordPermission.status is PermissionStatus.Granted) {
-                                viewModel.startWakeWord()
-                            } else {
-                                pendingWakeStart = true
-                                recordPermission.launchPermissionRequest()
-                            }
+                            selectedIds.value = if (allSelected) emptySet() else messages.map { it.id }.toSet()
                         }) {
                             Icon(
-                                Icons.Filled.GraphicEq,
-                                contentDescription = stringResource(
-                                    if (wakeWordActive) R.string.assistant_wakeword_stop else R.string.assistant_wakeword_start,
-                                ),
-                                tint = if (wakeWordActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                if (allSelected) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
+                                contentDescription = stringResource(R.string.action_select_all),
                             )
+                        }
+                        IconButton(
+                            onClick = {
+                                confirmClearAll = true
+                            },
+                            enabled = selectedIds.value.isNotEmpty(),
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.assistant_msg_delete),
+                                tint = if (selectedIds.value.isNotEmpty()) MaterialTheme.colorScheme.error
+                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            )
+                        }
+                    } else {
+                        ConnectionChip(connected)
+                        if (!isWide) {
+                            IconButton(onClick = { showConfig = true }) {
+                                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.assistant_config_desc))
+                            }
+                        }
+                        if (wakeEnabled) {
+                            IconButton(onClick = {
+                                if (wakeWordActive) {
+                                    viewModel.stopWakeWord()
+                                } else if (recordPermission.status is PermissionStatus.Granted) {
+                                    viewModel.startWakeWord()
+                                } else {
+                                    pendingWakeStart = true
+                                    recordPermission.launchPermissionRequest()
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Filled.GraphicEq,
+                                    contentDescription = stringResource(
+                                        if (wakeWordActive) R.string.assistant_wakeword_stop else R.string.assistant_wakeword_start,
+                                    ),
+                                    tint = if (wakeWordActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 },
             )
+            } // Column close（包 banner + TopAppBar）
         },
         bottomBar = {
+            // V2.8X++：多选模式下不显示输入栏（避免与微信行为一致：多选时仅可删除，不能继续输入/录音）
+            if (!selectionMode) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -201,24 +313,44 @@ fun AssistantScreen(
                     recording -> stringResource(R.string.assistant_voice_stop)
                     else -> stringResource(R.string.assistant_mic_desc)
                 }
+                // V2.8X：移除 `enabled = voiceSupported` —— 旧实现下若系统 ASR + Opus 编码器都不可用，
+                // 按钮会永久 disabled 且无任何反馈（用户看到「没反应」）。改为 always-enabled，
+                // startVoice() 内部动态检测能力并给出明确 system message，避免哑失败。
+                // V2.8X++：onClick 主动加日志 + 用 ContextCompat.checkSelfPermission 双保险——
+                // 避免「申请权限回调没触发 / rememberPermissionState 状态没刷新」导致用户点麦克风
+                // 实际永远走 launchPermissionRequest 而 startVoice 永远不进的哑失败。
                 IconButton(
                     onClick = {
-                        if (!voiceSupported) return@IconButton
+                        AppLogger.d(
+                            "AssistantScreen",
+                            "麦克风按钮点击 recording=$recording permStatus=${recordPermission.status.javaClass.simpleName}",
+                        )
                         if (recording) {
                             viewModel.stopVoice()
-                        } else if (recordPermission.status is PermissionStatus.Granted) {
+                            return@IconButton
+                        }
+                        val granted = ContextCompat.checkSelfPermission(
+                            appContext,
+                            Manifest.permission.RECORD_AUDIO,
+                        ) == PackageManager.PERMISSION_GRANTED ||
+                            recordPermission.status is PermissionStatus.Granted
+                        if (granted) {
                             viewModel.startVoice()
                         } else {
                             pendingVoiceStart = true
                             recordPermission.launchPermissionRequest()
                         }
                     },
-                    enabled = voiceSupported,
                 ) {
                     Icon(
                         if (recording) Icons.Filled.MicOff else Icons.Filled.Mic,
                         contentDescription = micDesc,
-                        tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        // voiceSupported=false 时给 disabled 视觉提示（onSurface @ 38% alpha），但按钮仍可点击。
+                        tint = when {
+                            recording -> MaterialTheme.colorScheme.error
+                            !voiceSupported -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
                 // V2.8X：去除固定 height(36.dp) —— 与 OutlinedTextField 内边距冲突，文字被压缩至不可见。
@@ -247,6 +379,7 @@ fun AssistantScreen(
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send))
                 }
             }
+            }
         },
     ) { padding ->
         if (isWide) {
@@ -260,6 +393,14 @@ fun AssistantScreen(
                     viewModel = viewModel,
                     listState = listState,
                     onConfigure = { showConfig = true },
+                    snackbarHostState = snackbarHostState,
+                    selectionMode = selectionMode,
+                    selectedIds = selectedIds.value,
+                    onToggleSelect = { id ->
+                        selectedIds.value = if (selectedIds.value.contains(id))
+                            selectedIds.value - id else selectedIds.value + id
+                    },
+                    onLongPressMessage = { id -> messageMenuFor = id },
                     modifier = Modifier.weight(1f).fillMaxSize(),
                 )
                 HorizontalDivider(
@@ -285,6 +426,14 @@ fun AssistantScreen(
                 viewModel = viewModel,
                 listState = listState,
                 onConfigure = { showConfig = true },
+                snackbarHostState = snackbarHostState,
+                selectionMode = selectionMode,
+                selectedIds = selectedIds.value,
+                onToggleSelect = { id ->
+                    selectedIds.value = if (selectedIds.value.contains(id))
+                        selectedIds.value - id else selectedIds.value + id
+                },
+                onLongPressMessage = { id -> messageMenuFor = id },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -295,6 +444,124 @@ fun AssistantScreen(
             showConfig = false
             viewModel.refreshConfigured()
         })
+    }
+
+    // V2.8X++：单条长按弹「复制/删除/多选」菜单（系统消息不弹，避免误删服务端回执）。
+    messageMenuFor?.let { id ->
+        val msg = messages.firstOrNull { it.id == id }
+        if (msg != null && msg.role != "system") {
+            val copy = stringResource(R.string.action_copy)
+            val deleteOne = stringResource(R.string.assistant_msg_delete)
+            val selectMore = stringResource(R.string.assistant_msg_select_more)
+            // ⚠️ onClick/scope.launch 是非 @Composable 上下文，须在此提前取值（项目红线）。
+            val clipboard = LocalClipboardManager.current
+            val copiedTip = stringResource(R.string.assistant_msg_copied)
+            val deletedTip = stringResource(R.string.assistant_msg_deleted)
+            AlertDialog(
+                onDismissRequest = { messageMenuFor = null },
+                title = { Text(stringResource(R.string.assistant_msg_actions)) },
+                text = {
+                    Column {
+                        // 复制
+                        TextButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(msg.text))
+                                messageMenuFor = null
+                                scope.launch { snackbarHostState.showSnackbar(copiedTip) }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null)
+                                Spacer(Modifier.width(12.dp))
+                                Text(copy)
+                            }
+                        }
+                        // 多选
+                        TextButton(
+                            onClick = {
+                                selectedIds.value = selectedIds.value + msg.id
+                                messageMenuFor = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Filled.CheckBoxOutlineBlank, contentDescription = null)
+                                Spacer(Modifier.width(12.dp))
+                                Text(selectMore)
+                            }
+                        }
+                        // 删除单条
+                        TextButton(
+                            onClick = {
+                                viewModel.removeMessage(msg.id)
+                                messageMenuFor = null
+                                scope.launch { snackbarHostState.showSnackbar(deletedTip) }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Spacer(Modifier.width(12.dp))
+                                Text(deleteOne, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { messageMenuFor = null }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+        } else {
+            // 已被删除或为 system，直接清理菜单状态
+            messageMenuFor = null
+        }
+    }
+
+    // V2.8X++：多选模式下点删除按钮 → 二次确认 → 批量删
+    if (confirmClearAll) {
+        val count = selectedIds.value.size
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.assistant_msg_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.assistant_msg_delete_confirm_body, count)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClearAll = false
+                        val toDelete = selectedIds.value.toList()
+                        toDelete.forEach { viewModel.removeMessage(it) }
+                        selectedIds.value = emptySet()
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                appContext.getString(R.string.assistant_msg_deleted_count, toDelete.size),
+                            )
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.action_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearAll = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -311,6 +578,7 @@ private fun submit(
  * 助手对话主体（窄屏整屏 / 宽屏左栏复用）：草稿确认卡 + 对话列表；
  * 未配置服务商且非宽屏时展示引导插画与「去配置」按钮（V2.20）。
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AssistantChatBody(
     isWide: Boolean,
@@ -320,6 +588,11 @@ private fun AssistantChatBody(
     viewModel: AssistantViewModel,
     listState: androidx.compose.foundation.lazy.LazyListState,
     onConfigure: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    selectionMode: Boolean,
+    selectedIds: Set<Long>,
+    onToggleSelect: (Long) -> Unit,
+    onLongPressMessage: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -350,7 +623,20 @@ private fun AssistantChatBody(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(messages, key = { it.id }) { msg ->
-                    ChatBubble(msg)
+                    MessageRow(
+                        msg = msg,
+                        selectionMode = selectionMode,
+                        selected = selectedIds.contains(msg.id),
+                        onClick = {
+                            // 多选模式下：点击切换选中（参考微信）
+                            if (selectionMode && msg.role != "system") onToggleSelect(msg.id)
+                        },
+                        onLongClick = {
+                            if (msg.role == "system") return@MessageRow
+                            if (!selectionMode) onLongPressMessage(msg.id)
+                            else onToggleSelect(msg.id)
+                        },
+                    )
                 }
             }
         }
@@ -386,17 +672,41 @@ private fun ConnectionChip(connected: Boolean) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ChatBubble(msg: ChatMessage) {
+private fun ChatBubble(
+    msg: ChatMessage,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+) {
     val isUser = msg.role == "user"
     val isSystem = msg.role == "system"
+    // V2.8X++：长按（多选/单条菜单）+ 可选点击（多选模式切换选中）。系统消息不可点击/长按。
+    val clickModifier = when {
+        isSystem -> Modifier
+        onClick != null || onLongClick != null -> Modifier.combinedClickable(onClick = onClick ?: {}, onLongClick = onLongClick)
+        else -> Modifier
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
+        // V2.8X++：多选模式在每条左侧加 checkbox 指示（用户/助手可选，系统不可选）
+        if (selectionMode && !isSystem) {
+            Icon(
+                if (selected) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 4.dp).size(20.dp),
+            )
+        }
         if (isSystem) {
             Box(
-                modifier = Modifier
+                modifier = clickModifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.tertiaryContainer)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -409,12 +719,15 @@ private fun ChatBubble(msg: ChatMessage) {
             }
         } else {
             Box(
-                modifier = Modifier
+                modifier = clickModifier
                     .fillMaxWidth(0.8f)
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        if (isUser) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
+                        when {
+                            selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            isUser -> MaterialTheme.colorScheme.primaryContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        },
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
@@ -427,6 +740,29 @@ private fun ChatBubble(msg: ChatMessage) {
             }
         }
     }
+}
+
+/**
+ * V2.8X++：单条消息容器。**去除 SwipeToDismissBox 左滑删除**（参考微信），
+ * 改为长按单条弹「复制/多选/删除」菜单，长按多选进入选中模式。
+ * 系统消息不暴露任何手势（避免误删服务端状态回执）。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MessageRow(
+    msg: ChatMessage,
+    selectionMode: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    ChatBubble(
+        msg = msg,
+        selectionMode = selectionMode,
+        selected = selected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+    )
 }
 
 /**
