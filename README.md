@@ -2,13 +2,23 @@
 
 > **管好每一个时间点，清空每一件烦心事。**
 
-点清（TickClear）是一款**纯本地、无云端账号**的 Android 个人任务清理工具，以「**任务组 + 定时提醒 + 一键清空**」为核心，兼顾实用与趣味性。所有任务数据经 **SQLCipher** 加密存储，不依赖任何后端服务即可完整运行。
+点清（TickClear）是一款**纯本地、无云端账号**的 Android 个人任务清理工具，以「**任务组 + 定时提醒 + 一键清空**」为核心，兼顾实用与趣味性。所有数据加密落本地（Room 数据库 + Android Keystore 派生的密钥经 Jetpack security-crypto 保护 `SecureStore`），不依赖任何后端服务即可完整运行。
 
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
 - 版本基线：v2.7.2（v2.7.1 九项 UI/视觉与统计崩溃防御 + v2.7.2 十一处 UI 打磨 + 小智 REAL 连接/语音深度修复：WS 端点纠正、客户端先发 hello 握手、TTS 回复播放、握手超时守卫、采样率自适应、语音链路打通，零新功能、零新依赖）
+- 在做迭代：**V2.8X（未封板）** — 消息净化（`MessageTextFilter` 剥离 `@image#<i>:<hash>.<ext>` 多模态引用）+ 语音上行全链路诊断日志（`AudioCapture` / `OpusCodec` / `XzTransport` / `AssistantVM` 四标签）+ 协议补漏（Device-Id 大小写敏感 / listen `state="detect"` / 25s 握手超时）。详见 [release-notes](release-notes.md) 顶部 v2.8X 章节 与 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
 
 ---
+
+## 📸 应用截图
+
+| 今日 Tab | 小智助手 |
+|:---:|:---:|
+| ![今日 Tab — 分组任务、冲突角标、完成率环、键盘快捷键](docs/screenshots/screen-today.jpg) | ![小智助手 — REAL WebSocket 对话（含 MCP 工具调用与多模态资源净化）](docs/screenshots/screen-assistant.jpg) |
+| 分组任务 · 冲突提醒 · 完成率环 · 键盘快捷键 | WS 实时对话 · MCP 建任务 · 多模态资源净化 |
+
+> 截图来自真机 v2.7.2 + V2.8X（在做）。助手 Tab 中服务端塞进 `text` 字段的 `@image#<i>:<hash>.<ext>` 多模态资源引用，由 `MessageTextFilter` 在源头（`WebSocketXiaozhiTransport` llm / tts 两处）与 UI 层（`AssistantViewModel.onEvent` `LlmText` 分支）双层防御 strip 掉，聊天界面只保留表情图片本身，不会再以原始 token 形式进入消息列表。
 
 ## 功能特性
 
@@ -17,7 +27,7 @@
 - **任务**：全部任务 + 任务组 CRUD（级联软删）；任务标签筛选；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
 - **习惯**：周期性习惯打卡（星期重复、连续 streak、休息日标识）。
 - **统计**：按组 / 日 / 周 / 月完成情况、完成率、连续打卡天数（基于 `CheckInEntity`，不可补卡）；8 枚勋章墙 + 热力图日历。
-- **助手**：模拟硬件设备对接**小智（Xiaozhi）WebSocket** 协议，语音 + 文字聊天；对话触发任务时经 **MCP 函数调用（`create_task`）** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 **Mock 模式离线可跑**。
+- **助手**：对接**小智（Xiaozhi）WebSocket** 协议，语音 + 文字聊天。**REAL 模式**走官方云（含 MCP JSON-RPC 2.0 双向握手：`initialize` / `notifications/initialized` / `tools/list` / `tools/call`）；对话触发任务经 MCP `create_task` 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）；服务端塞进 `text` 的多模态资源引用（`@image#<i>:<hash>.<ext>`）由 `MessageTextFilter` 自动净化。**Mock 模式离线可跑**。连接与语音排查详见 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
 - **设置**：主题（浅色 / 深色 / 动态）、语音 / ASR / LLM 配置 + 测试、回收站管理、调试（日志 / 测试按钮）、关于。
 
 ### 提醒与通知
@@ -50,7 +60,7 @@
 | 平台 | minSdk 24 / targetSdk 34 / compileSdk 34 |
 | UI | Jetpack Compose + Material3 |
 | DI | Hilt（KSP） |
-| 本地存储 | Room（SQLCipher）+ DataStore（偏好）+ EncryptedSharedPreferences（密钥 / 口令） |
+| 本地存储 | Room + DataStore（偏好）+ Jetpack security-crypto / `SecureStore`（Android Keystore 派生的密钥 / 口令） |
 | 网络 | OkHttp（小智 WebSocket 二进制帧） |
 | 序列化 | kotlinx-serialization |
 | 权限 | accompanist.permissions |
