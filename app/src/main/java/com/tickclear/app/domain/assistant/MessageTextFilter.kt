@@ -25,6 +25,12 @@ object MessageTextFilter {
     private val IMAGE_TOKEN = Regex("""@image#\d+:[0-9a-fA-F]{8,128}\.(?:jpg|jpeg|png|gif|webp)""")
 
     /**
+     * 匹配小智工具调用占位 token（如 `%create_task` / `%delete_task`）。
+     * 服务端在调用 MCP 工具前，LLM 文本里会插入此类 `%<tool>` 标记，纯技术串不应展示给用户。
+     */
+    private val TOOL_TOKEN = Regex("""%[A-Za-z_]+""")
+
+    /**
      * 去除多模态 token，合并多余空白，返回已 trim 的可展示文本。
      * 返回空串表示「该消息无可展示内容」，调用方应**不要**继续 append。
      *
@@ -34,6 +40,7 @@ object MessageTextFilter {
      * - "听不出来是谁呢，不过没关系！" → "听不出来是谁呢，不过没关系！"（无 token 不动）
      */
     fun strip(s: String): String = s.replace(IMAGE_TOKEN, "")
+        .replace(TOOL_TOKEN, "")
         .replace(Regex("""[ \t]{2,}"""), " ")
         .replace(Regex("""\s*[\r\n]+\s*"""), " ")
         .trim()

@@ -2,6 +2,7 @@ package com.tickclear.app.ui.assistant
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -131,6 +134,8 @@ fun AssistantScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val appContext = androidx.compose.ui.platform.LocalContext.current
+    // V2.8X++：焦点管理——发送后 / 点击消息列表等输入与键盘以外区域时收起键盘并失焦（微信式）。
+    val focusManager = LocalFocusManager.current
     // V2.8X++：长按进入多选模式（参考微信：长按消息→多选→顶部固定「删除」按钮）。
     // 状态在 AssistantScreen 顶层，跨 LazyColumn item 共享。messageMenuFor：长按单条弹菜单时锁定。
     val selectedIds = remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -351,7 +356,7 @@ fun AssistantScreen(
                         ),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { submit(input, viewModel) { input = it } }),
+                        keyboardActions = KeyboardActions(onSend = { submit(input, viewModel, { input = it }) { focusManager.clearFocus() } }),
                         decorationBox = { innerTextField ->
                             Row(
                                 modifier = Modifier.fillMaxSize(),
@@ -386,7 +391,7 @@ fun AssistantScreen(
                                         onClick = { viewModel.stopVoice() },
                                     )
                                     isFocused && input.isNotBlank() -> IconButton(
-                                        onClick = { submit(input, viewModel) { input = it } },
+                                        onClick = { submit(input, viewModel, { input = it }) { focusManager.clearFocus() } },
                                         modifier = Modifier.size(36.dp),
                                     ) {
                                         Icon(
@@ -428,6 +433,13 @@ fun AssistantScreen(
             }
         },
     ) { padding ->
+        // V2.8X++：点击消息列表等「输入与键盘以外」区域即收起键盘并失焦（微信式）。
+        // 输入框在 bottomBar（本 Box 之外），点它不会触发此 clickable，故打字态不被误清。
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable { focusManager.clearFocus() },
+        ) {
         if (isWide) {
             // V2.19 宽屏：对话与配置分栏；配置面板常驻右侧，无需弹窗。
             Row(Modifier.fillMaxSize().padding(padding)) {
@@ -483,6 +495,7 @@ fun AssistantScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
+        } // Box close（点击失焦包裹层）
     }
 
     if (showConfig && !isWide) {
@@ -676,9 +689,12 @@ private fun submit(
     text: String,
     viewModel: AssistantViewModel,
     clear: (String) -> Unit,
+    clearFocus: () -> Unit,
 ) {
     viewModel.sendText(text)
     clear("")
+    // 发送后收起键盘并失去焦点（微信式：输入栏回到「话筒态」）。
+    clearFocus()
 }
 
 /**
