@@ -156,11 +156,19 @@ private fun AppNavHost(
                 },
             )
         }
-        composable(Routes.ASSISTANT) {
+        composable(
+            // V2.8X++：openConfig=true 时进入助手页直接弹出配置面板（设置 Tab「助手配置」直达入口），
+            // 复用 TASKS?openEditor 的参数化路由模式；默认 false，普通导航行为不变。
+            route = "${Routes.ASSISTANT}?openConfig={openConfig}",
+            arguments = listOf(
+                navArgument("openConfig") { type = NavType.BoolType; defaultValue = false },
+            ),
+        ) { entry ->
             AssistantScreen(
                 isWide = isWide,
                 // 回「今日」用 popBackStack 弹回栈底，避免 navigate(TODAY) 堆叠重复 entry 导致脏栈。
                 onBack = { navController.popBackStack(navController.graph.startDestinationId, false) },
+                initialOpenConfig = entry.arguments?.getBoolean("openConfig") ?: false,
             )
         }
         composable(Routes.SETTINGS) {
@@ -169,6 +177,12 @@ private fun AppNavHost(
                 onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
                 onNavigateToDebug = { navController.navigate(Routes.DEBUG) },
                 onNavigateToVoiceHistory = { navController.navigate(Routes.VOICE_HISTORY) },
+                onNavigateToAssistantConfig = {
+                    navController.navigate("${Routes.ASSISTANT}?openConfig=true") {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                    }
+                },
                 onBack = { navController.popBackStack(navController.graph.startDestinationId, false) },
                 isWide = isWide,
             )

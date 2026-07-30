@@ -26,10 +26,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Delete
@@ -43,13 +42,23 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -93,6 +102,8 @@ fun AssistantScreen(
     viewModel: AssistantViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     isWide: Boolean = false,
+    // V2.8X++：设置 Tab「助手配置」直达入口 —— 进入即弹配置面板（宽屏配置面板常驻，无需弹）。
+    initialOpenConfig: Boolean = false,
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val connected by viewModel.connected.collectAsStateWithLifecycle()
@@ -104,10 +115,16 @@ fun AssistantScreen(
     // V2.8X++：启动期连接诊断 banner + 麦克风即时反馈 toast
     val connectionBanner by viewModel.connectionBanner.collectAsStateWithLifecycle()
     val micToast by viewModel.micToast.collectAsStateWithLifecycle()
+    // V2.8X++：重连进度仅在顶部状态栏芯片展示（由 ViewModel 更新，不进消息流）。
+    val reconnectingStatus by viewModel.reconnectingStatus.collectAsStateWithLifecycle()
+    // V2.8X++：语音「准备中」内联态（点击麦克风到真正聆听之间），驱动旋转环，避免 linger toast。
+    val voiceOpening by viewModel.voiceOpening.collectAsStateWithLifecycle()
     val settingsVm: SettingsViewModel = hiltViewModel()
     val wakeEnabled by settingsVm.wakeWordEnabled.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
-    var showConfig by remember { mutableStateOf(false) }
+    // V2.8X++：输入框聚焦态——获焦(键盘起)时隐藏话筒(纯打字)，失焦时话筒重现(微信式切换)。
+    var isFocused by remember { mutableStateOf(false) }
+    var showConfig by remember { mutableStateOf(initialOpenConfig) }
     val listState = rememberLazyListState()
     var pendingVoiceStart by remember { mutableStateOf(false) }
     var pendingWakeStart by remember { mutableStateOf(false) }
@@ -268,7 +285,7 @@ fun AssistantScreen(
                             )
                         }
                     } else {
-                        ConnectionChip(connected)
+                        ConnectionChip(connected, reconnectingStatus)
                         if (!isWide) {
                             IconButton(onClick = { showConfig = true }) {
                                 Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.assistant_config_desc))
@@ -302,83 +319,112 @@ fun AssistantScreen(
         bottomBar = {
             // V2.8X++：多选模式下不显示输入栏（避免与微信行为一致：多选时仅可删除，不能继续输入/录音）
             if (!selectionMode) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val micDesc = when {
-                    !voiceSupported -> stringResource(R.string.assistant_voice_unsupported)
-                    recording -> stringResource(R.string.assistant_voice_stop)
-                    else -> stringResource(R.string.assistant_mic_desc)
-                }
-                // V2.8X：移除 `enabled = voiceSupported` —— 旧实现下若系统 ASR + Opus 编码器都不可用，
-                // 按钮会永久 disabled 且无任何反馈（用户看到「没反应」）。改为 always-enabled，
-                // startVoice() 内部动态检测能力并给出明确 system message，避免哑失败。
-                // V2.8X++：onClick 主动加日志 + 用 ContextCompat.checkSelfPermission 双保险——
-                // 避免「申请权限回调没触发 / rememberPermissionState 状态没刷新」导致用户点麦克风
-                // 实际永远走 launchPermissionRequest 而 startVoice 永远不进的哑失败。
-                IconButton(
-                    onClick = {
-                        AppLogger.d(
-                            "AssistantScreen",
-                            "麦克风按钮点击 recording=$recording permStatus=${recordPermission.status.javaClass.simpleName}",
-                        )
-                        if (recording) {
-                            viewModel.stopVoice()
-                            return@IconButton
-                        }
-                        val granted = ContextCompat.checkSelfPermission(
-                            appContext,
-                            Manifest.permission.RECORD_AUDIO,
-                        ) == PackageManager.PERMISSION_GRANTED ||
-                            recordPermission.status is PermissionStatus.Granted
-                        if (granted) {
-                            viewModel.startVoice()
-                        } else {
-                            pendingVoiceStart = true
-                            recordPermission.launchPermissionRequest()
-                        }
-                    },
+                // V2.8X++：助手输入栏（参考微信风格）——单栏浅底 + 圆角文本输入框 + 右侧「麦克风 / 发送」二选一。
+                // 输入为空显示麦克风按钮（点击录音、再点停止并发送）；输入非空显示蓝色「发送」胶囊按钮。
+                // 高度收敛（约 52dp），比旧版全宽胶囊更轻巧；右侧二选一避免两个按钮挤占。
+                // V2.8X++：单个圆角输入框（surfaceVariant 浅底），话筒内嵌于输入框内右侧。
+                // 交互（微信式强交互，根治"回声"）：
+                //  - 输入框获焦(键盘起) → 话筒隐藏，纯打字；失焦 → 话筒重现；
+                //  - 未聚焦且未录音 → 右侧显示话筒：点一下开始持续聆听，AI 说话时点击即打断
+                //    （startVoice 内含 abortTts + sendListenStart，服务器与设备双侧静音）；
+                //  - 录音中 → 话筒变红色脉冲，再次点击停止并发送(stopVoice → 系统 ASR 终句/Opus 停听即上送)；
+                //  - 聚焦且已输入文字 → 右侧显示蓝色发送图标(IME 回车亦可发送)。
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(
-                        if (recording) Icons.Filled.MicOff else Icons.Filled.Mic,
-                        contentDescription = micDesc,
-                        // voiceSupported=false 时给 disabled 视觉提示（onSurface @ 38% alpha），但按钮仍可点击。
-                        tint = when {
-                            recording -> MaterialTheme.colorScheme.error
-                            !voiceSupported -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    BasicTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        enabled = !recording,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                            .padding(horizontal = 12.dp)
+                            .onFocusChanged { isFocused = it.isFocused },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submit(input, viewModel) { input = it } }),
+                        decorationBox = { innerTextField ->
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    if (input.isEmpty()) {
+                                        val hint = when {
+                                            recording -> stringResource(R.string.assistant_voice_listening_hint)
+                                            voiceOpening -> stringResource(R.string.assistant_mic_opening)
+                                            else -> stringResource(R.string.assistant_input_placeholder)
+                                        }
+                                        Text(
+                                            hint,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                                // 右侧控制：录音中=停止并发送；聚焦且非空=发送图标；未聚焦=话筒(开始/打断)。
+                                when {
+                                    recording -> VoiceMicButton(
+                                        opening = voiceOpening,
+                                        recording = true,
+                                        voiceSupported = voiceSupported,
+                                        onClick = { viewModel.stopVoice() },
+                                    )
+                                    isFocused && input.isNotBlank() -> IconButton(
+                                        onClick = { submit(input, viewModel) { input = it } },
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.Send,
+                                            contentDescription = stringResource(R.string.assistant_send),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    !isFocused -> VoiceMicButton(
+                                        opening = voiceOpening,
+                                        recording = false,
+                                        voiceSupported = voiceSupported,
+                                        onClick = {
+                                            AppLogger.d(
+                                                "AssistantScreen",
+                                                "话筒点击 recording=$recording opening=$voiceOpening permStatus=${recordPermission.status.javaClass.simpleName}",
+                                            )
+                                            if (voiceOpening) return@VoiceMicButton
+                                            val granted = ContextCompat.checkSelfPermission(
+                                                appContext,
+                                                Manifest.permission.RECORD_AUDIO,
+                                            ) == PackageManager.PERMISSION_GRANTED ||
+                                                recordPermission.status is PermissionStatus.Granted
+                                            if (granted) {
+                                                viewModel.startVoice()
+                                            } else {
+                                                pendingVoiceStart = true
+                                                recordPermission.launchPermissionRequest()
+                                            }
+                                        },
+                                    )
+                                    // 聚焦且空：话筒隐藏（按需求），仅占位保持布局稳定。
+                                    else -> Spacer(Modifier.size(36.dp))
+                                }
+                            }
                         },
                     )
                 }
-                // V2.8X：去除固定 height(36.dp) —— 与 OutlinedTextField 内边距冲突，文字被压缩至不可见。
-                // 默认高度 56dp 内容垂直居中，placeholder 用 onSurfaceVariant 颜色确保可见。
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.assistant_input_placeholder),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { submit(input, viewModel) { input = it } }),
-                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                )
-                IconButton(onClick = { submit(input, viewModel) { input = it } }) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.assistant_send))
-                }
-            }
             }
         },
     ) { padding ->
@@ -565,6 +611,67 @@ fun AssistantScreen(
     }
 }
 
+/**
+ * V2.8X++：语音麦克风按钮（FAB 风格）。三态视觉：
+ * - 准备中（opening）：主色旋转环，提示「正在聆听…」，即时反馈避免卡顿体感；
+ * - 录音中（recording）：红色容器 + 白色麦克风脉冲动画，文案「停止并发送」；
+ * - 空闲：主色容器 + 麦克风；voiceSupported=false 时图标降透明度但仍可点（点击后由 ViewModel 给明确提示）。
+ * 所有状态 44dp 触控目标，颜色取自 theme token 满足 WCAG AA 对比。
+ */
+@Composable
+private fun VoiceMicButton(
+    opening: Boolean,
+    recording: Boolean,
+    voiceSupported: Boolean,
+    onClick: () -> Unit,
+) {
+    val infinite = rememberInfiniteTransition(label = "micPulse")
+    val pulse by infinite.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "micPulseScale",
+    )
+    // V2.8X++：内嵌于输入框右侧——仅图标(无填充圆)，录音态转红脉冲，空闲态主色；
+    // voiceSupported=false 时降透明度但仍可点（点击后由 ViewModel 给明确提示）。
+    val tint = when {
+        recording -> MaterialTheme.colorScheme.error
+        !voiceSupported -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val desc = when {
+        recording -> stringResource(R.string.assistant_voice_stop)
+        opening -> stringResource(R.string.assistant_mic_opening)
+        else -> stringResource(R.string.assistant_mic_desc)
+    }
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(36.dp),
+    ) {
+        when {
+            opening -> CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.5.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            recording -> Icon(
+                Icons.Filled.Mic,
+                contentDescription = desc,
+                tint = tint,
+                modifier = Modifier.scale(pulse),
+            )
+            else -> Icon(
+                Icons.Filled.Mic,
+                contentDescription = desc,
+                tint = tint,
+            )
+        }
+    }
+}
+
 private fun submit(
     text: String,
     viewModel: AssistantViewModel,
@@ -644,8 +751,9 @@ private fun AssistantChatBody(
 }
 
 @Composable
-private fun ConnectionChip(connected: Boolean) {
-    val statusText = stringResource(
+private fun ConnectionChip(connected: Boolean, reconnecting: String? = null) {
+    val statusText = if (reconnecting != null) reconnecting
+    else stringResource(
         if (connected) R.string.assistant_connected else R.string.assistant_disconnected,
     )
     Row(
@@ -659,14 +767,18 @@ private fun ConnectionChip(connected: Boolean) {
                 .size(8.dp)
                 .clip(CircleShape)
                 .background(
-                    if (connected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outline,
+                    when {
+                        reconnecting != null -> MaterialTheme.colorScheme.tertiary
+                        connected -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.outline
+                    },
                 ),
         )
         Text(
             text = statusText,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (reconnecting != null) MaterialTheme.colorScheme.tertiary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp),
         )
     }

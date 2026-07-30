@@ -254,13 +254,12 @@
     <!-- Phase 7：内联中文抽离（A-6）+ 无障碍（P7.4） -->
     <string name="today_date_format">M月d日 EEEE</string>
 
-    <string name="assistant_screen_title">小智助手</string>
+    <string name="assistant_screen_title">智能助手</string>
     <string name="assistant_mic_desc">语音输入</string>
-    <string name="assistant_voice_stop">停止聆听</string>
-    <string name="assistant_voice_unsupported">本机不支持语音编码，请使用文字输入</string>
+    <string name="assistant_voice_stop">停止并发送</string>
     <string name="assistant_input_placeholder">说点什么，或点麦克风试试</string>
-    <string name="assistant_mic_opening">正在打开麦克风…</string>
-    <string name="assistant_mic_listening">开始聆听，请说话…</string>
+    <string name="assistant_mic_opening">正在聆听…</string>
+    <string name="assistant_voice_listening_hint">聆听中…再次点击话筒发送</string>
     <string name="assistant_mic_already_open">已在录音中</string>
     <string name="assistant_mic_unavailable">当前无可用语音通道</string>
     <string name="assistant_connection_banner_dismiss">关闭</string>
@@ -297,6 +296,19 @@
     <string name="assistant_test_btn">测试连接</string>
     <string name="assistant_test_ok">握手成功（%1$s，session=%2$s，%3$dHz）</string>
     <string name="assistant_test_fail">连接失败：%1$s</string>
+    <!-- V2.8X+ 红线收口：XiaozhiConnectionTester 诊断文案由硬编码中文改为 strings.xml 抽离（用户可见失败原因）。 -->
+    <string name="xz_test_unreachable">网络不可达：%1$s\n请检查：手机是否连上 WiFi/数据网络、是否启用了 VPN / 全局代理、%2$s 是否被防火墙拦截。</string>
+    <string name="xz_test_closed_code">连接关闭 code=%1$d</string>
+    <string name="xz_test_closed_normal">连接已正常关闭。若发生在对话中，可能是 MCP 工具协商未通过（create_task 未正确注册），请重试。</string>
+    <string name="xz_test_closed_1005_header">服务端在握手阶段主动关闭（code=1005，网关裸 RST），且始终未收到 hello。\n</string>
+    <string name="xz_test_closed_1005_activated">你已完成激活、Device-Id 也在 xiaozhi.me 控制台「我的设备」中显示，但 WS 网关的 license 缓存未生效（xiaozhi.me 已知的不同步问题）——它查不到该 device-id 的有效授权，直接丢弃连接。\n</string>
+    <string name="xz_test_closed_1005_not_activated">该 device-id 在 xiaozhi.me 后端未真正激活，WS 网关查不到授权而直接丢弃连接。\n</string>
+    <string name="xz_test_closed_1005_fix">这不是 App 协议错误。请按以下任一方式处理：\n  ① 用一台【已知可用】设备的 Device-Id（如真机 ESP32 的 MAC，或控制台里已绑定的其他设备）粘进 App「设备 ID」框重测；能连上即证明 App 协议完全正确，问题只在该虚拟 device-id。\n  ② 在 xiaozhi.me 控制台「重新生成设备标识」换新身份、重新走激活，再点测试连接。\n  ③ 联系 xiaozhi.me 客服，反馈「设备已在控制台显示、但 WebSocket 网关 license 不同步、连接被 1005 拒绝」。\n  ④ 或自部署开源 xiaozhi-esp32-server 服务端，绕过官方云 license 校验。</string>
+    <string name="xz_test_closed_1006">连接异常关闭（code=1006），未完成握手。可能是网络中断或网关提前断开。可重试；若持续出现且 device-id 已在控制台显示，则同 1005 处理（license 未同步）。</string>
+    <string name="xz_test_closed_other">（未在握手前收到 hello，属非预期关闭）</string>
+    <string name="xz_test_response_body">响应体: %1$s</string>
+    <string name="xz_test_server_rejected">服务端拒绝：%1$s</string>
+    <string name="xz_test_timeout">WebSocket 已建立成功（TLS/Upgrade 都通过），App 已发送 hello 6 字段（version=1, features.mcp=true, audio_params=opus/16kHz/mono/60ms），但 %1$d 秒内未收到服务端 welcome 响应。\n  关键事实：服务端 helloHandle.py 源码对 hello 字段【无任何校验】，且 connection.py 鉴权【仅基于 device-id】（client-id 不参与校验、不读 Authorization 头），所以「改 client-id / 改 hello 字段」都救不了，问题在更上层：\n  ① 服务端收到 hello 后异步调 get_private_config_from_api(device-id)，若该虚拟 device-id 在官网后端未真正激活，会返回「未找到/未绑定」→ need_bind=True → 直接丢弃 hello、不发 welcome（这正是 %1$d 秒超时的根因）。\n  ② 服务端 _initialize_components 加载 TTS/ASR（默认 FunASR）较慢，welcome 延迟。\n  ③ 网关/反代 idle timeout 提前 RST（CloudFront 默认 10s，ALB 60s）。close code 含义：1005=网关裸 RST、1006=连接异常、1011=服务端内部错误。\n  验证：把 xiaozhi.me 控制台「我的设备」里一台【已知可用】设备的 Device-Id（MAC）粘进 App「设备 ID」输入框（现已可编辑）后重测；能连上即证明 App 协议完全正确，问题只在该虚拟 device-id 未激活。</string>
     <!-- V2.8X 助手语音按钮「点击无反应」深度排查：明确告诉用户为什么本机不支持语音输入，给出可执行修复路径。 -->
     <string name="assistant_voice_no_system_asr">本机未提供系统语音识别服务且无 Opus 编码器，请到「助手 → ASR」切换为云 ASR（OpenAI/腾讯/阿里），或换用文字输入。</string>
     <string name="assistant_voice_no_asr_configured">请先在「助手 → ASR」选择可用服务商并填入凭据，再使用语音输入。</string>
@@ -548,12 +560,11 @@
     <string name="settings_section_about">关于</string>
     <string name="settings_about_title">关于 点清</string>
     <string name="settings_about_subtitle">版本、存储与隐私说明</string>
-    <string name="settings_section_advanced">高级（后续版本）</string>
-    <string name="settings_asr_row">ASR 语音识别配置</string>
-    <string name="settings_llm_row">LLM 大模型配置</string>
+    <string name="settings_section_advanced">高级</string>
+    <string name="settings_assistant_config_row">助手配置（LLM / ASR）</string>
+    <string name="settings_assistant_config_subtitle">跳转到助手页配置服务商与凭据</string>
     <string name="settings_debug_row">调试与日志</string>
     <string name="settings_debug_subtitle">查看运行状态、测试通知与重新排程</string>
-    <string name="settings_later_tag">后续</string>
     <string name="settings_theme_dynamic_short">动态</string>
 
     <string name="about_version_label">版本 1.0.0 (Debug)</string>

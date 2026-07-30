@@ -289,6 +289,7 @@ class SettingsViewModel @Inject constructor(
         val prompt = settingsRepository.assistantPrompt.first()
         AppLogger.d(TAG, "testXiaozhiConnection 入参 endpoint='$endpoint' deviceId='$deviceId' clientId='$clientId' token=${if (token.isNullOrBlank()) "∅" else token.take(4) + "…(len=${token.length})"} prompt.len=${prompt.length}")
         val result = XiaozhiConnectionTester.test(
+            context = appContext,
             endpoint = endpoint,
             deviceId = deviceId,
             clientId = clientId,

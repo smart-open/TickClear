@@ -26,7 +26,7 @@ val topLevelDestinations = listOf(
     TopLevelDestination(Routes.SETTINGS, R.string.tab_settings, Icons.Filled.Settings),
 )
 
-/** 路由常量（含子路由，Phase 3/5/6 逐步接入）。 */
+/** 路由常量（含子路由）。 */
 object Routes {
     const val TODAY = "today"
     const val TASKS = "tasks"
@@ -35,10 +35,9 @@ object Routes {
     const val ASSISTANT = "assistant"
     const val SETTINGS = "settings"
     const val RECYCLE_BIN = "tasks/recycleBin"
-    const val ASR_CONFIG = "settings/asr"
-    const val LLM_CONFIG = "settings/llm"
     const val DEBUG = "settings/debug"
     const val ABOUT = "settings/about"
-    const val ASSISTANT_CONFIG = "assistant/config"
     const val VOICE_HISTORY = "settings/voiceHistory"
+    // V2.8X++：ASR_CONFIG/LLM_CONFIG/ASSISTANT_CONFIG 三个从未接线的死常量已删；
+    // 助手配置直达改用 "assistant?openConfig=true" 参数化路由（见 TickClearNavGraph）。
 }

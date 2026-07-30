@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -73,7 +73,7 @@ import com.tickclear.app.ui.theme.ThemeMode
 import com.tickclear.app.ui.theme.ThemeSkin
 import com.tickclear.app.ui.theme.skinPreviewColor
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("InlinedApi")
 @Composable
 fun SettingsScreen(
@@ -82,6 +82,8 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToVoiceHistory: () -> Unit = {},
+    // V2.8X++：跳转助手 Tab 并直接弹出配置面板（LLM/ASR 唯一数据源在 AssistantConfigSheet）。
+    onNavigateToAssistantConfig: () -> Unit = {},
     onBack: () -> Unit = {},
     isWide: Boolean = false,
 ) {
@@ -284,7 +286,8 @@ fun SettingsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             // ── 外观 ──
             SectionTitle(stringResource(R.string.settings_section_appearance))
-            // 主题/皮肤/动画三行紧凑化（V2.8X）：行 padding(vertical=2.dp) + 1dp divider，
+            // 主题/皮肤/动画三行（V2.8X+）：行 padding(vertical=12.dp) + 1dp divider，
+            // 既保留紧凑组的统一视觉，又给标题/副标题两行内容留出呼吸；
             // 行内 0dp spacedBy + CompositionLocalProvider 压住 48dp 最小触摸目标。
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp,
@@ -293,7 +296,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
+                        .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -311,31 +314,38 @@ fun SettingsScreen(
                     }
                 }
                 HorizontalDivider()
-                // 皮肤行
+                // 皮肤行：6+ 配色 chip 改用 FlowRow 多行直显，避免横向滚动（V2.8X+）
+                // 标题/副标题在上方，chip 在下方多行展开；上下边距 12dp 对齐组内其它行。
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.settings_skin_title), style = MaterialTheme.typography.bodyLarge)
                         Text(stringResource(R.string.settings_skin_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(ThemeSkin.entries) { skin ->
-                            FilterChip(
-                                selected = themeSkin == skin,
-                                onClick = { viewModel.setThemeSkin(skin) },
-                                leadingIcon = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .background(skinPreviewColor(skin), CircleShape),
-                                    )
-                                },
-                                label = { Text(stringResource(skinLabelRes(skin))) },
-                            )
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ThemeSkin.entries.forEach { skin ->
+                                FilterChip(
+                                    selected = themeSkin == skin,
+                                    onClick = { viewModel.setThemeSkin(skin) },
+                                    leadingIcon = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .background(skinPreviewColor(skin), CircleShape),
+                                        )
+                                    },
+                                    label = { Text(stringResource(skinLabelRes(skin))) },
+                                )
+                            }
                         }
                     }
                 }
@@ -345,7 +355,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp),
+                    .padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -372,21 +382,35 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setQuietHoursEnabled(it) },
                 )
             }
-            // V2.30 稍后提醒默认时长：5/15/30 分钟分段选择。
-            SettingRow(
-                title = stringResource(R.string.settings_snooze_title),
-                subtitle = stringResource(R.string.settings_snooze_subtitle),
+            // V2.30 稍后提醒默认时长：5/15/30 分钟分段选择。V2.8X+ 改用 FlowRow 多行直显，
+            // 与皮肤行视觉对齐，且不受屏幕宽度影响导致 chip 被挤压。
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.Top,
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    com.tickclear.app.domain.scheduler.ReminderPrefs.SNOOZE_OPTIONS.forEach { min ->
-                        FilterChip(
-                            selected = snoozeDefaultMin == min,
-                            onClick = { viewModel.setSnoozeDefaultMin(min) },
-                            label = { Text(stringResource(R.string.settings_snooze_option, min)) },
-                        )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_snooze_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_snooze_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        com.tickclear.app.domain.scheduler.ReminderPrefs.SNOOZE_OPTIONS.forEach { min ->
+                            FilterChip(
+                                selected = snoozeDefaultMin == min,
+                                onClick = { viewModel.setSnoozeDefaultMin(min) },
+                                label = { Text(stringResource(R.string.settings_snooze_option, min)) },
+                            )
+                        }
                     }
                 }
             }
+            HorizontalDivider()
             // V2.31 提醒音效开关：关闭后高优先级提醒不发声/不震动。
             SettingRow(
                 title = stringResource(R.string.settings_sound_title),
@@ -634,17 +658,15 @@ fun SettingsScreen(
                 onClick = onNavigateToAbout,
             )
 
-            // ── 后续能力（未配置置灰）──
+            // ── 高级 ──
+            // V2.8X++：LLM/ASR 配置的唯一数据源在助手 Tab 的 AssistantConfigSheet；
+            // 此处只提供「直达入口」（跳转助手页并自动弹配置面板），不另建数据源。
             SectionTitle(stringResource(R.string.settings_section_advanced))
-            DisabledRow(
+            ClickableRow(
                 icon = Icons.Filled.Settings,
-                title = stringResource(R.string.settings_asr_row),
-                tag = stringResource(R.string.settings_later_tag),
-            )
-            DisabledRow(
-                icon = Icons.Filled.Settings,
-                title = stringResource(R.string.settings_llm_row),
-                tag = stringResource(R.string.settings_later_tag),
+                title = stringResource(R.string.settings_assistant_config_row),
+                subtitle = stringResource(R.string.settings_assistant_config_subtitle),
+                onClick = onNavigateToAssistantConfig,
             )
             ClickableRow(
                 icon = Icons.Filled.Settings,
