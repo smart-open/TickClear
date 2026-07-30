@@ -28,6 +28,10 @@ android {
         versionName = "2.7.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+        // V2.8X++ 语音长期方案：改用 theeasiestway/android-opus-codec（本地 libs/opus.aar，封装官方 libopus 1.3.1），
+        // 其预编译 .so 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全部 ABI（含 64 位），
+        // 彻底解决原 martoreto/opuscodec 仅含 32 位 libsenz.so、arm64 设备 dlopen 失败导致语音不可用的根因。
+        // 不再需要「剔除 arm64-v8a 目录 / 32 位回退」妥协方案，arm64 设备原生 64 位运行。
     }
 
     signingConfigs {
@@ -99,6 +103,12 @@ android {
             keepDebugSymbols += "**/libsqlcipher.so"
             keepDebugSymbols += "**/libandroidx.graphics.path.so"
             keepDebugSymbols += "**/libdatastore_shared_counter.so"
+            // Opus 编解码库（theeasiestway/android-opus-codec 的 libopus.so / libeasyopus.so / libopusenc.so）；
+            // 保留调试符号以避免 strip 告警（本机 NDK 可用时亦可正常 strip，此处保守保留）。
+            keepDebugSymbols += "**/libopus.so"
+            keepDebugSymbols += "**/libeasyopus.so"
+            keepDebugSymbols += "**/libopusenc.so"
+            // 注：不再剔除 arm64-v8a 目录——该库自带 arm64-v8a 的 libopus.so，arm64 设备原生 64 位运行。
         }
     }
 
@@ -112,6 +122,18 @@ android {
         // 注意：AGP 8.x Kotlin DSL 中 disable/enable/warning/error/fatal 是 MutableSet<String> 属性，须用 `disable += "id"`，
         // 不能用 Groovy 遗留的方法式 `disable("id")`（会 Unresolved reference 编译失败）。
         disable += "OldTargetApi"
+    }
+
+    testOptions {
+        unitTests.all {
+            // 消除单测时的 JVM 警告：
+            //   "OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes
+            //    because bootstrap classpath has been appended"
+            // 根因：mockk-inline 的 byte-buddy agent 会向 bootstrap classpath 追加字节码，
+            // 与 JDK 默认开启的 CDS（Class Data Sharing）冲突，JVM 降级共享并打印警告。
+            // 关闭测试 JVM 的 CDS 即可（仅影响单测进程启动的毫秒级共享收益，无功能影响）。
+            it.jvmArgs("-Xshare:off")
+        }
     }
 }
 
@@ -156,6 +178,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
     implementation(libs.accompanist.permissions)
+
+    // Opus 编解码（theeasiestway/android-opus-codec，本地 libs/opus.aar，封装官方 libopus 1.3.1）。
+    // 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全 ABI 的 libopus.so，arm64 设备原生 64 位可用，
+    // 彻底规避原 martoreto/opuscodec 仅 32 位 libsenz.so 导致 arm64 dlopen 失败、语音不可用的根因。
+    implementation(files("libs/opus.aar"))
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)

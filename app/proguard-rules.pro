@@ -26,6 +26,11 @@
 # 保留 androidx.window（自适应）
 -keep class androidx.window.** { *; }
 
+# 保留 Opus 编解码库（theeasiestway/android-opus-codec，本地 opus.aar，JNI 包 libopus，
+# native 方法 + .so 勿被 R8 误删/优化破坏，否则 release 包语音不可用）
+-keep class com.theeasiestway.opus.** { *; }
+-dontwarn com.theeasiestway.opus.**
+
 # OkHttp / Retrofit
 -dontwarn okhttp3.**
 -dontwarn retrofit2.**
