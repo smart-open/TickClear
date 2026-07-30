@@ -1,114 +1,69 @@
 package com.tickclear.app.domain.assistant
 
-import android.media.MediaCodec
-import android.media.MediaCodecList
-import android.media.MediaFormat
+import com.theeasiestway.opus.Constants
+import com.theeasiestway.opus.Opus
 import com.tickclear.app.domain.log.AppLogger
-import java.nio.ByteBuffer
 
 /**
- * best-effort Opus 编解码封装（基于 Android MediaCodec）。
+ * Opus 编解码封装（V2.8X++ 长期方案）。
  *
- * - Android 多数设备仅提供 Opus 解码器，编码器不保证存在；
- * - encodeFrame / decodeFrame 任一环节失败均返回 null（优雅降级，绝不抛异常中断调用方）；
- * - 不引入原生 libopus，规避 NDK / 镜像缺包风险。
+ * 采用 theeasiestway/android-opus-codec（com.theeasiestway.opus，封装官方 libopus 1.3.1），
+ * 其预编译 .so 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全部 ABI（含 64 位），
+ * 彻底解决原 martoreto/opuscodec 仅含 32 位 libsenz.so、arm64 设备 dlopen 失败导致语音不可用的根因；
+ * 也不再需要「剔除 arm64-v8a 目录 / 32 位回退」这类妥协方案，arm64 设备原生 64 位运行。
  *
- * 标准小智音频参数：16kHz / 单声道 / 16bit / 每帧 60ms
- * → 每帧 960 样本 = 1920 字节 PCM。
+ * - encodeFrame / decodeFrame 任一环节失败均返回 null（优雅降级，绝不抛异常中断调用方）。
+ *
+ * 标准小智音频参数：16kHz / 单声道 / 16bit / 每帧 60ms → 每帧 960 样本 = 1920 字节 PCM。
  */
 class OpusCodec {
 
-    private val sampleRate = 16000
+    private val encodeRate = 16000
     private val channels = 1
-    private val frameSamples = sampleRate * 60 / 1000 // 960
-    private val frameBytes = frameSamples * 2         // 1920 (16-bit)
+    private val encFrameSamples = encodeRate * 60 / 1000 // 960
+    private val encFrameBytes = encFrameSamples * 2      // 1920 (16-bit)
 
-    private val mime = "audio/opus"
-    private val timeoutUs = 5_000L
-
-    private val encLock = Any()
-    private val decLock = Any()
-    private var encoder: MediaCodec? = null
-    private var decoder: MediaCodec? = null
-    private var encoderProbed: Boolean? = null
-    private var decoderProbed: Boolean? = null
-
-    /** 解码目标采样率（由服务端 audio_params / tts-start 动态设定，默认 16000）。 */
+    /** 解码目标采样率（由服务端 tts-start / audio_params 动态设定，默认 16000）。 */
     @Volatile var preferredDecodeRate: Int = 16000
+
+    // 单一 Opus 句柄：编码器与解码器均在同实例内 init（库设计如此）。
+    private var codec: Opus? = null
+    private var encoderReady = false
+    private var decoderReady = false
     private var decoderRate: Int = -1
 
-    private fun encFormat(): MediaFormat =
-        MediaFormat.createAudioFormat(mime, sampleRate, channels).apply {
-            setInteger(MediaFormat.KEY_BIT_RATE, 24_000)
-            setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, frameBytes)
-        }
-
-    private fun decFormat(): MediaFormat =
-        MediaFormat.createAudioFormat(mime, preferredDecodeRate, channels).apply {
-            setByteBuffer("csd-0", buildOpusHead(preferredDecodeRate))
-        }
-
-    /** 设备是否提供 Opus 编码器（决定是否启用语音输入）。结果缓存避免逐帧重探。 */
+    /**
+     * 编码器可用性：首次调用时真实尝试初始化 native OpusEncoder（会触发 libopus.so 加载），
+     * 结果缓存复用。arm64 设备缺失对应 .so 时如实返回 false，使上层回退系统 ASR / 明确禁用麦克风，
+     * 而非进入编码循环静默失败。
+     */
+    @Volatile private var encoderAvailable: Boolean? = null
     fun isEncoderAvailable(): Boolean {
-        encoderProbed?.let { return it }
-        val ok = runCatching {
-            MediaCodecList(MediaCodecList.ALL_CODECS)
-                .findEncoderForFormat(encFormat()) != null
-        }.getOrDefault(false)
-        encoderProbed = ok
+        encoderAvailable?.let { return it }
+        val ok = runCatching { ensureEncoder() != null }.getOrDefault(false)
+        encoderAvailable = ok
+        if (!ok) AppLogger.e("OpusCodec", "isEncoderAvailable=false：libopus 原生库未成功加载（详见 native 初始化日志），语音 Opus 流不可用")
         return ok
     }
 
-    /** 设备是否提供 Opus 解码器（决定是否播放服务端 TTS 音频）。结果缓存避免逐帧重探。 */
-    fun isDecoderAvailable(): Boolean {
-        decoderProbed?.let { return it }
-        val ok = runCatching {
-            MediaCodecList(MediaCodecList.ALL_CODECS)
-                .findDecoderForFormat(decFormat()) != null
-        }.getOrDefault(false)
-        decoderProbed = ok
-        return ok
-    }
+    /** 解码器与编码器同源 .so，可用性一致。 */
+    fun isDecoderAvailable(): Boolean = isEncoderAvailable()
 
-    /** 编码一帧 PCM(1920B) 为 Opus 包；长度不足或失败返回 null。
-     *  V2.8X+：补关键失败路径 w 级日志（编码器 null / 输入不足 / dequeueInputBuffer 超时 /
-     *  dequeueOutputBuffer 失败 / BUFFER_FLAG_CODEC_CONFIG），便于"语音不能用"时区分根因。 */
-    fun encodeFrame(pcm16: ByteArray): ByteArray? = synchronized(encLock) {
-        if (pcm16.size < frameBytes) {
-            AppLogger.w("OpusCodec", "encodeFrame 失败：pcm 长度 ${pcm16.size} < ${frameBytes}B")
+    /** 编码一帧 PCM(1920B) 为 Opus 包；长度不足或失败返回 null。 */
+    fun encodeFrame(pcm16: ByteArray): ByteArray? {
+        if (pcm16.size < encFrameBytes) {
+            AppLogger.w("OpusCodec", "encodeFrame 失败：pcm 长度 ${pcm16.size} < ${encFrameBytes}B")
             return null
         }
-        runCatching {
-            val codec = ensureEncoder() ?: run {
-                AppLogger.w("OpusCodec", "encodeFrame 失败：ensureEncoder 返回 null（设备无 Opus 编码器）")
+        return runCatching {
+            val c = ensureEncoder() ?: run {
+                AppLogger.w("OpusCodec", "encodeFrame 失败：ensureEncoder 返回 null（native libopus 初始化失败）")
                 return null
             }
-            val inIdx = codec.dequeueInputBuffer(timeoutUs)
-            if (inIdx < 0) {
-                AppLogger.w("OpusCodec", "encodeFrame 失败：dequeueInputBuffer 返回 $inIdx（编码器繁忙或 timeout=${timeoutUs}us）")
-                return null
-            }
-            codec.getInputBuffer(inIdx)?.apply {
-                clear()
-                put(pcm16, 0, frameBytes)
-            }
-            codec.queueInputBuffer(inIdx, 0, frameBytes, 0, 0)
-            val info = MediaCodec.BufferInfo()
-            val outIdx = codec.dequeueOutputBuffer(info, timeoutUs)
-            if (outIdx >= 0) {
-                val out = codec.getOutputBuffer(outIdx)
-                val data = ByteArray(info.size)
-                out?.get(data)
-                codec.releaseOutputBuffer(outIdx, false)
-                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
-                    AppLogger.v("OpusCodec", "encodeFrame 收到 CODEC_CONFIG 包，已忽略")
-                    return null
-                }
-                AppLogger.v("OpusCodec", "→ encodeFrame OK 输出 ${data.size}B")
-                return data
-            }
-            AppLogger.w("OpusCodec", "encodeFrame 失败：dequeueOutputBuffer 返回 $outIdx（编码器未就绪或流格式不接受 60ms 帧）")
-            null
+            // 库直接以 16-bit PCM 字节流编为 Opus 字节流（小端 16bit 由库内部处理），返回 Opus 包字节数组。
+            val out = c.encode(pcm16, Constants.FrameSize._960())
+            AppLogger.v("OpusCodec", "→ encodeFrame OK 输出 ${out?.size ?: 0}B")
+            out
         }.getOrElse { e ->
             AppLogger.e("OpusCodec", "encodeFrame 异常", e)
             null
@@ -116,83 +71,78 @@ class OpusCodec {
     }
 
     /** 解码一帧 Opus 包为 PCM(16bit)；失败返回 null。 */
-    fun decodeFrame(opus: ByteArray): ByteArray? = synchronized(decLock) {
-        runCatching {
-            val codec = ensureDecoder() ?: return null
-            val inIdx = codec.dequeueInputBuffer(timeoutUs)
-            if (inIdx < 0) return null
-            codec.getInputBuffer(inIdx)?.apply {
-                clear()
-                put(opus, 0, opus.size)
-            }
-            codec.queueInputBuffer(inIdx, 0, opus.size, 0, 0)
-            val info = MediaCodec.BufferInfo()
-            val outIdx = codec.dequeueOutputBuffer(info, timeoutUs)
-            if (outIdx >= 0) {
-                val out = codec.getOutputBuffer(outIdx)
-                val data = ByteArray(info.size)
-                out?.get(data)
-                codec.releaseOutputBuffer(outIdx, false)
-                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) return null
-                return data
-            }
+    fun decodeFrame(opus: ByteArray): ByteArray? {
+        return runCatching {
+            val rate = if (preferredDecodeRate > 0) preferredDecodeRate else 16000
+            val c = ensureDecoder(rate) ?: return null
+            val frameSamples = rate * 60 / 1000
+            val out = c.decode(opus, Constants.FrameSize.fromValue(frameSamples))
+            AppLogger.v("OpusCodec", "← decodeFrame OK 输出 ${out?.size ?: 0}B")
+            out
+        }.getOrElse { e ->
+            AppLogger.e("OpusCodec", "decodeFrame 异常", e)
             null
-        }.getOrDefault(null)
-    }
-
-    private fun ensureEncoder(): MediaCodec? {
-        encoder?.let { return it }
-        if (!isEncoderAvailable()) return null
-        val name = MediaCodecList(MediaCodecList.ALL_CODECS).findEncoderForFormat(encFormat()) ?: return null
-        return MediaCodec.createByCodecName(name).apply {
-            configure(encFormat(), null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            start()
-        }.also { encoder = it }
-    }
-
-    private fun ensureDecoder(): MediaCodec? {
-        decoder?.let { if (decoderRate == preferredDecodeRate) return it }
-        // 采样率变化：旧解码器输出 PCM 速率不匹配，必须释放重建（codec 配置不可热改）。
-        if (decoder != null) {
-            runCatching { decoder?.release() }
-            decoder = null
-            decoderRate = -1
         }
-        if (!isDecoderAvailable()) return null
-        val name = MediaCodecList(MediaCodecList.ALL_CODECS).findDecoderForFormat(decFormat()) ?: return null
-        return MediaCodec.createByCodecName(name).apply {
-            configure(decFormat(), null, null, 0)
-            start()
-        }.also { decoder = it; decoderRate = preferredDecodeRate }
     }
 
-    /** 构造最小 OpusHead（csd-0）：magic(8) ver(1) ch(1) preskip(2) rate(4) gain(2) map(1)。 */
-    private fun buildOpusHead(rate: Int): ByteBuffer =
-        ByteBuffer.allocate(19).apply {
-            order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            put("OpusHead".toByteArray(Charsets.US_ASCII))
-            put(1)                 // version
-            put(channels.toByte()) // channels
-            putShort(0)            // pre-skip
-            putInt(rate)           // sample rate
-            putShort(0)            // gain
-            put(0)                 // channel mapping family
-            rewind()
+    @Synchronized
+    private fun instance(): Opus {
+        if (codec == null) codec = Opus()
+        return codec!!
+    }
+
+    @Synchronized
+    private fun ensureEncoder(): Opus? {
+        if (encoderReady) return codec
+        return runCatching {
+            val c = instance()
+            val rc = c.encoderInit(
+                Constants.SampleRate._16000(),
+                Constants.Channels.mono(),
+                Constants.Application.voip(),
+            )
+            if (rc != 0) throw RuntimeException("encoderInit rc=$rc")
+            c.encoderSetBitrate(Constants.Bitrate.instance(24_000))
+            encoderReady = true
+            c
+        }.getOrElse { e ->
+            AppLogger.e("OpusCodec", "native Opus 编码器初始化失败", e)
+            null
         }
+    }
+
+    @Synchronized
+    private fun ensureDecoder(rate: Int): Opus? {
+        val c = runCatching { instance() }.getOrNull() ?: return null
+        if (decoderReady && decoderRate == rate) return c
+        return runCatching {
+            if (decoderRate != -1) runCatching { c.decoderRelease() }
+            val rc = c.decoderInit(sampleRateFor(rate), Constants.Channels.mono())
+            if (rc != 0) throw RuntimeException("decoderInit rc=$rc")
+            decoderReady = true
+            decoderRate = rate
+            c
+        }.getOrElse { e ->
+            AppLogger.e("OpusCodec", "native Opus 解码器初始化失败", e)
+            null
+        }
+    }
+
+    /** 将采样率映射到库支持的档位（8000/12000/16000/24000/48000），未列出则回退 16k。 */
+    private fun sampleRateFor(rate: Int): Constants.SampleRate = when (rate) {
+        8000 -> Constants.SampleRate._8000()
+        12000 -> Constants.SampleRate._12000()
+        24000 -> Constants.SampleRate._24000()
+        48000 -> Constants.SampleRate._48000()
+        else -> Constants.SampleRate._16000()
+    }
 
     fun release() {
-        synchronized(encLock) {
-            runCatching { encoder?.stop() }
-            runCatching { encoder?.release() }
-            encoder = null
-            encoderProbed = null
-        }
-        synchronized(decLock) {
-            runCatching { decoder?.stop() }
-            runCatching { decoder?.release() }
-            decoder = null
-            decoderProbed = null
-            decoderRate = -1
-        }
+        runCatching { codec?.encoderRelease() }
+        runCatching { codec?.decoderRelease() }
+        codec = null
+        encoderReady = false
+        decoderReady = false
+        decoderRate = -1
     }
 }

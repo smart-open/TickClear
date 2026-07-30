@@ -30,7 +30,10 @@ import kotlinx.coroutines.launch
  * 通知动作均通过 Hilt @EntryPoint 获取仓库与 UseCase 执行业务。
  */
 class ReminderReceiver : BroadcastReceiver() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // 注意：不可把 CoroutineScope 存为实例字段并在 finally 中 cancel —— 系统会复用同一
+    // receiver 实例投递多条提醒，首条完成即 cancel 共享 scope，后续 onReceive 在已取消的
+    // scope 上 launch 永不执行，导致提醒被静默丢弃且 goAsync() 的 PendingResult 泄露。
+    // 因此每次 onReceive 使用独立的局部 scope，随本次广播生命周期结束。
 
     companion object {
         const val ACTION_SHOW = "com.tickclear.app.reminder.SHOW"
@@ -49,7 +52,8 @@ class ReminderReceiver : BroadcastReceiver() {
         val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
         val instanceId = intent.getStringExtra(EXTRA_INSTANCE_ID) ?: "$taskId@today"
         val pending = goAsync()
-        scope.launch {
+        val localScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        localScope.launch {
             try {
                 when (action) {
                     ACTION_SHOW -> showNotification(appCtx, taskId, instanceId)
@@ -63,7 +67,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 }
             } finally {
                 pending.finish()
-                scope.cancel() // 单次广播任务完成即回收作用域，避免泄漏（L1）
+                localScope.cancel() // 仅回收本次广播的局部作用域，不影响后续复用
             }
         }
     }

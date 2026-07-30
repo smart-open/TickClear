@@ -16,7 +16,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AssistantModule {
-    /** best-effort Opus 编解码器（MediaCodec 封装，单例复用避免重复创建）。 */
+    /** best-effort Opus 编解码器（martoreto/opuscodec 软件 libopus 封装，单例复用避免重复创建）。 */
     @Provides
     @Singleton
     fun provideOpusCodec(): OpusCodec = OpusCodec()

@@ -179,6 +179,11 @@ class AudioCapture {
                     }
                 }
             } finally {
+                // 采集结束必须释放 AudioRecord，否则调用方若未再调 stop() 将泄露至进程死亡。
+                // 与 stop() 的清理一致（release 后置空 + 关 running，使后续 stop() 成为空操作）。
+                running = false
+                runCatching { record?.release() }
+                record = null
                 runCatching { onComplete(pcmFile) }
             }
         }, "AudioCapture-accum").also { it.start() }

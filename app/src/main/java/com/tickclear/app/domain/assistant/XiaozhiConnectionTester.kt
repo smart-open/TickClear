@@ -1,5 +1,7 @@
 package com.tickclear.app.domain.assistant
 
+import android.content.Context
+import com.tickclear.app.R
 import com.tickclear.app.domain.log.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +58,7 @@ object XiaozhiConnectionTester {
      * @return [Result] 用 sealed class 描述成功 / 失败，失败文案已含可能的修复指引。
      */
     suspend fun test(
+        context: Context,
         endpoint: String,
         deviceId: String,
         clientId: String,
@@ -80,8 +83,11 @@ object XiaozhiConnectionTester {
         val httpProbe = runHttpProbe(normalized)
         when (httpProbe) {
             is HttpProbe.Unreachable -> {
-                val reason = "网络不可达：${httpProbe.detail}\n" +
-                    "请检查：手机是否连上 WiFi/数据网络、是否启用了 VPN / 全局代理、`$normalized` 是否被防火墙拦截。"
+                val reason = context.getString(
+                    R.string.xz_test_unreachable,
+                    httpProbe.detail,
+                    normalized,
+                )
                 AppLogger.w(TAG, "预探失败 → 不再尝试 WS: $reason")
                 return@withContext Result.Fail(reason)
             }
@@ -183,7 +189,7 @@ object XiaozhiConnectionTester {
                     "error" -> {
                         val errMsg = root["message"]?.jsonPrimitive?.content ?: "未知错误"
                         AppLogger.w(TAG, "测试服务端拒绝：$errMsg")
-                        deferred.complete(Result.Fail("服务端拒绝：$errMsg"))
+                        deferred.complete(Result.Fail(context.getString(R.string.xz_test_server_rejected, errMsg)))
                     }
                 }
             }
@@ -201,7 +207,7 @@ object XiaozhiConnectionTester {
                     append(t.message ?: t.javaClass.simpleName)
                     if (!bodySnippet.isNullOrBlank()) {
                         append('\n')
-                        append("响应体: ").append(bodySnippet)
+                        append(context.getString(R.string.xz_test_response_body, bodySnippet))
                     }
                 }
                 AppLogger.e(TAG, "测试 onFailure：$msg", t)
@@ -212,33 +218,29 @@ object XiaozhiConnectionTester {
                 AppLogger.d(TAG, "测试 onClosed code=$code reason='$reason' gotHello=$gotHello")
                 if (!deferred.isCompleted) {
                     val diag = buildString {
-                        append("连接关闭 code=$code")
+                        append(context.getString(R.string.xz_test_closed_code, code))
                         if (reason.isNotBlank()) append(" reason=$reason")
                         append("\n")
                         when {
                             // 握手成功后才被关：一般是用户/MCP 协商层面，非 license 拒绝
                             gotHello && (code == 1000 || code == 1001) ->
-                                append("连接已正常关闭。若发生在对话中，可能是 MCP 工具协商未通过（create_task 未正确注册），请重试。")
+                                append(context.getString(R.string.xz_test_closed_normal))
                             // 从未收到 hello 且网关裸 RST：前端已绑定但 WS 网关 license 未同步
                             !gotHello && code == 1005 -> {
-                                append("服务端在握手阶段主动关闭（code=1005，网关裸 RST），且始终未收到 hello。\n")
+                                append(context.getString(R.string.xz_test_closed_1005_header))
                                 if (effectiveActivated) {
-                                    append("你已完成激活、Device-Id 也在 xiaozhi.me 控制台「我的设备」中显示，但 WS 网关的 license 缓存未生效（xiaozhi.me 已知的不同步问题）——它查不到该 device-id 的有效授权，直接丢弃连接。\n")
+                                    append(context.getString(R.string.xz_test_closed_1005_activated))
                                 } else {
-                                    append("该 device-id 在 xiaozhi.me 后端未真正激活，WS 网关查不到授权而直接丢弃连接。\n")
+                                    append(context.getString(R.string.xz_test_closed_1005_not_activated))
                                 }
-                                append("这不是 App 协议错误。请按以下任一方式处理：\n")
-                                append("  ① 用一台【已知可用】设备的 Device-Id（如真机 ESP32 的 MAC，或控制台里已绑定的其他设备）粘进 App「设备 ID」框重测；能连上即证明 App 协议完全正确，问题只在该虚拟 device-id。\n")
-                                append("  ② 在 xiaozhi.me 控制台「重新生成设备标识」换新身份、重新走激活，再点测试连接。\n")
-                                append("  ③ 联系 xiaozhi.me 客服，反馈「设备已在控制台显示、但 WebSocket 网关 license 不同步、连接被 1005 拒绝」。\n")
-                                append("  ④ 或自部署开源 xiaozhi-esp32-server 服务端，绕过官方云 license 校验。")
+                                append(context.getString(R.string.xz_test_closed_1005_fix))
                             }
                             // 1006 异常关闭（未完成握手）
                             !gotHello && code == 1006 ->
-                                append("连接异常关闭（code=1006），未完成握手。可能是网络中断或网关提前断开。可重试；若持续出现且 device-id 已在控制台显示，则同 1005 处理（license 未同步）。")
+                                append(context.getString(R.string.xz_test_closed_1006))
                             // 其他关闭码
                             else ->
-                                append("（未在握手前收到 hello，属非预期关闭）")
+                                append(context.getString(R.string.xz_test_closed_other))
                         }
                     }
                     deferred.complete(Result.Fail(diag))
@@ -254,23 +256,7 @@ object XiaozhiConnectionTester {
             // 异步调 get_private_config_from_api 校验设备 + _initialize_components 加载 TTS/ASR，
             // 完成才发 welcome。25s 仍未回 welcome 几乎一定不是客户端协议问题。
             AppLogger.w(TAG, "测试超时 ${WS_TOTAL_TIMEOUT_MS / 1000}s：WS Upgrade 已通但未收到服务端 welcome（deviceId=$deviceId）")
-            val reason = buildString {
-                append("WebSocket 已建立成功（TLS/Upgrade 都通过），App 已发送 hello 6 字段")
-                append("（version=1, features.mcp=true, audio_params=opus/16kHz/mono/60ms），但 ")
-                append(WS_TOTAL_TIMEOUT_MS / 1000)
-                append(" 秒内未收到服务端 welcome 响应。\n")
-                append("  关键事实：服务端 helloHandle.py 源码对 hello 字段【无任何校验】，")
-                append("且 connection.py 鉴权【仅基于 device-id】（client-id 不参与校验、不读 Authorization 头），")
-                append("所以「改 client-id / 改 hello 字段」都救不了，问题在更上层：\n")
-                append("  ① 服务端收到 hello 后异步调 get_private_config_from_api(device-id)，")
-                append("若该虚拟 device-id 在官网后端未真正激活，会返回「未找到/未绑定」→ need_bind=True → ")
-                append("直接丢弃 hello、不发 welcome（这正是 25s 超时的根因）。\n")
-                append("  ② 服务端 _initialize_components 加载 TTS/ASR（默认 FunASR）较慢，welcome 延迟。\n")
-                append("  ③ 网关/反代 idle timeout 提前 RST（CloudFront 默认 10s，ALB 60s）。close code 含义：")
-                append("1005=网关裸 RST、1006=连接异常、1011=服务端内部错误。\n")
-                append("  验证：把 xiaozhi.me 控制台「我的设备」里一台【已知可用】设备的 Device-Id（MAC）粘进 ")
-                append("App「设备 ID」输入框（现已可编辑）后重测；能连上即证明 App 协议完全正确，问题只在该虚拟 device-id 未激活。")
-            }
+            val reason = context.getString(R.string.xz_test_timeout, WS_TOTAL_TIMEOUT_MS / 1000)
             Result.Fail(reason)
         } finally {
             runCatching { ws.close(1000, "test done") }
