@@ -396,7 +396,7 @@
     <string name="assistant_mock_welcome">我在，请问有什么可以帮您？</string>
     <string name="assistant_mock_task_saved">好的，已为你记下「%1$s」（%2$s）。</string>
     <string name="assistant_mock_reply_hello">你好呀，今天也要把小事一件件清空～</string>
-    <string name="assistant_mock_reply_who">我是你的专属小智助手，帮你记任务、陪你聊天。</string>
+    <string name="assistant_mock_reply_who">我是你的专属智能助手，帮你记任务、陪你聊天。</string>
     <string name="assistant_mock_reply_thanks">不客气，随时叫我～</string>
     <string name="assistant_mock_reply_short">嗯嗯，我在听。需要我帮你记点什么吗？</string>
     <string name="assistant_mock_reply_default">收到～如果想记一件事，可以说「提醒我明天9点开会」这样哦。</string>
@@ -491,7 +491,7 @@
     <string name="wake_listening_notification_title">语音唤醒运行中</string>
     <string name="wake_listening_notification_text">正在后台聆听唤醒词</string>
 
-    <string name="settings_section_assistant">小智助手</string>
+    <string name="settings_section_assistant">智能助手</string>
     <string name="settings_mode_title">运行模式</string>
     <string name="settings_mode_subtitle">模拟：离线可用；真实：需配置网关与令牌</string>
     <string name="settings_ai_engine_title">今日 AI 引擎</string>
@@ -570,7 +570,7 @@
     <string name="about_version_label">版本 1.0.0 (Debug)</string>
     <string name="about_storage_title">存储与安全</string>
     <string name="about_storage_body">• 任务数据使用 SQLCipher 本地加密存储，口令仅保存在设备 Keystore 中。\n• 语音助手配置（网关令牌等敏感值）存入 EncryptedSharedPreferences。\n• 我们不上传你的任务内容；云端对话仅在「真实」模式下发生。</string>
-    <string name="about_assistant_title">小智助手</string>
+    <string name="about_assistant_title">智能助手</string>
     <string name="about_assistant_body">默认「模拟」模式离线可用：与小智风格助手聊天，说出「提醒我明天9点开会」等，即可通过 MCP 工具自动建任务。切换「真实」模式需自行配置网关与令牌。</string>
     <string name="about_current_theme">当前外观：%1$s · %2$s</string>
 

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import com.tickclear.app.domain.log.AppLogger
 import java.io.File
 import kotlin.math.min
@@ -12,12 +13,71 @@ import kotlin.math.min
  * 麦克风采集：16kHz / 单声道 / 16bit，按 Opus 帧长(1920B)切帧后回调。
  * best-effort：初始化失败（无权限 / 设备不支持）返回 false，由调用方降级文本输入。
  * 调用前需确保已授予 RECORD_AUDIO 权限（本类不自行申请）。
+ *
+ * 回声消除（V2.8X++）：优先 [MediaRecorder.AudioSource.VOICE_COMMUNICATION] —— 该源由平台
+ * 启用声学回声消除（AEC），可消除「录音瞬间 TTS 尾音被麦克风录回」的残余回声；并对采集会话
+ * 显式挂载 [AcousticEchoCanceler] 双保险。不可用时回退 VOICE_RECOGNITION。
+ * 注：AEC 仅对本类（Opus / 云 ASR 路径）有效；系统 SpeechRecognizer 路径由 Android 自行管理音频。
  */
 class AudioCapture {
 
     private var record: AudioRecord? = null
     private var thread: Thread? = null
     private var running = false
+    private var aec: AcousticEchoCanceler? = null
+
+    /**
+     * 按优先级创建 AudioRecord：VOICE_COMMUNICATION（带平台 AEC）→ VOICE_RECOGNITION 回退。
+     * 两者均初始化失败返回 null。
+     */
+    @SuppressLint("MissingPermission")
+    private fun createRecord(sampleRate: Int, minBuf: Int): AudioRecord? {
+        for (source in listOf(
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+        )) {
+            val rec = try {
+                AudioRecord(
+                    source,
+                    sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    minBuf * 2,
+                )
+            } catch (e: Exception) {
+                AppLogger.w("AudioCapture", "init source=$source 失败", e)
+                continue
+            }
+            if (rec.state == AudioRecord.STATE_INITIALIZED) return rec
+            rec.release()
+        }
+        return null
+    }
+
+    /** 对采集会话挂载声学回声消除器（VOICE_COMMUNICATION 源的补充保险）。不可用则静默跳过。 */
+    @SuppressLint("MissingPermission")
+    private fun setupAec(rec: AudioRecord) {
+        if (!AcousticEchoCanceler.isAvailable()) {
+            AppLogger.d("AudioCapture", "AEC 不可用，跳过回声消除")
+            return
+        }
+        runCatching {
+            val ec = AcousticEchoCanceler.create(rec.audioSessionId)
+            if (ec != null) {
+                ec.enabled = true
+                aec = ec
+                AppLogger.d("AudioCapture", "AEC 已开启 session=${rec.audioSessionId}")
+            } else {
+                AppLogger.d("AudioCapture", "AEC create 返回 null（设备不支持该 session）")
+            }
+        }.onFailure { AppLogger.w("AudioCapture", "AEC 设置失败", it) }
+    }
+
+    /** 释放回声消除器（与 record 同步回收）。 */
+    private fun releaseAec() {
+        runCatching { aec?.release() }
+        aec = null
+    }
 
     @SuppressLint("MissingPermission")
     fun start(sampleRate: Int = 16000, onFrame: (ByteArray) -> Unit): Boolean {
@@ -27,20 +87,11 @@ class AudioCapture {
         )
         if (minBuf <= 0) return false
 
-        val rec = try {
-            AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                minBuf * 2,
-            )
-        } catch (e: Exception) {
-            AppLogger.w("AudioCapture", "init failed", e)
+        val rec = createRecord(sampleRate, minBuf) ?: run {
+            AppLogger.w("AudioCapture", "init failed（VOICE_COMMUNICATION / VOICE_RECOGNITION 均不可用）")
             return false
         }
-        if (rec.state != AudioRecord.STATE_INITIALIZED) {
-            rec.release()
-            return false
-        }
+        setupAec(rec)
 
         record = rec
         running = true
@@ -115,6 +166,7 @@ class AudioCapture {
         thread = null
         runCatching { record?.release() }
         record = null
+        releaseAec()
     }
 
     /**
@@ -135,20 +187,11 @@ class AudioCapture {
         )
         if (minBuf <= 0) return false
 
-        val rec = try {
-            AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                minBuf * 2,
-            )
-        } catch (e: Exception) {
-            AppLogger.w("AudioCapture", "init failed", e)
+        val rec = createRecord(sampleRate, minBuf) ?: run {
+            AppLogger.w("AudioCapture", "init failed（VOICE_COMMUNICATION / VOICE_RECOGNITION 均不可用）")
             return false
         }
-        if (rec.state != AudioRecord.STATE_INITIALIZED) {
-            rec.release()
-            return false
-        }
+        setupAec(rec)
 
         record = rec
         running = true
@@ -184,6 +227,7 @@ class AudioCapture {
                 running = false
                 runCatching { record?.release() }
                 record = null
+                releaseAec()
                 runCatching { onComplete(pcmFile) }
             }
         }, "AudioCapture-accum").also { it.start() }

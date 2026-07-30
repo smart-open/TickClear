@@ -59,7 +59,7 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── AI 助手选型（Phase 5 填充；此处先定义契约）──
     override val aiMode: Flow<String> = dataStore.data.map { it[KEY_AI_MODE] ?: "LOCAL_NLU" }
 
-    // ── 小智助手配置（Phase 6；token 等敏感值走 SecureStore）──
+    // ── 智能助手配置（Phase 6；token 等敏感值走 SecureStore）──
     override val assistantMode: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_MODE] ?: "MOCK" }
     override val assistantEndpoint: Flow<String> = dataStore.data.map { it[KEY_ASSISTANT_ENDPOINT] ?: "wss://api.tenclass.net/xiaozhi/v1/" }
     override val assistantPrompt: Flow<String> = dataStore.data.map {
