@@ -2,7 +2,7 @@
 
 > **管好每一个时间点，清空每一件烦心事。**
 
-点清（TickClear）是一款**纯本地、无云端账号**的 Android 个人任务清理工具，以「**任务组 + 定时提醒 + 一键清空**」为核心，兼顾实用与趣味性。所有数据加密落本地（Room 数据库 + Android Keystore 派生的密钥经 Jetpack security-crypto 保护 `SecureStore`），不依赖任何后端服务即可完整运行。
+点清（TickClear）是一款**纯本地、无云端账号**的 Android 个人任务清理工具，以「**任务组 + 定时提醒 + 一键清空**」为核心，兼顾实用与趣味性。所有数据加密落本地（Room 数据库经 **SQLCipher** 加密，加密口令由 Android Keystore 经 Jetpack security-crypto 保护的 `SecureStore` 派生与保存），不依赖任何后端服务即可完整运行。
 
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
@@ -60,7 +60,7 @@
 | 平台 | minSdk 24 / targetSdk 34 / compileSdk 34 |
 | UI | Jetpack Compose + Material3 |
 | DI | Hilt（KSP） |
-| 本地存储 | Room + DataStore（偏好）+ Jetpack security-crypto / `SecureStore`（Android Keystore 派生的密钥 / 口令） |
+| 本地存储 | Room（**SQLCipher** 加密）+ DataStore（偏好）+ Jetpack security-crypto / `SecureStore`（Android Keystore 派生并保存 SQLCipher 口令） |
 | 网络 | OkHttp（小智 WebSocket 二进制帧） |
 | 序列化 | kotlinx-serialization |
 | 权限 | accompanist.permissions |

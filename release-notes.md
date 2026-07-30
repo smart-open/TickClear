@@ -7,7 +7,7 @@
 ## v2.8X（2026-XX-XX · 在做未封板）· 消息净化 + 语音诊断日志 + 协议实证补漏
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
-**相对 v2.7.2**：四条 P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 文档同步），零新功能、零新依赖、中文全抽离、DB 版本不变（v8）。
+**相对 v2.7.2**：P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 语音 Opus 编码根因修复 / 文档同步）。**唯一红线例外**：新增 1 个 Opus 依赖 `com.github.martoreto:opuscodec:v1.2.1.2`（martoreto/opuscodec，JitPack 单模块 AAR，JNI 包完整 libopus，替代 MediaCodec Opus 编码，见下）；其余仍零新功能、中文全抽离、DB 版本不变（v8）。
 
 ### 🧹 消息列表净化（P0 · 用户可见）
 - **剥离多模态资源 token**（@image#xxx）：小智官方服务端在 LLM/TTS 文本中插入形如 `@image#1:23e150c406a50b91e200450bf3d94b31.jpg` 的多模态资源引用（用于 TTS 朗读时插入图片/表情包合成播放），TTS 音频会念"图片"，但**给 UI 展示用的 text 字段是带 token 的原文**——直接显示给用户会出现纯技术串。修复：
@@ -23,11 +23,29 @@
   - `AssistantViewModel.startXiaozhiOpusVoice` 的 onFrame 回调：v 级 pcm→opus→sendAudio 三段日志，便于对账。
 - **本轮目标**：用户本地 `./gradlew assembleDebug` + 真机回归一次，复制 logcat `XzTransport / AudioCapture / OpusCodec / AssistantVM` 四个标签的输出给项目组，按日志区分"录音未起 / read 阻塞 / 编码失败 / send 失败"四类根因后，再二次定位并出方案 B（3s 自愈）/ 方案 C（60ms→3×20ms）。
 
+### 🎙 Opus 编解码改用 martoreto/opuscodec（P0 · 语音彻底不可用根因修复 · 2026-07-29）
+- **根因（由诊断日志实证）**：本机及多数 Android 机型 `MediaCodec` 声称提供 Opus **编码器**，但同步模式下 `dequeueInputBuffer` **永久返回 -1**（输入缓冲区永远不可取用）。导致 `OpusCodec.encodeFrame` 每帧返回 null → **零字节上行** → 服务端收不到音频 → 无 STT/LLM/TTS → "麦克风亮着但说话没反应"。日志铁证：录音 155 帧零错误、编码 155 帧 100% 失败、全程 0 条 `sendAudio`、WS/MCP 握手正常（服务端健康）。
+- **修复**：编码 + 解码路径整体替换为 **martoreto/opuscodec**（`com.github.martoreto:opuscodec:v1.2.1.2`，JitPack **单模块** AAR，JNI 包完整 libopus，`libsenz.so` 打进 AAR、覆盖各 ABI）。软件实现，各机型 100% 可用，与 xiaozhi 参考客户端（py-xiaozhi 等）一致。
+  - 依赖落地波折（已全数解决）：① 误用 `org.concentus:concentus:2.0.1`——该坐标仅在已关停的 JCenter 发布，Maven Central / 阿里云镜像均拉不到；② JitPack `com.github.lostromb:concentus` 多模块、子模块未发布，解析失败；③ `com.github.theeasiestway.android-opus-codec:opus:-b8e43ec41e-1` 同样多模块、子模块 `:opus` 未发布，解析失败；④ **最终采用 `com.github.martoreto:opuscodec:v1.2.1.2`**（已核实为单模块、v1.2.1.2 构建状态 `ok`、POM 有效可被 JitPack 正常发布）。
+  - `OpusCodec.encodeFrame`：PCM16 字节（1920B/帧）小端转 `short[]`（960 样本）交给 `OpusEncoder(16000,1,OPUS_APPLICATION_VOIP).encode(shorts, 960, out)` → 返回原始 Opus 包（不含 Ogg 容器，直发 WebSocket 二进制帧）。
+  - `OpusCodec.decodeFrame`：同样走该库 `OpusDecoder(rate,1).decode(opus, shorts, frameSamples)` → PCM16 字节（TTS 播放不再依赖设备 MediaCodec Opus 解码器）。
+  - `OpusCodec.isEncoderAvailable()/isDecoderAvailable()` 均改为恒 `true`（libopus 随 AAR 常驻，不再被 MediaCodec 探测误判）。
+  - `app/build.gradle.kts` 新增 `implementation(libs.opuscodec)`；`gradle/libs.versions.toml` 加 `opuscodec = { module = "com.github.martoreto:opuscodec", version = "v1.2.1.2" }`；`settings.gradle.kts` 仓库加 `maven { url = uri("https://jitpack.io") }`；`proguard-rules.pro` 加 `-keep class com.score.rahasak.utils.**`。
+- **红线影响**：突破红线①「零新依赖」（唯一例外，因 MediaCodec Opus 编码在本机/多数机型不可用属 Android 碎片化硬伤，且 JitPack 上可靠可用的替代库均为带原生 .so 的安卓库）；②中文全抽离（仅 AppLogger 日志，不计入）③Room 显式 Migration（无 schema 变更）④`.workbuddy/` 不提交，均守住。
+
 ### 🔌 小智协议实证补漏（文档同步，非代码改动）
 - **Device-Id 大小写敏感**：xiaozhi.me 控制台对 Device-Id(MAC) 做大小写敏感匹配。已绑定小写 MAC（如 `e8:06:90:98:6c:d4`）必须以小写发送，大写会被静默拒 → close code 1005。已通过独立探针实证。
 - **listen 帧 state 必须 detect**：服务端仅当 listen `state="detect"` 且带 `text` 时才把文本当作用户输入处理；`state="stop"+text` 服务端静默忽略 → "测试连接正常但发消息无回复"。已用真机 MAC 实证完整 STT→LLM→TTS→MCP 工具调用链路。
 - **握手 25s 超时**：服务端 connection.py 源码显示收到 hello 后会异步调 `get_private_config_from_api` 校验设备 + `_initialize_components` 加载 TTS/ASR（默认 FunASR 加载数秒），给服务端留足初始化时间。原 10/12s 容易误判"被拒"。
 - **MCP 协议 25s 死锁**：服务端 `method=initialize` 必须回（已修），`tools/list`/`tools/call` 的 `result.tools`/`result.content` 必须是 JSON 数组（已修），`required`/`enum` 必须是字符串数组（已修）。
+
+### 🛡 工程代码审计修复（2026-07-29 · 红线 + 可靠性）
+> 全量静态扫描（独立只读审查子代理 + 人工逐文件核实）发现的真实隐患，全部零新依赖、中文全抽离、DB 版本不变（v8）。
+
+- **[fix] `ReminderReceiver` 共享 scope 被取消 → 后续提醒静默丢失（P1 · 真实功能缺陷）**：原实现把 `CoroutineScope` 存为实例字段，并在 `finally` 中 `scope.cancel()`。系统会复用同一 receiver 实例投递多条提醒，首条完成即取消共享 scope，后续 `onReceive` 在已取消的 scope 上 `launch` 永不执行，`goAsync()` 的 `PendingResult` 也永不 `finish()` → **该提醒被静默丢弃且 PendingResult 泄露（系统最长等待 10s 后杀进程）**。修复：每次 `onReceive` 使用独立局部 `CoroutineScope`，`finally` 仅取消本次局部作用域。
+- **[fix] `AudioCapture.startAccumulate` AudioRecord 泄露（P2 · 资源泄漏）**：累积采集线程 `finally` 仅回调 `onComplete(pcmFile)`，未 `release()` 字段 `record`；若调用方未在 `onComplete` 后显式 `stop()`，AudioRecord 永久泄露至进程死亡。修复：`finally` 内补 `running=false → record?.release() → record=null`（与 `stop()` 清理一致）。
+- **[fix] `WebSocketXiaozhiTransport` 文本帧未校验 connected（P3 · 资源触碰窗口）**：`onMessage(text)` 不像 `onMessage(bytes)` 那样先 `if(!connected) return`，`disconnect()` 释放资源与置 `connected=false` 之间存在极短窗口，文本帧可能触达已释放的 codec/player。修复：文本分支补 `connected` 守卫（`runCatching` 兜底保留）。
+- **[fix] `XiaozhiConnectionTester` 诊断文案硬编码中文（红线 · 封板前必修，已结清）**：`test()` 的用户可见失败原因（网络不可达 / 1005 license 不同步 / 1006 异常 / 超时根因等十余处）原硬编码中文。修复：`test()` 新增 `context: Context` 参数（调用方 `SettingsViewModel.testXiaozhiConnection` 传 `appContext`），全部诊断文案抽离至 `strings.xml`（新增 `xz_test_*` 12 条，沿用 `%1$s/%1$d` 占位符约定）；`AppLogger` 开发日志不涉及此红线。
 
 ### 📖 文档同步
 - `release-notes.md`：本章节。
@@ -38,8 +56,8 @@
 
 ### 🧪 质量门禁
 - 待本地执行：`./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（沙箱无 JDK/Gradle）。
-- 真机回归：① 消息列表不再出现 `@image#xxx`（带真实带 token 的 LLM 回复验证）② 语音启动后 logcat `AudioCapture` 标签出现"start OK ... frameCount=N" ③ 端到端语音对话可正常 stt→llm→tts（带真实 e8:06 真机或控制台已绑定设备 MAC）。
-- **已知红线待办**（封板前必修）：`XiaozhiConnectionTester` 的诊断文案（onFailure / onClosed / 超时）仍硬编码中文，需抽离 `strings.xml`。
+- 真机回归：① 消息列表不再出现 `@image#xxx`（带真实带 token 的 LLM 回复验证）② 语音启动后 logcat `AudioCapture` 标签出现"start OK ... frameCount=N" ③ **`OpusCodec` 标签不再有 `dequeueInputBuffer 返回 -1`，改为 `→ encodeFrame OK 输出 N B`** ④ `XzTransport` 标签出现 `→ sendAudio Opus 帧 len=...` ⑤ 端到端语音对话可正常 stt→llm→tts（带真实 e8:06 真机或控制台已绑定设备 MAC）。
+- **红线校验**：`XiaozhiConnectionTester` 诊断文案硬编码中文已在本轮抽离 `strings.xml`（见上「工程代码审计修复」），源码零可见中文；其余 `AppLogger` 日志中文为开发者可见、不计入红线。
 
 ---
 
