@@ -40,8 +40,8 @@ import java.util.concurrent.TimeUnit
  * - 服务端下发 hello.message（欢迎）/ stt / llm / tts / mcp；
  * - 真实模式下 MCP 工具调用由本传输层执行并回执 result（JSON 字符串），再推送 UI 事件；
  * - 文本输入以 listen(start/stop+text) 模拟 ASR 结果；
- * - 语音模式经二进制帧收发 Opus：上行麦克风编码帧，下行服务端 TTS 解码后 AudioTrack 播放
- *   （设备无 Opus 编码器时由 UI 降级为文字，见 OpusCodec / P6.3）。
+ * - 语音模式经二进制帧收发 Opus：上行麦克风由 martoreto/opuscodec 软件 libopus 编码帧（V2.8X++ 替代
+ *   MediaCodec，规避机型碎片化导致零字节上行），下行服务端 TTS 同样经该库软件解码后 AudioTrack 播放（见 OpusCodec）。
  */
 class WebSocketXiaozhiTransport(
     @ApplicationContext private val context: Context,
@@ -57,6 +57,8 @@ class WebSocketXiaozhiTransport(
 
     // 服务端 TTS 下行：解码 Opus → PCM → AudioTrack 播放（best-effort，失败静默丢弃）。
     private val player = AudioPlayer()
+    /** 录音/打断期间为 true：丢弃所有 TTS 音频帧，彻底消除小智回声（流式帧会不断重建播放器）。 */
+    @Volatile private var ttsSuppressed = false
 
     // 心跳保活（V2.17）：WebSocket 协议层 ping/pong，20s 间隔；pong 超时即触发 onFailure → 退避重连，
     // 兼作 NAT/代理空闲链路保活与死链检测，无需应用层自定义心跳报文。
@@ -289,7 +291,22 @@ class WebSocketXiaozhiTransport(
             sessionId?.let { put("session_id", it) }
         }.toString()
         AppLogger.d(TAG, "→ sendListenStop 发送 listen(realtime/stop) session=${sessionId ?: "∅"}")
+        resumeTts()
         runCatching { sock.send(frame) }.onFailure { AppLogger.e(TAG, "发送 listen(realtime/stop) 失败", it) }
+    }
+
+    override fun abortTts() {
+        // 立即停掉设备侧 TTS 外放，避免用户开始录音时麦克风录入小智上一轮回复的尾音（回声）。
+        // player.release() 内部对 track=null / 未播放均做了 runCatching 保护，安全可重复调用。
+        val released = runCatching { player.release() }.isSuccess
+        ttsSuppressed = true
+        AppLogger.d(TAG, "abortTts 停止本地 TTS 外放 released=$released ttsSuppressed=true")
+    }
+
+    /** 停止录音/打断结束后调用：允许 TTS 音频帧正常播放（小智的回答恢复出声）。 */
+    override fun resumeTts() {
+        ttsSuppressed = false
+        AppLogger.d(TAG, "resumeTts 恢复 TTS 外放 ttsSuppressed=false")
     }
 
     /**
@@ -352,12 +369,13 @@ class WebSocketXiaozhiTransport(
     override suspend fun disconnect() {
         userDisconnect = true
         // 无论如何都释放资源：旧实现在「重连中」(connected=false) 时早退，
-        // 导致 AudioTrack / Opus MediaCodec 未释放、声音残留，且作用域/WS 滞留（P2）。
+        // 导致 AudioTrack / OpusCodec 未释放、声音残留，且作用域/WS 滞留（P2）。
         connected = false
         handshakeDone = false
         opened = false
         runCatching { player.release() }
-        // 会话结束释放 Opus MediaCodec，避免编解码器终生死占（下次 encode/decode 惰性重建）。
+        ttsSuppressed = false
+        // 会话结束释放 OpusCodec，避免编解码器终生死占（下次 encode/decode 惰性重建）。
         runCatching { codec.release() }
         scope?.cancel()
         scope = null
@@ -376,6 +394,8 @@ class WebSocketXiaozhiTransport(
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
+            // 断开过程中（connected=false）可能仍有排队的文本帧到达，跳过解码避免触碰已释放的 codec/player（L2）。
+            if (!connected) return
             AppLogger.v(TAG, "← 收到文本帧: ${text.take(400)}")
             runCatching { handleServerMessage(text) }
         }
@@ -384,6 +404,11 @@ class WebSocketXiaozhiTransport(
             // 断开过程中（connected=false）可能仍有排队的帧到达，跳过解码避免触碰已释放的 codec/player（L2）。
             if (!connected) return
             AppLogger.v(TAG, "← 收到二进制 Opus 帧 len=${bytes.size}")
+            // 录音/打断静音期：直接丢弃 TTS 音频帧，避免流式帧不断重建播放器让小智继续外放（回声根因）。
+            if (ttsSuppressed) {
+                AppLogger.v(TAG, "← 丢弃 TTS 帧（ttsSuppressed=true，录音静音期）")
+                return
+            }
             // 服务端 TTS 二进制 Opus 帧：按服务端声明的采样率解码后播放；任一环节失败则静默丢弃。
             runCatching {
                 val pcm = codec.decodeFrame(bytes.toByteArray()) ?: return@runCatching
@@ -522,7 +547,7 @@ class WebSocketXiaozhiTransport(
                             codec.preferredDecodeRate = sr
                             AppLogger.d(TAG, "tts.start 服务端采样率=${sr}Hz，初始化播放器")
                         }
-                        runCatching { player.init(currentSampleRate) }
+                        if (!ttsSuppressed) runCatching { player.init(currentSampleRate) }
                             .onFailure { AppLogger.e(TAG, "初始化 AudioPlayer 失败", it) }
                     }
                     "sentence_start" -> {

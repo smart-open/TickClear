@@ -111,6 +111,12 @@ class AssistantViewModel @Inject constructor(
         _connectionBanner.value = null
     }
 
+    /** V2.8X++：重连进度文本，仅供顶部状态栏展示，绝不进入消息流（避免重连刷屏）。 */
+    private val _reconnectingStatus = MutableStateFlow<String?>(null)
+    val reconnectingStatus: StateFlow<String?> = _reconnectingStatus.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), null,
+    )
+
     /** 唤醒词监听是否激活。 */
     private val _wakeWordActive = MutableStateFlow(false)
     val wakeWordActive: StateFlow<Boolean> = _wakeWordActive.stateIn(
@@ -132,10 +138,28 @@ class AssistantViewModel @Inject constructor(
     /** 语音历史开关缓存：避免每条消息都读一次 DataStore（V2.65 优化）。 */
     private val voiceHistoryOn = MutableStateFlow(false)
 
+    /**
+     * V2.8X++：本轮已展示的用户文本（用于来自发送路径的 `sendText`）。
+     * - 本地 ASR / 云 ASR / 文本输入：走 `sendText` → 已展示为 user 气泡；服务端回 stt 时按此 dedup。
+     * - 真·Opus 语音流：跳过 `sendText`，flag 保持 null，stt 帧来时直接落用户气泡。
+     * 每次新轮开始（`startVoice` 进入）+ LlmText 首 token + SttText 处理完成 均清空，避免跨轮污染。
+     */
+    private var userSaidThisTurn: String? = null
+
     /** V2.8X++：麦克风按下的即时反馈（避免「按下去没反应」的哑失败）。 */
     private val _micToast = MutableStateFlow<String?>(null)
     val micToast: StateFlow<String?> = _micToast.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), null,
+    )
+
+    /**
+     * V2.8X++：语音「准备中」状态（用户已点击但还未真正进入聆听）。UI 用内联指示器呈现，
+     * 取代原先的 Snackbar 占位——旧实现把「正在打开麦克风…」当 Short Snackbar 弹出，
+     * 与后续的「开始聆听」 snackbar 排队，导致"正在打开"至少挂 4 秒的体感卡顿。
+     */
+    private val _voiceOpening = MutableStateFlow(false)
+    val voiceOpening: StateFlow<Boolean> = _voiceOpening.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
 
     fun consumeMicToast() {
@@ -151,8 +175,20 @@ class AssistantViewModel @Inject constructor(
         // 内存展示需 ASC；reversed() 在小数据集上 OK，未来量大再换 SQL ASC）。
         viewModelScope.launch {
             val initial = voiceHistoryRepository.observeAll().first().reversed()
-            _messages.value = initial.toChatMessages()
-            AppLogger.d(TAG, "init 从 voice_history 加载历史消息 ${initial.size} 条")
+            // V2.8X++：清洗历史数据 —
+            //   ① 重连提示残留（旧版本曾插入消息流，已在 onEvent 修源头为仅更新 _reconnectingStatus，
+            //     但 DB 里老消息还在），按前缀识别丢弃；
+            //   ② 多模态 token（@image#xxx）残留（旧消息写入时尚未加 MessageTextFilter），
+            //     加载时再 strip 一次与新消息处理一致。
+            val cleaned = initial
+                .filterNot { isReconnectNoise(it.text) }
+                .map { it.copy(text = MessageTextFilter.strip(it.text)) }
+                .filter { it.text.isNotBlank() }
+            _messages.value = cleaned.toChatMessages()
+            AppLogger.d(
+                TAG,
+                "init 从 voice_history 加载历史消息 ${cleaned.size} 条（原始 ${initial.size} 条，丢弃重连/空串）",
+            )
         }
         viewModelScope.launch {
             transport.events.collect { onEvent(it) }
@@ -281,9 +317,12 @@ class AssistantViewModel @Inject constructor(
      *   并把 `_voiceSupported` 同步置为 false（让 UI 灰显）。
      */
     fun startVoice() {
-        // V2.8X++：先发一条即时反馈，避免「按下无反应」的哑失败体感。
-        // 成功启动后会再次发出不同 toast；失败时由下面分支覆盖更明确的信息。
-        _micToast.value = appContext.getString(R.string.assistant_mic_opening)
+        // V2.8X++：新一轮语音开始时清空"本轮已展示用户文本"标记，避免上一轮的 user 气泡
+        // 误 dedup 本轮的 stt 帧（仅 Opus 路径依赖此 flag 落用户气泡）。
+        userSaidThisTurn = null
+        // V2.8X++：先同步置「准备中」内联状态，UI 立即给出反馈（旋转环），不再用 Snackbar 占位，
+        // 避免「正在打开麦克风…」与后续「开始聆听」 snackbar 排队导致挂 4 秒的卡顿体感。
+        _voiceOpening.value = true
         viewModelScope.launch {
             // 动态计算（不等 init 阶段的异步快照）—— 进页面后用户可能改了 ASR 设置。
             val mode = settingsRepository.assistantMode.first()
@@ -308,14 +347,15 @@ class AssistantViewModel @Inject constructor(
                 }
                 append(ChatMessage(nextId(), "system", msg))
                 _micToast.value = msg
+                _voiceOpening.value = false
                 return@launch
             }
             if (_recording.value) {
                 _micToast.value = appContext.getString(R.string.assistant_mic_already_open)
                 return@launch
             }
-            // V2.8X++：成功路径的更明确反馈（覆盖"正在打开"占位）。
-            _micToast.value = appContext.getString(R.string.assistant_mic_listening)
+            // V2.8X++：成功路径不再弹 Snackbar——"准备中→聆听"由 UI 内联状态（voiceOpening/recording）呈现，
+            // 避免 snackbar 排队导致的 lingering 卡顿。仅错误/冲突信息走 micToast。
 
             // 小智 REAL 模式：麦克风经系统 ASR 取文本后送 listen 帧（无 Opus 依赖）。
             if (llm == LlmProviderCatalog.XIAOZHI) {
@@ -326,6 +366,7 @@ class AssistantViewModel @Inject constructor(
             if (asr == AsrProviderCatalog.SYSTEM) {
                 AppLogger.d(TAG, "startVoice → 路由到系统 ASR 实时识别")
                 _recording.value = true
+                _voiceOpening.value = false
                 val lang = settingsRepository.asrLanguage.first()
                 localRecognizer.start(
                     continuous = false,
@@ -350,8 +391,12 @@ class AssistantViewModel @Inject constructor(
                     return@launch
                 }
                 _recording.value = true
+                _voiceOpening.value = false
                 AppLogger.d(TAG, "startVoice 云 ASR 采集已启动 pcmFile=${pcmFile.absolutePath}")
-                if (llm == LlmProviderCatalog.XIAOZHI) transport.sendListenStart()
+                if (llm == LlmProviderCatalog.XIAOZHI) {
+                    transport.abortTts()       // 录音开始即静音，避免录到小智回声
+                    transport.sendListenStart()
+                }
             }
         }
     }
@@ -367,6 +412,13 @@ class AssistantViewModel @Inject constructor(
             if (localRecognizer.isAvailable) {
                 AppLogger.d(TAG, "startXiaozhiVoice → 系统 SpeechRecognizer 路径")
                 _recording.value = true
+                _voiceOpening.value = false
+                // V2.8X++：系统 ASR 路径此前漏发 listen start，导致用户开始说话时小智仍在播放上一轮 TTS，
+                // 麦克风把小智自己的声音录进去当作用户输入发出去（"发送的信息是小智自己说的话"）。
+                // 这里与 Opus/云 ASR 路径一致：录音开始即中断小智——abortTts 停设备侧外放 + sendListenStart
+                // 通知服务端停止生成，双管齐下消除回声。
+                transport.abortTts()
+                transport.sendListenStart()
                 val lang = settingsRepository.asrLanguage.first()
                 localRecognizer.start(
                     continuous = false,
@@ -387,7 +439,8 @@ class AssistantViewModel @Inject constructor(
                 AppLogger.e(TAG, "startXiaozhiVoice 无可用语音通道（系统 ASR 与 Opus 编码器均不可用）")
                 _recording.value = false
                 _voiceSupported.value = false
-                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
+                // 一次性 Snackbar 提示，不污染聊天消息流。
+                _micToast.value = appContext.getString(R.string.assistant_voice_no_system_asr)
             }
         }
     }
@@ -396,8 +449,13 @@ class AssistantViewModel @Inject constructor(
     private fun startXiaozhiOpusVoice() {
         viewModelScope.launch {
             _recording.value = true
+            _voiceOpening.value = false
             // 通知服务端进入实时聆听（realtime 模式，由服务端 VAD 判定语句边界）。
-            AppLogger.d(TAG, "startXiaozhiOpusVoice → sendListenStart + capture.start(16000)")
+            // V2.8X++：listen(state="start") 即服务端「打断」信号——用户开始说话时中止对方当前 TTS，
+            // 因此紧跟 _recording 翻转后第一时间发出，确保「录音即打断对方」即时生效。
+            // 同时 abortTts 立即停掉设备侧 TTS 外放，避免麦克风录入小智上一轮回复的尾音（回声）。
+            AppLogger.d(TAG, "startXiaozhiOpusVoice → abortTts + sendListenStart + capture.start(16000)")
+            transport.abortTts()
             transport.sendListenStart()
             val ok = capture.start(16000) { pcm ->
                 // V2.8X+：补诊断日志链路，定位"语音不能用"是录音没起、编码失败还是 sendAudio 失败。
@@ -415,6 +473,7 @@ class AssistantViewModel @Inject constructor(
             if (!ok) {
                 AppLogger.e(TAG, "startXiaozhiOpusVoice 麦克风采集启动失败（capture.start 返回 false）")
                 _recording.value = false
+                _voiceOpening.value = false
                 transport.sendListenStop()
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_asr_empty)))
             }
@@ -423,6 +482,8 @@ class AssistantViewModel @Inject constructor(
 
     /** 停止语音采集。云 ASR 路径下，停止会触发转写；系统路径下停止实时识别。 */
     fun stopVoice() {
+        // V2.8X++：无论是否真在录音，点「停止」即退出「准备中」态，避免 UI 卡在旋转环。
+        _voiceOpening.value = false
         if (!_recording.value) {
             AppLogger.d(TAG, "stopVoice 被忽略：当前未在录音")
             return
@@ -473,6 +534,8 @@ class AssistantViewModel @Inject constructor(
     fun sendText(text: String) {
         val t = text.trim()
         if (t.isEmpty()) return
+        // V2.8X++：记录本轮用户文本，stt 帧到达时用于 dedup（与服务端回传的相同文本不再追加气泡）。
+        userSaidThisTurn = t
         append(ChatMessage(nextId(), "user", t))
         viewModelScope.launch {
             // V2.42：离线热词指令（暂停/启用/删除 + 任务名）。开启且识别为已知指令即本地闭环执行，
@@ -567,11 +630,18 @@ class AssistantViewModel @Inject constructor(
 
     private fun onEvent(ev: XiaozhiEvent) {
         when (ev) {
-            is XiaozhiEvent.Connected -> _connected.value = true
-            is XiaozhiEvent.Reconnecting -> append(
-                ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_reconnecting, ev.attempt, ev.max)),
-            )
-            is XiaozhiEvent.Disconnected -> _connected.value = false
+            is XiaozhiEvent.Connected -> {
+                _reconnectingStatus.value = null
+                _connected.value = true
+            }
+            // V2.8X++：重连提示仅在顶部状态栏展示（_reconnectingStatus），不再插入聊天气泡，
+            // 杜绝「重连 1/10…10/10…又从 1/10」刷屏；同一字段被连续覆盖即天然去重。
+            is XiaozhiEvent.Reconnecting -> _reconnectingStatus.value =
+                appContext.getString(R.string.assistant_reconnecting, ev.attempt, ev.max)
+            is XiaozhiEvent.Disconnected -> {
+                _reconnectingStatus.value = null
+                _connected.value = false
+            }
             is XiaozhiEvent.ConnectionIssue -> {
                 // V2.8X++：启动期连接诊断只走 banner，不污染消息流。
                 // 用户进 tab 默认空白；连接问题由顶栏红/黄条展示。
@@ -580,12 +650,26 @@ class AssistantViewModel @Inject constructor(
                 _connectionBanner.value = ev.detail
             }
             is XiaozhiEvent.Error -> {
+                _reconnectingStatus.value = null
                 _connected.value = false
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_connect_error, ev.detail)))
             }
-            is XiaozhiEvent.SttText -> Unit // 用户输入已在 sendText 体现
+            is XiaozhiEvent.SttText -> {
+                // V2.8X++：Opus 语音流路径下没有 `sendText`，服务端回 stt 是用户文本的唯一来源；
+                // 之前这里直接 Unit 导致「消息面板未展示我发送的消息」，现按 dedup 选择性落为用户气泡。
+                // - 本轮已 sendText 且文本相同：dedup skip（避免本地 ASR/文本输入时与服务端 ASR 各产生一条相同气泡）。
+                // - 本轮未 sendText 或文本不同：作为用户气泡追加（Opus 语音直送场景；或 ASR 转写与本地不一致时如实呈现）。
+                val incoming = ev.text
+                val cleaned = MessageTextFilter.strip(incoming)
+                if (cleaned.isNotBlank() && userSaidThisTurn != cleaned) {
+                    append(ChatMessage(nextId(), "user", cleaned))
+                }
+                userSaidThisTurn = null
+            }
             is XiaozhiEvent.TtsText -> Unit // 界面无需展示 TTS
             is XiaozhiEvent.LlmText -> {
+                // V2.8X++：服务端未必每轮都回 stt（仅 LLM token），此场景下同样清掉本轮标记避免跨轮污染。
+                userSaidThisTurn = null
                 // V2.8X+ 防御：即便传输层未 strip（如 Mock/未来其他来源），UI 层再 strip 一次
                 // 多模态资源 token（@image#xxx），避免技术串进入消息列表；空串则不 append。
                 val cleaned = MessageTextFilter.strip(ev.text)
@@ -708,6 +792,15 @@ class AssistantViewModel @Inject constructor(
             if (next.size > MAX_MESSAGES) next.takeLast(MAX_MESSAGES) else next
         }
         recordVoiceHistory(msg)
+    }
+
+    /** V2.8X++：识别"重连提示"残留消息。旧版本 onEvent(Reconnecting) 曾把这些字符串 append 到消息流并落库，
+     *  现已在源头改为仅更新 _reconnectingStatus（顶栏状态栏展示，不进聊天），但 DB 里仍残留旧条目。
+     *  加载历史时按字符串前缀丢弃，避免「顶部已显示已连接/未连接，但聊天列表却刷满连接中断...」的体验割裂。 */
+    private fun isReconnectNoise(text: String): Boolean {
+        // assistant_reconnecting = "连接中断，正在重连（第 %1$d/%2$d 次）…"
+        // assistant_connect_error = "连接失败：%1$s" —— 一次性错误，仍保留给用户排查，故不丢
+        return text.startsWith("连接中断，正在重连")
     }
 
     /**

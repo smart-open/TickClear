@@ -23,6 +23,17 @@ interface XiaozhiTransport {
     /** 结束语音采集（真实模式：发 listen stop）。 */
     suspend fun sendListenStop()
 
+    /**
+     * 立即终止本地 TTS 外放（停止 AudioTrack）。用于"录音即打断对方"：用户开始说话的瞬间，
+     * 设备扬声器可能仍在播放小智上一轮回复的尾音，若不清掉会被麦克风录入形成回声
+     * （表现为"发送出去的信息是小智自己说的话"）。与 [sendListenStart] 配合：前者停服务端生成，
+     * 本方法停设备侧播放，双管齐下确保录音期间麦克风只能听到用户。
+     */
+    fun abortTts()
+
+    /** 恢复本地 TTS 外放（停止录音/打断结束后调用，使小智的回答恢复出声）。 */
+    fun resumeTts()
+
     /** 发送一帧编码后的 Opus 音频（真实模式下经 WebSocket 二进制帧）。 */
     fun sendAudio(bytes: ByteArray)
 

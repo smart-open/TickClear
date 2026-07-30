@@ -62,6 +62,8 @@ class MockXiaozhiTransport(
 
     override suspend fun sendListenStart() = Unit
     override suspend fun sendListenStop() = Unit
+    override fun abortTts() = Unit
+    override fun resumeTts() = Unit
     override fun sendAudio(bytes: ByteArray) = Unit
 
     override suspend fun disconnect() {

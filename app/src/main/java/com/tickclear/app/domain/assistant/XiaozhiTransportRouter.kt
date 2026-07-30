@@ -54,6 +54,14 @@ class XiaozhiTransportRouter(
         active.sendListenStop()
     }
 
+    override fun abortTts() {
+        active.abortTts()
+    }
+
+    override fun resumeTts() {
+        active.resumeTts()
+    }
+
     override fun sendAudio(bytes: ByteArray) {
         active.sendAudio(bytes)
     }
