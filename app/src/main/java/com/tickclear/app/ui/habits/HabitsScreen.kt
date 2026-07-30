@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tickclear.app.ui.theme.Spacing
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -83,8 +84,8 @@ fun HabitsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAdd = true },
-                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形。
-                modifier = Modifier.size(40.dp),
+                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形；与今日/任务页对齐底部间距。
+                modifier = Modifier.padding(Spacing.lg).size(40.dp),
             ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
             }

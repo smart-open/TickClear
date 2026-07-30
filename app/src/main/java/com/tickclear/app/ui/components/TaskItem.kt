@@ -238,7 +238,9 @@ private fun TaskCardContent(
                 Icon(
                     imageVector = Icons.Filled.Warning,
                     contentDescription = stringResource(R.string.a11y_time_conflict),
-                    tint = MaterialTheme.colorScheme.error,
+                    // 弱化为中性灰（onSurfaceVariant），与原 error 红标相比视觉冲击更小，保留语义。
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
                 )
         }
     }
