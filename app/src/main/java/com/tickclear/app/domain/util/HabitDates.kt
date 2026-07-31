@@ -2,7 +2,6 @@ package com.tickclear.app.domain.util
 
 import com.tickclear.app.domain.model.Habit
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -40,12 +39,13 @@ fun computeStreak(dates: List<String>): Int {
     return count.toInt()
 }
 
-/** 习惯今天是否应打卡（按 repeatDays 星期）。空或含 "0" 视为每天。 */
-fun isHabitDueToday(habit: Habit): Boolean {
+/** 习惯在某日期是否应打卡（按 repeatDays 星期）。空或含 "0" 视为每天。 */
+fun isHabitDueOn(habit: Habit, date: java.time.LocalDate): Boolean {
     val days = habit.repeatDays.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     if (days.isEmpty() || days.contains("0")) return true
-    val cal = Calendar.getInstance()
-    val dow = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun..7=Sat
-    val iso = if (dow == Calendar.SUNDAY) 7 else dow - 1 // 1=Mon..7=Sun
-    return days.contains(iso.toString())
+    // java.time 的 dayOfWeek.value 即 ISO（1=Mon..7=Sun），与 repeatDays 编码一致。
+    return days.contains(date.dayOfWeek.value.toString())
 }
+
+/** 习惯今天是否应打卡（按 repeatDays 星期）。空或含 "0" 视为每天。 */
+fun isHabitDueToday(habit: Habit): Boolean = isHabitDueOn(habit, java.time.LocalDate.now())

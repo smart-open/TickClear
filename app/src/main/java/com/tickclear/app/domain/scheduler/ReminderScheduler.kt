@@ -5,12 +5,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.data.repositories.TaskInstanceRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.conflict.dueMinutesForDate
 import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.conflict.shouldGenerateInstance
+import com.tickclear.app.domain.model.RepeatType
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.first
  * 因此即便在 WorkManager 不可用的环境也走此路径。
  */
 object ReminderScheduler {
+    private const val TAG = "ReminderScheduler"
     private const val ACTION_SHOW = "com.tickclear.app.reminder.SHOW"
     const val EXTRA_TASK_ID = "task_id"
     const val EXTRA_INSTANCE_ID = "instance_id"
@@ -48,6 +51,9 @@ object ReminderScheduler {
     /** V2.8X++：未来发生日向后查找窗口（天）。覆盖「明天/下周提醒」等未来任务，60 天足够常见口语范围。 */
     private const val LOOKAHEAD_DAYS = 60L
 
+    /** 一次性提醒"刚过点"宽限：落库/重排时目标时刻已过去但在该窗口内，仍视为有效（迟到提醒优于丢失）。 */
+    private const val PAST_GRACE_MS = 5 * 60_000L
+
     /** 从 [from]（含当天）起向后找任务最近一个发生日；窗口内无发生返回 null。 */
     private fun nextOccurrenceDate(task: Task, from: LocalDate): LocalDate? {
         for (i in 0..LOOKAHEAD_DAYS) {
@@ -62,12 +68,12 @@ object ReminderScheduler {
      * 批量优化：实例生成与当日实例查询各只做一次（原先逐任务各查一次 → N+1 查询），
      * 与任务数无关，固定 3 次 DB 访问；单任务排程仍走 [scheduleForTask]。
      */
-    suspend fun rescheduleAll(context: Context) {
+    suspend fun rescheduleAll(context: Context): Int {
         val ep = entryPoint(context)
         val today = LocalDate.now()
         val tasks = ep.taskRepository().observeAll().first()
             .filter { it.isEnabled() && it.reminderEnabled }
-        if (tasks.isEmpty()) return
+        if (tasks.isEmpty()) return 0
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         // 一次性为全部任务生成当日实例（原逐任务调用 → N 次，现 1 次）。
         ep.taskInstanceRepository().ensureInstancesForDate(today, tasks)
@@ -75,13 +81,13 @@ object ReminderScheduler {
         // 一次性取出当日全部实例并按 taskId 分组（原每任务各查 1 次 → N 次，现 1 次）。
         val instancesByTask = ep.taskInstanceRepository().observeOn(today).first()
             .groupBy { it.taskId }
+        var scheduled = 0
         for (task in tasks) {
             (instancesByTask[task.id] ?: continue).forEach { inst ->
                 val minute = inst.dueMinute ?: return@forEach
-                val trigger = triggerMillisForMinute(minute, task.reminderOffsetMin ?: 0) ?: return@forEach
-                if (trigger <= now) return@forEach // 过去的提醒不再弹出（避免启动即轰炸）
-                val pi = showPendingIntent(context, task.id, inst.id)
-                setExact(am, context, trigger, pi)
+                val trigger = resolveTrigger(task, today, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
+                scheduled++
             }
         }
         // V2.8X++：今日不发生、但未来会发生的任务（如「明天 8 点」单次提醒）也要预排——
@@ -94,11 +100,12 @@ object ReminderScheduler {
                 .filter { it.taskId == task.id }
                 .forEach { inst ->
                     val minute = inst.dueMinute ?: return@forEach
-                    val trigger = triggerMillisForDateMinute(next, minute, task.reminderOffsetMin ?: 0)
-                    if (trigger <= now) return@forEach
-                    setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id))
+                    val trigger = resolveTrigger(task, next, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                    setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
+                    scheduled++
                 }
         }
+        return scheduled
     }
 
     /**
@@ -112,8 +119,40 @@ object ReminderScheduler {
     suspend fun scheduleForTask(context: Context, task: Task, today: LocalDate = LocalDate.now()) {
         if (!task.isEnabled() || !task.reminderEnabled) return
         val target = nextOccurrenceDate(task, today) ?: return
+        AppLogger.w(TAG, "scheduleForTask task=${task.id} enabled=${task.isEnabled()} reminder=${task.reminderEnabled} target=$target")
         val ep = entryPoint(context)
         // 先确保目标日实例已生成（含子日级多实例），再据此排程。
+        ep.taskInstanceRepository().ensureInstancesForDate(target, listOf(task))
+        val now = System.currentTimeMillis()
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val canExact = canUseExactAlarms(am)
+        ep.taskInstanceRepository().observeOn(target).first()
+            .filter { it.taskId == task.id }
+            .forEach { inst ->
+                val minute = inst.dueMinute ?: return@forEach
+                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now) ?: run {
+                    AppLogger.w(TAG, "scheduleForTask 跳过（已过期/无需） task=${task.id} inst=${inst.id} minute=$minute target=$target")
+                    return@forEach
+                }
+                val pi = showPendingIntent(context, task.id, inst.id)
+                AppLogger.w(TAG, "scheduleForTask 排程 task=${task.id} inst=${inst.id} minute=$minute trigger=$trigger now=$now exact=$canExact")
+                setExact(am, context, trigger, pi, useAlarmClock = task.reminderLevel == "high")
+            }
+    }
+
+    /**
+     * 任务触发后自动续排「下一个发生日」的提醒（由 [ReminderReceiver] 在弹出通知后调用）。
+     *
+     * 先前 [rescheduleAll]/[scheduleForTask] 只排"最近一次发生日"，任务触发后若不再续排，
+     * 重复任务（DAILY/WEEKLY/INTERVAL）会在首次响铃后永久停摆——只能依赖用户每日打开 App
+     * （触发 rescheduleAll）或被杀进程后重启才能补排，否则后续提醒全部丢失。
+     * 现每次触发后严格从"次日"起找下一发生日续排，保证重复任务持续提醒；
+     * 一次性任务无后续发生日，[nextOccurrenceDate] 返回 null，自然跳过。
+     */
+    suspend fun scheduleNext(context: Context, task: Task) {
+        if (!task.isEnabled() || !task.reminderEnabled) return
+        val target = nextOccurrenceDate(task, LocalDate.now().plusDays(1)) ?: return
+        val ep = entryPoint(context)
         ep.taskInstanceRepository().ensureInstancesForDate(target, listOf(task))
         val now = System.currentTimeMillis()
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -121,10 +160,8 @@ object ReminderScheduler {
             .filter { it.taskId == task.id }
             .forEach { inst ->
                 val minute = inst.dueMinute ?: return@forEach
-                val trigger = triggerMillisForDateMinute(target, minute, task.reminderOffsetMin ?: 0)
-                if (trigger <= now) return@forEach // 过去的提醒不再弹出（避免启动即轰炸）
-                val pi = showPendingIntent(context, task.id, inst.id)
-                setExact(am, context, trigger, pi)
+                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
             }
     }
 
@@ -170,13 +207,47 @@ object ReminderScheduler {
         setExact(am, context, trigger, pi)
     }
 
-    private fun setExact(am: AlarmManager, context: Context, trigger: Long, pi: PendingIntent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-            // 无精确闹钟权限：退化为非精确（仍尽量准时），避免崩溃。
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-        } else {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
+    /** Android 12+ 是否可设置精确闹钟（无权限 / 调用异常一律按 false 处理，避免 canScheduleExactAlarms 误报导致崩溃）。 */
+    private fun canUseExactAlarms(am: AlarmManager): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        return runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
+    }
+
+    private fun setExact(am: AlarmManager, context: Context, trigger: Long, pi: PendingIntent, useAlarmClock: Boolean = false) {
+        if (useAlarmClock) {
+            // 高优先级：setAlarmClock 不受 Doze 限制、且无需 SCHEDULE_EXACT_ALARM 权限，到点必响——
+            // 这是 Android 上最可靠的提醒路径，直接根治「时好时坏」（锁屏/空闲被系统延迟）。
+            val info = AlarmManager.AlarmClockInfo(trigger, openAppIntent(context))
+            AppLogger.w(TAG, "setExact 高优先级走 setAlarmClock trigger=$trigger")
+            am.setAlarmClock(info, pi)
+            return
         }
+        // 非高优先级：优先精确闹钟；无权限（Android 12+ 未授予 SCHEDULE_EXACT_ALARM）或调用被系统实时拒绝时，
+        // 一律退化到 setAndAllowWhileIdle（非精确），绝不抛 SecurityException 闪退。
+        if (canUseExactAlarms(am)) {
+            val exactOk = runCatching {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
+                true
+            }.getOrElse { e ->
+                AppLogger.e(TAG, "setExact 精确闹钟被拒（${e.message}），退化非精确 trigger=$trigger")
+                false
+            }
+            if (exactOk) return
+        } else {
+            AppLogger.w(TAG, "setExact 无精确闹钟权限，退化 setAndAllowWhileIdle trigger=$trigger")
+        }
+        runCatching { am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi) }
+    }
+
+    /** 高优先级闹钟点击状态栏闹钟指示时打开 App 的意图（setAlarmClock 的 showIntent）。 */
+    private fun openAppIntent(context: Context): PendingIntent {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            ?: Intent(context, Class.forName("com.tickclear.app.MainActivity"))
+        return PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     /** V2.8X++：按具体日期计算触发时刻（毫秒），供未来发生日排程使用。 */
@@ -194,15 +265,30 @@ object ReminderScheduler {
         return cal.timeInMillis
     }
 
-    private fun triggerMillisForMinute(minute: Int, offsetMin: Int = 0): Long {
-        val fireMinute = (minute - offsetMin).coerceAtLeast(0)
-        val now = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, fireMinute / 60)
-            set(Calendar.MINUTE, fireMinute % 60)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+    /**
+     * 解析实例真实触发时刻（毫秒）。集中处理"目标时刻已过"的兜底，避免提醒被静默丢弃：
+     * - 未来：直接返回；
+     * - 已过去且为重复任务（DAILY/WEEKLY/INTERVAL）：从次日（含）起找下一个应发生日重排，
+     *   否则"今天过了就再也不响"；
+     * - 已过去且为一次性任务：在 [PAST_GRACE_MS] 宽限内 → now+2s（迟到提醒优于丢失），否则 null（已过期）。
+     * 返回 null 表示无需排程。
+     */
+    private fun resolveTrigger(task: Task, target: LocalDate, minute: Int, offsetMin: Int, now: Long): Long? {
+        val base = triggerMillisForDateMinute(target, minute, offsetMin)
+        if (base > now) return base
+        val isRepeating = RepeatType.fromCode(task.repeatType) != RepeatType.NONE
+        if (isRepeating) {
+            var d = target.plusDays(1)
+            repeat(LOOKAHEAD_DAYS.toInt()) {
+                if (shouldGenerateInstance(task, d)) {
+                    val t = triggerMillisForDateMinute(d, minute, offsetMin)
+                    if (t > now) return t
+                }
+                d = d.plusDays(1)
+            }
+            return null
         }
-        return now.timeInMillis
+        return if (now - base <= PAST_GRACE_MS) now + 2000L else null
     }
 
     /**

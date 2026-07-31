@@ -1,5 +1,9 @@
 package com.tickclear.app.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +43,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.tickclear.app.R
 import com.tickclear.app.domain.log.LogLevel
 
@@ -49,6 +55,18 @@ fun DebugScreen(
 ) {
     val info by viewModel.info.collectAsStateWithLifecycle()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val rescheduleResult by viewModel.rescheduleResult.collectAsStateWithLifecycle()
+    LaunchedEffect(rescheduleResult) {
+        rescheduleResult?.let { n ->
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.debug_reschedule_done, n),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            viewModel.clearRescheduleResult()
+        }
+    }
 
     val logExportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/plain"),
@@ -105,9 +123,27 @@ fun DebugScreen(
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
+            InfoRow(stringResource(R.string.debug_battery_optimized), yesNo(info.batteryOptimized))
+            if (info.batteryOptimized) {
+                Text(
+                    stringResource(R.string.debug_battery_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
             InfoRow(stringResource(R.string.debug_quiet_hours), yesNo(info.quietHoursEnabled))
             InfoRow(stringResource(R.string.debug_notifications), yesNo(info.notificationsEnabled))
             InfoRow(stringResource(R.string.debug_channels), info.channelCount.toString())
+            InfoRow(stringResource(R.string.debug_dnd_access), yesNo(info.dndAccessGranted))
+            if (!info.dndAccessGranted) {
+                Text(
+                    stringResource(R.string.debug_dnd_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
 
             SectionTitle(stringResource(R.string.debug_section_data))
             InfoRow(stringResource(R.string.debug_tasks), info.taskCount.toString())
@@ -189,6 +225,65 @@ fun DebugScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.debug_reschedule))
+                }
+            }
+            // 排查「时好时坏」：一键跳转系统设置，授予精确闹钟 / 关闭电池优化（Doze 会延迟非精确闹钟）。
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = {
+                        runCatching {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                        .setData(android.net.Uri.parse("package:${context.packageName}")),
+                                )
+                            } else {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                        .setData(android.net.Uri.parse("package:${context.packageName}")),
+                                )
+                            }
+                        }.onFailure {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                        .setData(android.net.Uri.parse("package:${context.packageName}")),
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.debug_open_exact_alarm))
+                }
+                Button(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.debug_open_battery))
+                }
+            }
+            // 排查「勿扰模式下不响铃」：一键跳转系统设置，授予「通知优先级访问」权限（高优先级渠道 setBypassDnd 才生效）。
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.debug_open_dnd))
                 }
             }
         }

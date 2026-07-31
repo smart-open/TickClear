@@ -36,17 +36,49 @@ object AppLogger {
 
     private const val MAX_BUFFER = 500
 
+    /** 内存环形缓冲（上限 [MAX_BUFFER]），供 Debug 页在屏查看与导出。 */
     private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
     val entries: StateFlow<List<LogEntry>> = _entries.asStateFlow()
 
+    /**
+     * V2.8X：调试日志总开关（设置 → 调试日志）。默认 **关闭**。
+     *
+     * - 关闭时：VERBOSE / DEBUG / INFO 三级直接丢弃（既不写 Logcat 也不入内存缓冲），
+     *   避免常态运行下的字符串拼接与列表拷贝开销。
+     * - **WARN / ERROR 始终记录**：这两级是崩溃与异常定位的最后一道线索，
+     *   若一并关闭，用户报障时将无任何可回溯信息。
+     *
+     * 由 [com.tickclear.app.TickClearApplication] 在启动时按 DataStore 值同步，
+     * 并在设置项切换时实时更新。@Volatile 保证跨线程可见性。
+     */
+    @Volatile
+    var debugEnabled: Boolean = false
+        private set
+
+    fun setDebugEnabled(enabled: Boolean) {
+        debugEnabled = enabled
+    }
+
+    /** 该级别在当前开关状态下是否需要落盘/落缓冲。 */
+    private fun shouldLog(level: LogLevel): Boolean =
+        debugEnabled || level == LogLevel.WARN || level == LogLevel.ERROR
+
     @Synchronized
     private fun emit(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
-        when (level) {
-            LogLevel.VERBOSE -> Log.v(tag, message, throwable)
-            LogLevel.DEBUG -> Log.d(tag, message, throwable)
-            LogLevel.INFO -> Log.i(tag, message, throwable)
-            LogLevel.WARN -> Log.w(tag, message, throwable)
-            LogLevel.ERROR -> Log.e(tag, message, throwable)
+        if (!shouldLog(level)) return
+        // 镜像到系统 Logcat：在纯 JVM 单元测试环境（无 Android runtime）中，android.util.Log.*
+        // 是抛 RuntimeException("Stub!") 的桩。此处兜底吞掉异常——该环境本无 Logcat 可镜像，
+        // 仅保留内存环形缓冲即可；真实设备上这段正常执行，不影响可观测性。
+        try {
+            when (level) {
+                LogLevel.VERBOSE -> Log.v(tag, message, throwable)
+                LogLevel.DEBUG -> Log.d(tag, message, throwable)
+                LogLevel.INFO -> Log.i(tag, message, throwable)
+                LogLevel.WARN -> Log.w(tag, message, throwable)
+                LogLevel.ERROR -> Log.e(tag, message, throwable)
+            }
+        } catch (_: Throwable) {
+            // 非 Android 环境（单元测试）：忽略 Logcat 镜像，仅保留内存缓冲。
         }
         val list = _entries.value.toMutableList()
         list.add(LogEntry(System.currentTimeMillis(), level, tag, message, throwable))
@@ -72,7 +104,10 @@ object AppLogger {
         val fmt = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
         return lines.joinToString("\n") { e ->
             val ts = fmt.format(Date(e.timeMillis))
-            val throwableText = e.throwable?.let { "\n" + Log.getStackTraceString(it) } ?: ""
+            // Log.getStackTraceString 同样是 Android 桩，单元测试环境会抛 Stub!，兜底为空串。
+            val throwableText = e.throwable?.let { t ->
+                "\n" + runCatching { Log.getStackTraceString(t) }.getOrDefault("")
+            } ?: ""
             "$ts ${e.level.letter}/${e.tag}: ${e.message}$throwableText"
         }
     }

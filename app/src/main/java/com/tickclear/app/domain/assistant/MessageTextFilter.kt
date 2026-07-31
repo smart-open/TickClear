@@ -25,10 +25,18 @@ object MessageTextFilter {
     private val IMAGE_TOKEN = Regex("""@image#\d+:[0-9a-fA-F]{8,128}\.(?:jpg|jpeg|png|gif|webp)""")
 
     /**
-     * 匹配小智工具调用占位 token（如 `%create_task` / `%delete_task`）。
-     * 服务端在调用 MCP 工具前，LLM 文本里会插入此类 `%<tool>` 标记，纯技术串不应展示给用户。
+     * 匹配小智工具调用占位 token。服务端在调用 MCP 工具前，LLM 文本里会插入 `%<tool>` 标记，
+     * 纯技术串不应展示给用户。
+     *
+     * 兼容形态（V2.8X 修正）：
+     * - `%create_task`（紧贴）
+     * - `% create_task`（`%` 与工具名之间有空格 —— 实测服务端会这样下发，旧正则漏网）
+     * - `%self.create_task`（带 MCP 命名空间前缀）
+     *
+     * 防误伤：要求工具名**至少含一个下划线**（MCP 工具名一律 snake_case），
+     * 因此 `50% off`、`100% 完成` 这类正常文本不会被吞掉。
      */
-    private val TOOL_TOKEN = Regex("""%[A-Za-z_]+""")
+    private val TOOL_TOKEN = Regex("""%\s*(?:[A-Za-z][A-Za-z0-9]*\.)?[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+""")
 
     /**
      * 去除多模态 token，合并多余空白，返回已 trim 的可展示文本。

@@ -114,6 +114,9 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 语音历史保存（V2.65）：默认关闭。──
     override val voiceHistoryEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_VOICE_HISTORY] ?: false }
 
+    // ── 调试日志开关（V2.8X）：默认关闭，仅保留 WARN/ERROR。──
+    override val debugLogEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DEBUG_LOG] ?: false }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
@@ -145,6 +148,12 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setOfflineCommandEnabled(enabled: Boolean) { dataStore.edit { it[KEY_OFFLINE_CMD] = enabled } }
     override suspend fun setAsrLanguage(language: String) { dataStore.edit { it[KEY_ASR_LANGUAGE] = language } }
     override suspend fun setVoiceHistoryEnabled(enabled: Boolean) { dataStore.edit { it[KEY_VOICE_HISTORY] = enabled } }
+
+    // 写 DataStore 的同时立刻同步内存开关，保证「配置即生效」（不必等 Flow 回灌）。
+    override suspend fun setDebugLogEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_DEBUG_LOG] = enabled }
+        com.tickclear.app.domain.log.AppLogger.setDebugEnabled(enabled)
+    }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -252,6 +261,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_OFFLINE_CMD = booleanPreferencesKey("offline_command_enabled")
         private val KEY_ASR_LANGUAGE = stringPreferencesKey("asr_language")
         private val KEY_VOICE_HISTORY = booleanPreferencesKey("voice_history_enabled")
+        private val KEY_DEBUG_LOG = booleanPreferencesKey("debug_log_enabled")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")

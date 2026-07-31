@@ -59,6 +59,13 @@ interface SettingsRepository {
     /** 语音历史保存开关（V2.65）：默认关闭，开启后记录与助手的语音对话。 */
     val voiceHistoryEnabled: Flow<Boolean>
 
+    /**
+     * 调试日志开关（V2.8X）：默认关闭。
+     * 关闭时 [com.tickclear.app.domain.log.AppLogger] 丢弃 V/D/I 三级（WARN/ERROR 始终保留），
+     * 调试页「运行日志」只展示错误线索；开启后记录全量日志便于排障。
+     */
+    val debugLogEnabled: Flow<Boolean>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -108,6 +115,9 @@ interface SettingsRepository {
 
     /** 语音历史保存开关（V2.65）。 */
     suspend fun setVoiceHistoryEnabled(enabled: Boolean)
+
+    /** 调试日志开关（V2.8X）。写入后须同步 [com.tickclear.app.domain.log.AppLogger.setDebugEnabled]。 */
+    suspend fun setDebugLogEnabled(enabled: Boolean)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

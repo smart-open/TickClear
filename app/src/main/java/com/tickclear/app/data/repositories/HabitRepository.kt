@@ -40,6 +40,8 @@ class HabitRepositoryImpl @Inject constructor(
 
     override suspend fun updateHabit(habit: Habit) { habitDao.update(habit.toEntity()) }
 
+    override suspend fun getHabit(id: String): Habit? = habitDao.getById(id)?.toDomain()
+
     override suspend fun deleteHabit(habitId: String) {
         checkInDao.deleteAllForHabit(habitId)
         habitDao.delete(habitId)

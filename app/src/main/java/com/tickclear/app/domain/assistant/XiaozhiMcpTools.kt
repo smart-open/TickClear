@@ -3,8 +3,11 @@ package com.tickclear.app.domain.assistant
 import android.content.Context
 import com.tickclear.app.R
 import com.tickclear.app.domain.log.AppLogger
+import com.tickclear.app.domain.model.Habit
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.RepeatType
+import com.tickclear.app.domain.repository.HabitRepository
+import com.tickclear.app.domain.scheduler.HabitReminderScheduler
 import com.tickclear.app.domain.usecase.AddTaskUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -13,14 +16,26 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** 小智 MCP 工具集：当前实现 create_task，将对话中的意图落库为任务。 */
+/** 小智 MCP 工具集：当前实现 create_task / create_habit，将对话中的意图落库为任务/习惯。 */
 @Singleton
 class XiaozhiMcpTools @Inject constructor(
     @ApplicationContext private val context: Context,
     private val addTaskUseCase: AddTaskUseCase,
+    private val habitRepository: HabitRepository,
 ) {
     private companion object {
         const val TAG = "XiaozhiMcpTools"
+    }
+
+    /** MCP 草稿：任务或习惯，统一经 [handle] 产出、[commit] 落库。 */
+    sealed interface McpDraft {
+        val id: String
+        data class TaskDraft(val task: Task) : McpDraft {
+            override val id get() = task.id
+        }
+        data class HabitDraft(val habit: Habit) : McpDraft {
+            override val id get() = habit.id
+        }
     }
 
     data class ToolResult(
@@ -30,15 +45,16 @@ class XiaozhiMcpTools @Inject constructor(
     )
 
     /**
-     * 处理 MCP 工具调用，返回「待确认的草稿任务」。
-     * 返回 null 表示未知工具（不进入确认流程）。
+     * 处理 MCP 工具调用，返回「待确认的草稿」。
+     * 返回 null 表示未知工具（不进入确认/落库流程）。
      * 注意：此处【不】落库，落库由 [commit] 在用户确认后进行（语音解析确认卡）。
+     * V2.8X++：部分服务端/固件会给工具名加命名空间前缀（如 "self.create_task"），
+     * 按去前缀后的短名匹配，避免真调用被误判为未知工具。
      */
-    suspend fun handle(call: XiaozhiEvent.McpToolCall): Task? =
-        // V2.8X++：部分服务端/固件会给工具名加命名空间前缀（如 "self.create_task"），
-        // 按去前缀后的短名匹配，避免真调用被误判为未知工具。
+    suspend fun handle(call: XiaozhiEvent.McpToolCall): McpDraft? =
         when (call.tool.substringAfterLast('.')) {
-            "create_task" -> buildDraft(call.arguments)
+            "create_task" -> McpDraft.TaskDraft(buildDraft(call.arguments))
+            "create_habit" -> buildHabitDraft(call.arguments)
             else -> null
         }
 
@@ -90,8 +106,55 @@ class XiaozhiMcpTools @Inject constructor(
         )
     }
 
-    /** 将草稿提交落库（用户已在确认卡点击确认）。 */
-    suspend fun commit(task: Task): ToolResult {
+    /** 解析习惯参数并构建草稿 [Habit]（不含提交/落库）。 */
+    fun buildHabitDraft(args: Map<String, Any?>): McpDraft.HabitDraft {
+        val title = ((args["title"] as? String)?.trim()).orEmpty().ifEmpty {
+            context.getString(R.string.habit_default_title)
+        }
+        val emoji = (args["emoji"] as? String)?.trim().orEmpty()
+        // 重复星期：优先显式 repeatDays；否则按 repeatType 推导（DAILY→每天，WEEKLY→取 weekdays，缺省每天）。
+        val repeatType = (args["repeatType"] as? String) ?: "NONE"
+        val repeatDays = (args["repeatDays"] as? String)?.takeIf { it.isNotBlank() }
+            ?: when (repeatType) {
+                "DAILY" -> "1,2,3,4,5,6,7"
+                "WEEKLY" -> ((args["weekdays"] as? String)?.trim()).orEmpty().ifBlank { "1,2,3,4,5,6,7" }
+                else -> "1,2,3,4,5,6,7"
+            }
+        // 习惯提醒分钟：优先 reminderMin，其次复用 minute；缺省 -1（不提醒）。
+        // 注：习惯提醒已接入系统闹钟调度（HabitReminderScheduler），reminderMin>=0 即按 repeatDays 每日定点提醒。
+        val reminderMin = (args["reminderMin"] as? Number)?.toInt()?.coerceIn(0, 1439)
+            ?: (args["minute"] as? Number)?.toInt()?.coerceIn(0, 1439) ?: -1
+        return McpDraft.HabitDraft(
+            Habit(
+                id = "xz_${UUID.randomUUID()}",
+                title = title,
+                emoji = emoji,
+                repeatDays = repeatDays,
+                reminderMin = reminderMin,
+            ),
+        )
+    }
+
+    /** 将草稿提交落库（用户已在确认卡点击确认，或信任模式/自动提交）。 */
+    suspend fun commit(draft: McpDraft): ToolResult {
+        return when (draft) {
+            is McpDraft.TaskDraft -> commitTask(draft.task)
+            is McpDraft.HabitDraft -> {
+                habitRepository.createHabit(draft.habit)
+                // V2.8X++：习惯提醒调度补接入——落库后统一排程系统闹钟（与任务 AddTaskUseCase 对齐）。
+                HabitReminderScheduler.scheduleForHabit(context, draft.habit)
+                AppLogger.d(
+                    TAG,
+                    "commit 习惯落库 id=${draft.habit.id} title=${draft.habit.title} emoji=${draft.habit.emoji} " +
+                        "repeat=${draft.habit.repeatDays} reminderMin=${draft.habit.reminderMin}",
+                )
+                ToolResult(true, context.getString(R.string.xiaozhi_habit_created, draft.habit.title), draft.habit.title)
+            }
+        }
+    }
+
+    /** 提交任务草稿（原 [commit] 逻辑，供 [McpDraft.TaskDraft] 复用）。 */
+    private suspend fun commitTask(task: Task): ToolResult {
         // V2.8X++：提醒排程已下沉到 AddTaskUseCase 统一兜底（落库后自动 cancel+schedule），
         // 此处无需再手动调 ReminderScheduler——语音创建的任务到点即响系统闹钟。
         val res = addTaskUseCase(task)

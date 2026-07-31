@@ -25,10 +25,10 @@ class ReminderPrefsTest {
     }
 
     @Test
-    fun `shouldPlaySound only when enabled and high`() {
-        assertEquals(true, ReminderPrefs.shouldPlaySound(true, "high"))
-        assertEquals(false, ReminderPrefs.shouldPlaySound(false, "high"))
-        assertEquals(false, ReminderPrefs.shouldPlaySound(true, "mid"))
-        assertEquals(false, ReminderPrefs.shouldPlaySound(false, "low"))
+    fun `shouldForceSound only for high level`() {
+        // 高优先级强制响铃+震动，不受全局「声音」开关约束；中/低优先级不在此强制。
+        assertEquals(true, ReminderPrefs.shouldForceSound("high"))
+        assertEquals(false, ReminderPrefs.shouldForceSound("mid"))
+        assertEquals(false, ReminderPrefs.shouldForceSound("low"))
     }
 }

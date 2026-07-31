@@ -151,12 +151,17 @@ fun TaskEditContent(
     var allDay by remember { mutableStateOf(initial?.allDay ?: false) }
     var startMin by remember { mutableIntStateOf(initial?.scheduledStartMin ?: (9 * 60)) }
     var endMin by remember { mutableIntStateOf(initial?.scheduledEndMin ?: (9 * 60 + 30)) }
+    // 全天模式的独立「提醒时刻」（只管提醒，不表示持续时间）；复用 scheduledStartMin 落库，走现有排程链路。
+    // 非全天任务该值不参与逻辑（仅全天模式 UI 展示/落库）。
+    var remindMin by remember { mutableIntStateOf(initial?.takeIf { it.allDay }?.scheduledStartMin ?: (9 * 60)) }
     var repeatType by remember { mutableStateOf(initial?.repeatType ?: "NONE") }
     // 自定义间隔（INTERVAL）：数值 + 单位（天/小时）
     var intervalValue by remember { mutableIntStateOf(initial?.repeatIntervalDays ?: initial?.repeatIntervalHours ?: 1) }
     var intervalUnit by remember { mutableStateOf(if (initial?.repeatIntervalHours != null) "HOURS" else "DAYS") }
     var reminderEnabled by remember { mutableStateOf(initial?.reminderEnabled ?: false) }
-    var reminderLevel by remember { mutableStateOf(initial?.reminderLevel ?: "mid") }
+    // V2.8X++：手动建任务默认 high 级（自带 CC0 提示音 + 震动），对齐语音建任务，
+    // 修复"建了提醒却不响铃不震动"的体感问题；用户可在编辑页手动降为 mid/low。
+    var reminderLevel by remember { mutableStateOf(initial?.reminderLevel ?: "high") }
     var reminderOffset by remember { mutableIntStateOf(initial?.reminderOffsetMin ?: 0) }
     var locationEnabled by remember { mutableStateOf(initial?.geoLat != null && initial?.geoLng != null && initial?.geoRadius != null) }
     var geoLatText by remember { mutableStateOf(initial?.geoLat?.toString() ?: "") }
@@ -211,6 +216,7 @@ fun TaskEditContent(
     var showConflict by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var showRemindPicker by remember { mutableStateOf(false) }
     val defaultTaskTitle = stringResource(R.string.task_default_title)
 
     Column(
@@ -322,6 +328,22 @@ fun TaskEditContent(
                     label = stringResource(R.string.task_end_time),
                     min = endMin,
                     onClick = { showEndPicker = true },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        // 全天模式：仅一个「提醒时刻」选择器（不管持续时间），复用 scheduledStartMin 落库走排程链路。
+        if (allDay) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                TimeButton(
+                    label = stringResource(R.string.all_day_remind_time),
+                    min = remindMin,
+                    onClick = { showRemindPicker = true },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -524,6 +546,7 @@ fun TaskEditContent(
                     allDay = allDay,
                     startMin = startMin,
                     endMin = endMin,
+                    remindMin = remindMin,
                     repeatType = repeatType,
                     intervalValue = intervalValue,
                     intervalUnit = intervalUnit,
@@ -556,6 +579,13 @@ fun TaskEditContent(
             initialMin = endMin,
             onConfirm = { endMin = it; showEndPicker = false },
             onDismiss = { showEndPicker = false },
+        )
+    }
+    if (showRemindPicker) {
+        TimePickerDialog(
+            initialMin = remindMin,
+            onConfirm = { remindMin = it; showRemindPicker = false },
+            onDismiss = { showRemindPicker = false },
         )
     }
 }
@@ -616,6 +646,7 @@ private fun buildTask(
     allDay: Boolean,
     startMin: Int,
     endMin: Int,
+    remindMin: Int,
     repeatType: String,
     intervalValue: Int = 1,
     intervalUnit: String = "DAYS",
@@ -646,7 +677,9 @@ private fun buildTask(
         title = title.trim().ifEmpty { defaultTitle },
         notes = notes,
         status = initial?.status ?: 0,
-        scheduledStartMin = if (allDay) null else startMin,
+        // 全天：scheduledStartMin 复用为「提醒时刻」（只管提醒，不表示持续时间）；scheduledEndMin 仍 null。
+        // 非全天：沿用起止时刻。今日视图按 task.allDay 显示「全天」标签，不受 scheduledStartMin 影响。
+        scheduledStartMin = if (allDay) remindMin else startMin,
         scheduledEndMin = if (allDay) null else endMin,
         allDay = allDay,
         scheduledDate = scheduledDate,
@@ -655,7 +688,8 @@ private fun buildTask(
         repeatIntervalHours = if (isIntervalHours) intervalValue.coerceAtLeast(1) else null,
         repeatWeekdays = weekdays,
         repeatMonthDay = monthDay,
-        repeatAnchorMin = if (allDay) null else startMin,
+        // 全天重复：锚点分钟用提醒时刻，使每日在提醒时刻响。
+        repeatAnchorMin = if (allDay) remindMin else startMin,
         repeatAnchorDate = if (repeatType == "INTERVAL") dateStr else null,
         reminderEnabled = reminderEnabled,
         reminderLevel = reminderLevel,

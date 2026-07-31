@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,6 +41,7 @@ data class DebugInfo(
     val aiMode: String = "",
     val voiceSupported: Boolean = false,
     val canScheduleExact: Boolean = true,
+    val batteryOptimized: Boolean = false,
     val quietHoursEnabled: Boolean = false,
     val notificationsEnabled: Boolean = false,
     val channelCount: Int = 0,
@@ -48,6 +50,7 @@ data class DebugInfo(
     val completionCount: Int = 0,
     val checkInCount: Int = 0,
     val medalCount: Int = 0,
+    val dndAccessGranted: Boolean = false,
 )
 
 @HiltViewModel
@@ -91,6 +94,12 @@ class DebugViewModel @Inject constructor(
             aiMode = settingsRepository.aiMode.first(),
             voiceSupported = opusCodec.isEncoderAvailable(),
             canScheduleExact = canExact,
+            batteryOptimized = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+                pm.isIgnoringBatteryOptimizations(appContext.packageName).not()
+            } else {
+                false
+            },
             quietHoursEnabled = settingsRepository.quietHoursEnabled.first(),
             notificationsEnabled = nm.areNotificationsEnabled(),
             channelCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -103,6 +112,12 @@ class DebugViewModel @Inject constructor(
             completionCount = completionRepository.observeAll().first().size,
             checkInCount = checkInRepository.getAll().size,
             medalCount = medalRepository.all().size,
+            dndAccessGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                (appContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
+                    .isNotificationPolicyAccessGranted
+            } else {
+                true
+            },
         )
     }
 
@@ -111,10 +126,18 @@ class DebugViewModel @Inject constructor(
         ReminderReceiver().fireTestNotification(appContext)
     }
 
-    /** 重新排程今日所有提醒。 */
+    /** 重新排程今日所有提醒；返回实际排程的闹钟数，供 UI 反馈。 */
     fun reschedule() = viewModelScope.launch {
-        ReminderScheduler.rescheduleAll(appContext)
+        val n = ReminderScheduler.rescheduleAll(appContext)
+        _rescheduleResult.value = n
     }
+
+    private val _rescheduleResult = MutableStateFlow<Int?>(null)
+    /** 最近一次重排排程的闹钟数（null 表示尚未操作）。UI 消费后应调用 [clearRescheduleResult] 复位。 */
+    val rescheduleResult: StateFlow<Int?> = _rescheduleResult
+
+    /** 复位重排结果，允许重复点击再次触发反馈。 */
+    fun clearRescheduleResult() { _rescheduleResult.value = null }
 
     /** 导出运行日志为纯文本文件（SAF 落盘，零新依赖）。 */
     fun exportLogs(uri: Uri) = viewModelScope.launch {

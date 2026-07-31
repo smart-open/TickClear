@@ -18,6 +18,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.tickclear.app.domain.log.AppLogger
 
 /** 「未分组」分组在统计柱状图中的哨兵 id；UI 据其取 strings.xml 的 tasks_no_group，避免 domain 层硬编码中文（红线）。 */
 const val UNGROUPED_GROUP_ID = "__ungrouped__"
@@ -53,7 +54,7 @@ class GetStatsUseCase @Inject constructor(
                     // ensureInstancesForDate 可能因底层存储异常而失败；该失败不应中断整页统计，
                     // 降级为「不保证当日实例完整」继续聚合（todayTotal 可能偏低）。
                     runCatching { instanceRepository.ensureInstancesForDate(today) }
-                        .onFailure { android.util.Log.e("GetStatsUseCase", "ensureInstancesForDate failed, todayTotal may be low", it) }
+                        .onFailure { AppLogger.e("GetStatsUseCase", "ensureInstancesForDate failed, todayTotal may be low", it) }
                     val todayInstances = instanceRepository.observeOn(today).first()
                     val todayDone = todayInstances.count { it.status == TaskStatus.COMPLETED.code }
                     val todayTotal = todayInstances.size
@@ -96,7 +97,7 @@ class GetStatsUseCase @Inject constructor(
                 } else {
                     // 统计聚合失败（多为底层 Room 查询/实例生成异常）不应让统计页崩溃，
                     // 降级为安全空状态；真实异常已打 logcat 供定位根因。
-                    android.util.Log.e("GetStatsUseCase", "stats compute failed, fallback safe", result.exceptionOrNull())
+                    AppLogger.e("GetStatsUseCase", "stats compute failed, fallback safe", result.exceptionOrNull())
                     emit(TaskStats(0, 0, 0, 0f, 0, emptyList(), emptyList()))
                 }
             }

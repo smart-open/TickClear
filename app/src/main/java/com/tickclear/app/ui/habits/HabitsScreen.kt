@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
@@ -33,11 +34,15 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -50,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tickclear.app.domain.model.Habit
 import com.tickclear.app.ui.theme.Spacing
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,6 +69,7 @@ fun HabitsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    var showEdit by remember { mutableStateOf<Habit?>(null) }
     var pendingDelete by remember { mutableStateOf<HabitItem?>(null) }
 
     Scaffold(
@@ -81,48 +88,70 @@ fun HabitsScreen(
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAdd = true },
-                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形；与今日/任务页对齐底部间距。
-                modifier = Modifier.padding(Spacing.lg).size(40.dp),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
-            }
-        },
     ) { padding ->
-        if (uiState.isEmpty) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    stringResource(R.string.habits_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(uiState.items, key = { it.habit.id }) { item ->
-                    HabitCard(
-                        item = item,
-                        onToggle = { viewModel.toggleToday(item.habit.id) },
-                        onDelete = { pendingDelete = item },
+        // V2.8X++：新增 FAB 改为内容盒内 align(BottomEnd)+padding，与「今日」页定位完全一致。
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            if (uiState.isEmpty) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.habits_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(uiState.items, key = { it.habit.id }) { item ->
+                        HabitCard(
+                            item = item,
+                            onToggle = { viewModel.toggleToday(item.habit.id) },
+                            onEdit = { showEdit = item.habit },
+                            onDelete = { pendingDelete = item },
+                        )
+                    }
+                }
+            }
+            FloatingActionButton(
+                onClick = { showAdd = true },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.lg).size(40.dp),
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
             }
         }
     }
 
     if (showAdd) {
-        AddHabitDialog(
+        HabitEditDialog(
+            initial = null,
             onDismiss = { showAdd = false },
-            onConfirm = { title, emoji, repeatDays ->
-                viewModel.createHabit(title, emoji, repeatDays)
+            onConfirm = { title, emoji, repeatDays, reminderMin ->
+                viewModel.createHabit(title, emoji, repeatDays, reminderMin)
                 showAdd = false
+            },
+        )
+    }
+
+    if (showEdit != null) {
+        val habit = showEdit ?: return@HabitsScreen
+        HabitEditDialog(
+            initial = habit,
+            onDismiss = { showEdit = null },
+            onConfirm = { title, emoji, repeatDays, reminderMin ->
+                viewModel.updateHabit(
+                    habit.copy(
+                        title = title.trim(),
+                        emoji = emoji.trim(),
+                        repeatDays = repeatDays,
+                        reminderMin = reminderMin,
+                    ),
+                )
+                showEdit = null
             },
         )
     }
@@ -150,6 +179,7 @@ fun HabitsScreen(
 private fun HabitCard(
     item: HabitItem,
     onToggle: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val habit = item.habit
@@ -191,13 +221,15 @@ private fun HabitCard(
                     maxLines = 1,
                 )
                 val streakText = stringResource(R.string.habits_streak, item.streak)
-                val subText = if (!item.dueToday) {
-                    "$streakText · ${stringResource(R.string.habits_rest_day)}"
-                } else {
-                    streakText
+                // 开启提醒时追加时间提示，便于一眼看到下次提醒时刻；休息日提示仍保留。
+                val suffix = when {
+                    habit.reminderMin >= 0 ->
+                        " · ${String.format("%02d:%02d", habit.reminderMin / 60, habit.reminderMin % 60)}"
+                    !item.dueToday -> " · ${stringResource(R.string.habits_rest_day)}"
+                    else -> ""
                 }
                 Text(
-                    subText,
+                    streakText + suffix,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -215,6 +247,9 @@ private fun HabitCard(
                     },
                     style = MaterialTheme.typography.labelMedium,
                 )
+            }
+            TextButton(onClick = onEdit) {
+                Text(stringResource(R.string.habits_edit), style = MaterialTheme.typography.labelMedium)
             }
             IconButton(
                 onClick = onDelete,
@@ -245,12 +280,42 @@ private val HABIT_EMOJIS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun AddHabitDialog(
+private fun HabitEditDialog(
+    initial: Habit?,
     onDismiss: () -> Unit,
-    onConfirm: (title: String, emoji: String, repeatDays: String) -> Unit,
+    onConfirm: (title: String, emoji: String, repeatDays: String, reminderMin: Int) -> Unit,
 ) {
-    var title by remember { mutableStateOf("") }
-    var emoji by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(initial?.title ?: "") }
+    var emoji by remember { mutableStateOf(initial?.emoji ?: "") }
+    // 初始重复星期：从 existing.repeatDays 解析，缺省每天。
+    val selected = remember {
+        val init = initial?.repeatDays?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.filter { it in 1..7 }
+        mutableStateListOf<Int>().apply { addAll(init ?: listOf(1, 2, 3, 4, 5, 6, 7)) }
+    }
+    var reminderOn by remember { mutableStateOf((initial?.reminderMin ?: -1) >= 0) }
+    var reminderMin by remember { mutableStateOf((initial?.reminderMin ?: -1).takeIf { it >= 0 } ?: 9 * 60) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timeState = rememberTimePickerState(initialHour = reminderMin / 60, initialMinute = reminderMin % 60)
+
+    // V2.8X++：提醒时间选择器（Material3 TimePicker，抽取为独立弹窗，确认即写回 reminderMin）。
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    reminderMin = timeState.hour * 60 + timeState.minute
+                    showTimePicker = false
+                }) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+            text = { TimePicker(state = timeState) },
+        )
+    }
+
     val weekLabels = listOf(
         stringResource(R.string.habits_week_mon),
         stringResource(R.string.habits_week_tue),
@@ -260,20 +325,19 @@ private fun AddHabitDialog(
         stringResource(R.string.habits_week_sat),
         stringResource(R.string.habits_week_sun),
     )
-    val selected = remember { mutableStateListOf(1, 2, 3, 4, 5, 6, 7) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
                 enabled = title.isNotBlank(),
-                onClick = { onConfirm(title, emoji, selected.joinToString(",")) },
+                onClick = { onConfirm(title, emoji, selected.joinToString(","), if (reminderOn) reminderMin else -1) },
             ) { Text(stringResource(R.string.action_confirm)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
-        title = { Text(stringResource(R.string.habits_add)) },
+        title = { Text(stringResource(if (initial == null) R.string.habits_add else R.string.habits_edit)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -339,6 +403,26 @@ private fun AddHabitDialog(
                             },
                             label = { Text(weekLabels[idx]) },
                         )
+                    }
+                }
+                // V2.8X++：每日提醒开关 + 时间选择（默认 09:00；关闭则 reminderMin=-1 不提醒）。
+                Text(
+                    stringResource(R.string.habits_reminder),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (reminderOn) String.format("%02d:%02d", reminderMin / 60, reminderMin % 60)
+                        else stringResource(R.string.habits_reminder_off),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = reminderOn, onCheckedChange = { reminderOn = it })
+                }
+                if (reminderOn) {
+                    OutlinedButton(onClick = { showTimePicker = true }) {
+                        Text(stringResource(R.string.habits_reminder_set))
                     }
                 }
             }

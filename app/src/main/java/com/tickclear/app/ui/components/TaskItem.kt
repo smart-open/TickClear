@@ -41,6 +41,7 @@ import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.conflict.instanceDueMinute
 import com.tickclear.app.ui.theme.Spacing
+import com.tickclear.app.ui.theme.Warning
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -238,8 +239,8 @@ private fun TaskCardContent(
                 Icon(
                     imageVector = Icons.Filled.Warning,
                     contentDescription = stringResource(R.string.a11y_time_conflict),
-                    // 弱化为中性灰（onSurfaceVariant），与原 error 红标相比视觉冲击更小，保留语义。
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // 浅黄色警告图标（与今日冲突条配色一致）。
+                    tint = Warning,
                     modifier = Modifier.size(18.dp),
                 )
         }

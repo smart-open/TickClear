@@ -2,6 +2,13 @@
 <resources>
     <string name="app_name">点清</string>
 
+    <!-- 开机启动动画 -->
+    <string name="splash_tagline">让每一天都清爽有序</string>
+    <string name="splash_feature_tasks">🧹 高效清理任务，告别杂乱待办</string>
+    <string name="splash_feature_habits">🌱 坚持好习惯，日积月累看见成长</string>
+    <string name="splash_feature_assistant">🤖 智能语音助手，动口不动手</string>
+    <string name="splash_skip_hint">点击任意处跳过</string>
+
     <!-- 底部导航 -->
     <string name="tab_today">今日</string>
     <string name="tab_tasks">任务</string>
@@ -30,7 +37,6 @@
     <string name="today_greeting_night">夜深了 💤</string>
     <string name="today_conflict_count">%1$d 项时间冲突</string>
     <string name="today_no_task">今天还没有安排任务</string>
-    <string name="today_kbd_hint">键盘：↑↓ 选择 · 空格/回车 完成 · N 新建</string>
     <string name="today_clear_all_desc">一键清空今日</string>
     <string name="today_clear_all_title">清空今日全部任务？</string>
     <string name="today_clear_all_msg">将把今日所有未完成任务标记为完成，并记一次打卡。可逐条撤销。</string>
@@ -47,6 +53,7 @@
     <string name="task_start_time">开始时间</string>
     <string name="task_end_time">结束时间</string>
     <string name="task_all_day">全天</string>
+    <string name="all_day_remind_time">提醒时刻</string>
     <string name="task_group">所属任务组</string>
     <string name="task_reminder">提醒</string>
     <string name="task_location">位置提醒</string>
@@ -116,6 +123,8 @@
     <string name="debug_section_reminder">提醒</string>
     <string name="debug_exact_alarm">精确闹钟权限</string>
     <string name="debug_exact_alarm_hint">未授予精确闹钟权限，后台提醒可能延迟，请在系统设置中开启。</string>
+    <string name="debug_battery_optimized">电池优化开启</string>
+    <string name="debug_battery_hint">电池优化会限制后台闹钟，锁屏/空闲时提醒可能被延迟，建议设为「不受限制」。</string>
     <string name="debug_quiet_hours">静音时段</string>
     <string name="debug_notifications">通知已开启</string>
     <string name="debug_channels">通知渠道数</string>
@@ -127,6 +136,12 @@
     <string name="debug_medals">勋章</string>
     <string name="debug_section_actions">操作</string>
     <string name="debug_reschedule">重新排程提醒</string>
+    <string name="debug_reschedule_done">已重排 %1$d 个提醒</string>
+    <string name="debug_open_exact_alarm">开启精确闹钟</string>
+    <string name="debug_open_battery">关闭电池优化</string>
+    <string name="debug_dnd_access">勿扰绕过权限</string>
+    <string name="debug_dnd_hint">未授予「通知优先级访问」权限，勿扰模式下高优先级提醒可能不响铃，请在系统设置中开启。</string>
+    <string name="debug_open_dnd">开启勿扰绕过</string>
 
     <!-- 通知渠道 -->
     <string name="notify_channel_reminder">任务提醒</string>
@@ -170,6 +185,7 @@
     <string name="notify_action_snooze">稍后提醒</string>
     <string name="notify_action_skip">跳过</string>
     <string name="notify_reminder_text">该完成任务了</string>
+    <string name="notify_habit_text">该培养这个习惯了</string>
 
     <!-- 今日软删撤销 -->
     <string name="today_deleted_snack">已删除「%1$s」</string>
@@ -441,6 +457,11 @@
     <string name="xiaozhi_task_created">已创建任务：%1$s%2$s</string>
     <string name="xiaozhi_task_conflict_note">（存在时间冲突，已保留）</string>
     <string name="xiaozhi_unknown_tool">未知工具：%1$s</string>
+    <string name="xiaozhi_habit_created">已创建习惯：%1$s</string>
+    <string name="xiaozhi_habit_desc">创建一个习惯（如每天喝水、读书），支持重复与每日提醒</string>
+
+    <!-- 习惯默认标题（语音/助手建习惯缺标题时兜底） -->
+    <string name="habit_default_title">新习惯</string>
 
     <!-- 通用是/否 -->
     <string name="common_yes">是</string>
@@ -563,6 +584,8 @@
     <string name="settings_section_advanced">高级</string>
     <string name="settings_assistant_config_row">助手配置（LLM / ASR）</string>
     <string name="settings_assistant_config_subtitle">跳转到助手页配置服务商与凭据</string>
+    <string name="settings_debug_log_title">调试日志</string>
+    <string name="settings_debug_log_subtitle">关闭时仅记录警告与错误；开启后记录全量日志，便于排查问题</string>
     <string name="settings_debug_row">调试与日志</string>
     <string name="settings_debug_subtitle">查看运行状态、测试通知与重新排程</string>
     <string name="settings_theme_dynamic_short">动态</string>
@@ -579,6 +602,10 @@
     <string name="habits_title">习惯养成</string>
     <string name="habits_empty">还没有习惯，点右下角按钮添加第一个</string>
     <string name="habits_add">新建习惯</string>
+    <string name="habits_edit">编辑习惯</string>
+    <string name="habits_reminder">每日提醒</string>
+    <string name="habits_reminder_off">未开启</string>
+    <string name="habits_reminder_set">设置提醒时间</string>
     <string name="habits_name_hint">习惯名称（如 每天喝水）</string>
     <string name="habits_emoji_hint">图标 emoji（可选）</string>
     <string name="habits_repeat">重复</string>

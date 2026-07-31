@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -30,6 +32,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.ui.components.TaskEditContent
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -155,21 +159,11 @@ fun TasksScreen(
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = if (isWide) {
-                    { selectedTaskId = "__new__" }
-                } else {
-                    { editingTaskId = null; showEditor = true }
-                },
-                // 底部新建按钮减小约三分之一（56dp → 40dp），保持圆形。
-                modifier = Modifier.padding(Spacing.lg).size(40.dp),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
-            }
-        },
     ) { innerPadding ->
-        Column(Modifier.fillMaxSize().padding(innerPadding)) {
+        // V2.8X++：新增 FAB 改为内容盒内 align(BottomEnd)+padding，与「今日」页定位完全一致
+        // （避免 Scaffold floatingActionButton 槽与内容区 innerPadding 计法不同导致离底高度不一致）。
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(Modifier.fillMaxSize()) {
             // V2.67 标签筛选条：仅在存在标签时显示
             if (state.allTags.isNotEmpty()) {
                 TagFilterRow(
@@ -238,7 +232,18 @@ fun TasksScreen(
                 )
             }
         }
+        FloatingActionButton(
+            onClick = if (isWide) {
+                { selectedTaskId = "__new__" }
+            } else {
+                { editingTaskId = null; showEditor = true }
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.lg).size(40.dp),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
+        }
     }
+}
 
     if (showEditor) {
         TaskEditSheet(
@@ -318,7 +323,14 @@ private fun TasksList(
     onDeleteTask: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ungrouped = state.tasks.filter { it.groupId == null }
+    // 组内/无分组均按实例生效分钟升序（无时刻置末尾）
+    val byTime = compareBy<Task> { it.instanceDueMinute() ?: Int.MAX_VALUE }
+    val ungrouped = state.tasks.filter { it.groupId == null }.sortedWith(byTime)
+    // 分组：空组跳过；组间按组内最早任务时间升序
+    val sortedGroups = state.groups.mapNotNull { group ->
+        val tasks = state.tasks.filter { it.groupId == group.id }.sortedWith(byTime)
+        if (tasks.isEmpty()) null else group to tasks
+    }.sortedBy { (_, tasks) -> tasks.first().instanceDueMinute() ?: Int.MAX_VALUE }
     LazyColumn(
         contentPadding = PaddingValues(bottom = 88.dp, top = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -336,33 +348,32 @@ private fun TasksList(
             }
         }
 
-        // 按组分组
-        for (group in state.groups) {
-            val tasksInGroup = state.tasks.filter { it.groupId == group.id }
-            // V2.33：组内任务非空且全部处于暂停态时，认为该组已暂停。
-            val groupPaused = tasksInGroup.isNotEmpty() &&
-                tasksInGroup.all { TaskStatus.fromCode(it.status) == TaskStatus.PAUSED }
-            item(key = "group_header_${group.id}") {
-                GroupHeaderRow(
-                    group = group,
-                    count = tasksInGroup.size,
-                    paused = groupPaused,
-                    onEdit = { onGroupEdit(group) },
-                    onDelete = { onGroupDelete(group) },
-                    onTogglePause = { if (groupPaused) onGroupResume(group) else onGroupPause(group) },
-                )
+            // 分组：组间已按组内最早时间排序，组内已按时间排序
+            for ((group, tasksInGroup) in sortedGroups) {
+                // V2.33：组内任务非空且全部处于暂停态时，认为该组已暂停。
+                val groupPaused = tasksInGroup.isNotEmpty() &&
+                    tasksInGroup.all { TaskStatus.fromCode(it.status) == TaskStatus.PAUSED }
+                item(key = "group_header_${group.id}") {
+                    GroupHeaderRow(
+                        group = group,
+                        count = tasksInGroup.size,
+                        paused = groupPaused,
+                        onEdit = { onGroupEdit(group) },
+                        onDelete = { onGroupDelete(group) },
+                        onTogglePause = { if (groupPaused) onGroupResume(group) else onGroupPause(group) },
+                    )
+                }
+                items(
+                    tasksInGroup,
+                    key = { it.id },
+                ) { task ->
+                    TaskRow(
+                        task = task,
+                        onEdit = { onTaskClick(task) },
+                        onDelete = { onDeleteTask(task.id) },
+                    )
+                }
             }
-            items(
-                tasksInGroup,
-                key = { it.id },
-            ) { task ->
-                TaskRow(
-                    task = task,
-                    onEdit = { onTaskClick(task) },
-                    onDelete = { onDeleteTask(task.id) },
-                )
-            }
-        }
 
         // 无分组任�?
         if (ungrouped.isNotEmpty()) {
@@ -396,38 +407,73 @@ private fun GroupHeaderRow(
 ) {
     val gc = groupColor(group.colorKey)
     val groupCd = stringResource(R.string.a11y_group_header, group.name)
+    // 分组分隔条：让分组边界更醒目（组色细线）。
+    HorizontalDivider(color = gc.copy(alpha = 0.4f))
+    // V2.8X 分组行紧凑化：行高约减半（原 ~56dp → ~28dp）。
+    // 关键在三点：① 垂直 padding sm→xs；② 去掉原「组名 + 计数」两行 Column 改为单行；
+    // ③ IconButton 默认 48dp 触控盒是真正的高度瓶颈，显式压到 28dp。
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable { onEdit() }
             .semantics { contentDescription = groupCd }
-            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 原最左侧组色竖条已移除（用户反馈冗余）；组色改由图标底色 + 数字圆圈承载。
         Text(
             text = group.icon,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(6.dp))
                 .background(gc.copy(alpha = 0.15f))
-                .padding(Spacing.sm),
+                .padding(horizontal = Spacing.xs, vertical = 2.dp),
         )
-        Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
-            Text(group.name, style = MaterialTheme.typography.titleMedium)
+        // 组名 + 数字圆圈：圆圈顶对齐贴在组名右上角（角标语义），不再单占一行。
+        Row(
+            modifier = Modifier.weight(1f).padding(start = Spacing.sm),
+            verticalAlignment = Alignment.Top,
+        ) {
             Text(
-                stringResource(R.string.tasks_group_count, count),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                group.name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
+            Spacer(Modifier.width(3.dp))
+            // 数字仅是视觉角标，读屏时补读完整语义「N 个任务」。
+            val countCd = stringResource(R.string.tasks_group_count, count)
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(gc.copy(alpha = 0.22f))
+                    .semantics { contentDescription = countCd },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "$count",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = gc,
+                    maxLines = 1,
+                )
+            }
         }
-        IconButton(onClick = onTogglePause) {
+        IconButton(onClick = onTogglePause, modifier = Modifier.size(28.dp)) {
             Icon(
                 if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
                 contentDescription = stringResource(if (paused) R.string.tasks_group_resume else R.string.tasks_group_pause),
+                modifier = Modifier.size(16.dp),
             )
         }
-        IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit)) }
-        IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete)) }
+        IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit), modifier = Modifier.size(16.dp))
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
+        }
     }
 }
 

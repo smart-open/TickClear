@@ -30,7 +30,8 @@ object CrashReporter {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val ts = TS_FMT.format(Date())
-            val stack = Log.getStackTraceString(throwable)
+            // Log.getStackTraceString 在单元测试桩环境会抛 Stub!，兜底为空串。
+            val stack = runCatching { Log.getStackTraceString(throwable) }.getOrDefault("")
             val record = "$ts ${throwable.javaClass.name}: ${throwable.message}\n$stack"
             runCatching {
                 file.appendText("$record\n${"-".repeat(40)}\n")

@@ -1,13 +1,16 @@
 package com.tickclear.app.ui.habits
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.domain.model.Habit
 import com.tickclear.app.domain.repository.HabitRepository
+import com.tickclear.app.domain.scheduler.HabitReminderScheduler
 import com.tickclear.app.domain.util.computeStreak
 import com.tickclear.app.domain.util.isHabitDueToday
 import com.tickclear.app.domain.util.todayLocal
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -34,6 +37,7 @@ data class HabitsUiState(
 
 @HiltViewModel
 class HabitsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val habitRepository: HabitRepository,
 ) : ViewModel() {
 
@@ -72,20 +76,31 @@ class HabitsViewModel @Inject constructor(
         }
     }
 
-    fun createHabit(title: String, emoji: String, repeatDays: String) {
+    fun createHabit(title: String, emoji: String, repeatDays: String, reminderMin: Int = -1) {
         viewModelScope.launch {
-            habitRepository.createHabit(
-                Habit(
-                    id = UUID.randomUUID().toString(),
-                    title = title.trim(),
-                    emoji = emoji.trim(),
-                    repeatDays = repeatDays,
-                ),
+            val habit = Habit(
+                id = UUID.randomUUID().toString(),
+                title = title.trim(),
+                emoji = emoji.trim(),
+                repeatDays = repeatDays,
+                reminderMin = reminderMin,
             )
+            habitRepository.createHabit(habit)
+            HabitReminderScheduler.scheduleForHabit(appContext, habit)
+        }
+    }
+
+    fun updateHabit(habit: Habit) {
+        viewModelScope.launch {
+            habitRepository.updateHabit(habit)
+            HabitReminderScheduler.scheduleForHabit(appContext, habit)
         }
     }
 
     fun deleteHabit(habitId: String) {
-        viewModelScope.launch { habitRepository.deleteHabit(habitId) }
+        viewModelScope.launch {
+            habitRepository.deleteHabit(habitId)
+            HabitReminderScheduler.cancelForHabit(appContext, habitId)
+        }
     }
 }

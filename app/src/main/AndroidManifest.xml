@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -85,6 +86,11 @@
 
         <receiver
             android:name=".domain.scheduler.ReminderReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
+        <receiver
+            android:name=".domain.scheduler.HabitReminderReceiver"
             android:exported="false"
             android:enabled="true" />
 

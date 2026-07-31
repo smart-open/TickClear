@@ -394,14 +394,6 @@ private fun TodayMainContent(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                         )
-                        if (shortcutsEnabled) {
-                            Text(
-                                text = stringResource(R.string.today_kbd_hint),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                            )
-                        }
                     }
 
                     // V2.54：以 active 段本地序号 index 判断高亮，与键盘焦点一致；done 段不可键盘聚焦。

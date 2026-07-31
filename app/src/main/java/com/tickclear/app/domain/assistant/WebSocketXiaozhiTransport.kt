@@ -705,13 +705,51 @@ class WebSocketXiaozhiTransport(
                         })
                     })
                 }
+                val createHabitSchema = buildJsonObject {
+                    put("name", JsonPrimitive("create_habit"))
+                    put("description", JsonPrimitive(context.getString(R.string.xiaozhi_habit_desc)))
+                    put("inputSchema", buildJsonObject {
+                        put("type", "object")
+                        put("properties", buildJsonObject {
+                            put("title", buildJsonObject {
+                                put("type", "string")
+                                put("description", "习惯名称")
+                            })
+                            put("emoji", buildJsonObject {
+                                put("type", "string")
+                                put("description", "习惯图标 emoji，可选")
+                            })
+                            put("repeatType", buildJsonObject {
+                                put("type", "string")
+                                put("enum", buildJsonArray {
+                                    add(JsonPrimitive("NONE"))
+                                    add(JsonPrimitive("DAILY"))
+                                    add(JsonPrimitive("WEEKLY"))
+                                })
+                                put("description", "重复类型 NONE/DAILY/WEEKLY，缺省每天")
+                            })
+                            put("weekdays", buildJsonObject {
+                                put("type", "string")
+                                put("description", "WEEKLY 时使用，1-7 逗号分隔（周一=1）")
+                            })
+                            put("reminderMin", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "每日提醒分钟 0-1439，-1 或不传表示不提醒")
+                            })
+                        })
+                        put("required", buildJsonArray { add(JsonPrimitive("title")) })
+                    })
+                }
                 val reply = buildJsonObject {
                     put("type", "mcp")
                     put("payload", buildJsonObject {
                         put("jsonrpc", "2.0")
                         put("id", JsonPrimitive(id ?: "2"))
                         put("result", buildJsonObject {
-                            put("tools", buildJsonArray { add(createTaskSchema) })
+                            put("tools", buildJsonArray {
+                                add(createTaskSchema)
+                                add(createHabitSchema)
+                            })
                         })
                     })
                 }

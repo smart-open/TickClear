@@ -691,12 +691,17 @@ class AssistantViewModel @Inject constructor(
             }
             // 信任模式（PRD D20）：非危险操作（建任务）免去确认卡直接落库；
             // 删除/暂停等危险操作无论是否信任都强制二次确认，避免误删。
-            if (settingsRepository.trustMode.first() && !isDangerousTool(call.tool)) {
+            // V2.8X++：create_habit 暂无确认卡 UI 且属低风险创建，无论是否信任模式都直接落库，
+            // 避免被误塞进仅支持 Task 的 pendingDraft 确认卡导致类型/渲染异常。
+            val toolShort = call.tool.substringAfterLast('.')
+            val autoCommit = settingsRepository.trustMode.first() || toolShort == "create_habit"
+            if (autoCommit && !isDangerousTool(call.tool)) {
                 val res = mcpTools.commit(draft)
                 if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
                 append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
             } else {
-                _pendingDraft.value = draft
+                // 仅 Task 草稿进入确认卡（Habit 已在上分支自动提交，不会到达此处）。
+                if (draft is XiaozhiMcpTools.McpDraft.TaskDraft) _pendingDraft.value = draft.task
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_pending)))
             }
         }
@@ -710,7 +715,8 @@ class AssistantViewModel @Inject constructor(
     fun confirmDraft() {
         val draft = _pendingDraft.value ?: return
         viewModelScope.launch {
-            val res = mcpTools.commit(draft)
+            // pendingDraft 仅承载 Task 草稿，包装回 McpDraft 交由统一 commit 落库。
+            val res = mcpTools.commit(XiaozhiMcpTools.McpDraft.TaskDraft(draft))
             if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
             append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
             _pendingDraft.value = null

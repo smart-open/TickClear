@@ -222,6 +222,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
 
+    // ── 调试日志开关（V2.8X）──
+    val debugLogEnabled: StateFlow<Boolean> = settingsRepository.debugLogEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false,
+    )
+
+    // ── 调试日志开关（V2.8X）：Repository 内部已同步 AppLogger，切换即刻生效。 ──
+    fun setDebugLogEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setDebugLogEnabled(enabled) }
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setThemeSkin(skin: ThemeSkin) = viewModelScope.launch { settingsRepository.setThemeSkin(skin) }
     fun setAnimationEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAnimationEnabled(enabled) }

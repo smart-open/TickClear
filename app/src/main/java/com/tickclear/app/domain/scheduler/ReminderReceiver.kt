@@ -11,6 +11,7 @@ import com.tickclear.app.MainActivity
 import com.tickclear.app.FullScreenAlertActivity
 import com.tickclear.app.R
 import com.tickclear.app.data.repositories.TaskInstanceRepository
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.model.RepeatType
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,7 @@ class ReminderReceiver : BroadcastReceiver() {
     // 因此每次 onReceive 使用独立的局部 scope，随本次广播生命周期结束。
 
     companion object {
+        const val TAG = "ReminderReceiver"
         const val ACTION_SHOW = "com.tickclear.app.reminder.SHOW"
         const val ACTION_COMPLETE = "com.tickclear.app.reminder.COMPLETE"
         const val ACTION_SNOOZE = "com.tickclear.app.reminder.SNOOZE"
@@ -51,6 +53,8 @@ class ReminderReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
         val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
         val instanceId = intent.getStringExtra(EXTRA_INSTANCE_ID) ?: "$taskId@today"
+        // 接收诊断（W 级，常显）：告警"到点没收到通知"时，logcat 过滤本标签即可确认广播是否真的被投递。
+        AppLogger.w(TAG, "onReceive action=$action taskId=$taskId instanceId=$instanceId")
         val pending = goAsync()
         val localScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         localScope.launch {
@@ -74,7 +78,12 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private suspend fun showNotification(context: Context, taskId: String, instanceId: String) {
         val ep = EntryPointAccessors.fromApplication(context, ReminderScheduler.ReminderEntryPoint::class.java)
-        val task = ep.taskRepository().getById(taskId) ?: return
+        val task = ep.taskRepository().getById(taskId)
+        if (task == null) {
+            // 任务已被删除但闹钟残留：此处静默丢弃，记录以便排查"幽灵通知/漏通知"。
+            AppLogger.w(TAG, "showNotification 任务不存在（可能已删），跳过通知 taskId=$taskId instanceId=$instanceId")
+            return
+        }
         var level = task.reminderLevel
 
         // 静音时段：命中且为低优先级时降级为静默（不响铃震动、不占状态栏角标）。
@@ -100,8 +109,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
         // V2.30 稍后提醒时长取用户设置（默认 15 分钟）。
         val snoozeMin = settings.snoozeDefaultMin.first()
-        // V2.31 音效开关：关闭时不发声/不震动（仍保留灯光/渠道重要性）。
-        val soundOn = ReminderPrefs.shouldPlaySound(settings.soundEnabled.first(), level)
+        // 全局「声音」开关状态（仅用于诊断日志；高优先级提醒不再受此约束，始终响铃+震动）。
+        val globalSoundEnabled = settings.soundEnabled.first()
+        val forcedSound = ReminderPrefs.shouldForceSound(level)
 
         val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
@@ -129,17 +139,15 @@ class ReminderReceiver : BroadcastReceiver() {
             )
         }
         if (level == "high") {
-            // V2.31：音效开关关闭时不发声/不震动，仅保留灯光与渠道重要性。
-            // V2.63：开启音效时采用内置开源 CC0 提示音（Android 8.0- 由 builder 指定；8.0+ 由渠道控制，见 NotificationHelper）。
-            if (soundOn) {
-                val chime = android.net.Uri.parse(
-                    "${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",
-                )
-                builder.setSound(chime)
-                builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
-            } else {
-                builder.setDefaults(NotificationCompat.DEFAULT_LIGHTS)
-            }
+            // V2.31→修正：高优先级 = 用户显式选择「高」，即表达「务必响铃+震动」意图，
+            // 不再受全局「声音」开关约束。否则与调试页「测试通知」（绕开开关）行为不一致，
+            // 且违背用户对高优先级提醒的预期。提示音用内置开源 CC0（Android 8.0- 由 builder 指定；8.0+ 由渠道控制）。
+            val chime = android.net.Uri.parse(
+                "${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",
+            )
+            builder.setSound(chime)
+            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
+            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             // 高优先级提醒：附加全屏意图。Android 14+ 仅在系统允许（已获「额外提醒权限」或应用前台）时真正全屏，
             // 否则系统静默降级为普通通知；此处仅在允许时附加，避免无效附加。
             if (Build.VERSION.SDK_INT < 34 || notificationManager(context).canUseFullScreenIntent()) {
@@ -148,7 +156,20 @@ class ReminderReceiver : BroadcastReceiver() {
         }
         // 以 instanceId 的稳定 FNV-1a 哈希作为通知键：避免不同任务哈希碰撞互相覆盖，
         // 且重复任务多实例各自独立（互不覆盖）。
-        notificationManager(context).notify(ReminderIds.notificationId(instanceId), builder.build())
+        // 诊断（与测试通知一致）：打印渠道在系统层的真实重要性，便于区分「渠道被静音/勿扰」与「开关问题」。
+        val nm = notificationManager(context)
+        val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.getNotificationChannel(channel)?.importance ?: -1
+        } else -1
+        AppLogger.w(TAG, "showNotification 弹出 task=${task.id} title=${task.title} level=$level channel=$channel 强制响铃=$forcedSound 全局声音=$globalSoundEnabled 系统重要性=$imp (>=4 应响铃震动)")
+        nm.notify(ReminderIds.notificationId(instanceId), builder.build())
+        // 续排下一发生日：保证重复任务持续提醒（一次性任务无后续发生日，自动跳过）。
+        // 与弹出解耦，失败不影响本次通知展示。
+        try {
+            ReminderScheduler.scheduleNext(context, task)
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "scheduleNext 失败（不影响本次通知）：${e.message}")
+        }
     }
 
     private suspend fun complete(context: Context, taskId: String, instanceId: String) {
@@ -218,16 +239,29 @@ class ReminderReceiver : BroadcastReceiver() {
         )
     }
 
-    /** 发送一条测试通知（诊断用，不经过具体任务，便于核对通知渠道与优先级）。 */
+    /** 发送一条测试通知（诊断用）：复刻真实高优先级提醒路径（高渠道 + 铃声 + 震动），便于确认通知栈工作。 */
     fun fireTestNotification(context: Context) {
-        val builder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_MID)
+        // 诊断：先把渠道在系统层的真实重要性打出来——若 <4(IMPORTANCE_HIGH) 说明设备端该渠道被降权/静音，
+        // 此时即便代码正确也无声音/震动（Android 8+ 渠道不可就地升级，需靠 v3 新 ID 重建）。
+        val nm = notificationManager(context)
+        val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.getNotificationChannel(NotificationHelper.CHANNEL_HIGH)?.importance ?: -1
+        } else -1
+        AppLogger.w(TAG, "fireTestNotification 发出 渠道=${NotificationHelper.CHANNEL_HIGH} 系统重要性=$imp (>=4 为高/应响铃震动；<4 多为设备被静音或勿扰)")
+        val chime = android.net.Uri.parse(
+            "${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",
+        )
+        val builder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_HIGH)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.debug_test_notification))
             .setContentText(context.getString(R.string.notify_reminder_text))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setSound(chime)
+            .setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context, ReminderIds.fnv1a("test_content")))
-        notificationManager(context).notify(ReminderIds.fnv1a("tickclear_test"), builder.build())
+        nm.notify(ReminderIds.fnv1a("tickclear_test"), builder.build())
+        AppLogger.w(TAG, "fireTestNotification 已 notify；若仍无声/无震：检查系统通知设置中该渠道声音/震动是否开启，或是否处于勿扰模式")
     }
 }

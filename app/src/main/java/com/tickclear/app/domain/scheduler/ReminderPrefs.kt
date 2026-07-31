@@ -3,7 +3,7 @@ package com.tickclear.app.domain.scheduler
 /**
  * 提醒相关的纯函数偏好工具（JVM 可测，零依赖）。
  * - [normalizeSnoozeMin]：将任意输入归一到受支持的「稍后提醒」档位（5/15/30 分钟）。
- * - [shouldPlaySound]：仅在开启音效且高优先级时播放声音/震动。
+ * - [shouldForceSound]：高优先级提醒是否强制响铃+震动（不受全局「声音」开关约束）。
  */
 object ReminderPrefs {
     /** 受支持的稍后提醒档位（分钟）。 */
@@ -26,9 +26,10 @@ object ReminderPrefs {
     }
 
     /**
-     * 是否播放声音/震动：仅高优先级（level == "high"）且用户开启音效（soundEnabled）时为真。
+     * 高优先级提醒是否强制响铃+震动：仅高优先级（level == "high"）为真。
+     * 高优先级是用户显式「务必提醒」意图，刻意不受全局「声音」开关约束——
+     * 否则与调试页「测试通知」（绕开开关）行为不一致，且违背用户对高优先级提醒的预期。
      * 中/低优先级走通知渠道重要性，统一不在此处强制声音。
      */
-    fun shouldPlaySound(soundEnabled: Boolean, level: String): Boolean =
-        soundEnabled && level == "high"
+    fun shouldForceSound(level: String): Boolean = level == "high"
 }

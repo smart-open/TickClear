@@ -107,6 +107,8 @@ fun SettingsScreen(
     val assistantMode by viewModel.assistantMode.collectAsStateWithLifecycle()
     // V2.65/V2.66 语音历史 + 常驻唤醒
     val voiceHistoryEnabled by viewModel.voiceHistoryEnabled.collectAsStateWithLifecycle()
+    // V2.8X 调试日志开关
+    val debugLogEnabled by viewModel.debugLogEnabled.collectAsStateWithLifecycle()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsStateWithLifecycle()
     val wakeWord by viewModel.wakeWord.collectAsStateWithLifecycle()
 
@@ -668,6 +670,16 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_assistant_config_subtitle),
                 onClick = onNavigateToAssistantConfig,
             )
+            // V2.8X 调试日志开关：默认关闭，仅记录 WARN/ERROR；开启后记录全量日志（调试页可查看/导出）。
+            SettingRow(
+                title = stringResource(R.string.settings_debug_log_title),
+                subtitle = stringResource(R.string.settings_debug_log_subtitle),
+            ) {
+                Switch(
+                    checked = debugLogEnabled,
+                    onCheckedChange = { viewModel.setDebugLogEnabled(it) },
+                )
+            }
             ClickableRow(
                 icon = Icons.Filled.Settings,
                 title = stringResource(R.string.settings_debug_row),

@@ -2,6 +2,7 @@ package com.tickclear.app.ui.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.MedalRepository
@@ -64,7 +65,7 @@ class StatsViewModel @Inject constructor(
         .map { list -> list.groupingBy { it.dateLocal }.eachCount() }
         .catch { e ->
             // 任一上游流异常（如 Room 查询/实例生成失败）不应让统计页崩溃，降级为空映射。
-            android.util.Log.e("StatsViewModel", "completionsFlow failed, fallback empty", e)
+            AppLogger.e("StatsViewModel", "completionsFlow failed, fallback empty", e)
             emit(emptyMap())
         }
 
@@ -102,7 +103,7 @@ class StatsViewModel @Inject constructor(
         )
     }.catch { e ->
         // 整条统计聚合流异常时降级为安全空状态，避免 UI 崩溃；真实异常已打 logcat 供定位。
-        android.util.Log.e("StatsViewModel", "stats combine failed, fallback safe state", e)
+        AppLogger.e("StatsViewModel", "stats combine failed, fallback safe state", e)
         emit(StatsUiState(isLoading = false))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatsUiState())
 
@@ -116,7 +117,7 @@ class StatsViewModel @Inject constructor(
     val trend: StateFlow<List<TrendBucket>> = combine(_period, completionsFlow) { p, completions ->
         computeTrend(p, completions)
     }.catch { e ->
-        android.util.Log.e("StatsViewModel", "trend failed, fallback empty", e)
+        AppLogger.e("StatsViewModel", "trend failed, fallback empty", e)
         emit(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

@@ -16,6 +16,7 @@ interface HabitRepository {
     suspend fun uncheck(habitId: String, date: String)
     suspend fun createHabit(habit: Habit)
     suspend fun updateHabit(habit: Habit)
+    suspend fun getHabit(id: String): Habit?
     suspend fun deleteHabit(habitId: String)
     suspend fun archiveHabit(habitId: String)
 }
