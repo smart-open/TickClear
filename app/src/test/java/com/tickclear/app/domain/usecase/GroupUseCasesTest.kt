@@ -4,6 +4,7 @@ import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskStatus
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.TaskRepository
+import com.tickclear.app.domain.scheduler.TaskScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -13,6 +14,9 @@ import org.junit.Test
 
 /**
  * 组级暂停/启用/删除级联（V2.33）单元测试：用 mockk 替身仓库验证级联落到子任务。
+ *
+ * V2.8X 补充：暂停/启用用例现统一经 [TaskScheduler] 撤销/重排闹钟，测试注入 relaxed 替身并
+ * 校验 cancelForTask 被调用（防止「暂停仍在响 / 恢复不重排」回潮）。
  */
 class GroupUseCasesTest {
 
@@ -23,24 +27,29 @@ class GroupUseCasesTest {
     @Test
     fun `pause group cascades to children`() = runTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
+        val taskScheduler = mockk<TaskScheduler>(relaxed = true)
         val children = listOf(task("t1", "g1"), task("t2", "g1"))
         coEvery { taskRepo.observeByGroup("g1") } returns flowOf(children)
 
-        PauseGroupUseCase(taskRepo)("g1")
+        PauseGroupUseCase(taskRepo, taskScheduler)("g1")
 
         coVerify { taskRepo.setStatus("t1", TaskStatus.PAUSED, null) }
         coVerify { taskRepo.setStatus("t2", TaskStatus.PAUSED, null) }
+        coVerify { taskScheduler.cancelForTask("t1") }
+        coVerify { taskScheduler.cancelForTask("t2") }
     }
 
     @Test
     fun `resume group cascades children to active`() = runTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
+        val taskScheduler = mockk<TaskScheduler>(relaxed = true)
         val children = listOf(task("t1", "g1", status = TaskStatus.PAUSED.code))
         coEvery { taskRepo.observeByGroup("g1") } returns flowOf(children)
 
-        ResumeGroupUseCase(taskRepo)("g1")
+        ResumeGroupUseCase(taskRepo, taskScheduler)("g1")
 
         coVerify { taskRepo.setStatus("t1", TaskStatus.ACTIVE, null) }
+        coVerify { taskScheduler.cancelForTask("t1") }
     }
 
     @Test
@@ -80,15 +89,19 @@ class GroupUseCasesTest {
     @Test
     fun `pause task sets paused status`() = runTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
-        PauseTaskUseCase(taskRepo)(task("t1", "g1"))
+        val taskScheduler = mockk<TaskScheduler>(relaxed = true)
+        PauseTaskUseCase(taskRepo, taskScheduler)(task("t1", "g1"))
         coVerify { taskRepo.setStatus("t1", TaskStatus.PAUSED, null) }
+        coVerify { taskScheduler.cancelForTask("t1") }
     }
 
     @Test
     fun `resume task sets active status`() = runTest {
         val taskRepo = mockk<TaskRepository>(relaxed = true)
-        ResumeTaskUseCase(taskRepo)(task("t1", "g1", status = TaskStatus.PAUSED.code))
+        val taskScheduler = mockk<TaskScheduler>(relaxed = true)
+        ResumeTaskUseCase(taskRepo, taskScheduler)(task("t1", "g1", status = TaskStatus.PAUSED.code))
         coVerify { taskRepo.setStatus("t1", TaskStatus.ACTIVE, null) }
+        coVerify { taskScheduler.cancelForTask("t1") }
     }
 
     @Test
