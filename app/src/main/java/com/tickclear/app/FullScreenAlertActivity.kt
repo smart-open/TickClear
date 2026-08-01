@@ -64,9 +64,12 @@ class FullScreenAlertActivity : ComponentActivity() {
             )
         }
         // 解除 keyguard（无密码锁屏可直接解除；有密码锁屏系统会保留验证，属预期行为）。
-        runCatching {
-            (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)
-                ?.requestDismissKeyguard(this, null)
+        // requestDismissKeyguard 需 API 26+；24~25 走上方窗口标志路径，此处跳过。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching {
+                (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)
+                    ?.requestDismissKeyguard(this, null)
+            }
         }
 
         val taskId = intent.getStringExtra(ReminderReceiver.EXTRA_TASK_ID) ?: run { finish(); return }
