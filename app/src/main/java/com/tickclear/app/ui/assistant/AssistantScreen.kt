@@ -86,6 +86,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Rect
+import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -743,7 +744,7 @@ private fun AssistantChatBody(
     selectedIds: Set<Long>,
     onToggleSelect: (Long) -> Unit,
     onLongPressMessage: (Long) -> Unit,
-    onMeasureRect: (Long, Rect) -> Unit = {},
+    onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -845,6 +846,7 @@ private fun ChatBubble(
     selected: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
 ) {
     val isUser = msg.role == "user"
     val isSystem = msg.role == "system"
@@ -857,7 +859,14 @@ private fun ChatBubble(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned { coords -> onMeasureRect(msg.id, coords.boundsInWindow()) },
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInWindow()
+                val size = coords.size
+                onMeasureRect(
+                    msg.id,
+                    Rect(pos.x, pos.y, pos.x + size.width.toFloat(), pos.y + size.height.toFloat()),
+                )
+            },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
@@ -925,7 +934,7 @@ private fun MessageRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onMeasureRect: (Long, Rect) -> Unit = {},
+    onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
 ) {
     ChatBubble(
         msg = msg,
@@ -933,6 +942,7 @@ private fun MessageRow(
         selected = selected,
         onClick = onClick,
         onLongClick = onLongClick,
+        onMeasureRect = onMeasureRect,
     )
 }
 

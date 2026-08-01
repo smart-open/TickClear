@@ -1,9 +1,8 @@
 package com.tickclear.app.ui.assistant
 
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
@@ -136,7 +135,7 @@ class AssistantViewModel @Inject constructor(
     private val capture = AudioCapture()
     private val localRecognizer = LocalSpeechRecognizer(appContext)
     private val wakeWordManager = WakeWordManager(appContext, settingsRepository)
-    private var processLifecycleObserver: DefaultLifecycleObserver? = null
+    private var appCallbacks: Application.ActivityLifecycleCallbacks? = null
     private var seq = 0L
     private fun nextId() = ++seq
 
@@ -217,18 +216,32 @@ class AssistantViewModel @Inject constructor(
             _voiceSupported.value = xzAsrReady || cloudAsrReady
         }
 
-        // V2.8X++：连接生命周期改为跟随「应用前后台」（ProcessLifecycleOwner），而非助手页 composition。
-        // 切到其它 tab 时不再断 WebSocket/音频（消除切 tab 卡顿），仅当整个 App 退到后台才释放资源；
-        // 返回前台自动重连。应用已在前台（多数情况）则立即建连，避免等下一次前后台切换才连。
-        val obs = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) { connect() }
-            override fun onStop(owner: LifecycleOwner) { disconnectTransport() }
+        // V2.8X++：连接生命周期改为跟随「应用前后台」，而非助手页 composition——消除切 tab 卡顿
+        // （tab 切换是同一 Activity 内的 NavHost 导航，不会触发 Activity pause，故不会断连/重连）。
+        // 仅当整个 App 退到后台（Activity onPause 且无其它 resumed Activity）才 disconnectTransport；
+        // 返回前台自动重连。用 Application.ActivityLifecycleCallbacks（框架 API，零新依赖）替代不可用的
+        // ProcessLifecycleOwner（lifecycle-process 未引入，加依赖会破红线）。
+        val app = appContext as Application
+        var resumedCount = 0
+        val cb = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                resumedCount++
+                if (resumedCount == 1) connect()
+            }
+            override fun onActivityPaused(activity: Activity) {
+                if (resumedCount > 0) resumedCount--
+                if (resumedCount == 0) disconnectTransport()
+            }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle?) {}
+            override fun onActivityDestroyed(activity: Activity) {}
         }
-        processLifecycleObserver = obs
-        ProcessLifecycleOwner.get().lifecycle.addObserver(obs)
-        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            connect()
-        }
+        appCallbacks = cb
+        app.registerActivityLifecycleCallbacks(cb)
+        // 应用已在前台（多数情况，VM 在助手页可见时创建）则立即建连，避免等下一次前后台切换才连。
+        connect()
     }
 
     private fun asrSupportsVoice(asr: String): Boolean = when (asr) {
@@ -934,8 +947,8 @@ class AssistantViewModel @Inject constructor(
 
     override fun onCleared() {
         // V2.8X++：先移除进程生命周期观察者，避免 VM 销毁后仍收到前后台回调。
-        processLifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
-        processLifecycleObserver = null
+        appCallbacks?.let { (appContext as Application).unregisterActivityLifecycleCallbacks(it) }
+        appCallbacks = null
         // capture.stop() 内含 thread.join()，onCleared 运行于主线程，移出到独立线程避免阻塞 UI（ANR 风险）。
         val capturing = _recording.value
         Thread {
