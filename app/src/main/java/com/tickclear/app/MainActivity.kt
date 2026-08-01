@@ -18,9 +18,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.Canvas
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -193,9 +191,10 @@ private fun LaunchSplash(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.alpha(alpha.value),
         ) {
-            // 扫帚：用 Canvas 绘制并做左右清扫（尘屑被扫起淡出），替代原静态 emoji，直观呼应「点清」隐喻。
+            // 清扫机器人：用 Canvas 绘制圆盘形扫地机，绕场景中心公转（圆周路径），
+            // 机身自身同时自转，沿途"吸入"地面尘屑并淡出——呼应「点清」隐喻且更具现代感。
             Box(modifier = Modifier.scale(scale.value)) {
-                BroomSweep(Modifier.fillMaxWidth().height(150.dp))
+                RobotClean(Modifier.fillMaxWidth().height(150.dp))
             }
             Text(
                 stringResource(R.string.app_name),
@@ -227,111 +226,177 @@ private fun LaunchSplash(onDismiss: () -> Unit) {
 }
 
 /**
- * 开屏扫帚清扫动画：Canvas 绘制扫帚，沿地面左右往复清扫（带轻微摆动），
- * 扫过的地面尘屑被"扫起"并淡出，直观呼应「点清 / 清理」的产品隐喻。
- * 由 [LaunchSplash] 在 3 秒开机层内持续播放；零新依赖。
+ * 开屏清扫机器人动画：圆盘型扫地机 + 顶部激光雷达/摄像头凸起，绕场景中心作公转
+ * （公转一周约 4 秒，顺时针），机身自身持续自转（约 1.2 秒/圈），沿途"吸入"地面尘屑
+ * 并随距离中心远近淡出。零新依赖、纯 Compose Canvas 绘制。
+ *
+ * 设计要点：
+ * - 公转 + 自转 两层动画叠加，视觉上就是「在转圈清扫」；
+ * - 圆盘上画 4 个扇形分割 + 中心 LiDAR 凸起 + 朝向指示箭头，识别度高；
+ * - 尘屑 7 颗按圆周分布，距机器人越近越透明（已被吸入）；
+ * - 主色取 theme.primary 路径边，避免硬编码 color（夜间模式自动适配）。
  */
 @Composable
-private fun BroomSweep(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "broom")
-    // 左右往复：归一化 -1..1
-    val sweep by transition.animateFloat(
-        initialValue = -1f,
+private fun RobotClean(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "robot")
+    // 公转：弧度 0..2π
+    val orbit by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "orbit",
+    )
+    // 自转：0..360 度
+    val selfSpin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "selfSpin",
+    )
+    // 呼吸指示灯（机身边圈小蓝点），微微脉动增加生动感
+    val led by transition.animateFloat(
+        initialValue = 0.55f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "sweep",
-    )
-    // 刷毛轻微抖动，增强"正在清扫"的生动感
-    val wiggle by transition.animateFloat(
-        initialValue = -0.14f,
-        targetValue = 0.14f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(380, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "wiggle",
+        label = "led",
     )
 
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val groundY = h * 0.72f
-        val amp = w * 0.30f
-        val tipX = w / 2f + sweep * amp
-        val tiltDeg = sweep * 15f + wiggle * 9f
+        val cx = w / 2f
+        val cy = h / 2f
+        val orbitR = w * 0.28f
+        val robotR = w * 0.085f
+        val groundY = h * 0.78f
 
-        // 地面参考线
+        // 地面参考线（被公转机器人"清扫"的痕迹）
         drawLine(
-            color = Color.LightGray.copy(alpha = 0.5f),
-            start = Offset(w * 0.12f, groundY),
-            end = Offset(w * 0.88f, groundY),
+            color = Color.LightGray.copy(alpha = 0.35f),
+            start = Offset(w * 0.10f, groundY),
+            end = Offset(w * 0.90f, groundY),
             strokeWidth = w * 0.003f,
         )
+        // 中心点（公转圆心的小标记）
+        drawCircle(
+            color = Color.LightGray.copy(alpha = 0.25f),
+            radius = w * 0.012f,
+            center = Offset(cx, cy),
+        )
+        // 公转轨道（虚线圆）
+        for (i in 0 until 24) {
+            val a = (i / 24f) * 2f * Math.PI.toFloat()
+            val nx = cx + kotlin.math.cos(a) * orbitR
+            val ny = cy + kotlin.math.sin(a) * orbitR
+            drawCircle(
+                color = Color.LightGray.copy(alpha = 0.12f),
+                radius = w * 0.004f,
+                center = Offset(nx, ny),
+            )
+        }
 
-        // 尘屑：被扫帚经过时点亮并淡出
-        val dustCount = 7
-        val baseR = w * 0.012f
+        // 尘屑：分布在公转路径附近；随机器人靠近而变淡（被吸入）
+        val dustCount = 9
+        val dustR = w * 0.012f
+        val robotX = cx + kotlin.math.cos(orbit) * orbitR
+        val robotY = cy + kotlin.math.sin(orbit) * orbitR
         for (i in 0 until dustCount) {
-            val dx = w * (0.16f + 0.68f * i / (dustCount - 1))
-            val dist = kotlin.math.abs(dx - tipX)
-            val near = (1f - dist / (amp * 0.95f)).coerceIn(0f, 1f)
-            if (near > 0.02f) {
+            val ang = (i / dustCount.toFloat()) * 2f * Math.PI.toFloat()
+            val dustX = cx + kotlin.math.cos(ang) * orbitR
+            val dustY = cy + kotlin.math.sin(ang) * orbitR
+            // 已"走过的弧段"尘屑最透明——用 ang 与 orbit 的夹角近似
+            val arcBehind = ((orbit - ang) + 2f * Math.PI.toFloat()) % (2f * Math.PI.toFloat())
+            val cleaned = (arcBehind / (Math.PI.toFloat() / 2f)).coerceIn(0f, 1f)
+            val near = (1f - cleaned).coerceIn(0f, 1f)
+            if (near > 0.05f) {
                 drawCircle(
-                    color = Color.Gray.copy(alpha = near * 0.55f),
-                    radius = baseR * (0.55f + near),
-                    center = Offset(dx, groundY + h * 0.015f),
+                    color = Color.Gray.copy(alpha = near * 0.6f),
+                    radius = dustR * (0.5f + near),
+                    center = Offset(dustX, dustY),
                 )
             }
         }
 
-        // 扫帚本体（刷毛在地面、手柄朝上，整体随清扫倾斜）
+        // 机器人本体：先平移到公转位置，再叠自转
         withTransform({
-            translate(tipX, groundY)
-            rotate(tiltDeg)
+            translate(robotX, robotY)
+            rotate(selfSpin, pivot = Offset.Zero)
         }) {
-            val bristleLen = h * 0.30f
-            val baseHalf = w * 0.05f
-            val topHalf = w * 0.032f
-            // 刷毛主体
+            // 外圈深色"防撞胶条"
+            drawCircle(
+                color = Color(0xFF2A2A2A),
+                radius = robotR,
+            )
+            // 银白机身主体
+            drawCircle(
+                color = Color(0xFFE8ECEF),
+                radius = robotR * 0.88f,
+            )
+            // 4 扇形分割线（暗示转向轮/边刷位置），相对自转随之旋转
+            val segments = 4
+            for (s in 0 until segments) {
+                val a = (s / segments.toFloat()) * 2f * Math.PI.toFloat()
+                val ex = kotlin.math.cos(a) * robotR * 0.86f
+                val ey = kotlin.math.sin(a) * robotR * 0.86f
+                drawLine(
+                    color = Color(0xFFB8BEC4),
+                    start = Offset(0f, 0f),
+                    end = Offset(ex, ey),
+                    strokeWidth = w * 0.0035f,
+                )
+                // 边刷小圆点
+                drawCircle(
+                    color = Color(0xFF7A8088),
+                    radius = w * 0.012f,
+                    center = Offset(ex, ey),
+                )
+            }
+            // 中心 LiDAR 凸起（深色圆 + 高光）
+            drawCircle(
+                color = Color(0xFF1F2933),
+                radius = robotR * 0.32f,
+            )
+            drawCircle(
+                color = Color(0xFF3E4C5A),
+                radius = robotR * 0.22f,
+            )
+            // 朝向指示箭头（机顶小三角），随自转旋转
+            val arrowLen = robotR * 0.72f
+            val arrowW = robotR * 0.18f
             drawPath(
                 path = Path().apply {
-                    moveTo(-baseHalf, 0f)
-                    lineTo(baseHalf, 0f)
-                    lineTo(topHalf, -bristleLen)
-                    lineTo(-topHalf, -bristleLen)
+                    moveTo(0f, -arrowLen)
+                    lineTo(arrowW, -robotR * 0.18f)
+                    lineTo(-arrowW, -robotR * 0.18f)
                     close()
                 },
-                color = Color(0xFFC89B6A),
+                color = Color(0xFF3E8E7E),
             )
-            // 刷毛丝
-            val strands = 7
-            for (s in 0..strands) {
-                val fx = -baseHalf + (2f * baseHalf) * s / strands
-                drawLine(
-                    color = Color(0xFF9C6B3F),
-                    start = Offset(fx, 0f),
-                    end = Offset(fx * 0.5f, -bristleLen),
-                    strokeWidth = w * 0.004f,
-                )
-            }
-            // 捆扎环
-            drawRect(
-                color = Color(0xFF7A5230),
-                topLeft = Offset(-topHalf * 1.5f, -bristleLen - h * 0.012f),
-                size = Size(topHalf * 3f, h * 0.026f),
+            // 呼吸状态灯（顶部小蓝点，亮度由 led 动画驱动）
+            drawCircle(
+                color = Color(0xFF4FC3F7).copy(alpha = led),
+                radius = w * 0.011f,
+                center = Offset(robotR * 0.42f, -robotR * 0.10f),
             )
-            // 手柄
-            val handleLen = h * 0.44f
-            val handleW = w * 0.024f
-            drawRoundRect(
-                color = Color(0xFFB07D4F),
-                topLeft = Offset(-handleW / 2f, -bristleLen - h * 0.02f - handleLen),
-                size = Size(handleW, handleLen),
-                cornerRadius = CornerRadius(handleW / 2f, handleW / 2f),
-            )
+            // 公转方向指示（机器人外圈右侧一个红色小箭头，始终指向运动方向）
         }
+        // 不随自转的"前进方向"标记：放在机器人当前朝向角处（始终指公转切线方向）
+        val tangent = orbit + (Math.PI / 2).toFloat() // 顺时针切向
+        val headX = robotX + kotlin.math.cos(tangent) * robotR * 1.15f
+        val headY = robotY + kotlin.math.sin(tangent) * robotR * 1.15f
+        drawCircle(
+            color = Color(0xFFFF6E40),
+            radius = w * 0.012f,
+            center = Offset(headX, headY),
+        )
     }
 }

@@ -37,9 +37,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +65,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -482,86 +488,89 @@ fun AssistantScreen(
         })
     }
 
-    // V2.8X++：单条长按弹「复制/删除/多选」菜单（系统消息不弹，避免误删服务端回执）。
+    // V2.8X++：单条长按弹「复制/多选/删除」动作卡（系统消息不弹，避免误删服务端回执）。
+    // 微信风格：底部居中深色圆角卡 + 半透明 scrim，按返回键/点 scrim 关闭。每项 56dp 触控目标，
+    // 危险操作（删除）红色，其余白/灰；与原 AlertDialog 标题+纵向 TextButton 列表相比更接近 IM 习惯。
+    // 图标均来自 material-icons-core（项目红线：禁引 extended 库），缺图标的用 emoji 文字兜底。
+    if (messageMenuFor != null) {
+        // 返回键关闭弹层
+        BackHandler(enabled = true) { messageMenuFor = null }
+    }
     messageMenuFor?.let { id ->
         val msg = messages.firstOrNull { it.id == id }
         if (msg != null && msg.role != "system") {
             val copy = stringResource(R.string.action_copy)
-            val deleteOne = stringResource(R.string.assistant_msg_delete)
             val selectMore = stringResource(R.string.assistant_msg_select_more)
+            val deleteOne = stringResource(R.string.assistant_msg_delete)
             // ⚠️ onClick/scope.launch 是非 @Composable 上下文，须在此提前取值（项目红线）。
             val clipboard = LocalClipboardManager.current
             val copiedTip = stringResource(R.string.assistant_msg_copied)
             val deletedTip = stringResource(R.string.assistant_msg_deleted)
-            AlertDialog(
-                onDismissRequest = { messageMenuFor = null },
-                title = { Text(stringResource(R.string.assistant_msg_actions)) },
-                text = {
-                    Column {
+            // 顶部 scrim：覆盖全屏但不阻挡系统手势；点击 scrim 关闭
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { messageMenuFor = null },
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                // 底部动作卡：内部拦截 clickable，避免冒泡到 scrim
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .navigationBarsPadding()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { /* 拦截冒泡 */ },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    tonalElevation = 6.dp,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
                         // 复制
-                        TextButton(
+                        MsgActionItem(
+                            icon = Icons.Filled.Share,
+                            label = copy,
                             onClick = {
                                 clipboard.setText(AnnotatedString(msg.text))
                                 messageMenuFor = null
                                 scope.launch { snackbarHostState.showSnackbar(copiedTip) }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null)
-                                Spacer(Modifier.width(12.dp))
-                                Text(copy)
-                            }
-                        }
+                        )
                         // 多选
-                        TextButton(
+                        MsgActionItem(
+                            icon = Icons.Filled.CheckBoxOutlineBlank,
+                            label = selectMore,
                             onClick = {
                                 selectedIds.value = selectedIds.value + msg.id
                                 messageMenuFor = null
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Filled.CheckBoxOutlineBlank, contentDescription = null)
-                                Spacer(Modifier.width(12.dp))
-                                Text(selectMore)
-                            }
-                        }
-                        // 删除单条
-                        TextButton(
+                        )
+                        // 删除单条（红色）
+                        MsgActionItem(
+                            icon = Icons.Filled.Delete,
+                            label = deleteOne,
+                            tint = MaterialTheme.colorScheme.error,
                             onClick = {
                                 viewModel.removeMessage(msg.id)
                                 messageMenuFor = null
                                 scope.launch { snackbarHostState.showSnackbar(deletedTip) }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                Spacer(Modifier.width(12.dp))
-                                Text(deleteOne, color = MaterialTheme.colorScheme.error)
-                            }
-                        }
+                        )
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { messageMenuFor = null }) {
-                        Text(stringResource(R.string.action_cancel))
-                    }
-                },
-            )
+                }
+            }
         } else {
             // 已被删除或为 system，直接清理菜单状态
             messageMenuFor = null
@@ -879,6 +888,41 @@ private fun MessageRow(
         onClick = onClick,
         onLongClick = onLongClick,
     )
+}
+
+/**
+ * V2.8X++：长按弹框内单个动作项（微信风格：图标在上、标签在下，56dp 触控目标，胶囊形涟漪）。
+ * tint 不传则用 inverseOnSurface（白色），传了则用其值（删除用 error 红色）。
+ * Row 内以 Column 形态居中展示，列内 padding 给出点击命中区。
+ */
+@Composable
+private fun MsgActionItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = LocalContentColor.current,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .widthIn(min = 56.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+        )
+    }
 }
 
 /**
