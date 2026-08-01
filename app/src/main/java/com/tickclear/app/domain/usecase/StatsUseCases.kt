@@ -10,10 +10,11 @@ import com.tickclear.app.domain.model.RepeatType
 import com.tickclear.app.domain.model.TaskStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -44,18 +45,27 @@ class GetStatsUseCase @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<TaskStats> =
         taskRepository.observeAll().flatMapLatest { tasks ->
-            flow {
-                val result = runCatching {
-                    val completions = completionRepository.observeAll().first()
-                    val today = LocalDate.now()
-                    val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-                    // 今日完成率基于当日实例（active + completed），统一口径
-                    // ensureInstancesForDate 可能因底层存储异常而失败；该失败不应中断整页统计，
-                    // 降级为「不保证当日实例完整」继续聚合（todayTotal 可能偏低）。
-                    runCatching { instanceRepository.ensureInstancesForDate(today) }
-                        .onFailure { AppLogger.e("GetStatsUseCase", "ensureInstancesForDate failed, todayTotal may be low", it) }
-                    val todayInstances = instanceRepository.observeOn(today).first()
+            val today = LocalDate.now()
+            // 懒生成当日实例（幂等），复用流中 tasks 避免二次全量查询（L4 性能）；
+            // ensureInstancesForDate 可能因底层存储异常而失败，该失败不应中断整页统计，
+            // 降级为「不保证当日实例完整」继续聚合（todayTotal 可能偏低）。
+            val todayInstancesFlow = flow {
+                runCatching { instanceRepository.ensureInstancesForDate(today, tasks) }
+                    .onFailure { AppLogger.e("GetStatsUseCase", "ensureInstancesForDate failed, todayTotal may be low", it) }
+                // ⚠️ 必须持续订阅实例/完成日志（combine + emitAll），不能 .first() 快照：
+                // 完成重复任务只写 task_instance/completion_log、不改 task 表，
+                // 快照模式下外层 observeAll 不重发 → 统计页「今日完成/连续/累计」停滞、
+                // 且与热力图（由 completionsFlow 驱动）自相矛盾（P2 根因）。
+                emitAll(instanceRepository.observeOn(today))
+            }
+            // 三个响应式源任一变化即重算：completion_log（累计/连续/热力图）、
+            // 当日实例（今日完成/完成率）、活动分组（分组统计）。
+            combine(
+                completionRepository.observeAll(),
+                todayInstancesFlow,
+                groupRepository.observeActive(),
+            ) { completions, todayInstances, groups ->
+                runCatching {
                     val todayDone = todayInstances.count { it.status == TaskStatus.COMPLETED.code }
                     val todayTotal = todayInstances.size
                     val todayRate = if (todayTotal > 0) todayDone.toFloat() / todayTotal else 0f
@@ -63,7 +73,6 @@ class GetStatsUseCase @Inject constructor(
                     // 连续天数基于 CompletionLog 日期（PRD §7.3）
                     val streak = StreakUtils.computeStreak(completions.map { it.dateLocal })
 
-                    val groups = groupRepository.observeActive().first()
                     val byGroup = buildList {
                         groups.forEach { g ->
                             val gt = tasks.filter { it.deletedAt == null && it.groupId == g.id }
@@ -91,14 +100,11 @@ class GetStatsUseCase @Inject constructor(
                         byGroup = byGroup,
                         daily = daily,
                     )
-                }
-                if (result.isSuccess) {
-                    emit(result.getOrThrow())
-                } else {
+                }.getOrElse {
                     // 统计聚合失败（多为底层 Room 查询/实例生成异常）不应让统计页崩溃，
                     // 降级为安全空状态；真实异常已打 logcat 供定位根因。
-                    AppLogger.e("GetStatsUseCase", "stats compute failed, fallback safe", result.exceptionOrNull())
-                    emit(TaskStats(0, 0, 0, 0f, 0, emptyList(), emptyList()))
+                    AppLogger.e("GetStatsUseCase", "stats compute failed, fallback safe", it)
+                    TaskStats(0, 0, 0, 0f, 0, emptyList(), emptyList())
                 }
             }
         }

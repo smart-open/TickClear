@@ -139,6 +139,7 @@ internal fun AssistantConfigContent(
     var xzSerialNumber by remember { mutableStateOf("") }
     var otaCode by remember { mutableStateOf<String?>(null) }          // 6 位验证码
     var otaMessage by remember { mutableStateOf<String?>(null) }      // 状态消息
+    var otaIsError by remember { mutableStateOf(false) }              // 状态消息是否错误态（驱动颜色，避免嗅探本地化文案）
     var otaLoading by remember { mutableStateOf(false) }
     var otaDone by remember { mutableStateOf(false) }                  // 是否已执行过 OTA
     // V2.8X 连接测试：UI 触发后调用 XiaozhiConnectionTester，返回 Ok/Fail 结果。
@@ -319,6 +320,7 @@ internal fun AssistantConfigContent(
                                 scope.launch {
                                     otaLoading = true
                                     otaMessage = null
+                                    otaIsError = false
                                     otaCode = null
                                     otaDone = false
                                     // OTA 端点：官方（xiaozhi.me/tenclass）固定用 DEFAULT_OTA_URL；
@@ -355,6 +357,7 @@ internal fun AssistantConfigContent(
                                         onActivationCode = { code ->
                                             otaCode = code
                                             otaMessage = context.getString(R.string.assistant_two_step_waiting)
+                                            otaIsError = false
                                         },
                                     )
                                     otaLoading = false
@@ -370,20 +373,23 @@ internal fun AssistantConfigContent(
                                     }
                                     // 激活成功后清空 6 位码（绑定已完成，无需再输）
                                     otaCode = if (result.isActivated) null else result.code
-                                    // 文案按 step1 / step2 分状态给精准反馈。
-                                    otaMessage = when {
-                                        result.isActivated -> context.getString(R.string.assistant_two_step_ok)
-                                        result.step1Error != null -> context.getString(
-                                            R.string.assistant_two_step_step1_error,
-                                            result.step1Error,
-                                        )
-                                        result.step2Status == "TIMEOUT" -> context.getString(R.string.assistant_two_step_timeout)
-                                        result.step2Error != null -> context.getString(
-                                            R.string.assistant_two_step_step2_error,
-                                            result.step2Error,
-                                        )
-                                        else -> context.getString(R.string.assistant_two_step_unknown)
+                                    // 文案按 step1 / step2 分状态给精准反馈；同时用结构化字段标记错误态，
+                                    // 颜色据此渲染，不再嗅探本地化文案里的「失败/error」子串（那会让
+                                    // 「激活轮询异常：HTTP 500: ...」这类真实错误误显为成功色，P3）。
+                                    val (msg, isErr) = when {
+                                        result.isActivated ->
+                                            context.getString(R.string.assistant_two_step_ok) to false
+                                        result.step1Error != null ->
+                                            context.getString(R.string.assistant_two_step_step1_error, result.step1Error) to true
+                                        result.step2Status == "TIMEOUT" ->
+                                            context.getString(R.string.assistant_two_step_timeout) to true
+                                        result.step2Error != null ->
+                                            context.getString(R.string.assistant_two_step_step2_error, result.step2Error) to true
+                                        else ->
+                                            context.getString(R.string.assistant_two_step_unknown) to true
                                     }
+                                    otaMessage = msg
+                                    otaIsError = isErr
                                 }
                             },
                             enabled = !otaLoading && xzDeviceId.isNotBlank() && XiaozhiDeviceSimulator.isValidMacAddress(xzDeviceId),
@@ -407,6 +413,7 @@ internal fun AssistantConfigContent(
                                     xzSerialNumber = newSn
                                     otaCode = null
                                     otaMessage = null
+                                    otaIsError = false
                                     otaDone = false
                                 }
                             },
@@ -452,7 +459,7 @@ internal fun AssistantConfigContent(
                             Text(
                                 text = otaMessage!!,
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                                color = if (otaMessage!!.contains("失败") || otaMessage!!.contains("error"))
+                                color = if (otaIsError)
                                     androidx.compose.material3.MaterialTheme.colorScheme.error
                                 else
                                     androidx.compose.material3.MaterialTheme.colorScheme.primary,

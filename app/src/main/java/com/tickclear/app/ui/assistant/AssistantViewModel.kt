@@ -184,7 +184,9 @@ class AssistantViewModel @Inject constructor(
                 .filterNot { isReconnectNoise(it.text) }
                 .map { it.copy(text = MessageTextFilter.strip(it.text)) }
                 .filter { it.text.isNotBlank() }
-            _messages.value = cleaned.toChatMessages()
+            // 用 update 组合而非 value= 覆盖：历史加载期间 transport 可能已推来实时消息，
+            // 直接覆盖会丢消息（P3 竞争）。update 的 CAS 语义保证历史前置且不丢并发到达的实时消息。
+            _messages.update { live -> cleaned.toChatMessages() + live }
             AppLogger.d(
                 TAG,
                 "init 从 voice_history 加载历史消息 ${cleaned.size} 条（原始 ${initial.size} 条，丢弃重连/空串）",
@@ -803,10 +805,14 @@ class AssistantViewModel @Inject constructor(
     /** V2.8X++：识别"重连提示"残留消息。旧版本 onEvent(Reconnecting) 曾把这些字符串 append 到消息流并落库，
      *  现已在源头改为仅更新 _reconnectingStatus（顶栏状态栏展示，不进聊天），但 DB 里仍残留旧条目。
      *  加载历史时按字符串前缀丢弃，避免「顶部已显示已连接/未连接，但聊天列表却刷满连接中断...」的体验割裂。 */
+    /** 旧版遗留「重连提示」消息前缀：从 assistant_reconnecting 资源派生（去掉占位符前的部分），
+     *  仅在加载历史时用于丢弃旧版落库的噪声；新版本已从源头不再写入消息流。
+     *  用资源派生而非硬编码中文，避免资源文案调整后检测失效并满足中文集中 strings.xml 红线。 */
+    private val reconnectNoisePrefix: String =
+        appContext.getString(R.string.assistant_reconnecting).substringBefore("（第")
     private fun isReconnectNoise(text: String): Boolean {
-        // assistant_reconnecting = "连接中断，正在重连（第 %1$d/%2$d 次）…"
         // assistant_connect_error = "连接失败：%1$s" —— 一次性错误，仍保留给用户排查，故不丢
-        return text.startsWith("连接中断，正在重连")
+        return text.startsWith(reconnectNoisePrefix)
     }
 
     /**

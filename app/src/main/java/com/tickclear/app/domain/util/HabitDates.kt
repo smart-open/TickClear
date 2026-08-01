@@ -1,14 +1,13 @@
 package com.tickclear.app.domain.util
 
 import com.tickclear.app.domain.model.Habit
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
-private val DATE_FMT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+private val DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
 
-/** 今天本地日期（yyyy-MM-dd）。 */
-fun todayLocal(): String = DATE_FMT.format(Date())
+/** 今天本地日期（yyyy-MM-dd）。java.time 实现，线程安全（SimpleDateFormat 非线程安全，旧实现在多协程并发下会错乱）。 */
+fun todayLocal(): String = LocalDate.now().format(DATE_FMT)
 
 /**
  * yyyy-MM-dd -> epoch 天数。
