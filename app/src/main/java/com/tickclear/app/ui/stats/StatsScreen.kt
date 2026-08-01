@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -225,26 +226,39 @@ private fun StatsOverviewColumn(
             )
         }
 
-        // 打卡记录
+        // 打卡记录：3 张卡片内容长度不同（"✅ N" / "🔥 N天" / "🕓 MM-dd 或 —"），宽度由 weight(1f) 已均分，
+        // 但高度各按自身内容撑开 → 视觉参差。IntrinsicSize.Max 强制 Row 取子项最大内在高度，
+        // 每个 StatCard fillMaxHeight 撑到该最大高度，3 卡底边对齐。
         SectionTitle(stringResource(R.string.stats_checkin_section))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             StatCard(
                 emoji = "✅",
                 value = "${state.checkInDays}",
                 label = stringResource(R.string.stats_checkin_days),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
             )
             StatCard(
                 emoji = "🔥",
                 value = stringResource(R.string.stats_streak_value, state.checkInStreak),
                 label = stringResource(R.string.stats_checkin_streak),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
             )
             StatCard(
                 emoji = "🕓",
                 value = state.recentCheckIn ?: "—",
                 label = stringResource(R.string.stats_recent_checkin),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
             )
         }
     }

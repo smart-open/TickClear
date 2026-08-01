@@ -285,6 +285,9 @@
     <string name="assistant_unconfigured_title">还没有配置助手</string>
     <string name="assistant_unconfigured_desc">选择服务商并填写接入信息，即可用语音或文字创建任务。</string>
     <string name="assistant_unconfigured_action">去配置</string>
+    <!-- V2.8X++：配置完成但消息列表为空时的引导（未配置走上面的空状态） -->
+    <string name="assistant_empty_title">对话还是空的</string>
+    <string name="assistant_empty_desc">点击麦克风说话，或在下方输入框打字；也可试试「提醒我明早九点开会」快速建任务。</string>
     <string name="assistant_mode_label">运行模式</string>
     <string name="assistant_mode_real_chip">真实小智</string>
     <string name="assistant_endpoint_label">网关地址</string>

@@ -383,7 +383,9 @@ private fun TodayMainContent(
             } else {
                 LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(bottom = 88.dp),
+                    // V2.8X++：contentPadding.top = Spacing.xs，配合下方鼓励语 item 的 vertical = Spacing.xs，
+                    // 与 spacedBy(Spacing.xs) 相加得 8dp 上下视觉对称（之前 0 + 8dp 上 / 8dp + 4dp 下 → 上紧下松偏上）。
+                    contentPadding = PaddingValues(top = Spacing.xs, bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -392,7 +394,7 @@ private fun TodayMainContent(
                             text = state.encouragement,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                         )
                     }
 

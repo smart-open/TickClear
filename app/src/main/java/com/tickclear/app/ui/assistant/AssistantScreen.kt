@@ -51,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
@@ -118,8 +119,7 @@ fun AssistantScreen(
     val recording by viewModel.recording.collectAsStateWithLifecycle()
     val pendingDraft by viewModel.pendingDraft.collectAsStateWithLifecycle()
     val wakeWordActive by viewModel.wakeWordActive.collectAsStateWithLifecycle()
-    // V2.8X++：启动期连接诊断 banner + 麦克风即时反馈 toast
-    val connectionBanner by viewModel.connectionBanner.collectAsStateWithLifecycle()
+    // V2.8X++：麦克风按下即时反馈 → 短 toast（连接诊断已不再顶栏 banner 展示）
     val micToast by viewModel.micToast.collectAsStateWithLifecycle()
     // V2.8X++：重连进度仅在顶部状态栏芯片展示（由 ViewModel 更新，不进消息流）。
     val reconnectingStatus by viewModel.reconnectingStatus.collectAsStateWithLifecycle()
@@ -210,41 +210,10 @@ fun AssistantScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        // V2.8X++：启动期连接诊断 banner（紧贴顶栏下方，红底，可关闭）。
-        // 不进消息流，避免「用户进 tab 默认空白」诉求被破坏。
+        // V2.8X++：连接状态仅靠顶部「未连接 / 重连中…」芯片呈现，不再单独弹红 banner，
+        // 避免一进 tab 就被大块错误信息糊一脸（用户反馈：顶部有提示这个要去掉）。
+        // 详细诊断信息仍走 AppLogger，可在「设置 → 诊断日志」中查看。
         topBar = {
-            Column {
-                connectionBanner?.let { banner ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Filled.Warning,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = banner,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(
-                                onClick = { viewModel.dismissConnectionBanner() },
-                            ) {
-                                Text(stringResource(R.string.assistant_connection_banner_dismiss))
-                            }
-                        }
-                    }
-                }
             // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示。
             // V2.8X++：多选模式下替换为「已选 N 项」+ 全选/取消/删除 顶栏（参考微信）。
             TopAppBar(
@@ -328,7 +297,6 @@ fun AssistantScreen(
                     }
                 },
             )
-            } // Column close（包 banner + TopAppBar）
         },
         bottomBar = {
             // V2.8X++：多选模式下不显示输入栏（避免与微信行为一致：多选时仅可删除，不能继续输入/录音）
@@ -746,6 +714,14 @@ private fun AssistantChatBody(
                 actionLabel = stringResource(R.string.assistant_unconfigured_action),
                 onAction = onConfigure,
             )
+        } else if (messages.isEmpty()) {
+            // V2.8X++：已配置但消息列表为空时的引导 —— 之前直接渲染空 LazyColumn，
+            // 新用户进 tab 一片空白不知从哪下手。宽屏亦展示，避免双栏右侧留白。
+            EmptyStateGuide(
+                icon = "💬",
+                title = stringResource(R.string.assistant_empty_title),
+                message = stringResource(R.string.assistant_empty_desc),
+            )
         } else {
             LazyColumn(
                 state = listState,
@@ -848,11 +824,8 @@ private fun ChatBubble(
                     .background(MaterialTheme.colorScheme.tertiaryContainer)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Text(
-                    msg.text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
+                // V2.8X++：系统消息文字也支持直接选择复制（与用户/助手一致）。
+                SelectionContainer { Text(msg.text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer) }
             }
         } else {
             Box(
@@ -868,12 +841,18 @@ private fun ChatBubble(
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Text(
-                    msg.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // V2.8X++：把 Text 包进 SelectionContainer —— 长按文字直接走系统文本选择菜单
+                // （复制/全选），与外部气泡 onLongClick 的「复制/删除/多选」菜单并存：
+                //   - 长按文字本身 → 系统文本选择（复制更快）
+                //   - 长按气泡留白 → 自定义菜单（含复制/删除/多选，保留历史行为）
+                SelectionContainer {
+                    Text(
+                        msg.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
