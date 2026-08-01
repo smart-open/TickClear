@@ -12,6 +12,17 @@ import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +47,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tickclear.app.ui.navigation.ShortcutHelper
 import com.tickclear.app.ui.navigation.TickClearApp
 import dagger.hilt.android.AndroidEntryPoint
@@ -181,7 +191,10 @@ private fun LaunchSplash(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.alpha(alpha.value),
         ) {
-            Text("🧹", fontSize = 64.sp, modifier = Modifier.scale(scale.value))
+            // 扫帚：用 Canvas 绘制并做左右清扫（尘屑被扫起淡出），替代原静态 emoji，直观呼应「点清」隐喻。
+            Box(modifier = Modifier.scale(scale.value)) {
+                BroomSweep(Modifier.fillMaxWidth().height(150.dp))
+            }
             Text(
                 stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
@@ -206,6 +219,116 @@ private fun LaunchSplash(onDismiss: () -> Unit) {
                 stringResource(R.string.splash_skip_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            )
+        }
+    }
+}
+
+/**
+ * 开屏扫帚清扫动画：Canvas 绘制扫帚，沿地面左右往复清扫（带轻微摆动），
+ * 扫过的地面尘屑被"扫起"并淡出，直观呼应「点清 / 清理」的产品隐喻。
+ * 由 [LaunchSplash] 在 3 秒开机层内持续播放；零新依赖。
+ */
+@Composable
+private fun BroomSweep(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "broom")
+    // 左右往复：归一化 -1..1
+    val sweep by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "sweep",
+    )
+    // 刷毛轻微抖动，增强"正在清扫"的生动感
+    val wiggle by transition.animateFloat(
+        initialValue = -0.14f,
+        targetValue = 0.14f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "wiggle",
+    )
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val groundY = h * 0.72f
+        val amp = w * 0.30f
+        val tipX = w / 2f + sweep * amp
+        val tiltDeg = sweep * 15f + wiggle * 9f
+
+        // 地面参考线
+        drawLine(
+            color = Color.LightGray.copy(alpha = 0.5f),
+            start = Offset(w * 0.12f, groundY),
+            end = Offset(w * 0.88f, groundY),
+            strokeWidth = w * 0.003f,
+        )
+
+        // 尘屑：被扫帚经过时点亮并淡出
+        val dustCount = 7
+        val baseR = w * 0.012f
+        for (i in 0 until dustCount) {
+            val dx = w * (0.16f + 0.68f * i / (dustCount - 1))
+            val dist = kotlin.math.abs(dx - tipX)
+            val near = (1f - dist / (amp * 0.95f)).coerceIn(0f, 1f)
+            if (near > 0.02f) {
+                drawCircle(
+                    color = Color.Gray.copy(alpha = near * 0.55f),
+                    radius = baseR * (0.55f + near),
+                    center = Offset(dx, groundY + h * 0.015f),
+                )
+            }
+        }
+
+        // 扫帚本体（刷毛在地面、手柄朝上，整体随清扫倾斜）
+        withTransform({
+            translate(tipX, groundY)
+            rotate(tiltDeg)
+        }) {
+            val bristleLen = h * 0.30f
+            val baseHalf = w * 0.05f
+            val topHalf = w * 0.032f
+            // 刷毛主体
+            drawPath(
+                path = Path().apply {
+                    moveTo(-baseHalf, 0f)
+                    lineTo(baseHalf, 0f)
+                    lineTo(topHalf, -bristleLen)
+                    lineTo(-topHalf, -bristleLen)
+                    close()
+                },
+                color = Color(0xFFC89B6A),
+            )
+            // 刷毛丝
+            val strands = 7
+            for (s in 0..strands) {
+                val fx = -baseHalf + (2f * baseHalf) * s / strands
+                drawLine(
+                    color = Color(0xFF9C6B3F),
+                    start = Offset(fx, 0f),
+                    end = Offset(fx * 0.5f, -bristleLen),
+                    strokeWidth = w * 0.004f,
+                )
+            }
+            // 捆扎环
+            drawRect(
+                color = Color(0xFF7A5230),
+                topLeft = Offset(-topHalf * 1.5f, -bristleLen - h * 0.012f),
+                size = Size(topHalf * 3f, h * 0.026f),
+            )
+            // 手柄
+            val handleLen = h * 0.44f
+            val handleW = w * 0.024f
+            drawRoundRect(
+                color = Color(0xFFB07D4F),
+                topLeft = Offset(-handleW / 2f, -bristleLen - h * 0.02f - handleLen),
+                size = Size(handleW, handleLen),
+                cornerRadius = CornerRadius(handleW / 2f, handleW / 2f),
             )
         }
     }
