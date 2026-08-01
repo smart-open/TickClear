@@ -1,5 +1,9 @@
 package com.tickclear.app.ui.assistant
 
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
@@ -132,6 +136,7 @@ class AssistantViewModel @Inject constructor(
     private val capture = AudioCapture()
     private val localRecognizer = LocalSpeechRecognizer(appContext)
     private val wakeWordManager = WakeWordManager(appContext, settingsRepository)
+    private var processLifecycleObserver: DefaultLifecycleObserver? = null
     private var seq = 0L
     private fun nextId() = ++seq
 
@@ -211,6 +216,19 @@ class AssistantViewModel @Inject constructor(
             )
             _voiceSupported.value = xzAsrReady || cloudAsrReady
         }
+
+        // V2.8X++：连接生命周期改为跟随「应用前后台」（ProcessLifecycleOwner），而非助手页 composition。
+        // 切到其它 tab 时不再断 WebSocket/音频（消除切 tab 卡顿），仅当整个 App 退到后台才释放资源；
+        // 返回前台自动重连。应用已在前台（多数情况）则立即建连，避免等下一次前后台切换才连。
+        val obs = object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) { connect() }
+            override fun onStop(owner: LifecycleOwner) { disconnectTransport() }
+        }
+        processLifecycleObserver = obs
+        ProcessLifecycleOwner.get().lifecycle.addObserver(obs)
+        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            connect()
+        }
     }
 
     private fun asrSupportsVoice(asr: String): Boolean = when (asr) {
@@ -259,6 +277,31 @@ class AssistantViewModel @Inject constructor(
             if (llm == LlmProviderCatalog.XIAOZHI) transport.disconnect()
             _connected.value = false
         }
+    }
+
+    /**
+     * V2.8X++：仅释放传输层（WebSocket / AudioTrack）与连接态，用于「应用退到后台」时调用。
+     * 与 [disconnect] 不同：这里**不**在切 tab 时调用，避免每次切 tab 都重连导致卡顿；
+     * 同时顺手停掉麦克风与唤醒词监听（后台无需常驻收音）。
+     */
+    private fun disconnectTransport() {
+        if (_recording.value) stopVoice()
+        stopWakeWord()
+        viewModelScope.launch {
+            val llm = settingsRepository.llmProvider.first()
+            AppLogger.d(TAG, "disconnectTransport() llm=$llm（应用退后台）")
+            if (llm == LlmProviderCatalog.XIAOZHI) transport.disconnect()
+            _connected.value = false
+        }
+    }
+
+    /**
+     * V2.8X++：切离助手页（仍在前台，如切到其它 tab）时由 UI 调用。
+     * 只停麦克风与唤醒词，**保留** WebSocket 连接——避免每次切 tab 都重连导致卡顿。
+     */
+    fun onScreenHidden() {
+        if (_recording.value) stopVoice()
+        stopWakeWord()
     }
 
     /** V2.20：依据当前设置判断助手是否可正常工作（未配置时展示引导）。 */
@@ -890,6 +933,9 @@ class AssistantViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        // V2.8X++：先移除进程生命周期观察者，避免 VM 销毁后仍收到前后台回调。
+        processLifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
+        processLifecycleObserver = null
         // capture.stop() 内含 thread.join()，onCleared 运行于主线程，移出到独立线程避免阻塞 UI（ANR 风险）。
         val capturing = _recording.value
         Thread {

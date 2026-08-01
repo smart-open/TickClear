@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,11 +63,9 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -88,6 +85,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -137,7 +142,10 @@ fun AssistantScreen(
     // V2.8X++：输入框聚焦态——获焦(键盘起)时隐藏话筒(纯打字)，失焦时话筒重现(微信式切换)。
     var isFocused by remember { mutableStateOf(false) }
     var showConfig by remember { mutableStateOf(initialOpenConfig) }
-    val listState = rememberLazyListState()
+    // V2.8X++：切回助手页时初始位置直接落在末条（避免从顶部 animateScrollToItem 造成的跳动卡顿）。
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = if (messages.isNotEmpty()) messages.lastIndex else 0,
+    )
     var pendingVoiceStart by remember { mutableStateOf(false) }
     var pendingWakeStart by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -152,19 +160,26 @@ fun AssistantScreen(
     // 状态在 AssistantScreen 顶层，跨 LazyColumn item 共享。messageMenuFor：长按单条弹菜单时锁定。
     val selectedIds = remember { mutableStateOf<Set<Long>>(emptySet()) }
     val selectionMode = selectedIds.value.isNotEmpty()
+    // V2.8X++：记录每条消息在窗口中的包围盒，供长按弹框锚定到「选中行下方」（非底部弹层）。
+    val messageRects = remember { mutableMapOf<Long, Rect>() }
     var messageMenuFor by remember { mutableStateOf<Long?>(null) }
     var confirmClearAll by remember { mutableStateOf(false) }
     val permissionDeniedMsg = stringResource(R.string.error_permission_record)
 
     val recordPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
-    LaunchedEffect(Unit) { viewModel.connect() }
-    // 离开助手页（切到其它 Tab / 返回）即断开 WebSocket 并释放音频资源，避免连接与 IO 协程常驻泄露。
+    // V2.8X++：连接生命周期已下沉到 ViewModel（跟随应用前后台，见 AssistantViewModel），
+    // 切 tab 不再断连；此处仅负责「切离助手页」时停麦/停唤醒词，保留 WebSocket 连接避免重连卡顿。
     DisposableEffect(Unit) {
-        onDispose { viewModel.disconnect() }
+        onDispose { viewModel.onScreenHidden() }
     }
+    // V2.8X++：仅当「新消息到达（size 增大）」才平滑动画；切回 tab 时不触发动画（初始位置已到底）。
+    val prevMsgCount = remember { mutableStateOf(messages.size) }
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+        if (messages.size > prevMsgCount.value) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+        prevMsgCount.value = messages.size
     }
     // V2.8X++：麦克风按下即时反馈 → 短 toast。
     LaunchedEffect(micToast) {
@@ -474,6 +489,7 @@ fun AssistantScreen(
                             selectedIds.value - id else selectedIds.value + id
                     },
                     onLongPressMessage = { id -> messageMenuFor = id },
+                    onMeasureRect = { id, rect -> messageRects[id] = rect },
                     modifier = Modifier.weight(1f).fillMaxSize(),
                 )
                 HorizontalDivider(
@@ -506,8 +522,9 @@ fun AssistantScreen(
                     selectedIds.value = if (selectedIds.value.contains(id))
                         selectedIds.value - id else selectedIds.value + id
                 },
-                onLongPressMessage = { id -> messageMenuFor = id },
-                modifier = Modifier.fillMaxSize().padding(padding),
+                    onLongPressMessage = { id -> messageMenuFor = id },
+                    onMeasureRect = { id, rect -> messageRects[id] = rect },
+                    modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
         } // Box close（点击失焦包裹层）
@@ -520,59 +537,52 @@ fun AssistantScreen(
         })
     }
 
-    // V2.8X++：单条长按弹「复制/多选/删除」动作卡（系统消息不弹，避免误删服务端回执）。
-    // 微信风格：底部居中圆角卡（主题色 surfaceContainerHigh/onSurface，随明暗主题自适应、非深色）+ 半透明 scrim，
-    // 按返回键/点 scrim 关闭。尺寸约为原版一半（宽度 50%），危险操作（删除）红色，其余用 onSurface。
-    // 图标均来自 material-icons-core（项目红线：禁引 extended 库），缺图标的用 emoji 文字兜底。
-    if (messageMenuFor != null) {
-        // 返回键关闭弹层
-        BackHandler(enabled = true) { messageMenuFor = null }
-    }
+    // V2.8X++：单条长按弹「复制/多选/删除」动作卡（系统消息不弹）。
+    // 改为锚定在「选中行下方」的紧凑下拉（Popup + PopupPositionProvider），跟随主题色，
+    // 高度较旧版再减约 1/3；下方空间不足时自动翻到行上方。Popup 自带点外部/返回键关闭。
     messageMenuFor?.let { id ->
         val msg = messages.firstOrNull { it.id == id }
         if (msg != null && msg.role != "system") {
             val copy = stringResource(R.string.action_copy)
             val selectMore = stringResource(R.string.assistant_msg_select_more)
             val deleteOne = stringResource(R.string.assistant_msg_delete)
-            // ⚠️ onClick/scope.launch 是非 @Composable 上下文，须在此提前取值（项目红线）。
-            // clipboard / copiedTip 已在 AssistantScreen 顶层取值，此处仅取删除提示。
+            // clipboard / copiedTip 已在 AssistantScreen 顶层取值（onClick 非 @Composable 上下文，项目红线）。
             val deletedTip = stringResource(R.string.assistant_msg_deleted)
-            // 顶部 scrim：覆盖全屏但不阻挡系统手势；点击 scrim 关闭
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { messageMenuFor = null },
-                contentAlignment = Alignment.BottomCenter,
+            val rect = messageRects[id]
+            Popup(
+                onDismissRequest = { messageMenuFor = null },
+                popupPositionProvider = object : PopupPositionProvider {
+                    override fun calculatePosition(
+                        anchorBounds: IntRect,
+                        windowSize: IntSize,
+                        layoutDirection: LayoutDirection,
+                        popupContentSize: IntSize,
+                    ): IntOffset {
+                        if (rect == null) return IntOffset.Zero
+                        val x = rect.left.roundToInt()
+                        var y = rect.bottom.roundToInt()
+                        // 下方空间不足则翻到选中行上方
+                        if (y + popupContentSize.height > windowSize.height) {
+                            y = (rect.top - popupContentSize.height).roundToInt()
+                        }
+                        return IntOffset(x.coerceAtLeast(0), y.coerceAtLeast(0))
+                    }
+                },
             ) {
-                // 底部动作卡：内部拦截 clickable，避免冒泡到 scrim
-                // V2.8X++：长按菜单——主题色（surfaceContainerHigh/onSurface，随明暗主题自适应）+ 尺寸减半（宽度 50%、内边距与图标同步缩小）
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.5f)
-                        .widthIn(max = 360.dp)
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                        .navigationBarsPadding()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { /* 拦截冒泡 */ },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface,
-                    tonalElevation = 6.dp,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp,
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                            .padding(horizontal = 4.dp, vertical = 3.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        // 复制
-                        MsgActionItem(
+                        CompactMsgAction(
                             icon = Icons.Filled.Share,
                             label = copy,
                             onClick = {
@@ -581,8 +591,7 @@ fun AssistantScreen(
                                 scope.launch { snackbarHostState.showSnackbar(copiedTip) }
                             },
                         )
-                        // 多选
-                        MsgActionItem(
+                        CompactMsgAction(
                             icon = Icons.Filled.CheckBoxOutlineBlank,
                             label = selectMore,
                             onClick = {
@@ -590,8 +599,7 @@ fun AssistantScreen(
                                 messageMenuFor = null
                             },
                         )
-                        // 删除单条（红色）
-                        MsgActionItem(
+                        CompactMsgAction(
                             icon = Icons.Filled.Delete,
                             label = deleteOne,
                             tint = MaterialTheme.colorScheme.error,
@@ -735,6 +743,7 @@ private fun AssistantChatBody(
     selectedIds: Set<Long>,
     onToggleSelect: (Long) -> Unit,
     onLongPressMessage: (Long) -> Unit,
+    onMeasureRect: (Long, Rect) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -786,6 +795,7 @@ private fun AssistantChatBody(
                             if (!selectionMode) onLongPressMessage(msg.id)
                             else onToggleSelect(msg.id)
                         },
+                        onMeasureRect = onMeasureRect,
                     )
                 }
             }
@@ -845,7 +855,9 @@ private fun ChatBubble(
         else -> Modifier
     }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coords -> onMeasureRect(msg.id, coords.boundsInWindow()) },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
@@ -913,6 +925,7 @@ private fun MessageRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onMeasureRect: (Long, Rect) -> Unit = {},
 ) {
     ChatBubble(
         msg = msg,
@@ -929,7 +942,7 @@ private fun MessageRow(
  * Row 内以 Column 形态居中展示，列内 padding 给出点击命中区。
  */
 @Composable
-private fun MsgActionItem(
+private fun CompactMsgAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -937,18 +950,18 @@ private fun MsgActionItem(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-            .widthIn(min = 48.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .widthIn(min = 44.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
         )
         Text(
             text = label,
