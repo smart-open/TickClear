@@ -42,11 +42,19 @@
             </intent-filter>
         </activity>
 
+        <!--
+            全屏提醒页：必须能在锁屏之上直接亮屏展示，否则高优先级提醒在锁屏态只剩一条通知。
+            showWhenLocked/turnScreenOn 为 API 27+ 的清单等价物（代码侧另有 API 27+ 的运行时调用兜底）；
+            excludeFromRecents 避免提醒页残留在最近任务里被误点。
+        -->
         <activity
             android:name=".FullScreenAlertActivity"
             android:exported="false"
             android:theme="@style/Theme.TickClear"
             android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
             android:taskAffinity="" />
 
         <receiver
@@ -55,6 +63,11 @@
             android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <!-- 覆盖安装会清空本应用全部 AlarmManager 闹钟，必须重排 -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- 跨时区 / 手动改系统时间会让 RTC 闹钟整体漂移，同样需要重排 -->
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
         </receiver>
 

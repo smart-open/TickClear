@@ -90,6 +90,11 @@ class LocationReminderService : Service() {
             stopSelf()
             return
         }
+        // V2.8X 修复：onStartCommand 会被反复调用（新增位置任务、START_STICKY 重启、GeofenceScheduler.sync）。
+        // 此前每次都新建 HandlerThread 并重新注册 LocationListener，旧的既不反注册也不 quit ——
+        // 线程与监听器逐次堆积（onDestroy 只清理最后一份），既泄露线程也持续多路耗电定位。
+        // 已在监听中则直接复用；任务列表变化由 geoTasks 字段承载，无需重建监听。
+        if (listener != null && handlerThread != null) return
         handlerThread = HandlerThread("LocationReminder").also { it.start() }
         val looper = handlerThread!!.looper
         val locListener = object : LocationListener {

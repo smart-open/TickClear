@@ -1,6 +1,11 @@
 package com.tickclear.app
 
+import android.app.KeyguardManager
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -44,13 +49,37 @@ class FullScreenAlertActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // V2.8X 修复：此前既没有清单属性也没有运行时调用 —— 锁屏态下全屏意图被系统拉起后
+        // 只能停在锁屏后面，用户看不到提醒页（"锁屏不提醒"的关键一环）。
+        // API 27+ 用官方 API；24~26 退回等价的窗口标志（该场景下这些 flag 仍受支持）。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+            )
+        }
+        // 解除 keyguard（无密码锁屏可直接解除；有密码锁屏系统会保留验证，属预期行为）。
+        runCatching {
+            (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)
+                ?.requestDismissKeyguard(this, null)
+        }
+
         val taskId = intent.getStringExtra(ReminderReceiver.EXTRA_TASK_ID) ?: run { finish(); return }
         val instanceId = intent.getStringExtra(ReminderReceiver.EXTRA_INSTANCE_ID) ?: "$taskId@today"
 
         var snoozeMin by mutableIntStateOf(ReminderReceiver.SNOOZE_DEFAULT_MIN)
+        // 提醒级别：稍后提醒要沿用同一闹钟通道，否则高优先级会被降级成可被 Doze 延迟的普通闹钟。
+        var level = "high"
         lifecycleScope.launch {
             val ep = EntryPointAccessors.fromApplication(this@FullScreenAlertActivity, ReminderScheduler.ReminderEntryPoint::class.java)
-            title = ep.taskRepository().getById(taskId)?.title ?: getString(R.string.fullscreen_reminder_unknown)
+            val task = ep.taskRepository().getById(taskId)
+            title = task?.title ?: getString(R.string.fullscreen_reminder_unknown)
+            level = task?.reminderLevel ?: "high"
             // V2.30 稍后提醒时长取用户设置（默认 15 分钟）。
             snoozeMin = ep.settingsRepository().snoozeDefaultMin.first()
         }
@@ -78,26 +107,41 @@ class FullScreenAlertActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                     ) {
-                        TextButton(onClick = { finish() }) {
+                        TextButton(onClick = {
+                            dismissNotification(instanceId)
+                            finish()
+                        }) {
                             Text(getString(R.string.fullscreen_reminder_dismiss))
                         }
                         TextButton(onClick = {
-                            lifecycleScope.launch {
-                                ReminderScheduler.scheduleSnooze(this@FullScreenAlertActivity, instanceId, taskId, snoozeMin)
-                            }
+                            ReminderScheduler.scheduleSnooze(this@FullScreenAlertActivity, instanceId, taskId, snoozeMin, level)
+                            dismissNotification(instanceId)
                             finish()
                         }) {
                             Text(getString(R.string.fullscreen_reminder_snooze))
                         }
                         Button(onClick = {
-                            lifecycleScope.launch { complete(taskId, instanceId) }
-                            finish()
+                            // 修复：此前 launch 后立即 finish()，lifecycleScope 随 onDestroy 取消，
+                            // 完成写库可能被中途取消（"点了完成却没生效"）。改为写完再关闭页面。
+                            lifecycleScope.launch {
+                                complete(taskId, instanceId)
+                                dismissNotification(instanceId)
+                                finish()
+                            }
                         }) {
                             Text(getString(R.string.fullscreen_reminder_complete))
                         }
                     }
                 }
             }
+        }
+    }
+
+    /** 收起通知栏里对应的那条提醒：全屏页处理完动作后通知不应继续悬挂。 */
+    private fun dismissNotification(instanceId: String) {
+        runCatching {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .cancel(com.tickclear.app.domain.scheduler.ReminderIds.notificationId(instanceId))
         }
     }
 

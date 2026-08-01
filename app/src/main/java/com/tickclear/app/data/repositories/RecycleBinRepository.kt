@@ -35,9 +35,23 @@ class RecycleBinRepositoryImpl @Inject constructor(
         taskDao.hardDelete(id)
     }
 
-    override suspend fun purgeGroup(id: String) { groupDao.hardDelete(id) }
+    /**
+     * 彻底删除任务组。
+     *
+     * V2.8X 修复：此前直接 hardDelete —— task.groupId 上有 `ForeignKey(NO_ACTION)` 外键，
+     * 只要组内还有任何任务（含未软删的、以及软删但未到 30 天的），SQLite 就抛
+     * FOREIGN KEY constraint failed，导致「回收站 → 彻底删除组」必崩。
+     * 现先把引用该组的任务脱离（groupId 置空），再删组。
+     */
+    override suspend fun purgeGroup(id: String) {
+        taskDao.detachByGroup(id)
+        groupDao.hardDelete(id)
+    }
+
     override suspend fun purgeExpired(cutoff: Long) {
         taskDao.purgeExpired(cutoff)
+        // 同上：过期组被物理删除前，先让仍存活的成员任务脱离，避免整批清理因外键约束失败。
+        taskDao.detachFromExpiredGroups(cutoff)
         groupDao.purgeExpired(cutoff)
         taskInstanceRepository.purgeDeleted()
     }

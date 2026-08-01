@@ -37,6 +37,16 @@ interface TaskInstanceDao {
     @Query("DELETE FROM task_instance WHERE taskId = :taskId")
     suspend fun deleteByTask(taskId: String)
 
+    /**
+     * 清掉某任务「今天及以后、尚未完成/跳过」的实例，供编辑任务后重建用。
+     *
+     * 实例是懒生成且 `@Insert(IGNORE)` 幂等的：把任务时间从 09:00 改到 20:00 后，
+     * 当天那条 dueMinute=540 的旧实例不会被覆盖，于是列表还显示旧时间、提醒也按旧时刻排。
+     * 这里只删未完成的当天及未来实例，历史与已完成/已跳过记录原样保留（统计不受影响）。
+     */
+    @Query("DELETE FROM task_instance WHERE taskId = :taskId AND dueDateLocal >= :from AND status = 0")
+    suspend fun deletePendingFrom(taskId: String, from: String)
+
     /** 清理软删任务遗留的实例。 */
     @Query("DELETE FROM task_instance WHERE taskId IN (SELECT id FROM task WHERE deletedAt IS NOT NULL)")
     suspend fun deleteForDeletedTasks()

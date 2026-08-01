@@ -82,7 +82,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
@@ -164,21 +167,27 @@ fun AssistantScreen(
         }
     }
     // V2.66 常驻唤醒：被前台服务唤醒跳转到助手页后，消费待处理标记并监听后续唤醒事件，自动开始收音。
-    LaunchedEffect(Unit) {
-        if (WakeWordBus.consumePending()) {
-            if (recordPermission.status is PermissionStatus.Granted) {
-                viewModel.startVoice()
-            } else {
-                pendingVoiceStart = true
-                recordPermission.launchPermissionRequest()
+    // V2.8X 修复：原来直接在 LaunchedEffect(Unit) 里 collect，只要助手页还在返回栈上（哪怕 App 已退到后台
+    // 或屏幕已锁），唤醒事件仍会触发 startVoice —— 在后台静默开麦，既是隐私问题，
+    // 也会在 Android 12+ 因无前台权限抛 SecurityException。现用 repeatOnLifecycle 绑定到 STARTED。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            if (WakeWordBus.consumePending()) {
+                if (recordPermission.status is PermissionStatus.Granted) {
+                    viewModel.startVoice()
+                } else {
+                    pendingVoiceStart = true
+                    recordPermission.launchPermissionRequest()
+                }
             }
-        }
-        WakeWordBus.events.collect {
-            if (recordPermission.status is PermissionStatus.Granted) {
-                viewModel.startVoice()
-            } else {
-                pendingVoiceStart = true
-                recordPermission.launchPermissionRequest()
+            WakeWordBus.events.collect {
+                if (recordPermission.status is PermissionStatus.Granted) {
+                    viewModel.startVoice()
+                } else {
+                    pendingVoiceStart = true
+                    recordPermission.launchPermissionRequest()
+                }
             }
         }
     }

@@ -37,6 +37,17 @@ interface TaskDao {
     @Query("UPDATE task SET groupId = NULL WHERE groupId = :groupId")
     suspend fun detachByGroup(groupId: String)
 
+    /**
+     * 让所有引用「即将被物理删除的过期组」的任务先脱离该组。
+     * task.groupId 上的外键是 NO_ACTION，直接 DELETE 组会抛 SQLiteConstraintException，
+     * 使回收站的 30 天自动清理整体失败（且每次清理都再失败一次）。
+     */
+    @Query(
+        "UPDATE task SET groupId = NULL WHERE groupId IN " +
+            "(SELECT id FROM task_group WHERE deletedAt IS NOT NULL AND deletedAt < :cutoff)",
+    )
+    suspend fun detachFromExpiredGroups(cutoff: Long)
+
     @Query("UPDATE task SET groupId = NULL WHERE id = :id")
     suspend fun detachFromGroup(id: String)
 

@@ -23,6 +23,15 @@ class AudioCapture {
 
     private var record: AudioRecord? = null
     private var thread: Thread? = null
+
+    /**
+     * 采集循环开关。
+     *
+     * V2.8X 修复：原为普通 `Boolean`。stop() 在主线程写、采集循环在录音线程读，
+     * 无 happens-before 保证时 JIT 可把 `while (running)` 提升为常量 —— 表现为
+     * 「停止录音后线程仍在跑、麦克风不释放」。加 @Volatile 保证跨线程可见性。
+     */
+    @Volatile
     private var running = false
     private var aec: AcousticEchoCanceler? = null
 

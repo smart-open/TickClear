@@ -20,21 +20,34 @@ object NotificationHelper {
      * 旧版静音/无震渠道会永久残留并使新通知静默——历史上正是"测试通知有声却设备不响"的根因。
      * 切换后缀即生成全新渠道（带正确音/震），旧 ID 在 createChannels 中一并清理。
      */
-    private const val CHANNEL_VERSION = "v3"
+    private const val CHANNEL_VERSION = "v4"
 
     const val CHANNEL_REMINDER = "tickclear.reminder.$CHANNEL_VERSION"
     const val CHANNEL_HIGH = "tickclear.reminder.high.$CHANNEL_VERSION"
     const val CHANNEL_MID = "tickclear.reminder.mid.$CHANNEL_VERSION"
+
+    /**
+     * 中优先级「静音变体」：用户在设置里关闭了全局「声音」时使用。
+     * Android 8+ 声音由渠道决定、无法在单条通知上关掉，因此只能另建一条无声但保留震动与
+     * 抬头展示的渠道 —— 这样「声音」开关才真正生效（此前该开关只打日志，是死设置）。
+     */
+    const val CHANNEL_MID_MUTED = "tickclear.reminder.mid.muted.$CHANNEL_VERSION"
     const val CHANNEL_LOW = "tickclear.reminder.low.$CHANNEL_VERSION"
     const val CHANNEL_SILENT = "tickclear.reminder.silent.$CHANNEL_VERSION"
 
-    /** 旧版未带版本后缀的渠道 ID（升级清理用）。 */
+    /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
         "tickclear.reminder",
         "tickclear.reminder.high",
         "tickclear.reminder.mid",
         "tickclear.reminder.low",
         "tickclear.reminder.silent",
+        // v3：中优先级渠道漏配震动（enableVibration 默认 false），中优先级提醒只响不震。
+        "tickclear.reminder.v3",
+        "tickclear.reminder.high.v3",
+        "tickclear.reminder.mid.v3",
+        "tickclear.reminder.low.v3",
+        "tickclear.reminder.silent.v3",
     )
 
     fun channelForLevel(level: String): String = when (level) {
@@ -80,7 +93,24 @@ object NotificationHelper {
             CHANNEL_MID,
             context.getString(R.string.notify_channel_mid),
             android.app.NotificationManager.IMPORTANCE_DEFAULT,
-        )
+        ).apply {
+            // V2.8X 修复：中优先级渠道此前未显式开启震动。Android 8+ 渠道 enableVibration 默认 false，
+            // 且 NotificationCompat.DEFAULT_VIBRATE 在 O+ 被忽略 —— 结果「中」提醒只响铃不震动，
+            // 与产品定义（中=标准提醒，声音+震动）不符。此处显式开启并给出较轻的震动节奏。
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        val midMuted = NotificationChannel(
+            CHANNEL_MID_MUTED,
+            context.getString(R.string.notify_channel_mid_muted),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            setSound(null, null)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
         val low = NotificationChannel(
             CHANNEL_LOW,
             context.getString(R.string.notify_channel_low),
@@ -92,6 +122,6 @@ object NotificationHelper {
             context.getString(R.string.notify_channel_silent),
             android.app.NotificationManager.IMPORTANCE_MIN,
         ).apply { setShowBadge(false) }
-        manager.createNotificationChannels(listOf(reminder, high, mid, low, silent))
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent))
     }
 }

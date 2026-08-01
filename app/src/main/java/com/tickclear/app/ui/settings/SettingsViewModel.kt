@@ -173,8 +173,11 @@ class SettingsViewModel @Inject constructor(
     val wakeWordEnabled: StateFlow<Boolean> = settingsRepository.wakeWordEnabled.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,
     )
+    // 初值取资源而非硬编码字面量（中文不得出现在 .kt 中，且需与 SettingsRepository 的默认值保持同源）。
     val wakeWord: StateFlow<String> = settingsRepository.wakeWord.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), "小清",
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        appContext.getString(R.string.wake_word_default),
     )
     val trustMode: StateFlow<Boolean> = settingsRepository.trustMode.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false,

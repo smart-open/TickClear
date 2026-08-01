@@ -13,6 +13,7 @@ import com.tickclear.app.domain.conflict.dueMinutesForDate
 import com.tickclear.app.domain.conflict.isEnabled
 import com.tickclear.app.domain.conflict.shouldGenerateInstance
 import com.tickclear.app.domain.model.RepeatType
+import com.tickclear.app.domain.model.TaskStatus
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -85,7 +86,9 @@ object ReminderScheduler {
         for (task in tasks) {
             (instancesByTask[task.id] ?: continue).forEach { inst ->
                 val minute = inst.dueMinute ?: return@forEach
-                val trigger = resolveTrigger(task, today, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                // 已完成/已跳过的实例不再为"本次发生"排闹钟（重复任务会自动顺延到下一发生日）。
+                val done = inst.status != TaskStatus.ACTIVE.code
+                val trigger = resolveTrigger(task, today, minute, task.reminderOffsetMin ?: 0, now, done) ?: return@forEach
                 setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
                 scheduled++
             }
@@ -100,7 +103,8 @@ object ReminderScheduler {
                 .filter { it.taskId == task.id }
                 .forEach { inst ->
                     val minute = inst.dueMinute ?: return@forEach
-                    val trigger = resolveTrigger(task, next, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                    val done = inst.status != TaskStatus.ACTIVE.code
+                    val trigger = resolveTrigger(task, next, minute, task.reminderOffsetMin ?: 0, now, done) ?: return@forEach
                     setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
                     scheduled++
                 }
@@ -130,8 +134,9 @@ object ReminderScheduler {
             .filter { it.taskId == task.id }
             .forEach { inst ->
                 val minute = inst.dueMinute ?: return@forEach
-                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now) ?: run {
-                    AppLogger.w(TAG, "scheduleForTask 跳过（已过期/无需） task=${task.id} inst=${inst.id} minute=$minute target=$target")
+                val done = inst.status != TaskStatus.ACTIVE.code
+                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now, done) ?: run {
+                    AppLogger.w(TAG, "scheduleForTask 跳过（已过期/已完成/无需） task=${task.id} inst=${inst.id} minute=$minute target=$target done=$done")
                     return@forEach
                 }
                 val pi = showPendingIntent(context, task.id, inst.id)
@@ -160,7 +165,8 @@ object ReminderScheduler {
             .filter { it.taskId == task.id }
             .forEach { inst ->
                 val minute = inst.dueMinute ?: return@forEach
-                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now) ?: return@forEach
+                val done = inst.status != TaskStatus.ACTIVE.code
+                val trigger = resolveTrigger(task, target, minute, task.reminderOffsetMin ?: 0, now, done) ?: return@forEach
                 setExact(am, context, trigger, showPendingIntent(context, task.id, inst.id), useAlarmClock = task.reminderLevel == "high")
             }
     }
@@ -187,24 +193,37 @@ object ReminderScheduler {
             val ep = entryPoint(context)
             val task = ep.taskRepository().getById(taskId) ?: return@runCatching
             val today = LocalDate.now()
-            val next = nextOccurrenceDate(task, today) ?: return@runCatching
-            if (next == today) return@runCatching // 今日的已在上方撤销
-            ep.taskInstanceRepository().observeOn(next).first()
-                .filter { it.taskId == taskId }
-                .forEach { inst ->
-                    runCatching { am.cancel(showPendingIntent(context, taskId, inst.id)) }
-                }
-            // 实例行可能尚未生成：按单实例 id 约定 "${taskId}@$date" 直接撤销（幂等无害）。
-            runCatching { am.cancel(showPendingIntent(context, taskId, "$taskId@$next")) }
+            // V2.8X 修复：此前 `next == today` 直接 return，导致「今天也发生」的重复任务
+            // 被 scheduleNext 预排在"下一发生日"的闹钟撤不掉 —— 删除/关闭提醒后次日仍会响。
+            // 现同时覆盖「最近发生日」与「次日起的下一发生日」两个候选日期。
+            val targets = listOfNotNull(
+                nextOccurrenceDate(task, today),
+                nextOccurrenceDate(task, today.plusDays(1)),
+            ).filter { it != today }.distinct()
+            for (day in targets) {
+                ep.taskInstanceRepository().observeOn(day).first()
+                    .filter { it.taskId == taskId }
+                    .forEach { inst ->
+                        runCatching { am.cancel(showPendingIntent(context, taskId, inst.id)) }
+                    }
+                // 实例行可能尚未生成：按单实例 id 约定 "${taskId}@$date" 直接撤销（幂等无害）。
+                runCatching { am.cancel(showPendingIntent(context, taskId, "$taskId@$day")) }
+            }
         }
     }
 
-    /** 稍后提醒：delayMin 分钟后再次弹出（同一任务，覆盖原闹钟）。 */
-    fun scheduleSnooze(context: Context, instanceId: String, taskId: String, delayMin: Int) {
+    /**
+     * 稍后提醒：delayMin 分钟后再次弹出（同一任务，覆盖原闹钟）。
+     *
+     * V2.8X 修复：此前一律走 setExactAndAllowWhileIdle，高优先级任务点「稍后提醒」后
+     * 会从"必响"的 setAlarmClock 静默降级为可被 Doze 延迟的精确闹钟——锁屏久置时经常晚点甚至不响。
+     * 现按任务级别沿用与首次排程完全一致的通道（high → setAlarmClock）。
+     */
+    fun scheduleSnooze(context: Context, instanceId: String, taskId: String, delayMin: Int, level: String = "mid") {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val trigger = System.currentTimeMillis() + delayMin * 60_000L
         val pi = showPendingIntent(context, taskId, instanceId)
-        setExact(am, context, trigger, pi)
+        setExact(am, context, trigger, pi, useAlarmClock = level == "high")
     }
 
     /** Android 12+ 是否可设置精确闹钟（无权限 / 调用异常一律按 false 处理，避免 canScheduleExactAlarms 误报导致崩溃）。 */
@@ -273,9 +292,16 @@ object ReminderScheduler {
      * - 已过去且为一次性任务：在 [PAST_GRACE_MS] 宽限内 → now+2s（迟到提醒优于丢失），否则 null（已过期）。
      * 返回 null 表示无需排程。
      */
-    private fun resolveTrigger(task: Task, target: LocalDate, minute: Int, offsetMin: Int, now: Long): Long? {
+    private fun resolveTrigger(
+        task: Task,
+        target: LocalDate,
+        minute: Int,
+        offsetMin: Int,
+        now: Long,
+        occurrenceDone: Boolean = false,
+    ): Long? {
         val base = triggerMillisForDateMinute(target, minute, offsetMin)
-        if (base > now) return base
+        if (base > now && !occurrenceDone) return base
         val isRepeating = RepeatType.fromCode(task.repeatType) != RepeatType.NONE
         if (isRepeating) {
             var d = target.plusDays(1)
@@ -288,6 +314,8 @@ object ReminderScheduler {
             }
             return null
         }
+        // 一次性任务：本次发生已被完成/跳过 → 不再补发（否则"提前完成"后仍会到点响铃）。
+        if (occurrenceDone) return null
         return if (now - base <= PAST_GRACE_MS) now + 2000L else null
     }
 

@@ -88,6 +88,10 @@ class TaskInstanceRepository @Inject constructor(
 
     suspend fun deleteByTask(taskId: String) = dao.deleteByTask(taskId)
 
+    /** 编辑任务后清掉「今天及以后、未完成」的旧实例，使新的时间/重复规则立即生效（保留历史与已完成记录）。 */
+    suspend fun deletePendingFrom(taskId: String, from: LocalDate = LocalDate.now()) =
+        dao.deletePendingFrom(taskId, from.format(DateTimeFormatter.ISO_LOCAL_DATE))
+
     /** 回收站清理后调用：清除已软删任务遗留的实例。 */
     suspend fun purgeDeleted() = dao.deleteForDeletedTasks()
 

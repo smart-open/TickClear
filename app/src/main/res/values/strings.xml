@@ -147,6 +147,7 @@
     <string name="notify_channel_reminder">任务提醒</string>
     <string name="notify_channel_high">重要提醒</string>
     <string name="notify_channel_mid">普通提醒</string>
+    <string name="notify_channel_mid_muted">普通提醒（静音）</string>
     <string name="notify_channel_low">轻提醒</string>
     <string name="notify_channel_silent">静默提醒</string>
 

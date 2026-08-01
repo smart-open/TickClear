@@ -64,8 +64,16 @@ class ReminderReceiver : BroadcastReceiver() {
                     ACTION_COMPLETE -> complete(appCtx, taskId, instanceId)
                     ACTION_SNOOZE -> {
                         val delay = intent.getIntExtra(EXTRA_DELAY_MIN, SNOOZE_DEFAULT_MIN)
-                        ReminderScheduler.scheduleSnooze(appCtx, instanceId, taskId, delay)
-                        cancelNotification(appCtx, taskId)
+                        // 沿用任务自身的提醒级别，避免高优先级提醒在「稍后提醒」后被降级（见 scheduleSnooze 注释）。
+                        val level = runCatching {
+                            EntryPointAccessors
+                                .fromApplication(appCtx, ReminderScheduler.ReminderEntryPoint::class.java)
+                                .taskRepository()
+                        }.getOrNull()?.getById(taskId)?.reminderLevel ?: "mid"
+                        ReminderScheduler.scheduleSnooze(appCtx, instanceId, taskId, delay, level)
+                        // 修复：此前误传 taskId —— 通知 ID 由 instanceId 哈希得出，
+                        // 传 taskId 算出的是另一个 ID，点「稍后提醒」后原通知根本不会消失。
+                        cancelNotification(appCtx, instanceId)
                     }
                     ACTION_SKIP -> skip(appCtx, taskId, instanceId)
                 }
@@ -84,6 +92,31 @@ class ReminderReceiver : BroadcastReceiver() {
             AppLogger.w(TAG, "showNotification 任务不存在（可能已删），跳过通知 taskId=$taskId instanceId=$instanceId")
             return
         }
+        // V2.8X 修复：此前仅判空。任务被软删（回收站）或用户已关掉该任务的提醒后，
+        // 历史闹钟仍会照常弹出"幽灵通知"。这两种状态不会自愈（重新开启提醒必走编辑路径重排），
+        // 因此就地撤销后续闹钟并返回。
+        if (task.deletedAt != null || !task.reminderEnabled) {
+            AppLogger.w(
+                TAG,
+                "showNotification 任务已删除或已关闭提醒，撤销残留闹钟 taskId=$taskId deleted=${task.deletedAt != null} reminderEnabled=${task.reminderEnabled}",
+            )
+            try {
+                ReminderScheduler.cancelForTask(context, taskId)
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "撤销残留闹钟失败：${e.message}")
+            }
+            return
+        }
+        // 暂停 / 已完成（一次性）任务：本次不打扰，但保留闹钟链，恢复后无需重新编辑即可继续提醒。
+        if (task.status != com.tickclear.app.domain.model.TaskStatus.ACTIVE.code) {
+            AppLogger.w(TAG, "showNotification 任务非活动态(status=${task.status})，跳过本次提醒 taskId=$taskId")
+            try {
+                ReminderScheduler.scheduleNext(context, task)
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "scheduleNext 失败：${e.message}")
+            }
+            return
+        }
         var level = task.reminderLevel
 
         // 静音时段：命中且为低优先级时降级为静默（不响铃震动、不占状态栏角标）。
@@ -99,7 +132,6 @@ class ReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        val channel = if (level == "silent") NotificationHelper.CHANNEL_SILENT else NotificationHelper.channelForLevel(level)
         val priority = when (level) {
             "high" -> NotificationCompat.PRIORITY_MAX
             "low" -> NotificationCompat.PRIORITY_LOW
@@ -109,9 +141,19 @@ class ReminderReceiver : BroadcastReceiver() {
 
         // V2.30 稍后提醒时长取用户设置（默认 15 分钟）。
         val snoozeMin = settings.snoozeDefaultMin.first()
-        // 全局「声音」开关状态（仅用于诊断日志；高优先级提醒不再受此约束，始终响铃+震动）。
+        // 全局「声音」开关。高优先级提醒是红线，用户显式选「高」= 务必响铃，故不受此开关约束。
         val globalSoundEnabled = settings.soundEnabled.first()
         val forcedSound = ReminderPrefs.shouldForceSound(level)
+
+        // V2.8X 修复：该开关此前只写日志、从不生效（死设置）。Android 8+ 声音由渠道决定、
+        // 无法在单条通知上关闭，因此关声音时把「中」提醒改投无声但保留震动的镜像渠道；
+        // 「低/静默」本就无声无需处理，「高」按红线始终响铃。
+        val muteMid = !globalSoundEnabled && level != "high"
+        val channel = when {
+            level == "silent" -> NotificationHelper.CHANNEL_SILENT
+            muteMid && level != "low" -> NotificationHelper.CHANNEL_MID_MUTED
+            else -> NotificationHelper.channelForLevel(level)
+        }
 
         val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
@@ -153,6 +195,10 @@ class ReminderReceiver : BroadcastReceiver() {
             if (Build.VERSION.SDK_INT < 34 || notificationManager(context).canUseFullScreenIntent()) {
                 builder.setFullScreenIntent(fullScreenIntent(context, taskId, instanceId), true)
             }
+        } else if (muteMid && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            // Android 8.0 以下没有渠道，声音/震动由 builder 决定：清空声音、只保留震动。
+            builder.setSound(null)
+            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE)
         }
         // 以 instanceId 的稳定 FNV-1a 哈希作为通知键：避免不同任务哈希碰撞互相覆盖，
         // 且重复任务多实例各自独立（互不覆盖）。
@@ -161,7 +207,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.getNotificationChannel(channel)?.importance ?: -1
         } else -1
-        AppLogger.w(TAG, "showNotification 弹出 task=${task.id} title=${task.title} level=$level channel=$channel 强制响铃=$forcedSound 全局声音=$globalSoundEnabled 系统重要性=$imp (>=4 应响铃震动)")
+        AppLogger.w(TAG, "showNotification 弹出 task=${task.id} title=${task.title} level=$level channel=$channel 强制响铃=$forcedSound 全局声音=$globalSoundEnabled 静音改投=$muteMid 系统重要性=$imp (>=4 应响铃震动)")
         nm.notify(ReminderIds.notificationId(instanceId), builder.build())
         // 续排下一发生日：保证重复任务持续提醒（一次性任务无后续发生日，自动跳过）。
         // 与弹出解耦，失败不影响本次通知展示。
@@ -242,7 +288,7 @@ class ReminderReceiver : BroadcastReceiver() {
     /** 发送一条测试通知（诊断用）：复刻真实高优先级提醒路径（高渠道 + 铃声 + 震动），便于确认通知栈工作。 */
     fun fireTestNotification(context: Context) {
         // 诊断：先把渠道在系统层的真实重要性打出来——若 <4(IMPORTANCE_HIGH) 说明设备端该渠道被降权/静音，
-        // 此时即便代码正确也无声音/震动（Android 8+ 渠道不可就地升级，需靠 v3 新 ID 重建）。
+        // 此时即便代码正确也无声音/震动（Android 8+ 渠道不可就地升级，需靠新版本后缀的渠道 ID 重建）。
         val nm = notificationManager(context)
         val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.getNotificationChannel(NotificationHelper.CHANNEL_HIGH)?.importance ?: -1
