@@ -1,5 +1,8 @@
 package com.tickclear.app.ui.settings
 
+import android.content.ClipboardManager
+import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -45,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import com.tickclear.app.R
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.log.LogLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +61,7 @@ fun DebugScreen(
     val info by viewModel.info.collectAsStateWithLifecycle()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val rescheduleResult by viewModel.rescheduleResult.collectAsStateWithLifecycle()
     LaunchedEffect(rescheduleResult) {
         rescheduleResult?.let { n ->
@@ -172,21 +178,23 @@ fun DebugScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    Column {
-                        logs.takeLast(200).forEach { e ->
-                            val ts = DateFormat.format("HH:mm:ss", e.timeMillis).toString()
-                            val color = when (e.level) {
-                                LogLevel.ERROR -> MaterialTheme.colorScheme.error
-                                LogLevel.WARN -> MaterialTheme.colorScheme.error.copy(alpha = 0.75f)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    SelectionContainer {
+                        Column {
+                            logs.takeLast(200).forEach { e ->
+                                val ts = DateFormat.format("HH:mm:ss", e.timeMillis).toString()
+                                val color = when (e.level) {
+                                    LogLevel.ERROR -> MaterialTheme.colorScheme.error
+                                    LogLevel.WARN -> MaterialTheme.colorScheme.error.copy(alpha = 0.75f)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                Text(
+                                    text = "$ts ${e.level.letter}/${e.tag}: ${e.message}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = color,
+                                    modifier = Modifier.padding(vertical = 1.dp),
+                                )
                             }
-                            Text(
-                                text = "$ts ${e.level.letter}/${e.tag}: ${e.message}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
-                                color = color,
-                                modifier = Modifier.padding(vertical = 1.dp),
-                            )
                         }
                     }
                 }
@@ -195,6 +203,20 @@ fun DebugScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Button(
+                    onClick = {
+                        val text = AppLogger.formatPlain(logs.takeLast(200))
+                        clipboard.setPrimaryClip(ClipData.newPlainText("TickClear Logs", text))
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.assistant_msg_copied),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.action_copy))
+                }
                 Button(
                     onClick = { viewModel.clearLogs() },
                     modifier = Modifier.weight(1f),
