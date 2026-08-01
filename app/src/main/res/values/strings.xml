@@ -377,6 +377,7 @@
     <string name="assistant_edit_conflict_note">（与现有任务时间冲突，已保留）</string>
     <string name="assistant_draft_pending">已解析到任务，请确认是否创建</string>
     <string name="assistant_draft_unknown">收到暂不支持的指令</string>
+    <string name="assistant_process_error">抱歉，处理这条消息时出错了，请稍后重试</string>
     <!-- V2.8X 助手消息交互：长按复制 / 左滑删除。 -->
     <string name="assistant_msg_copied">已复制到剪贴板</string>
     <string name="assistant_msg_deleted">已删除该消息</string>

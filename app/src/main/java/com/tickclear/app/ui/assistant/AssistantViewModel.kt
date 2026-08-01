@@ -197,7 +197,13 @@ class AssistantViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            transport.events.collect { onEvent(it) }
+            // 兜底：单条事件处理异常（如 MCP 工具调用落库抛错）不得冒泡出 collect 协程导致整个助手页崩溃；
+            // 异常仅记日志，保证后续事件（消息/连接状态）仍能正常流转。
+            transport.events.collect { event ->
+                runCatching { onEvent(event) }.onFailure { e ->
+                    AppLogger.e(TAG, "onEvent 处理事件异常 type=${event::class.simpleName}", e)
+                }
+            }
         }
         viewModelScope.launch {
             val mode = settingsRepository.assistantMode.first()
@@ -595,7 +601,7 @@ class AssistantViewModel @Inject constructor(
         // V2.8X++：记录本轮用户文本，stt 帧到达时用于 dedup（与服务端回传的相同文本不再追加气泡）。
         userSaidThisTurn = t
         append(ChatMessage(nextId(), "user", t))
-        viewModelScope.launch {
+        viewModelScope.launch { runCatching {
             // V2.42：离线热词指令（暂停/启用/删除 + 任务名）。开启且识别为已知指令即本地闭环执行，
             // 不再送 LLM；任务名需匹配真实任务，删除仅命中才生效，避免误删。
             if (settingsRepository.offlineCommandEnabled.first()) {
@@ -658,6 +664,11 @@ class AssistantViewModel @Inject constructor(
                     ),
                 )
             }
+        }.onFailure { e ->
+            // 兜底：本协程内任何未预期异常（如离线指令执行/编辑处理/传输层抛错）一律降级为系统消息，
+            // 绝不让「发消息」成为闪退入口（之前未兜底的异常会冒泡出 viewModelScope 直接崩）。
+            AppLogger.e(TAG, "sendText 处理消息未预期异常", e)
+            append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_process_error)))
         }
     }
 
@@ -742,25 +753,32 @@ class AssistantViewModel @Inject constructor(
 
     private fun handleTool(call: XiaozhiEvent.McpToolCall) {
         viewModelScope.launch {
-            val draft = mcpTools.handle(call)
-            if (draft == null) {
-                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_unknown)))
-                return@launch
-            }
-            // 信任模式（PRD D20）：非危险操作（建任务）免去确认卡直接落库；
-            // 删除/暂停等危险操作无论是否信任都强制二次确认，避免误删。
-            // V2.8X++：create_habit 暂无确认卡 UI 且属低风险创建，无论是否信任模式都直接落库，
-            // 避免被误塞进仅支持 Task 的 pendingDraft 确认卡导致类型/渲染异常。
-            val toolShort = call.tool.substringAfterLast('.')
-            val autoCommit = settingsRepository.trustMode.first() || toolShort == "create_habit"
-            if (autoCommit && !isDangerousTool(call.tool)) {
-                val res = mcpTools.commit(draft)
-                if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
-                append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
-            } else {
-                // 仅 Task 草稿进入确认卡（Habit 已在上分支自动提交，不会到达此处）。
-                if (draft is XiaozhiMcpTools.McpDraft.TaskDraft) _pendingDraft.value = draft.task
-                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_pending)))
+            runCatching {
+                val draft = mcpTools.handle(call)
+                if (draft == null) {
+                    append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_unknown)))
+                    return@launch
+                }
+                // 信任模式（PRD D20）：非危险操作（建任务）免去确认卡直接落库；
+                // 删除/暂停等危险操作无论是否信任都强制二次确认，避免误删。
+                // V2.8X++：create_habit 暂无确认卡 UI 且属低风险创建，无论是否信任模式都直接落库，
+                // 避免被误塞进仅支持 Task 的 pendingDraft 确认卡导致类型/渲染异常。
+                val toolShort = call.tool.substringAfterLast('.')
+                val autoCommit = settingsRepository.trustMode.first() || toolShort == "create_habit"
+                if (autoCommit && !isDangerousTool(call.tool)) {
+                    val res = mcpTools.commit(draft)
+                    if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
+                    append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
+                } else {
+                    // 仅 Task 草稿进入确认卡（Habit 已在上分支自动提交，不会到达此处）。
+                    if (draft is XiaozhiMcpTools.McpDraft.TaskDraft) _pendingDraft.value = draft.task
+                    append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_draft_pending)))
+                }
+            }.onFailure { e ->
+                // 兜底：mcpTools.handle/commit（含 addTaskUseCase.upsert）任何未预期异常不得冒泡出协程致闪退，
+                // 降级为系统消息让用户可继续对话。
+                AppLogger.e(TAG, "handleTool 处理工具调用失败 tool=${call.tool}", e)
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_process_error)))
             }
         }
     }
@@ -773,10 +791,15 @@ class AssistantViewModel @Inject constructor(
     fun confirmDraft() {
         val draft = _pendingDraft.value ?: return
         viewModelScope.launch {
-            // pendingDraft 仅承载 Task 草稿，包装回 McpDraft 交由统一 commit 落库。
-            val res = mcpTools.commit(XiaozhiMcpTools.McpDraft.TaskDraft(draft))
-            if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
-            append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
+            runCatching {
+                // pendingDraft 仅承载 Task 草稿，包装回 McpDraft 交由统一 commit 落库。
+                val res = mcpTools.commit(XiaozhiMcpTools.McpDraft.TaskDraft(draft))
+                if (res.ok) lastCreatedTaskId = draft.id // V2.18：记录多轮编辑目标
+                append(ChatMessage(nextId(), "system", res.message, taskCreated = res.ok))
+            }.onFailure { e ->
+                AppLogger.e(TAG, "confirmDraft 落库失败", e)
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_process_error)))
+            }
             _pendingDraft.value = null
         }
     }
