@@ -143,6 +143,9 @@ fun AssistantScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val appContext = androidx.compose.ui.platform.LocalContext.current
+    // V2.8X++：剪贴板与「已复制」提示在顶层提前取值，供长按菜单与多选底栏共用（onClick 非 @Composable 上下文，项目红线）。
+    val clipboard = LocalClipboardManager.current
+    val copiedTip = stringResource(R.string.assistant_msg_copied)
     // V2.8X++：焦点管理——发送后 / 点击消息列表等输入与键盘以外区域时收起键盘并失焦（微信式）。
     val focusManager = LocalFocusManager.current
     // V2.8X++：长按进入多选模式（参考微信：长按消息→多选→顶部固定「删除」按钮）。
@@ -258,19 +261,6 @@ fun AssistantScreen(
                             Icon(
                                 if (allSelected) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
                                 contentDescription = stringResource(R.string.action_select_all),
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                confirmClearAll = true
-                            },
-                            enabled = selectedIds.value.isNotEmpty(),
-                        ) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.assistant_msg_delete),
-                                tint = if (selectedIds.value.isNotEmpty()) MaterialTheme.colorScheme.error
-                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                             )
                         }
                     } else {
@@ -413,6 +403,48 @@ fun AssistantScreen(
                         },
                     )
                 }
+            } else {
+                // V2.8X++：多选模式底部动作栏——显式「复制 / 删除」，解决此前仅有顶栏删除图标、无复制入口的问题。
+                Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    ) {
+                        // 复制：将选中消息文本按时间顺序拼接后写入剪贴板
+                        TextButton(onClick = {
+                            val sel = selectedIds.value
+                            if (sel.isNotEmpty()) {
+                                val texts = messages
+                                    .filter { sel.contains(it.id) }
+                                    .sortedBy { it.id }
+                                    .joinToString("\n\n") { it.text }
+                                clipboard.setText(AnnotatedString(texts))
+                                scope.launch { snackbarHostState.showSnackbar(copiedTip) }
+                            }
+                        }) {
+                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.action_copy))
+                        }
+                        // 删除：复用二次确认弹窗（confirmClearAll）
+                        TextButton(
+                            onClick = { confirmClearAll = true },
+                            enabled = selectedIds.value.isNotEmpty(),
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.assistant_msg_delete), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
             }
         },
     ) { padding ->
@@ -489,8 +521,8 @@ fun AssistantScreen(
     }
 
     // V2.8X++：单条长按弹「复制/多选/删除」动作卡（系统消息不弹，避免误删服务端回执）。
-    // 微信风格：底部居中深色圆角卡 + 半透明 scrim，按返回键/点 scrim 关闭。每项 56dp 触控目标，
-    // 危险操作（删除）红色，其余白/灰；与原 AlertDialog 标题+纵向 TextButton 列表相比更接近 IM 习惯。
+    // 微信风格：底部居中圆角卡（主题色 surfaceContainerHigh/onSurface，随明暗主题自适应、非深色）+ 半透明 scrim，
+    // 按返回键/点 scrim 关闭。尺寸约为原版一半（宽度 50%），危险操作（删除）红色，其余用 onSurface。
     // 图标均来自 material-icons-core（项目红线：禁引 extended 库），缺图标的用 emoji 文字兜底。
     if (messageMenuFor != null) {
         // 返回键关闭弹层
@@ -503,8 +535,7 @@ fun AssistantScreen(
             val selectMore = stringResource(R.string.assistant_msg_select_more)
             val deleteOne = stringResource(R.string.assistant_msg_delete)
             // ⚠️ onClick/scope.launch 是非 @Composable 上下文，须在此提前取值（项目红线）。
-            val clipboard = LocalClipboardManager.current
-            val copiedTip = stringResource(R.string.assistant_msg_copied)
+            // clipboard / copiedTip 已在 AssistantScreen 顶层取值，此处仅取删除提示。
             val deletedTip = stringResource(R.string.assistant_msg_deleted)
             // 顶部 scrim：覆盖全屏但不阻挡系统手势；点击 scrim 关闭
             Box(
@@ -518,24 +549,26 @@ fun AssistantScreen(
                 contentAlignment = Alignment.BottomCenter,
             ) {
                 // 底部动作卡：内部拦截 clickable，避免冒泡到 scrim
+                // V2.8X++：长按菜单——主题色（surfaceContainerHigh/onSurface，随明暗主题自适应）+ 尺寸减半（宽度 50%、内边距与图标同步缩小）
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .fillMaxWidth(0.5f)
+                        .widthIn(max = 360.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                         .navigationBarsPadding()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) { /* 拦截冒泡 */ },
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     tonalElevation = 6.dp,
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 16.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         // 复制
@@ -904,18 +937,18 @@ private fun MsgActionItem(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .widthIn(min = 56.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .widthIn(min = 48.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(18.dp),
         )
         Text(
             text = label,
