@@ -1,5 +1,6 @@
 package com.tickclear.app.domain.scheduler
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -72,7 +73,7 @@ object HabitReminderScheduler {
         }
         val trigger = nextTriggerMillis(habit, LocalDate.now()) ?: return
         val pi = showPendingIntent(context, habit.id)
-        val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        val canExact = canUseExactAlarms(am)
         AppLogger.w(TAG, "scheduleForHabit habit=${habit.id} title=${habit.title} trigger=$trigger now=${System.currentTimeMillis()} exact=$canExact")
         setExact(am, context, trigger, pi)
     }
@@ -107,11 +108,48 @@ object HabitReminderScheduler {
         AppLogger.w(TAG, "rescheduleAll 排程习惯数=${habits.size}")
     }
 
+    /** Android 12+ 是否可设置精确闹钟（无权限 / 调用异常一律按 false，避免误报导致崩溃）。 */
+    private fun canUseExactAlarms(am: AlarmManager): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        return runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
+    }
+
+    /**
+     * 习惯提醒排程，三级降级（与 ReminderScheduler 的 setExact 保持一致的可靠性策略）：
+     * setAlarmClock → setExactAndAllowWhileIdle → setAndAllowWhileIdle。
+     *
+     * ⚠️ 早期注释「setAlarmClock 无需精确闹钟权限」是**错的**：Android 12(S) 起 setAlarmClock 同样受
+     * SCHEDULE_EXACT_ALARM 门禁，Android 14 起该权限对新装应用默认拒绝，裸调用会抛 SecurityException
+     * 打崩 rescheduleAll 所在协程（App 启动即闪退）。这里必须先判权限再逐级降级，且全程 runCatching。
+     */
+    // 权限守卫在 canUseExactAlarms 内完成 + 全程 runCatching；lint 无法跨函数识别，故抑制 MissingPermission。
+    @SuppressLint("MissingPermission")
     private fun setExact(am: AlarmManager, context: Context, trigger: Long, pi: PendingIntent) {
-        // 习惯提醒本质「每天必提醒」，统一走 setAlarmClock：不受 Doze 限制、无需精确闹钟权限、到点必响。
-        val info = AlarmManager.AlarmClockInfo(trigger, openAppIntent(context))
-        AppLogger.w(TAG, "setExact 习惯走 setAlarmClock trigger=$trigger")
-        am.setAlarmClock(info, pi)
+        if (canUseExactAlarms(am)) {
+            val ok = runCatching {
+                am.setAlarmClock(AlarmManager.AlarmClockInfo(trigger, openAppIntent(context)), pi)
+                true
+            }.getOrElse { e ->
+                AppLogger.e(TAG, "setExact 习惯 setAlarmClock 被拒（${e.message}），继续降级 trigger=$trigger")
+                false
+            }
+            if (ok) {
+                AppLogger.w(TAG, "setExact 习惯走 setAlarmClock trigger=$trigger")
+                return
+            }
+            val exactOk = runCatching {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
+                true
+            }.getOrElse { e ->
+                AppLogger.e(TAG, "setExact 习惯精确闹钟被拒（${e.message}），退化非精确 trigger=$trigger")
+                false
+            }
+            if (exactOk) return
+        } else {
+            AppLogger.w(TAG, "setExact 习惯无精确闹钟权限，退化 setAndAllowWhileIdle trigger=$trigger")
+        }
+        runCatching { am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi) }
+            .onFailure { AppLogger.e(TAG, "setExact 习惯非精确闹钟也失败（${it.message}） trigger=$trigger") }
     }
 
     /** 闹钟点击状态栏闹钟指示时打开 App 的意图（setAlarmClock 的 showIntent）。 */

@@ -46,12 +46,19 @@ class BootReceiver : BroadcastReceiver() {
                 val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
                 scope.launch {
                     try {
-                        // V2.5：重新同步自动备份闹钟（开关开启才排程）。
-                        AutoBackupScheduler.sync(ctx)
-                        ReminderScheduler.rescheduleAll(ctx)
-                        HabitReminderScheduler.rescheduleAll(ctx)
+                        // 四个子步骤各自独立兜底：
+                        // ① 单步失败不得拖垮后续（原先 AutoBackupScheduler 抛错会让提醒/习惯/位置全都不排）；
+                        // ② 更关键的是——这里只有 try/finally 没有 catch，任一步抛异常都会变成协程未捕获异常
+                        //    直接闪退（曾因 setAlarmClock 缺精确闹钟权限抛 SecurityException 崩在此处）。
+                        runCatching { AutoBackupScheduler.sync(ctx) }
+                            .onFailure { AppLogger.e("BootReceiver", "自动备份重排失败：${it.message}") }
+                        runCatching { ReminderScheduler.rescheduleAll(ctx) }
+                            .onFailure { AppLogger.e("BootReceiver", "任务提醒重排失败：${it.message}") }
+                        runCatching { HabitReminderScheduler.rescheduleAll(ctx) }
+                            .onFailure { AppLogger.e("BootReceiver", "习惯提醒重排失败：${it.message}") }
                         // V2.13：重启后位置提醒改为前台轮询服务，需重新评估并启停。
-                        GeofenceScheduler.sync(ctx)
+                        runCatching { GeofenceScheduler.sync(ctx) }
+                            .onFailure { AppLogger.e("BootReceiver", "位置提醒同步失败：${it.message}") }
                     } finally {
                         pending.finish()
                         scope.cancel() // 单次广播完成即回收作用域（L1）

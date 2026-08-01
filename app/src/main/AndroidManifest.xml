@@ -8,7 +8,19 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!--
+      精确闹钟权限（提醒「到点必响」的前提）：
+      - Android 12(31)~12L(32)：SCHEDULE_EXACT_ALARM，需用户在系统设置中手动授予；
+      - Android 13(33)+：USE_EXACT_ALARM，安装即授予、无需用户操作。
+      本 App 核心功能为「定时任务 / 习惯提醒」（闹钟类），符合 USE_EXACT_ALARM 适用范围；
+      两者按官方推荐组合声明（SCHEDULE_EXACT_ALARM 限制在 32 及以下，避免与前者冲突）。
+      ⚠️ Android 14 起 SCHEDULE_EXACT_ALARM 对新装应用默认「拒绝」，若缺 USE_EXACT_ALARM，
+      setAlarmClock / setExactAndAllowWhileIdle 会抛 SecurityException 直接闪退。
+    -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />

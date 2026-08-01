@@ -126,10 +126,16 @@ class DebugViewModel @Inject constructor(
         ReminderReceiver().fireTestNotification(appContext)
     }
 
-    /** 重新排程今日所有提醒；返回实际排程的闹钟数，供 UI 反馈。 */
+    /**
+     * 重新排程今日所有提醒；返回实际排程的闹钟数，供 UI 反馈。
+     * 排程可能因系统权限（精确闹钟）被拒而抛异常——调试页操作绝不能把 App 打崩，失败按 0 上报。
+     */
     fun reschedule() = viewModelScope.launch {
-        val n = ReminderScheduler.rescheduleAll(appContext)
-        _rescheduleResult.value = n
+        _rescheduleResult.value = runCatching { ReminderScheduler.rescheduleAll(appContext) }
+            .getOrElse {
+                AppLogger.e("DebugViewModel", "手动重排失败：${it.message}")
+                0
+            }
     }
 
     private val _rescheduleResult = MutableStateFlow<Int?>(null)

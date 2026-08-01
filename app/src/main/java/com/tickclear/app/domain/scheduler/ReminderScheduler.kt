@@ -1,5 +1,6 @@
 package com.tickclear.app.domain.scheduler
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -232,18 +233,40 @@ object ReminderScheduler {
         return runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
     }
 
+    /**
+     * 统一排程入口，按「可靠性从高到低」三级降级，任何一级失败都不会把异常抛给调用方。
+     *
+     * ⚠️ 血泪教训（V2.8X 闪崩修复）：早期注释写的「setAlarmClock 无需 SCHEDULE_EXACT_ALARM」是**错的**。
+     * 自 Android 12(S) 起，`setAlarmClock` 与 `setExact*` 一样受精确闹钟权限门禁；且 Android 14 起
+     * SCHEDULE_EXACT_ALARM 对新装应用默认「拒绝」，未授权时 `setAlarmClock` 会抛 SecurityException，
+     * 而它此前是裸调用 —— 直接把 `rescheduleAll` 所在协程打崩（App 启动即闪退）。
+     *
+     * 降级链：
+     * 1. setAlarmClock（有精确闹钟权限时）：绕 Doze、状态栏显示闹钟图标，到点必响；
+     * 2. setExactAndAllowWhileIdle（有精确闹钟权限时）：精确但可能被系统轻度约束；
+     * 3. setAndAllowWhileIdle（无权限 / 前两级被系统实时拒绝）：非精确，可能延迟数分钟，但绝不丢失、绝不崩溃。
+     */
+    // 权限守卫在 [canUseExactAlarms] 内完成、且每次调用都被 runCatching 包裹；
+    // lint 的 MissingPermission 无法跨函数识别该守卫（Manifest 中 SCHEDULE_EXACT_ALARM 已限制到 API 32），故此处抑制。
+    @SuppressLint("MissingPermission")
     private fun setExact(am: AlarmManager, context: Context, trigger: Long, pi: PendingIntent, useAlarmClock: Boolean = false) {
-        if (useAlarmClock) {
-            // 高优先级：setAlarmClock 不受 Doze 限制、且无需 SCHEDULE_EXACT_ALARM 权限，到点必响——
-            // 这是 Android 上最可靠的提醒路径，直接根治「时好时坏」（锁屏/空闲被系统延迟）。
-            val info = AlarmManager.AlarmClockInfo(trigger, openAppIntent(context))
-            AppLogger.w(TAG, "setExact 高优先级走 setAlarmClock trigger=$trigger")
-            am.setAlarmClock(info, pi)
-            return
+        val canExact = canUseExactAlarms(am)
+        if (useAlarmClock && canExact) {
+            // 高优先级：setAlarmClock 不受 Doze 限制，是 Android 上最可靠的提醒路径。
+            val ok = runCatching {
+                am.setAlarmClock(AlarmManager.AlarmClockInfo(trigger, openAppIntent(context)), pi)
+                true
+            }.getOrElse { e ->
+                AppLogger.e(TAG, "setExact setAlarmClock 被拒（${e.message}），继续降级 trigger=$trigger")
+                false
+            }
+            if (ok) {
+                AppLogger.w(TAG, "setExact 高优先级走 setAlarmClock trigger=$trigger")
+                return
+            }
         }
-        // 非高优先级：优先精确闹钟；无权限（Android 12+ 未授予 SCHEDULE_EXACT_ALARM）或调用被系统实时拒绝时，
-        // 一律退化到 setAndAllowWhileIdle（非精确），绝不抛 SecurityException 闪退。
-        if (canUseExactAlarms(am)) {
+        // 第二级：精确闹钟。无权限（Android 12+ 未授予 / Android 14 默认拒绝）或被系统实时拒绝时继续降级。
+        if (canExact) {
             val exactOk = runCatching {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
                 true
@@ -255,7 +278,9 @@ object ReminderScheduler {
         } else {
             AppLogger.w(TAG, "setExact 无精确闹钟权限，退化 setAndAllowWhileIdle trigger=$trigger")
         }
+        // 第三级：非精确兜底。仍用 runCatching —— 极端机型（厂商定制）连它都可能抛异常，宁可漏一次提醒也不闪退。
         runCatching { am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi) }
+            .onFailure { AppLogger.e(TAG, "setExact 非精确闹钟也失败（${it.message}） trigger=$trigger") }
     }
 
     /** 高优先级闹钟点击状态栏闹钟指示时打开 App 的意图（setAlarmClock 的 showIntent）。 */
