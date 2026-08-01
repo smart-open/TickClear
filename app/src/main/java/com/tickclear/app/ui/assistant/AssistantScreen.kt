@@ -85,6 +85,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -860,7 +861,7 @@ private fun ChatBubble(
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { coords ->
-                val pos = coords.positionInWindow()
+                val pos = coords.localToWindow(Offset.Zero)
                 val size = coords.size
                 onMeasureRect(
                     msg.id,
