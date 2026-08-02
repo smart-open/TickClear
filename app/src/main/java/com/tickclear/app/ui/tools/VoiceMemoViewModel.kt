@@ -3,6 +3,7 @@ package com.tickclear.app.ui.tools
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 /**
@@ -67,11 +69,13 @@ class VoiceMemoViewModel @Inject constructor(
     private val _error = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val errorEvents: SharedFlow<String> = _error.asSharedFlow()
 
+    private val isRecordingGuard = AtomicBoolean(false)
     private var recorder: MediaRecorder? = null
     private var currentFile: File? = null
     private var recordStartMs = 0L
     private var player: MediaPlayer? = null
-    private var tickerJob: Job? = null
+    private var recordTickerJob: Job? = null
+    private var playTickerJob: Job? = null
 
     init {
         repo.observeAll()
@@ -86,11 +90,16 @@ class VoiceMemoViewModel @Inject constructor(
     // ---------------- 录制 ----------------
 
     fun startRecording() {
-        if (_isRecording.value) return
+        if (!isRecordingGuard.compareAndSet(false, true)) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val file = File(dir, "memo_${System.currentTimeMillis()}.m4a")
-                val r = MediaRecorder(appContext).apply {
+                val r = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    MediaRecorder(appContext)
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaRecorder()
+                }).apply {
                     setAudioSource(MediaRecorder.AudioSource.MIC)
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
@@ -108,22 +117,34 @@ class VoiceMemoViewModel @Inject constructor(
                 AppLogger.e("VoiceMemoVM", "startRecording failed", e)
                 _error.tryEmit(appContext.getString(R.string.voice_permission_required))
                 _isRecording.value = false
+                isRecordingGuard.set(false)
             }
         }
     }
 
     /** 停止并保存（save=true）或放弃（save=false）。 */
     fun stopRecording(save: Boolean) {
-        if (!_isRecording.value) return
-        val r = recorder ?: return
-        val file = currentFile ?: return
+        if (!_isRecording.value) {
+            isRecordingGuard.set(false)
+            return
+        }
+        val r = recorder
+        val file = currentFile
+        if (r == null || file == null) {
+            _isRecording.value = false
+            _recordElapsedMs.value = 0
+            _recordTitle.value = ""
+            isRecordingGuard.set(false)
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             val durationMs = System.currentTimeMillis() - recordStartMs
-            tickerJob?.cancel()
-            tickerJob = null
+            recordTickerJob?.cancel()
+            recordTickerJob = null
             runCatching { r.stop() }.onFailure { e -> AppLogger.e("VoiceMemoVM", "recorder.stop failed", e) }
-            r.release()
+            runCatching { r.release() }
             recorder = null
+            currentFile = null
             _isRecording.value = false
             _recordElapsedMs.value = 0
 
@@ -144,12 +165,13 @@ class VoiceMemoViewModel @Inject constructor(
                 file.delete()
             }
             _recordTitle.value = ""
+            isRecordingGuard.set(false)
         }
     }
 
     private fun startRecordTicker() {
-        tickerJob?.cancel()
-        tickerJob = viewModelScope.launch(Dispatchers.IO) {
+        recordTickerJob?.cancel()
+        recordTickerJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 delay(500)
                 _recordElapsedMs.value = System.currentTimeMillis() - recordStartMs
@@ -176,11 +198,12 @@ class VoiceMemoViewModel @Inject constructor(
                 _playDurationMs.value = mp.duration.toLong()
                 _playPositionMs.value = 0
                 mp.setOnCompletionListener {
+                    runCatching { it.release() }
+                    player = null
                     _activeId.value = null
                     _isPlaying.value = false
                     _playPositionMs.value = 0
-                    player = null
-                    tickerJob?.cancel()
+                    playTickerJob?.cancel()
                 }
                 mp.start()
                 _isPlaying.value = true
@@ -198,7 +221,7 @@ class VoiceMemoViewModel @Inject constructor(
         if (mp.isPlaying) mp.pause()
         _playPositionMs.value = mp.currentPosition.toLong()
         _isPlaying.value = false
-        tickerJob?.cancel()
+        playTickerJob?.cancel()
     }
 
     private fun resumePlayback() {
@@ -210,8 +233,8 @@ class VoiceMemoViewModel @Inject constructor(
     }
 
     private fun startPlayTicker(mp: MediaPlayer) {
-        tickerJob?.cancel()
-        tickerJob = viewModelScope.launch(Dispatchers.IO) {
+        playTickerJob?.cancel()
+        playTickerJob = viewModelScope.launch(Dispatchers.IO) {
             while (mp.isPlaying) {
                 delay(250)
                 _playPositionMs.value = mp.currentPosition.toLong()
@@ -220,8 +243,8 @@ class VoiceMemoViewModel @Inject constructor(
     }
 
     private fun stopPlaybackInternal() {
-        tickerJob?.cancel()
-        tickerJob = null
+        playTickerJob?.cancel()
+        playTickerJob = null
         runCatching { player?.release() }
         player = null
         _activeId.value = null
@@ -240,7 +263,8 @@ class VoiceMemoViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        tickerJob?.cancel()
+        recordTickerJob?.cancel()
+        playTickerJob?.cancel()
         runCatching { recorder?.release() }
         recorder = null
         runCatching { player?.release() }
