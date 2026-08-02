@@ -5,10 +5,18 @@
         <exclude domain="file" path="datastore" />
         <exclude domain="database" />
         <exclude domain="sharedpref" />
+        <!--
+          filesDir/backups/*.tcbackup 由 AutoBackupRunner 写入，密文密钥在 Keystore 内
+          （tickclear_backup_key，设备绑定、不可导出）。搬到新设备后这批文件必然解密失败，
+          会被 BackupHealth 判为「备份损坏」误报，故一并排除。
+          需要跨设备迁移请走设置页「导出备份」经 SAF 生成的文件。
+        -->
+        <exclude domain="file" path="backups" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore" />
         <exclude domain="database" />
         <exclude domain="sharedpref" />
+        <exclude domain="file" path="backups" />
     </device-transfer>
 </data-extraction-rules>

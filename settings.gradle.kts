@@ -17,9 +17,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Opus 编解码库：martoreto/opuscodec（JitPack 单模块 AAR，JNI 包完整 libopus，
-        // 各 ABI 的 .so 随包发布），用于替代本机不可用的 MediaCodec Opus 编码器。
-        maven { url = uri("https://jitpack.io") }
+        // 注：Opus 编解码走 app/libs/opus.aar（theeasiestway，全 ABI 含 arm64）本地文件依赖，
+        // 无需远端仓库。原 JitPack 仓库是 martoreto/opuscodec 时期的残留，该方案因仅打包
+        // 32 位 libsenz.so 导致 arm64 设备 dlopen 失败已废弃，仓库一并移除（少一次远端解析探测）。
     }
 }
 

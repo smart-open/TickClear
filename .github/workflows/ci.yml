@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   unit-test:
-    name: Lint + Unit Test + Coverage
+    name: Build + Lint + Unit Test + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +30,13 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle-
       - name: Grant execute permission
         run: chmod +x gradlew
+      - name: Assemble debug
+        run: ./gradlew :app:assembleDebug --no-daemon
+      # release 变体启用 R8 + shrinkResources。此前 CI 从不构建 release，
+      # proguard keep 规则缺漏（Opus native / SQLCipher JNI 等）只能在发版后暴露。
+      # 无 release 签名时 build.gradle.kts 会自动回退 debug 签名，CI 上可直接构建。
+      - name: Assemble release (R8 + shrinkResources gate)
+        run: ./gradlew :app:assembleRelease --no-daemon
       - name: Lint (release, abortOnError)
         run: ./gradlew :app:lintRelease --no-daemon
       - name: Unit tests + Jacoco coverage

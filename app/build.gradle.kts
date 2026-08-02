@@ -24,8 +24,10 @@ android {
         applicationId = "com.tickclear.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 15
-        versionName = "2.7.2"
+        // v2.8.0 封板：V2.8X 全部增量（小组件/习惯/标签/皮肤/语音历史/常驻唤醒/
+        // 通知三态可靠性/助手闪退根因/轻提示 3 秒）随本版本一并发布。
+        versionCode = 16
+        versionName = "2.8.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
         // V2.8X++ 语音长期方案：改用 theeasiestway/android-opus-codec（本地 libs/opus.aar，封装官方 libopus 1.3.1），
@@ -157,7 +159,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.window)
+    // 注：不引入 androidx.window —— 自适应断点由 ui/navigation/WindowSize.kt 的 AppSizeClass
+    // 基于 LocalConfiguration.screenWidthDp 自建，零依赖即可满足手机/平板两档需求。
 
     // 本地数据库：Room + SQLCipher 加密。SQLCipher 自带 SQLite，排除以避免与 androidx.sqlite 冲突。
     implementation(libs.androidx.room.runtime) {
@@ -170,8 +173,9 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
 
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.kotlinx.serialization.converter)
+    // 网络层一律 OkHttp 裸调 + org.json 手工解析（ASR / LLM / 小智 WebSocket 均如此）。
+    // 曾声明的 retrofit + retrofit-kotlinx-serialization-converter 在 app/src 中零引用，
+    // 属死依赖，已移除以收敛包体并对齐「零新依赖」纪律。
     implementation(libs.okhttp)
 
     implementation(libs.kotlinx.coroutines.android)
