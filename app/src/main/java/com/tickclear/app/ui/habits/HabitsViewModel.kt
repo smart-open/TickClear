@@ -9,9 +9,11 @@ import com.tickclear.app.domain.scheduler.HabitReminderScheduler
 import com.tickclear.app.domain.util.computeStreak
 import com.tickclear.app.domain.util.isHabitDueToday
 import com.tickclear.app.domain.util.todayLocal
+import com.tickclear.app.ui.components.CelebrationEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -72,8 +74,20 @@ class HabitsViewModel @Inject constructor(
         val checked = uiState.value.items.find { it.habit.id == habitId }?.todayChecked == true
         viewModelScope.launch {
             if (checked) habitRepository.uncheck(habitId, today)
-            else habitRepository.checkIn(habitId, today)
+            else {
+                habitRepository.checkIn(habitId, today)
+                // 打卡庆祝（仅「打上」时撒花+震动；取消不打扰）。勋章评估走任务完成路径，此处不带勋章。
+                _celebration.value = CelebrationEvent(emptyList())
+            }
         }
+    }
+
+    /** 打卡庆祝事件：habitRepository.checkIn 后发射，UI 据此撒花+震动。 */
+    private val _celebration = MutableStateFlow<CelebrationEvent?>(null)
+    val celebration: StateFlow<CelebrationEvent?> = _celebration.asStateFlow()
+
+    fun clearCelebration() {
+        _celebration.value = null
     }
 
     fun createHabit(title: String, emoji: String, repeatDays: String, reminderMin: Int = -1) {

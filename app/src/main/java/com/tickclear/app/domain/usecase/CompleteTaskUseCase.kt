@@ -30,7 +30,7 @@ class CompleteTaskUseCase @Inject constructor(
     private val checkMedalsUseCase: CheckMedalsUseCase,
     private val recordCheckInUseCase: RecordCheckInUseCase,
 ) {
-    suspend operator fun invoke(task: Task, instanceId: String, source: String = "manual") {
+    suspend operator fun invoke(task: Task, instanceId: String, source: String = "manual"): List<String> {
         val today = LocalDate.now()
         val dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
@@ -58,7 +58,9 @@ class CompleteTaskUseCase @Inject constructor(
             }
         }
 
-        checkMedalsUseCase()
+        // 返回本次新解锁的勋章 key，供 UI 层播撒花/震动并提示解锁（此前此处结果被丢弃）。
+        val unlocked = checkMedalsUseCase()
         recordCheckInUseCase()
+        return unlocked
     }
 }

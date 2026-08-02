@@ -44,7 +44,9 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,7 +58,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tickclear.app.domain.model.Habit
+import com.tickclear.app.ui.components.ConfettiOverlay
+import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
+import androidx.compose.ui.platform.LocalView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -72,6 +77,18 @@ fun HabitsScreen(
     var showEdit by remember { mutableStateOf<Habit?>(null) }
     var pendingDelete by remember { mutableStateOf<HabitItem?>(null) }
 
+    // 打卡庆祝：habit 打上时播放撒花+震动（无勋章评估）。
+    val celebration by viewModel.celebration.collectAsStateWithLifecycle()
+    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val ctx = LocalView.current.context
+    LaunchedEffect(celebration) {
+        val ev = celebration ?: return@LaunchedEffect
+        Haptic.vibrate(ctx)
+        confettiTrigger++
+        viewModel.clearCelebration()
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示，
@@ -124,6 +141,9 @@ fun HabitsScreen(
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
             }
         }
+    }
+
+    ConfettiOverlay(trigger = confettiTrigger)
     }
 
     if (showAdd) {

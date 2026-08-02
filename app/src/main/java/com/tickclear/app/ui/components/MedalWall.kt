@@ -18,9 +18,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -91,10 +95,24 @@ private fun MedalCell(
         if (isUnlocked) R.string.a11y_medal_unlocked else R.string.a11y_medal_locked,
     )
     val medalContentDescription = stringResource(R.string.a11y_medal, stringResource(medal.nameRes), statusText)
+
+    // 解锁脉冲：仅在「未解锁→已解锁」状态转换本会话内触发一次，初次进入已解锁态不闪。
+    val scale = remember { Animatable(1f) }
+    var wasUnlocked by remember { mutableStateOf(isUnlocked) }
+    LaunchedEffect(isUnlocked) {
+        if (isUnlocked && !wasUnlocked) {
+            scale.snapTo(1f)
+            scale.animateTo(1.15f, tween(durationMillis = 130))
+            scale.animateTo(1f, tween(durationMillis = 180))
+        }
+        wasUnlocked = isUnlocked
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             .clip(RoundedCornerShape(12.dp))
             .background(container)
             .clickable(role = Role.Button, onClick = { onClick(medal) })

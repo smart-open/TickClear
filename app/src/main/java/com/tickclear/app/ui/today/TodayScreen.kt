@@ -37,6 +37,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import com.tickclear.app.ui.components.showTimedSnackbar
+import com.tickclear.app.ui.components.ConfettiOverlay
+import com.tickclear.app.ui.components.Haptic
+import com.tickclear.app.domain.model.MedalCatalog
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -125,6 +129,27 @@ fun TodayScreen(
         }
     }
 
+    // 打卡庆祝：完成时播放撒花+震动；若本次新解锁勋章则提示（medalKeys 非空）。
+    val celebration by viewModel.celebration.collectAsStateWithLifecycle()
+    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val ctx = LocalView.current.context
+    LaunchedEffect(celebration) {
+        val ev = celebration ?: return@LaunchedEffect
+        Haptic.vibrate(ctx)
+        confettiTrigger++
+        if (ev.medalKeys.isNotEmpty()) {
+            val names = ev.medalKeys.mapNotNull { MedalCatalog.get(it)?.let { m -> ctx.getString(m.nameRes) } }
+                .joinToString("、")
+            if (names.isNotEmpty()) {
+                snackbarHostState.showSnackbar(
+                    message = ctx.getString(R.string.medal_unlocked_celebrate, names),
+                    duration = SnackbarDuration.Short,
+                )
+            }
+        }
+        viewModel.clearCelebration()
+    }
+
     // V2.55：编辑中任务被软删（从 state.items 消失）后，关闭编辑页而非让表单回退为「新建」，
     // 避免用户保存时误建重复任务。仅当确实处于「编辑某具体任务」态（editingTaskId 非空）时才触发。
     LaunchedEffect(editingTaskId, showEditor) {
@@ -140,6 +165,7 @@ fun TodayScreen(
     val greeting = stringResource(greetingRes(java.time.LocalTime.now().hour))
     val ringDesc = stringResource(R.string.a11y_progress_ring_nav)
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -233,6 +259,9 @@ fun TodayScreen(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
             )
         }
+    }
+
+    ConfettiOverlay(trigger = confettiTrigger)
     }
 
     if (showClearConfirm) {

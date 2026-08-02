@@ -16,6 +16,7 @@ import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
 import com.tickclear.app.domain.usecase.RestoreTaskUseCase
 import com.tickclear.app.domain.usecase.TodayItem
 import com.tickclear.app.domain.usecase.UpdateTaskUseCase
+import com.tickclear.app.ui.components.CelebrationEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,11 +76,21 @@ class TodayViewModel @Inject constructor(
         refreshEncouragement()
     }
 
+    /** 打卡庆祝事件：完成时发射（含本次新解锁勋章），UI 据此播撒花+震动+解锁提示。 */
+    private val _celebration = MutableStateFlow<CelebrationEvent?>(null)
+    val celebration: StateFlow<CelebrationEvent?> = _celebration.asStateFlow()
+
     fun complete(item: TodayItem) {
         viewModelScope.launch {
-            completeTaskUseCase(item.task, item.instanceId)
+            val unlocked = completeTaskUseCase(item.task, item.instanceId)
             ReminderScheduler.cancelForTask(appContext, item.task.id)
+            _celebration.value = CelebrationEvent(unlocked)
         }
+    }
+
+    /** 消费庆祝事件（UI 播放后调用，避免重复触发）。 */
+    fun clearCelebration() {
+        _celebration.value = null
     }
 
     fun delete(item: TodayItem) {
