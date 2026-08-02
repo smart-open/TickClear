@@ -35,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -109,6 +111,28 @@ fun StatsContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
+        if (hasData) {
+            // V2.8X 打卡分享卡：本地生成成就图经系统分享 sheet 发出（纯本地、零依赖）。
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                val context = LocalContext.current
+                val cardColors = CardColors(
+                    bg = MaterialTheme.colorScheme.background.toArgb(),
+                    surface = MaterialTheme.colorScheme.surface.toArgb(),
+                    primary = MaterialTheme.colorScheme.primary.toArgb(),
+                    onSurface = MaterialTheme.colorScheme.onSurface.toArgb(),
+                    onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+                )
+                OutlinedButton(onClick = {
+                    val bmp = StatsShareCard.generate(context, state, cardColors)
+                    StatsShareCard.share(context, bmp)
+                }) {
+                    Text(stringResource(R.string.stats_share))
+                }
+            }
+        }
         if (!hasData) {
             EmptyStateGuide(
                 icon = "📊",

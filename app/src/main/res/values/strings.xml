@@ -264,6 +264,14 @@
     <string name="stats_checkin_section">打卡记录</string>
     <string name="stats_checkin_streak">连续打卡</string>
     <string name="stats_recent_checkin">最近打卡</string>
+    <!-- 统计页打卡分享卡（本地生成图，纯本地零依赖） -->
+    <string name="stats_share">分享打卡卡</string>
+    <string name="share_card_title">我的打卡成就</string>
+    <string name="share_card_subtitle">%1$s 的坚持足迹</string>
+    <string name="share_card_medals">%1$d</string>
+    <string name="share_card_medals_label">已解锁勋章</string>
+    <string name="share_card_footer">%1$s · 记录每一次坚持</string>
+    <string name="share_card_chooser">分享打卡卡</string>
     <string name="medal_progress">进度 %1$d/%2$d</string>
     <string name="medal_unlocked_date">解锁于 %1$s</string>
     <string name="medal_locked">尚未解锁</string>

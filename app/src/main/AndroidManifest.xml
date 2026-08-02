@@ -143,6 +143,17 @@
             android:name=".domain.assistant.WakeWordService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- V2.8X 打卡分享卡：将本地生成的 PNG 经 FileProvider 授权给分享目标 App 读取（零新依赖，androidx.core 已含）。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.tickclear.app.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
