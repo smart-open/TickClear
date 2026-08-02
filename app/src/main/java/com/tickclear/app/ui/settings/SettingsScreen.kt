@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import com.tickclear.app.ui.components.showTimedSnackbar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -114,7 +115,7 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
-        viewModel.backupToasts.collect { snackbarHostState.showSnackbar(it.message) }
+        viewModel.backupToasts.collect { snackbarHostState.showTimedSnackbar(it.message) }
     }
 
     val exportName = stringResource(R.string.backup_export_filename)
