@@ -783,6 +783,9 @@
     <string name="vault_recovery_wrong">答案错误</string>
     <string name="vault_recovery_confirm">确认重置</string>
     <string name="vault_recovery_warn">重置将清空保险箱内全部条目，且不可恢复</string>
+    <string name="vault_recovery_reset_title">重置口令</string>
+    <string name="vault_recovery_reset_confirm">重置口令将清空保险箱内全部密码条目且不可恢复，确定继续？</string>
+    <string name="vault_recovery_required">请填写安全问题和答案</string>
     <string name="vault_copied">已复制</string>
     <string name="vault_lock">锁定</string>
     <string name="vault_entry_saved">已保存</string>

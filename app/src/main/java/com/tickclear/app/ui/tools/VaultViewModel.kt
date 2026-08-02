@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
 import com.tickclear.app.data.VaultCrypto
+import com.tickclear.app.data.VaultMeta
 import com.tickclear.app.data.VaultStore
 import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.model.VaultEntry
@@ -67,13 +68,14 @@ class VaultViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val salt = VaultCrypto.randomSalt()
+                val answerSalt = VaultCrypto.randomSalt()
                 val key = VaultCrypto.deriveKey(pass.toCharArray(), salt)
                 val verifier = VaultCrypto.encrypt(key, VERIFIER_PLAIN)
-                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), salt)
+                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
                 val emptyBlob = VaultCrypto.encrypt(key, serialize(emptyList()))
                 VaultStore.setup(
                     appContext,
-                    VaultStore.VaultMeta(salt, verifier, question.trim(), answerHash, emptyBlob),
+                    VaultMeta(salt, verifier, question.trim(), answerHash, emptyBlob, answerSalt),
                 )
                 sessionKey = key
                 _entries.value = emptyList()
@@ -134,7 +136,7 @@ class VaultViewModel @Inject constructor(
             return
         }
         _recoveryError.value = null
-        val actual = VaultCrypto.hashAnswer(answer.toCharArray(), meta.salt)
+        val actual = VaultCrypto.hashAnswer(answer.toCharArray(), meta.answerSalt)
         if (actual == meta.answerHash) {
             recoveryAnswerText = answer
             _mode.value = VaultMode.RECOVERY_NEWPASS
@@ -154,11 +156,12 @@ class VaultViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val salt = VaultCrypto.randomSalt()
+                val answerSalt = VaultCrypto.randomSalt()
                 val key = VaultCrypto.deriveKey(pass.toCharArray(), salt)
                 val verifier = VaultCrypto.encrypt(key, VERIFIER_PLAIN)
-                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), salt)
+                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
                 val emptyBlob = VaultCrypto.encrypt(key, serialize(emptyList()))
-                VaultStore.rekey(appContext, salt, verifier, answerHash, emptyBlob)
+                VaultStore.rekey(appContext, salt, verifier, answerHash, emptyBlob, answerSalt)
                 recoveryAnswerText = null
                 sessionKey = key
                 _entries.value = emptyList()
@@ -175,12 +178,15 @@ class VaultViewModel @Inject constructor(
 
     fun upsertEntry(entry: VaultEntry) {
         val key = sessionKey ?: return
+        val e = if (entry.id <= 0) entry.copy(id = nextId()) else entry
         val list = _entries.value.toMutableList()
-        val idx = list.indexOfFirst { it.id == entry.id }
-        if (idx >= 0) list[idx] = entry else list.add(0, entry)
+        val idx = list.indexOfFirst { it.id == e.id }
+        if (idx >= 0) list[idx] = e else list.add(0, e)
         _entries.value = list
         persistEntries(key, list)
     }
+
+    private fun nextId(): Long = (_entries.value.maxOfOrNull { it.id } ?: 0) + 1
 
     fun deleteEntry(id: Long) {
         val key = sessionKey ?: return
@@ -221,7 +227,7 @@ class VaultViewModel @Inject constructor(
 
     private fun validateSetupFields(question: String, answer: String): String? {
         if (question.trim().isEmpty() || answer.trim().isEmpty()) {
-            return appContext.getString(R.string.vault_recovery_hint)
+            return appContext.getString(R.string.vault_recovery_required)
         }
         return null
     }

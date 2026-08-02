@@ -1,18 +1,23 @@
 package com.tickclear.app.ui.tools
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.Build.VERSION_CODES
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -43,7 +48,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,14 +60,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.VaultEntry
 import com.tickclear.app.ui.theme.Spacing
-import kotlin.random.Random
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +88,11 @@ fun PasswordVaultScreen(
 
     fun copy(text: String) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("vault", text))
+        val clip = ClipData.newPlainText("vault", text)
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
+            clip.description.extras?.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+        cm.setPrimaryClip(clip)
         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.vault_copied)) }
     }
 
@@ -135,7 +141,7 @@ fun PasswordVaultScreen(
 }
 
 @Composable
-private fun FormContainer(content: @Composable Column.() -> Unit) {
+private fun FormContainer(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -207,6 +213,7 @@ private fun RecoveryForm(viewModel: VaultViewModel, question: String, error: Str
 private fun RecoveryNewPassForm(viewModel: VaultViewModel, error: String?) {
     var pass by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
+    var showConfirm by remember { mutableStateOf(false) }
     FormContainer {
         Text(stringResource(R.string.vault_setup_title), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.vault_recovery_warn), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -215,9 +222,25 @@ private fun RecoveryNewPassForm(viewModel: VaultViewModel, error: String?) {
         OutlinedTextField(confirm, { confirm = it }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.vault_confirm)) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done))
         if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         Button(
-            onClick = { viewModel.submitRecoveryNewPass(pass, confirm) },
+            onClick = { showConfirm = true },
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.vault_set)) }
+    }
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirm = false
+                    viewModel.submitRecoveryNewPass(pass, confirm)
+                }) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+            title = { Text(stringResource(R.string.vault_recovery_reset_title)) },
+            text = { Text(stringResource(R.string.vault_recovery_reset_confirm)) },
+        )
     }
 }
 
@@ -261,7 +284,7 @@ private fun VaultList(
         }
         Button(
             onClick = {
-                editing = VaultEntry(Random.nextLong(), "", "", "", "", "")
+                editing = VaultEntry(0, "", "", "", "", "")
                 editingIsNew = true
             },
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
@@ -336,11 +359,11 @@ private fun EntryEditorDialog(
     onDismiss: () -> Unit,
     onSave: (VaultEntry) -> Unit,
 ) {
-    var title by remember { mutableStateOf(initial.title) }
-    var address by remember { mutableStateOf(initial.address) }
-    var username by remember { mutableStateOf(initial.username) }
-    var password by remember { mutableStateOf(initial.password) }
-    var note by remember { mutableStateOf(initial.note) }
+    var title by remember(initial.id) { mutableStateOf(initial.title) }
+    var address by remember(initial.id) { mutableStateOf(initial.address) }
+    var username by remember(initial.id) { mutableStateOf(initial.username) }
+    var password by remember(initial.id) { mutableStateOf(initial.password) }
+    var note by remember(initial.id) { mutableStateOf(initial.note) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
