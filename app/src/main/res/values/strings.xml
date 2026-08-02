@@ -238,6 +238,20 @@
     <string name="recycle_bin_type_task">任务 · 删除于 %1$s</string>
     <string name="recycle_bin_type_group">任务组 · 删除于 %1$s</string>
     <string name="recycle_bin_unnamed">未命名</string>
+    <string name="recycle_bin_select">选择</string>
+    <string name="recycle_bin_selection_count">已选 %1$d 项</string>
+    <string name="recycle_bin_select_all">全选</string>
+    <string name="recycle_bin_batch_restore">恢复所选</string>
+    <string name="recycle_bin_batch_purge">彻底删除所选</string>
+    <string name="recycle_bin_export">导出图片</string>
+    <string name="recycle_bin_restore_snack">已恢复「%1$s」</string>
+    <string name="recycle_bin_undo_hint">撤销</string>
+    <string name="recycle_bin_export_title">回收站清单</string>
+    <string name="recycle_bin_export_subtitle">导出时间：%1$s</string>
+    <string name="recycle_bin_export_item_task">任务 · 删除于 %1$s</string>
+    <string name="recycle_bin_export_item_group">任务组 · 删除于 %1$s</string>
+    <string name="recycle_bin_export_empty">回收站暂无可导出的内容</string>
+    <string name="recycle_bin_export_chooser">分享回收站清单</string>
 
     <!-- Phase 4：统计 Tab -->
     <string name="stats_today_rate">今日完成率</string>
@@ -275,6 +289,7 @@
     <string name="medal_progress">进度 %1$d/%2$d</string>
     <string name="medal_unlocked_date">解锁于 %1$s</string>
     <string name="medal_locked">尚未解锁</string>
+    <string name="medal_unlocked_celebrate">🏆 解锁新勋章：%1$s</string>
 
     <!-- Phase 7：内联中文抽离（A-6）+ 无障碍（P7.4） -->
     <string name="today_date_format">M月d日 EEEE</string>
