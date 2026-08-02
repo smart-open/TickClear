@@ -630,6 +630,7 @@
 
     <!-- V2.69 习惯养成 -->
     <string name="tab_habits">习惯</string>
+    <string name="tab_tools">工具</string>
     <string name="habits_title">习惯养成</string>
     <string name="habits_empty">还没有习惯，点右下角按钮添加第一个</string>
     <string name="habits_add">新建习惯</string>
@@ -703,5 +704,97 @@
     <string name="seed_task_walk">午间散步</string>
     <string name="seed_task_read">阅读 30 分钟</string>
     <string name="seed_task_call_mom">给妈妈打电话</string>
+
+    <!-- ============ V2.9 工具箱（统计 Tab 改造） ============ -->
+    <string name="tools_title">工具箱</string>
+    <string name="tools_cat_health">健康提醒</string>
+    <string name="tools_cat_security">效率与安全</string>
+
+    <string name="tools_water_title">喝水提醒</string>
+    <string name="tools_water_desc">每隔一段时间提醒喝水</string>
+    <string name="tools_rest_title">久坐 / 眨眼休息</string>
+    <string name="tools_rest_desc">定时提醒起身活动、放松双眼</string>
+    <string name="tools_voice_title">语音备忘录</string>
+    <string name="tools_voice_desc">快速录制语音笔记</string>
+    <string name="tools_vault_title">密码保险箱</string>
+    <string name="tools_vault_desc">加密保存账号密码</string>
+
+    <!-- 喝水提醒 -->
+    <string name="water_title">喝水提醒</string>
+    <string name="water_enable">开启喝水提醒</string>
+    <string name="water_interval">提醒间隔</string>
+    <string name="water_interval_unit">分钟</string>
+    <string name="interval_min_label">%1$d 分</string>
+    <string name="water_next">下次提醒：%1$s</string>
+    <string name="water_test">立即试提醒</string>
+    <string name="water_test_toast">已发送一条测试提醒</string>
+
+    <!-- 久坐 / 眨眼休息提醒 -->
+    <string name="rest_title">久坐 / 眨眼休息</string>
+    <string name="rest_enable">开启休息提醒</string>
+    <string name="rest_interval">提醒间隔</string>
+    <string name="rest_next">下次提醒：%1$s</string>
+    <string name="rest_test">立即试提醒</string>
+    <string name="rest_test_toast">已发送一条测试提醒</string>
+
+    <!-- 语音备忘录 -->
+    <string name="voice_title">语音备忘录</string>
+    <string name="voice_record">开始录制</string>
+    <string name="voice_stop">停止录制</string>
+    <string name="voice_recording">录制中…</string>
+    <string name="voice_play">播放</string>
+    <string name="voice_pause">暂停</string>
+    <string name="voice_delete">删除</string>
+    <string name="voice_empty">还没有备忘录，点下方按钮开始录制</string>
+    <string name="voice_permission_required">需要麦克风权限才能录音</string>
+    <string name="voice_title_hint">标题（可选）</string>
+    <string name="voice_duration">时长 %1$s</string>
+    <string name="voice_save">保存录音</string>
+    <string name="voice_discard">放弃</string>
+
+    <!-- 密码保险箱 -->
+    <string name="vault_title">密码保险箱</string>
+    <string name="vault_locked">请输入主口令</string>
+    <string name="vault_unlock">解锁</string>
+    <string name="vault_setup_title">设置主口令</string>
+    <string name="vault_setup_hint">主口令用于加密你的全部条目，不会上传服务器</string>
+    <string name="vault_password">主口令</string>
+    <string name="vault_confirm">确认主口令</string>
+    <string name="vault_password_mismatch">两次输入的口令不一致</string>
+    <string name="vault_weak">口令至少 6 位</string>
+    <string name="vault_question_hint">设置一个问题（如：我母亲的生日？）</string>
+    <string name="vault_answer">答案</string>
+    <string name="vault_recovery_hint">忘记口令时，回答安全问题可重置（会清空已有条目）</string>
+    <string name="vault_set">设置</string>
+    <string name="vault_wrong">口令错误</string>
+    <string name="vault_entries_empty">还没有保存任何条目</string>
+    <string name="vault_add">添加条目</string>
+    <string name="vault_entry_name">名称</string>
+    <string name="vault_entry_address">地址 / 网址</string>
+    <string name="vault_entry_username">用户名</string>
+    <string name="vault_entry_password">密码</string>
+    <string name="vault_entry_notes">备注</string>
+    <string name="vault_show">显示</string>
+    <string name="vault_hide">隐藏</string>
+    <string name="vault_forgot">忘记口令？</string>
+    <string name="vault_recovery_title">通过安全问题重置</string>
+    <string name="vault_recovery_question">%1$s</string>
+    <string name="vault_recovery_answer_hint">请输入当时设置的答案</string>
+    <string name="vault_recovery_wrong">答案错误</string>
+    <string name="vault_recovery_confirm">确认重置</string>
+    <string name="vault_recovery_warn">重置将清空保险箱内全部条目，且不可恢复</string>
+    <string name="vault_copied">已复制</string>
+    <string name="vault_lock">锁定</string>
+    <string name="vault_entry_saved">已保存</string>
+
+    <!-- 工具通知渠道 -->
+    <string name="channel_water_name">喝水提醒</string>
+    <string name="channel_rest_name">休息提醒</string>
+    <string name="channel_water_desc">定时提醒你喝水</string>
+    <string name="channel_rest_desc">定时提醒你起身活动、放松双眼</string>
+    <string name="interval_water_title">该喝水啦</string>
+    <string name="interval_water_text">喝一杯温水，给身体补补水</string>
+    <string name="interval_rest_title">该休息一下啦</string>
+    <string name="interval_rest_text">起身活动活动，放松双眼，远眺 20 秒</string>
 
 </resources>
