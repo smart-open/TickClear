@@ -13,6 +13,7 @@ import com.tickclear.app.data.local.dao.TaskDao
 import com.tickclear.app.data.local.dao.TaskGroupDao
 import com.tickclear.app.data.local.dao.TaskInstanceDao
 import com.tickclear.app.data.local.dao.VoiceHistoryDao
+import com.tickclear.app.data.local.dao.VoiceMemoDao
 import com.tickclear.app.data.local.dao.HabitCheckInDao
 import com.tickclear.app.data.local.dao.HabitDao
 import com.tickclear.app.data.local.entities.CheckInEntity
@@ -22,6 +23,7 @@ import com.tickclear.app.data.local.entities.TaskEntity
 import com.tickclear.app.data.local.entities.TaskGroupEntity
 import com.tickclear.app.data.local.entities.TaskInstanceEntity
 import com.tickclear.app.data.local.entities.VoiceHistoryEntity
+import com.tickclear.app.data.local.entities.VoiceMemoEntity
 import com.tickclear.app.data.local.entities.HabitEntity
 import com.tickclear.app.data.local.entities.HabitCheckInEntity
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
@@ -37,8 +39,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         VoiceHistoryEntity::class,
         HabitEntity::class,
         HabitCheckInEntity::class,
+        VoiceMemoEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun medalUnlockDao(): MedalUnlockDao
     abstract fun checkInDao(): CheckInDao
     abstract fun voiceHistoryDao(): VoiceHistoryDao
+    abstract fun voiceMemoDao(): VoiceMemoDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCheckInDao(): HabitCheckInDao
 
@@ -158,9 +162,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v8 → v9：新增 voice_memos 表（V2.9 工具箱 · 语音备忘录）。 */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // CREATE 语句须与 VoiceMemoEntity 生成的建表语句逐字一致，
+                // 否则 Room 的迁移校验（expected vs migrated schema）会报错。
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS voice_memos (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        duration_ms INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         /** 全部显式迁移，供仪器化契约测试（MigrationTestHelper）引用，无需新增依赖。 */
         internal val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            arrayOf(
+                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+            )
 
         fun create(context: Context, passphrase: String): AppDatabase {
             // L2：sqlcipher-android 需在打开数据库前显式加载 native 库（该 artifact 不自动加载）。
@@ -177,7 +203,10 @@ abstract class AppDatabase : RoomDatabase() {
                 // 刻意不启用 fallbackToDestructiveMigration：版本升级且缺显式 Migration 时，
                 // Room 会显式抛异常（而非静默清空用户数据）。上线前必须在此追加 addMigrations(...)，
                 // 严禁在未提供 Migration 的情况下 bump schema version。
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                )
                 .build()
         }
     }

@@ -9,6 +9,7 @@ import com.tickclear.app.data.repositories.RecycleBinRepositoryImpl
 import com.tickclear.app.data.repositories.SettingsRepositoryImpl
 import com.tickclear.app.data.repositories.TaskRepositoryImpl
 import com.tickclear.app.data.repositories.VoiceHistoryRepositoryImpl
+import com.tickclear.app.data.repositories.VoiceMemoRepositoryImpl
 import com.tickclear.app.domain.repository.CheckInRepository
 import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
@@ -18,6 +19,7 @@ import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.repository.VoiceHistoryRepository
+import com.tickclear.app.domain.repository.VoiceMemoRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -66,4 +68,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindVoiceHistoryRepository(impl: VoiceHistoryRepositoryImpl): VoiceHistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVoiceMemoRepository(impl: VoiceMemoRepositoryImpl): VoiceMemoRepository
 }
