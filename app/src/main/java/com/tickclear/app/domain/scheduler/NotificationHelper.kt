@@ -7,6 +7,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
+import androidx.core.app.NotificationCompat
 import com.tickclear.app.R
 
 /**
@@ -34,6 +35,10 @@ object NotificationHelper {
     const val CHANNEL_MID_MUTED = "tickclear.reminder.mid.muted.$CHANNEL_VERSION"
     const val CHANNEL_LOW = "tickclear.reminder.low.$CHANNEL_VERSION"
     const val CHANNEL_SILENT = "tickclear.reminder.silent.$CHANNEL_VERSION"
+
+    // ── 工具箱间隔提醒渠道（V2.9）：喝水 / 休息。带版本后缀，便于统一清理。 ──
+    const val CHANNEL_WATER = "tickclear.tools.water.$CHANNEL_VERSION"
+    const val CHANNEL_REST = "tickclear.tools.rest.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -122,6 +127,60 @@ object NotificationHelper {
             context.getString(R.string.notify_channel_silent),
             android.app.NotificationManager.IMPORTANCE_MIN,
         ).apply { setShowBadge(false) }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent))
+        // 工具箱间隔提醒渠道：标准重要性 + 震动，点击仅打开 App。
+        val water = NotificationChannel(
+            CHANNEL_WATER,
+            context.getString(R.string.channel_water_name),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = context.getString(R.string.channel_water_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        val rest = NotificationChannel(
+            CHANNEL_REST,
+            context.getString(R.string.channel_rest_name),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = context.getString(R.string.channel_rest_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest))
     }
+
+    /**
+     * 工具箱间隔提醒通知（V2.9）：喝水 / 休息。点击打开 App 工具箱。
+     * 通知 id 按类型固定，避免每次提醒堆叠多条。
+     */
+    fun showIntervalReminder(context: Context, type: com.tickclear.app.domain.scheduler.IntervalType) {
+        val (channelId, titleRes, textRes, notifyId) = when (type) {
+            com.tickclear.app.domain.scheduler.IntervalType.WATER ->
+                Quad(CHANNEL_WATER, R.string.interval_water_title, R.string.interval_water_text, 9201)
+            com.tickclear.app.domain.scheduler.IntervalType.REST ->
+                Quad(CHANNEL_REST, R.string.interval_rest_title, R.string.interval_rest_text, 9202)
+        }
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(titleRes))
+            .setContentText(context.getString(textRes))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
+
+    /** 内部四元组（避免引入额外依赖）。 */
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 }

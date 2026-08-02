@@ -127,6 +127,12 @@
             android:exported="false"
             android:enabled="true" />
 
+        <!-- V2.9 工具箱间隔提醒（喝水 / 休息）：由本应用 AlarmManager 闹钟自调度触发 -->
+        <receiver
+            android:name=".domain.scheduler.IntervalReminderReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
         <receiver
             android:name=".domain.scheduler.HabitReminderReceiver"
             android:exported="false"

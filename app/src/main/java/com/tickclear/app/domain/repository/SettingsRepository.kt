@@ -66,6 +66,19 @@ interface SettingsRepository {
      */
     val debugLogEnabled: Flow<Boolean>
 
+    // ── 工具箱：间隔提醒（V2.9）──
+    /** 喝水提醒开关。 */
+    val waterEnabled: Flow<Boolean>
+
+    /** 喝水提醒间隔（分钟），默认 60。 */
+    val waterIntervalMin: Flow<Int>
+
+    /** 久坐 / 眨眼休息提醒开关。 */
+    val restEnabled: Flow<Boolean>
+
+    /** 休息提醒间隔（分钟），默认 45。 */
+    val restIntervalMin: Flow<Int>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -118,6 +131,12 @@ interface SettingsRepository {
 
     /** 调试日志开关（V2.8X）。写入后须同步 [com.tickclear.app.domain.log.AppLogger.setDebugEnabled]。 */
     suspend fun setDebugLogEnabled(enabled: Boolean)
+
+    // ── 工具箱：间隔提醒（V2.9）──
+    suspend fun setWaterEnabled(enabled: Boolean)
+    suspend fun setWaterIntervalMin(min: Int)
+    suspend fun setRestEnabled(enabled: Boolean)
+    suspend fun setRestIntervalMin(min: Int)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
@@ -180,6 +199,12 @@ interface SettingsRepository {
 
         /** 系统 ASR 默认语言：普通话（V2.43）。 */
         const val DEFAULT_ASR_LANGUAGE = "zh-CN"
+
+        /** 喝水提醒默认间隔（分钟，V2.9）。 */
+        const val DEFAULT_WATER_INTERVAL_MIN = 60
+
+        /** 休息提醒默认间隔（分钟，V2.9）。 */
+        const val DEFAULT_REST_INTERVAL_MIN = 45
 
         /** 判断某分钟数(0-1439)是否落在静音时段 [start,end)，支持跨午夜。 */
         fun isInQuietWindow(nowMin: Int, startMin: Int, endMin: Int): Boolean {

@@ -117,6 +117,12 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 调试日志开关（V2.8X）：默认关闭，仅保留 WARN/ERROR。──
     override val debugLogEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DEBUG_LOG] ?: false }
 
+    // ── 工具箱：间隔提醒（V2.9）：默认关闭，需用户在工具页主动开启。──
+    override val waterEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_WATER_ENABLED] ?: false }
+    override val waterIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_WATER_INTERVAL] ?: SettingsRepository.DEFAULT_WATER_INTERVAL_MIN }
+    override val restEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_REST_ENABLED] ?: false }
+    override val restIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_REST_INTERVAL] ?: SettingsRepository.DEFAULT_REST_INTERVAL_MIN }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
@@ -154,6 +160,12 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { it[KEY_DEBUG_LOG] = enabled }
         com.tickclear.app.domain.log.AppLogger.setDebugEnabled(enabled)
     }
+
+    // ── 工具箱：间隔提醒（V2.9）──
+    override suspend fun setWaterEnabled(enabled: Boolean) { dataStore.edit { it[KEY_WATER_ENABLED] = enabled } }
+    override suspend fun setWaterIntervalMin(min: Int) { dataStore.edit { it[KEY_WATER_INTERVAL] = min.coerceAtLeast(5) } }
+    override suspend fun setRestEnabled(enabled: Boolean) { dataStore.edit { it[KEY_REST_ENABLED] = enabled } }
+    override suspend fun setRestIntervalMin(min: Int) { dataStore.edit { it[KEY_REST_INTERVAL] = min.coerceAtLeast(5) } }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -262,6 +274,10 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_ASR_LANGUAGE = stringPreferencesKey("asr_language")
         private val KEY_VOICE_HISTORY = booleanPreferencesKey("voice_history_enabled")
         private val KEY_DEBUG_LOG = booleanPreferencesKey("debug_log_enabled")
+        private val KEY_WATER_ENABLED = booleanPreferencesKey("water_reminder_enabled")
+        private val KEY_WATER_INTERVAL = intPreferencesKey("water_reminder_interval_min")
+        private val KEY_REST_ENABLED = booleanPreferencesKey("rest_reminder_enabled")
+        private val KEY_REST_INTERVAL = intPreferencesKey("rest_reminder_interval_min")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")
