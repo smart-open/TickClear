@@ -216,13 +216,7 @@ private fun AppNavHost(
         // V2.9 工具箱：统计 Tab 改造为工具箱（统计详情仍经 Today 进度环进入 Routes.STATS）
         composable(Routes.TOOLS) {
             ToolsScreen(
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onNavigate = { route -> navController.navigate(route) },
             )
         }
         composable(Routes.TOOLS_WATER) {

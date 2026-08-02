@@ -20,11 +20,10 @@ import javax.inject.Inject
  * 工具箱间隔提醒共享 ViewModel（V2.9）。
  * 基类持有 [type] 与设置读写 + 调度；喝水 / 休息两个子类各固化一种类型，供 Hilt 注入。
  */
-@HiltViewModel
 open class IntervalReminderViewModel(
     @ApplicationContext protected val appContext: Context,
     protected val settings: SettingsRepository,
-    protected val type: IntervalType,
+    val type: IntervalType,
 ) : ViewModel() {
 
     private val _enabled = MutableStateFlow(false)

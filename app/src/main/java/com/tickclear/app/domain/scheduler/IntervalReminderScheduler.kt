@@ -5,6 +5,8 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Build.VERSION_CODES
 import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.SettingsRepository
 import dagger.hilt.EntryPoint
@@ -50,7 +52,7 @@ object IntervalReminderScheduler {
             IntervalType.REST -> settings.restEnabled.first() to settings.restIntervalMin.first()
         }
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = pendingIntent(context, type)
+        val pi = pendingIntent(context, type, intervalMin)
         if (!enabled) {
             runCatching { am.cancel(pi) }
             return
@@ -61,7 +63,7 @@ object IntervalReminderScheduler {
 
     fun cancel(context: Context, type: IntervalType) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        runCatching { am.cancel(pendingIntent(context, type)) }
+        runCatching { am.cancel(pendingIntent(context, type, 0)) }
     }
 
     /** 开机 / 升级 / 改时区后全量重排（供 [BootReceiver] 调用）。 */
@@ -74,14 +76,10 @@ object IntervalReminderScheduler {
     fun rearm(context: Context, type: IntervalType, intervalMin: Int) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val trigger = System.currentTimeMillis() + intervalMin * 60_000L
-        setExact(am, context, trigger, pendingIntent(context, type))
+        setExact(am, context, trigger, pendingIntent(context, type, intervalMin))
     }
 
-    private suspend fun pendingIntent(context: Context, type: IntervalType): PendingIntent {
-        val intervalMin = when (type) {
-            IntervalType.WATER -> ep(context).settingsRepository().waterIntervalMin.first()
-            IntervalType.REST -> ep(context).settingsRepository().restIntervalMin.first()
-        }
+    private fun pendingIntent(context: Context, type: IntervalType, intervalMin: Int): PendingIntent {
         val intent = Intent(context, IntervalReminderReceiver::class.java).apply {
             action = actionFor(type)
             putExtra(EXTRA_TYPE, type.name)
@@ -102,7 +100,11 @@ object IntervalReminderScheduler {
     @SuppressLint("MissingPermission")
     private fun setExact(am: AlarmManager, context: Context, trigger: Long, pi: PendingIntent) {
         if (trigger <= System.currentTimeMillis()) return
-        val canExact = runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
+        val canExact = if (Build.VERSION.SDK_INT < VERSION_CODES.S) {
+            true
+        } else {
+            runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
+        }
         try {
             if (canExact) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)

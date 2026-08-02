@@ -2,11 +2,12 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -19,16 +20,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSnackbarHostState
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.IntervalType
@@ -47,13 +45,15 @@ fun IntervalReminderScreen(
 ) {
     val enabled by vm.enabled.collectAsStateWithLifecycle()
     val intervalMin by vm.intervalMin.collectAsStateWithLifecycle()
-    val snackbarHostState = rememberSnackbarHostState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val titleRes = if (vm.type == IntervalType.WATER) R.string.water_title else R.string.rest_title
     val enableLabelRes = if (vm.type == IntervalType.WATER) R.string.water_enable else R.string.rest_enable
     val nextRes = if (vm.type == IntervalType.WATER) R.string.water_next else R.string.rest_next
     val testRes = if (vm.type == IntervalType.WATER) R.string.water_test else R.string.rest_test
     val testToastRes = if (vm.type == IntervalType.WATER) R.string.water_test_toast else R.string.rest_test_toast
+    val intervalLabelRes = if (vm.type == IntervalType.WATER) R.string.water_interval else R.string.rest_interval
 
     val nextTime = remember(enabled, intervalMin) {
         if (enabled) {
@@ -70,7 +70,7 @@ fun IntervalReminderScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -95,7 +95,7 @@ fun IntervalReminderScreen(
                 Switch(checked = enabled, onCheckedChange = vm::setEnabled)
             }
 
-            Text(stringResource(R.string.water_interval), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(intervalLabelRes), style = MaterialTheme.typography.titleSmall)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -122,7 +122,8 @@ fun IntervalReminderScreen(
             Button(
                 onClick = {
                     vm.testNotify()
-                    snackbarHostState.showSnackbar(stringResource(testToastRes))
+                    val toast = stringResource(testToastRes)
+                    scope.launch { snackbarHostState.showSnackbar(toast) }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
