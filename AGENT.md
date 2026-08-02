@@ -7,7 +7,7 @@
 - **定位**：纯本地、无云端账号；任务数据经 **SQLCipher** 加密存储。
 - **包名**：`com.tickclear.app`，单模块 `:app`（MVP 优先，未拆 :core/:data）。
 - **基线**：Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 / minSdk 26 / targetSdk 34 / compileSdk 34。
-- **UI**：Jetpack Compose + Material3；底部 6 Tab：今日 / 任务 / 习惯 / 统计 / 助手 / 设置。
+- **UI**：Jetpack Compose + Material3；底部 6 Tab：今日 / 任务 / 习惯 / 工具 / 助手 / 设置（统计详情经今日进度环进入 `Routes.STATS`，仍可达）。
 - **DI**：Hilt。注解处理器 **Room 与 Hilt 均已统一走 KSP**（`ksp(libs.androidx.room.compiler)` / `ksp(libs.hilt.compiler)`），工程内无 KAPT。
 - **本地存储**：Room(SQLCipher) + DataStore(偏好) + EncryptedSharedPreferences(密钥/口令)。
 
@@ -43,7 +43,7 @@ di/         Hilt 模块
 - **今日**：分组展示今日任务；完成/编辑/删除（左滑软删带撤销、右滑完成）；时间窗冲突角标 + `ConflictBanner`；今日完成率；AI 助手入口。
 - **任务**：全部任务 + 任务组 CRUD（级联软删）；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
 - **习惯**：习惯 CRUD（emoji / 重复星期 CSV / 提醒时刻 / 配色 / 排序 / 归档），按日打卡（`HabitCheckInEntity`，同日幂等、不允许补卡），连续天数统一走 `HabitDates.computeStreak`（`java.time.LocalDate` DST 安全实现，唯一事实来源）；提醒经 `HabitReminderScheduler` 排程、`HabitReminderReceiver` 触发后自动续排，**习惯提醒无条件响铃 + 震动，不受全局「声音」开关约束**。
-- **统计**：按组/日/周/月完成情况、完成率、连续打卡天数（基于 `CheckInEntity`，不允许补卡）、勋章墙（8 枚）。
+- **工具**：原「统计」Tab 改造为工具箱（v2.8X），分类展示小工具——健康类：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）；效率安全类：语音备忘录（录制/播放/删除，音频存本地）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回、条目含名称/地址/用户名/密码/备注）。统计详情仍经今日页进度环点击进入 `Routes.STATS`。
 - **助手**：模拟硬件设备对接小智(Xiaozhi) WebSocket 协议，语音 + 文字聊天；对话出现任务时经 **MCP 函数调用(`create_task`)** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 Mock 模式离线可跑。
 - **设置**：主题(浅色/深色/动态)、语音/ASR 配置 + 测试、回收站管理、调试(日志/测试按钮)、关于。
 

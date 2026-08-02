@@ -7,6 +7,7 @@
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
 - 版本基线：**v2.8.0（versionCode 16，2026-08-02 封板）** — 消息净化（`MessageTextFilter` 剥离 `@image#<i>:<hash>.<ext>` 多模态引用）+ **Opus 编解码本地化根因修复**（改用本地 AAR `app/libs/opus.aar`，含官方 libopus 1.3.1、全 ABI 含 arm64，彻底解决 `MediaCodec` Opus 编码器 `dequeueInputBuffer` 恒 -1 导致的「麦克风亮着但说话没反应」）+ 助手崩溃与生命周期收口（LazyColumn key 撞号 / 协程兜底 / 连接跟随应用前后台）+ 精确闹钟权限降级 + 协议补漏（Device-Id 大小写敏感 / listen `state="detect"` / 25s 握手超时）。详见 [release-notes](release-notes.md) 顶部 v2.8.0 章节 与 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
+- 当前开发线：**v2.8X 工具箱（统计 Tab→工具）** — 工具箱分类展示 4 个小工具：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）、语音备忘录（录制/播放/删除）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回）。代码已落地，待本地 `./gradlew clean assembleDebug` + 真机回归验证后封板。
 - 成熟度：四维（产品设计 / 软件开发 / 质量测试 / 应用使用配置）均 **99**，综合 **99.0 / 100**，详见 [成熟度评估](docs/成熟度评估.md)。
 
 ---
@@ -23,10 +24,10 @@
 ## 功能特性
 
 ### 六大 Tab（底部 / 左导航轨自适应）
-- **今日**：分组展示今日任务；完成 / 编辑 / 左滑软删（带撤销）/ 右滑完成；时间窗冲突角标 + 冲突横幅；完成率环；一键清空「今日全部」。
+- **今日**：分组展示今日任务；完成 / 编辑 / 左滑软删（带撤销）/ 右滑完成；时间窗冲突角标 + 冲突横幅；完成率环（点击进入统计详情 `Routes.STATS`）；一键清空「今日全部」。
 - **任务**：全部任务 + 任务组 CRUD（级联软删）；任务标签筛选；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
 - **习惯**：周期性习惯打卡（星期重复、连续 streak、休息日标识）。
-- **统计**：按组 / 日 / 周 / 月完成情况、完成率、连续打卡天数（基于 `CheckInEntity`，不可补卡）；8 枚勋章墙 + 热力图日历。
+- **工具**：原「统计」Tab 改造为工具箱（v2.8X），分类展示小工具——健康类：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）；效率安全类：语音备忘录（录制/播放/删除，音频存本地）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回、条目含名称/地址/用户名/密码/备注）。
 - **助手**：对接**小智（Xiaozhi）WebSocket** 协议，语音 + 文字聊天。**REAL 模式**走官方云（含 MCP JSON-RPC 2.0 双向握手：`initialize` / `notifications/initialized` / `tools/list` / `tools/call`）；对话触发任务经 MCP `create_task` 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）；服务端塞进 `text` 的多模态资源引用（`@image#<i>:<hash>.<ext>`）由 `MessageTextFilter` 自动净化。**Mock 模式离线可跑**。连接与语音排查详见 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
 - **设置**：主题（浅色 / 深色 / 动态）、语音 / ASR / LLM 配置 + 测试、回收站管理、调试（日志 / 测试按钮）、关于。
 
