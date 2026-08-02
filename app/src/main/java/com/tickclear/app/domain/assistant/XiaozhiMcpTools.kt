@@ -80,6 +80,11 @@ class XiaozhiMcpTools @Inject constructor(
         // 提前量：>0 代表提前 N 分钟提醒（V2.15 口语「提前15分钟」等）。
         val offset = (args["reminderOffset"] as? Number)?.toInt()?.takeIf { it > 0 }
 
+        // V2.8X++ 自然语言扩展：标签 / 备注 / 优先级（来自 TaskIntentParser 解析）。
+        val tags = (args["tags"] as? List<*>)?.mapNotNull { it as? String }?.filter { it.isNotEmpty() } ?: emptyList()
+        val notes = (args["notes"] as? String)?.takeIf { it.isNotBlank() }
+        val level = (args["level"] as? String)?.takeIf { it == "high" || it == "low" || it == "mid" }
+
         // V2.8X++ 深度修复「语音建任务到点不提醒」：
         // 旧逻辑 reminderEnabled = minute != null || offset != null —— 只要 LLM 没回传具体分钟
         // （绝大多数口语「提醒我明天买菜」都无明确时刻）或没传提前量，reminderEnabled 即 false，
@@ -92,6 +97,9 @@ class XiaozhiMcpTools @Inject constructor(
         val effectiveMinute = minute ?: if (hasSchedule) 9 * 60 else null
         val reminderEnabled = effectiveMinute != null || offset != null
 
+        // 优先级：用户口语显式说的 level 优先；否则沿用「有日程即 high」的回落策略。
+        val reminderLevel = level ?: (if (reminderEnabled) "high" else "mid")
+
         return Task(
             id = "xz_${UUID.randomUUID()}",
             title = title,
@@ -101,7 +109,9 @@ class XiaozhiMcpTools @Inject constructor(
             repeatWeekdays = weekdays,
             reminderEnabled = reminderEnabled,
             reminderOffsetMin = offset,
-            reminderLevel = if (reminderEnabled) "high" else "mid",
+            reminderLevel = reminderLevel,
+            tags = tags,
+            notes = notes ?: "",
             source = "xiaozhi",
         )
     }

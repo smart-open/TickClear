@@ -46,6 +46,9 @@ class MockXiaozhiTransport(
                         "repeatType" to parsed.repeatType,
                         "weekdays" to parsed.weekdays,
                         "reminderOffset" to parsed.reminderOffsetMin,
+                        "tags" to parsed.tags,
+                        "notes" to parsed.notes,
+                        "level" to parsed.level,
                     ),
                 ),
             )
