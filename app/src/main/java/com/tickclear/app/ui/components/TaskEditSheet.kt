@@ -266,7 +266,7 @@ fun TaskEditContent(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
             ) {
-                items(knownTags) { tag ->
+                items(knownTags, key = { it }) { tag ->
                     val selected = tag in currentTags
                     FilterChip(
                         selected = selected,
