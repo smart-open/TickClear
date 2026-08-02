@@ -22,7 +22,9 @@ android {
 
     defaultConfig {
         applicationId = "com.tickclear.app"
-        minSdk = 24
+        // v2.8.0 后续：minSdk 上调至 26（Android 8.0/Oreo）。java.time 在 API 26+ 原生可用，
+        // coreLibraryDesugaring 仍保留（其他 desugared API 可能依赖，移除有回归风险）。
+        minSdk = 26
         targetSdk = 34
         // v2.8.0 封板：V2.8X 全部增量（小组件/习惯/标签/皮肤/语音历史/常驻唤醒/
         // 通知三态可靠性/助手闪退根因/轻提示 3 秒）随本版本一并发布。
