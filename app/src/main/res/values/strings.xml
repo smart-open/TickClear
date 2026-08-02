@@ -252,6 +252,8 @@
     <string name="recycle_bin_export_item_group">任务组 · 删除于 %1$s</string>
     <string name="recycle_bin_export_empty">回收站暂无可导出的内容</string>
     <string name="recycle_bin_export_chooser">分享回收站清单</string>
+    <string name="recycle_bin_batch_purge_confirm">确定彻底删除选中的 %1$d 项？此操作不可撤销。</string>
+    <string name="recycle_bin_select_mode">选择模式</string>
 
     <!-- Phase 4：统计 Tab -->
     <string name="stats_today_rate">今日完成率</string>
