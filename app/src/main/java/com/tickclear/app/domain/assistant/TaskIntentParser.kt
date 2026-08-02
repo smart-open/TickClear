@@ -190,7 +190,9 @@ object TaskIntentParser {
     }
 
     private val RE_EDIT_TIME_HINT = Regex("""改到|改成|改时间|推迟到|提前到|换到|调到|挪到""")
-    private val RE_EDIT_CANCEL = Regex("""取消|删掉|删了|删除|不要了|算了""")
+    // 与 OfflineCommandRecognizer.DELETE_WORDS 收敛：删除类动词保持一致，避免同一句口语
+    // 在「多轮编辑」路径（此处）与「离线指令」路径（OfflineCommandRecognizer）被判成不同动作。
+    private val RE_EDIT_CANCEL = Regex("""取消|删掉|删了|删除|不要了|算了|移除|去掉|清除|干掉""")
 
     /**
      * 解析对上一个任务的编辑指令；无法识别返回 null（调用方回落到正常对话）。
