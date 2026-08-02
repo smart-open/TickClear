@@ -11,7 +11,7 @@ import javax.inject.Singleton
 class VoiceHistoryRepositoryImpl @Inject constructor(
     private val dao: VoiceHistoryDao,
 ) : VoiceHistoryRepository {
-    override suspend fun insert(entry: VoiceHistoryEntity) = dao.insert(entry)
+    override suspend fun insert(entry: VoiceHistoryEntity): Long = dao.insert(entry)
     override fun observeAll(): Flow<List<VoiceHistoryEntity>> = dao.observeAll()
     override suspend fun clearAll() = dao.clearAll()
     override suspend fun deleteByTextAndRole(role: String, text: String) = dao.deleteByTextAndRole(role, text)

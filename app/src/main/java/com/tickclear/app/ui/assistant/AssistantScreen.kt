@@ -47,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import com.tickclear.app.ui.components.showTimedSnackbar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -187,7 +188,7 @@ fun AssistantScreen(
     LaunchedEffect(micToast) {
         micToast?.let {
             scope.launch {
-                snackbarHostState.showSnackbar(it)
+                snackbarHostState.showTimedSnackbar(it)
                 viewModel.consumeMicToast()
             }
         }
@@ -230,7 +231,7 @@ fun AssistantScreen(
         if (recordPermission.status is PermissionStatus.Denied && (pendingVoiceStart || pendingWakeStart)) {
             pendingVoiceStart = false
             pendingWakeStart = false
-            snackbarHostState.showSnackbar(message = permissionDeniedMsg)
+            snackbarHostState.showTimedSnackbar(message = permissionDeniedMsg)
         }
     }
 
@@ -434,12 +435,13 @@ fun AssistantScreen(
                         TextButton(onClick = {
                             val sel = selectedIds.value
                             if (sel.isNotEmpty()) {
+                                // 直接沿用 messages 的展示顺序（已按时间升序）；
+                                // 不能再按 id 排序 —— 未落库的新消息 ID 为负（见 nextId），排序会错乱。
                                 val texts = messages
                                     .filter { sel.contains(it.id) }
-                                    .sortedBy { it.id }
                                     .joinToString("\n\n") { it.text }
                                 clipboard.setText(AnnotatedString(texts))
-                                scope.launch { snackbarHostState.showSnackbar(copiedTip) }
+                                scope.launch { snackbarHostState.showTimedSnackbar(copiedTip) }
                             }
                         }) {
                             Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -590,7 +592,7 @@ fun AssistantScreen(
                             onClick = {
                                 clipboard.setText(AnnotatedString(msg.text))
                                 messageMenuFor = null
-                                scope.launch { snackbarHostState.showSnackbar(copiedTip) }
+                                scope.launch { snackbarHostState.showTimedSnackbar(copiedTip) }
                             },
                         )
                         CompactMsgAction(
@@ -608,7 +610,7 @@ fun AssistantScreen(
                             onClick = {
                                 viewModel.removeMessage(msg.id)
                                 messageMenuFor = null
-                                scope.launch { snackbarHostState.showSnackbar(deletedTip) }
+                                scope.launch { snackbarHostState.showTimedSnackbar(deletedTip) }
                             },
                         )
                     }
@@ -635,7 +637,7 @@ fun AssistantScreen(
                         toDelete.forEach { viewModel.removeMessage(it) }
                         selectedIds.value = emptySet()
                         scope.launch {
-                            snackbarHostState.showSnackbar(
+                            snackbarHostState.showTimedSnackbar(
                                 appContext.getString(R.string.assistant_msg_deleted_count, toDelete.size),
                             )
                         }
@@ -748,6 +750,11 @@ private fun AssistantChatBody(
     onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
+    // V2.8X++ 闪退兜底：LazyColumn 的 item key 一旦重复会直接抛 IllegalArgumentException，
+    // 且异常在 Compose 组合阶段抛出，ViewModel 侧的 runCatching 一概拦不住 → 整个 App 闪退。
+    // ID 已在 ViewModel 按「内存负数 / 库正数」分区隔离（见 AssistantViewModel.nextId），
+    // 此处再按 id 去重做最后一道防线：任何数据异常最多少展示一条，绝不闪退。
+    val renderMessages = remember(messages) { messages.distinctBy { it.id } }
     Column(modifier) {
         pendingDraft?.let { draft ->
             TaskDraftCard(
@@ -767,7 +774,7 @@ private fun AssistantChatBody(
                 actionLabel = stringResource(R.string.assistant_unconfigured_action),
                 onAction = onConfigure,
             )
-        } else if (messages.isEmpty()) {
+        } else if (renderMessages.isEmpty()) {
             // V2.8X++：已配置但消息列表为空时的引导 —— 之前直接渲染空 LazyColumn，
             // 新用户进 tab 一片空白不知从哪下手。宽屏亦展示，避免双栏右侧留白。
             EmptyStateGuide(
@@ -783,7 +790,7 @@ private fun AssistantChatBody(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(messages, key = { it.id }) { msg ->
+                items(renderMessages, key = { it.id }) { msg ->
                     MessageRow(
                         msg = msg,
                         selectionMode = selectionMode,

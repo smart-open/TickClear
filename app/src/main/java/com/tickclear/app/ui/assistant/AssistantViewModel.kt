@@ -136,8 +136,25 @@ class AssistantViewModel @Inject constructor(
     private val localRecognizer = LocalSpeechRecognizer(appContext)
     private val wakeWordManager = WakeWordManager(appContext, settingsRepository)
     private var appCallbacks: Application.ActivityLifecycleCallbacks? = null
+    /**
+     * 内存消息的临时 ID 计数器。
+     *
+     * V2.8X++ 闪退根因修复：消息列表存在**两套 ID 来源** ——
+     *   ① 历史消息来自 voice_history 表，ID 是 Room 自增主键（恒 ≥ 1）；
+     *   ② 新消息在内存生成，原实现 `++seq` 同样从 1 开始。
+     * 两者编号区间完全重叠：只要库里已有历史（id=1 存在），重启后发送的第一条消息就会
+     * 拿到 id=1，`LazyColumn(items(key = { it.id }))` 遇到重复 key 直接抛
+     * IllegalArgumentException("Key ... was already used") 硬闪退。
+     * 该异常发生在 Compose 组合阶段，ViewModel 侧任何 runCatching 都拦不住 ——
+     * 这正是「已加满兜底仍然一发消息就崩」的原因。
+     *
+     * 现改为**递减取负**：内存临时 ID 恒 ≤ -1，与库主键永不相交。
+     * 落库成功后由 [recordVoiceHistory] 回填真实主键（转正），
+     * 使「删除单条」能按主键精确删库；未落库前 ID 为负，
+     * [removeMessage] 的 `id > 0` 守卫会自动跳过删库（避免误删同号历史行）。
+     */
     private var seq = 0L
-    private fun nextId() = ++seq
+    private fun nextId() = --seq
 
     /** 语音历史开关缓存：避免每条消息都读一次 DataStore（V2.65 优化）。 */
     private val voiceHistoryOn = MutableStateFlow(false)
@@ -670,6 +687,7 @@ class AssistantViewModel @Inject constructor(
             AppLogger.e(TAG, "sendText 处理消息未预期异常", e)
             append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_process_error)))
         }
+        }
     }
 
     /** 启动唤醒词持续监听（命中后自动开始语音输入）。 */
@@ -964,7 +982,24 @@ class AssistantViewModel @Inject constructor(
                         kind = kind,
                     ),
                 )
+            }.onSuccess { rowId ->
+                // 落库成功后把内存临时负 ID 换成真实主键：既保持全列表 ID 唯一，
+                // 又让「长按删除单条」能按主键精确删库（否则本次会话内新消息删不掉库记录）。
+                if (rowId > 0L) reassignMessageId(msg.id, rowId)
             }.onFailure { AppLogger.e(TAG, "recordVoiceHistory 落库失败 role=${msg.role}", it) }
+        }
+    }
+
+    /**
+     * 把内存临时 ID [tempId] 替换为落库后的真实主键 [dbId]。
+     * 若列表中已存在 [dbId]（历史条目撞号等极端情况）则放弃替换，
+     * 宁可保留负数临时 ID，也绝不制造重复 key 触发 LazyColumn 闪退。
+     */
+    private fun reassignMessageId(tempId: Long, dbId: Long) {
+        if (tempId == dbId) return
+        _messages.update { list ->
+            if (list.none { it.id == tempId } || list.any { it.id == dbId }) list
+            else list.map { if (it.id == tempId) it.copy(id = dbId) else it }
         }
     }
 

@@ -9,8 +9,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VoiceHistoryDao {
+    /**
+     * V2.8X++：返回自增主键 rowId（Room 原生支持 @Insert 返回 Long，不涉及表结构变更）。
+     * 助手 tab 落库后需要用真实主键回填内存消息 ID —— 否则内存临时 ID 与库 ID 两套编号
+     * 会在 LazyColumn 的 key 上撞车（详见 AssistantViewModel.nextId 注释）。
+     */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(entry: VoiceHistoryEntity)
+    suspend fun insert(entry: VoiceHistoryEntity): Long
 
     @Query("SELECT * FROM voice_history ORDER BY created_at DESC, id DESC")
     fun observeAll(): Flow<List<VoiceHistoryEntity>>
