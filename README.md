@@ -6,8 +6,8 @@
 
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
-- 版本基线：v2.7.2（v2.7.1 九项 UI/视觉与统计崩溃防御 + v2.7.2 十一处 UI 打磨 + 小智 REAL 连接/语音深度修复：WS 端点纠正、客户端先发 hello 握手、TTS 回复播放、握手超时守卫、采样率自适应、语音链路打通，零新功能、零新依赖）
-- 在做迭代：**V2.8X（未封板）** — 消息净化（`MessageTextFilter` 剥离 `@image#<i>:<hash>.<ext>` 多模态引用）+ 语音上行全链路诊断日志（`AudioCapture` / `OpusCodec` / `XzTransport` / `AssistantVM` 四标签）+ 协议补漏（Device-Id 大小写敏感 / listen `state="detect"` / 25s 握手超时）。详见 [release-notes](release-notes.md) 顶部 v2.8X 章节 与 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
+- 版本基线：**v2.8.0（versionCode 16，2026-08-02 封板）** — 消息净化（`MessageTextFilter` 剥离 `@image#<i>:<hash>.<ext>` 多模态引用）+ **Opus 编解码本地化根因修复**（改用本地 AAR `app/libs/opus.aar`，含官方 libopus 1.3.1、全 ABI 含 arm64，彻底解决 `MediaCodec` Opus 编码器 `dequeueInputBuffer` 恒 -1 导致的「麦克风亮着但说话没反应」）+ 助手崩溃与生命周期收口（LazyColumn key 撞号 / 协程兜底 / 连接跟随应用前后台）+ 精确闹钟权限降级 + 协议补漏（Device-Id 大小写敏感 / listen `state="detect"` / 25s 握手超时）。详见 [release-notes](release-notes.md) 顶部 v2.8.0 章节 与 [小智诊断手册](XIAOZHI_DIAGNOSTIC_README.md)。
+- 成熟度：四维（产品设计 / 软件开发 / 质量测试 / 应用使用配置）均 **99**，综合 **99.0 / 100**，详见 [成熟度评估](docs/成熟度评估.md)。
 
 ---
 
@@ -15,8 +15,8 @@
 
 | 今日 Tab | 小智助手 |
 |:---:|:---:|
-| ![今日 Tab — 分组任务、冲突角标、完成率环、键盘快捷键](docs/screenshots/screen-today.jpg) | ![小智助手 — REAL WebSocket 对话（含 MCP 工具调用与多模态资源净化）](docs/screenshots/screen-assistant.jpg) |
-| 分组任务 · 冲突提醒 · 完成率环 · 键盘快捷键 | WS 实时对话 · MCP 建任务 · 多模态资源净化 |
+| ![今日 Tab — 分组任务、冲突角标、完成率环](docs/screenshots/screen-today.jpg) | ![小智助手 — REAL WebSocket 对话（含 MCP 工具调用与多模态资源净化）](docs/screenshots/screen-assistant.jpg) |
+| 分组任务 · 冲突提醒 · 完成率环 | WS 实时对话 · MCP 建任务 · 多模态资源净化 |
 
 > 截图来自真机 v2.7.2 + V2.8X（在做）。助手 Tab 中服务端塞进 `text` 字段的 `@image#<i>:<hash>.<ext>` 多模态资源引用，由 `MessageTextFilter` 在源头（`WebSocketXiaozhiTransport` llm / tts 两处）与 UI 层（`AssistantViewModel.onEvent` `LlmText` 分支）双层防御 strip 掉，聊天界面只保留表情图片本身，不会再以原始 token 形式进入消息列表。
 
@@ -39,12 +39,12 @@
 
 ### 语音能力
 - 可配置云端 ASR（阿里云 / 腾讯云 / OpenAI 兼容 / 豆包 / 千问）+ 本地 best-effort 识别；**离线热词指令**（暂停 / 启用 / 删除 + 任务名）；自定义唤醒词与欢迎词。
-- 语音链路封装在 `domain/assistant/OpusCodec`：优先用 Android `MediaCodec`（audio/opus），无编码器自动降级文本模式。
+- 语音链路封装在 `domain/assistant/OpusCodec`：自 v2.8.0 起使用本地 AAR `app/libs/opus.aar`（theeasiestway，官方 libopus 1.3.1 软件实现，全 ABI 含 arm64-v8a），不再依赖设备 `MediaCodec` Opus 编码器；原生库加载失败时自动降级文本模式。
 
 ### 数据与互通
 - 定时**加密自动备份**（AlarmManager 调度）+ 手动立即备份；JSON 备份恢复（含加密与版本化、备份自愈校验）。
 - **ICS（iCalendar）导入 / 导出** 走 SAF。
-- 桌面小组件（AppWidgetProvider）+ 动态快捷方式 + 键盘快捷键（Ctrl/Cmd+N 新建、Space 完成、Ctrl/Cmd+Enter 清空等）。
+- 桌面小组件（AppWidgetProvider）+ 系统动态快捷方式（长按图标直达「新建任务 / 助手」，`ShortcutManager`，API 25+）。<br/>*注：物理键盘快捷键（Ctrl+N 等）为规划项，当前版本未实现，见 [成熟度评估 §6](docs/成熟度评估.md) 已知限制。*
 
 ### 自适应与无障碍
 - `WindowSizeClass` 断点：手机 Compact 底部 Tab；平板 Medium/Expanded 左 `NavigationRail` + 双栏（今日 / 设置 / 任务编辑 / 组编辑带实时预览）。
@@ -64,7 +64,7 @@
 | 网络 | OkHttp（小智 WebSocket 二进制帧） |
 | 序列化 | kotlinx-serialization |
 | 权限 | accompanist.permissions |
-| 音频 | AudioRecord / AudioTrack + MediaCodec（Opus） |
+| 音频 | AudioRecord / AudioTrack + libopus（本地 AAR `app/libs/opus.aar`，theeasiestway，全 ABI） |
 
 ---
 
