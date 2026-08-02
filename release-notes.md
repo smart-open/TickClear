@@ -4,10 +4,11 @@
 
 ---
 
-## v2.8X（2026-XX-XX · 在做未封板）· 消息净化 + 语音诊断日志 + 协议实证补漏
+## v2.8.0（2026-08-02 · 封板）· 消息净化 + 语音 Opus 根因修复 + 协议实证补漏 + 工程严谨性收敛
 
 **平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
-**相对 v2.7.2**：P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 语音 Opus 编码根因修复 / 文档同步）。**唯一红线例外**：新增 1 个 Opus 依赖 `com.github.martoreto:opuscodec:v1.2.1.2`（martoreto/opuscodec，JitPack 单模块 AAR，JNI 包完整 libopus，替代 MediaCodec Opus 编码，见下）；其余仍零新功能、中文全抽离、DB 版本不变（v8）。
+**版本**：versionCode 16 / versionName 2.8.0 · DB schema v8（无 schema 变更）
+**相对 v2.7.2**：P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 语音 Opus 编码根因修复 / 助手连接生命周期 / 工程严谨性收敛 / 文档同步）。**唯一红线例外**：Opus 编解码引入本地 AAR `app/libs/opus.aar`（theeasiestway/android-opus-codec，含官方 libopus 1.3.1，全 ABI 含 arm64-v8a），以本地文件随仓库分发、不新增远程仓库与坐标解析（见下）；其余仍零新功能、中文全抽离、DB 版本不变（v8）。
 
 ### 🧹 消息列表净化（P0 · 用户可见）
 - **剥离多模态资源 token**（@image#xxx）：小智官方服务端在 LLM/TTS 文本中插入形如 `@image#1:23e150c406a50b91e200450bf3d94b31.jpg` 的多模态资源引用（用于 TTS 朗读时插入图片/表情包合成播放），TTS 音频会念"图片"，但**给 UI 展示用的 text 字段是带 token 的原文**——直接显示给用户会出现纯技术串。修复：
@@ -23,15 +24,15 @@
   - `AssistantViewModel.startXiaozhiOpusVoice` 的 onFrame 回调：v 级 pcm→opus→sendAudio 三段日志，便于对账。
 - **本轮目标**：用户本地 `./gradlew assembleDebug` + 真机回归一次，复制 logcat `XzTransport / AudioCapture / OpusCodec / AssistantVM` 四个标签的输出给项目组，按日志区分"录音未起 / read 阻塞 / 编码失败 / send 失败"四类根因后，再二次定位并出方案 B（3s 自愈）/ 方案 C（60ms→3×20ms）。
 
-### 🎙 Opus 编解码改用 martoreto/opuscodec（P0 · 语音彻底不可用根因修复 · 2026-07-29）
+### 🎙 Opus 编解码改用本地 AAR（theeasiestway）（P0 · 语音彻底不可用根因修复 · 2026-07-29 起，2026-08-01 定案）
 - **根因（由诊断日志实证）**：本机及多数 Android 机型 `MediaCodec` 声称提供 Opus **编码器**，但同步模式下 `dequeueInputBuffer` **永久返回 -1**（输入缓冲区永远不可取用）。导致 `OpusCodec.encodeFrame` 每帧返回 null → **零字节上行** → 服务端收不到音频 → 无 STT/LLM/TTS → "麦克风亮着但说话没反应"。日志铁证：录音 155 帧零错误、编码 155 帧 100% 失败、全程 0 条 `sendAudio`、WS/MCP 握手正常（服务端健康）。
-- **修复**：编码 + 解码路径整体替换为 **martoreto/opuscodec**（`com.github.martoreto:opuscodec:v1.2.1.2`，JitPack **单模块** AAR，JNI 包完整 libopus，`libsenz.so` 打进 AAR、覆盖各 ABI）。软件实现，各机型 100% 可用，与 xiaozhi 参考客户端（py-xiaozhi 等）一致。
-  - 依赖落地波折（已全数解决）：① 误用 `org.concentus:concentus:2.0.1`——该坐标仅在已关停的 JCenter 发布，Maven Central / 阿里云镜像均拉不到；② JitPack `com.github.lostromb:concentus` 多模块、子模块未发布，解析失败；③ `com.github.theeasiestway.android-opus-codec:opus:-b8e43ec41e-1` 同样多模块、子模块 `:opus` 未发布，解析失败；④ **最终采用 `com.github.martoreto:opuscodec:v1.2.1.2`**（已核实为单模块、v1.2.1.2 构建状态 `ok`、POM 有效可被 JitPack 正常发布）。
-  - `OpusCodec.encodeFrame`：PCM16 字节（1920B/帧）小端转 `short[]`（960 样本）交给 `OpusEncoder(16000,1,OPUS_APPLICATION_VOIP).encode(shorts, 960, out)` → 返回原始 Opus 包（不含 Ogg 容器，直发 WebSocket 二进制帧）。
-  - `OpusCodec.decodeFrame`：同样走该库 `OpusDecoder(rate,1).decode(opus, shorts, frameSamples)` → PCM16 字节（TTS 播放不再依赖设备 MediaCodec Opus 解码器）。
-  - `OpusCodec.isEncoderAvailable()/isDecoderAvailable()` 均改为恒 `true`（libopus 随 AAR 常驻，不再被 MediaCodec 探测误判）。
-  - `app/build.gradle.kts` 新增 `implementation(libs.opuscodec)`；`gradle/libs.versions.toml` 加 `opuscodec = { module = "com.github.martoreto:opuscodec", version = "v1.2.1.2" }`；`settings.gradle.kts` 仓库加 `maven { url = uri("https://jitpack.io") }`；`proguard-rules.pro` 加 `-keep class com.score.rahasak.utils.**`。
-- **红线影响**：突破红线①「零新依赖」（唯一例外，因 MediaCodec Opus 编码在本机/多数机型不可用属 Android 碎片化硬伤，且 JitPack 上可靠可用的替代库均为带原生 .so 的安卓库）；②中文全抽离（仅 AppLogger 日志，不计入）③Room 显式 Migration（无 schema 变更）④`.workbuddy/` 不提交，均守住。
+- **修复**：编码 + 解码路径整体替换为 **theeasiestway/android-opus-codec**（本地 AAR `app/libs/opus.aar`，JNI 包官方 libopus 1.3.1，`libopus.so / libeasyopus.so / libopusenc.so` **全 ABI 含 arm64-v8a**）。纯软件实现，各机型 100% 可用，与 xiaozhi 参考客户端（py-xiaozhi 等）一致。
+  - 依赖落地波折（已全数解决）：① 误用 `org.concentus:concentus:2.0.1`——该坐标仅在已关停的 JCenter 发布，Maven Central / 阿里云镜像均拉不到；② JitPack `com.github.lostromb:concentus` 多模块、子模块未发布，解析失败；③ 一度改用 `com.github.martoreto:opuscodec:v1.2.1.2`，虽可解析，但其 `libsenz.so` **仅打了 32 位 ABI**，arm64-v8a 真机 `dlopen` 失败报 `libsenz.so not found`，语音仍不可用；④ **最终改为本地 AAR `app/libs/opus.aar`（theeasiestway）**，全 ABI 齐备、无需外部仓库解析。**红线注记：禁止回退 martoreto/opuscodec。**
+  - `OpusCodec.encodeFrame`：PCM16 字节（1920B/帧）直接交给该库 `Opus.encode(pcm16, Constants.FrameSize._960())` → 返回原始 Opus 包（不含 Ogg 容器，直发 WebSocket 二进制帧）。编码器初始化 `encoderInit(SampleRate._16000(), Channels.mono(), Application.voip())` + `encoderSetBitrate(Bitrate.instance(24_000))`。
+  - `OpusCodec.decodeFrame`：同样走该库 `Opus.decode(opus, Constants.FrameSize.fromValue(frameSamples))` → PCM16 字节（TTS 播放不再依赖设备 MediaCodec Opus 解码器）；解码器 `decoderInit(sampleRateFor(rate), Channels.mono())`。
+  - `OpusCodec.isEncoderAvailable()/isDecoderAvailable()` 改为**以 libopus 原生库加载结果为准**（不再用 MediaCodec 探测，避免设备声称支持但实际不可用的误判）；加载失败打 e 级日志明确告知语音流不可用。
+  - `app/build.gradle.kts`：以 `app/libs/opus.aar` 本地文件依赖引入，并在 `packaging` 保留 `libopus.so / libeasyopus.so / libopusenc.so` 的调试符号、**不再剔除 `arm64-v8a` 目录**；`proguard-rules.pro` 加 `-keep class com.theeasiestway.opus.** { *; }` + `-dontwarn`。**未新增任何远程仓库（无 JitPack）与依赖坐标。**
+- **红线影响**：红线①「零新依赖」以**本地 AAR 形式做唯一例外**（远程坐标/仓库零新增；因 MediaCodec Opus 编码在多数机型不可用属 Android 碎片化硬伤，无法自研绕过）；②中文全抽离（仅 AppLogger 日志，不计入）③Room 显式 Migration（无 schema 变更）④`.workbuddy/` 不提交，均守住。
 
 ### 🔌 小智协议实证补漏（文档同步，非代码改动）
 - **Device-Id 大小写敏感**：xiaozhi.me 控制台对 Device-Id(MAC) 做大小写敏感匹配。已绑定小写 MAC（如 `e8:06:90:98:6c:d4`）必须以小写发送，大写会被静默拒 → close code 1005。已通过独立探针实证。
@@ -47,8 +48,25 @@
 - **[fix] `WebSocketXiaozhiTransport` 文本帧未校验 connected（P3 · 资源触碰窗口）**：`onMessage(text)` 不像 `onMessage(bytes)` 那样先 `if(!connected) return`，`disconnect()` 释放资源与置 `connected=false` 之间存在极短窗口，文本帧可能触达已释放的 codec/player。修复：文本分支补 `connected` 守卫（`runCatching` 兜底保留）。
 - **[fix] `XiaozhiConnectionTester` 诊断文案硬编码中文（红线 · 封板前必修，已结清）**：`test()` 的用户可见失败原因（网络不可达 / 1005 license 不同步 / 1006 异常 / 超时根因等十余处）原硬编码中文。修复：`test()` 新增 `context: Context` 参数（调用方 `SettingsViewModel.testXiaozhiConnection` 传 `appContext`），全部诊断文案抽离至 `strings.xml`（新增 `xz_test_*` 12 条，沿用 `%1$s/%1$d` 占位符约定）；`AppLogger` 开发日志不涉及此红线。
 
+### 🩹 助手体验与稳定性修复（2026-07-30 ~ 08-01）
+- **[fix] 助手发消息必闪退真根因：`LazyColumn` item key 撞号（P0 · 必现崩溃）**：`voice_history` 落库消息 id 从 1 起自增，而内存临时消息 id 也用 `++seq` 从 1 起，重启后发第一条消息即出现重复 key → `IllegalArgumentException: Key "1" was already used`。该异常抛在 **Compose 组合/测量阶段**，ViewModel 侧任何 `runCatching` 都拦不住。修复：**内存临时 ID 递减取负**（`nextId() = --seq`，DB 主键恒正，天然分区），落库后回填真实主键（回填前查重），渲染前再 `distinctBy { it.id }` 兜底。
+- **[fix] 助手协程未预期异常闪退（P0）**：`viewModelScope.launch` 内调用会落库/排程的 UseCase（`mcpTools.commit` / `addTaskUseCase` / `applyOfflineCommand`）此前无兜底，`taskRepository.upsert` 抛异常会冒泡出协程直接闪退；`transport.events.collect` 也未逐条兜底，单条事件异常拖垮整个 collect。修复：全部包 `runCatching`。
+- **[fix] `setAlarmClock` 缺精确闹钟权限导致 SecurityException 闪崩（P0）**：勘误此前"`setAlarmClock` 免权限"的错误结论——自 Android 12(S) 起它与 `setExact*` **同样需要**精确闹钟权限，Android 14 新装默认拒绝 `SCHEDULE_EXACT_ALARM`。修复：Manifest 组合声明 `SCHEDULE_EXACT_ALARM`(`maxSdkVersion=32`) + `USE_EXACT_ALARM`(33+ 安装即授予)；`setExact` 三级降级 `setAlarmClock → setExactAndAllowWhileIdle → setAndAllowWhileIdle`，每级 `runCatching` 兜底绝不抛给调用方。
+- **[fix] 切 Tab 卡顿：助手连接生命周期下沉到应用前后台**：原 `DisposableEffect { onDispose { disconnect() } }` 导致每次切 Tab 都断连重握手。改为连接/传输层生命周期跟随应用前后台（`ActivityLifecycleCallbacks`，因零新依赖红线不可用 `ProcessLifecycleOwner`），切离助手页仅停麦/停唤醒词、**保留 WebSocket**。
+- **[feature] 助手消息左滑删除 + 长按动作卡**：微信风底部动作卡（主题色、尺寸减半、锚定选中行下方），多选模式补齐复制/删除底栏；调试页运行日志支持 `SelectionContainer` 长按选区 + 一键复制全部。
+- **[feature] 轻提示统一 3 秒自动淡出**，替换 Material3 固定 4 秒 Short 时长。
+- **[fix] 开屏清扫机器人动画**做减法并放慢，修正 `withTransform` 内 `drawCircle` 未指定 `center = Offset.Zero` 导致的圆盘绘制错位。
+- **[fix] 关于页版本号写死** → 改读 `BuildConfig`；**AI 引擎 chip 状态错位**；**种子数据中文红线**（抽离 `strings.xml`）。
+
+### 🧱 工程严谨性收敛与封板配置（2026-08-02）
+- **[config] 清理死依赖与失效配置，补齐设备兼容声明与 CI 构建门禁**，封板 versionCode 16 / versionName 2.8.0。
+- **[fix] 迁移建表语句去除多余 `DEFAULT`，对齐导出 schema**：`MIGRATION_5_6`(voice_history.kind)、`MIGRATION_7_8`(habit 全部字段 / habit_checkin.checkedAt) 的 `DEFAULT` 与 Room 导出 schema 不一致。虽然 Room 2.6.1 的 `TableInfo` 比较**不含 `defaultValue`**、不会导致升级崩溃，仍作为严谨性收敛统一。`ALTER TABLE task ADD COLUMN tags TEXT NOT NULL DEFAULT ''` 保留（NOT NULL 加列语法必需）。
+- **[refactor] 连续天数算法单一事实来源**：`StreakUtils.computeStreak` 与 `HabitDates.computeStreak` 曾是两份等价实现。改为 `StreakUtils` 委托 `HabitDates`（DST 安全的 `java.time.LocalDate` 实现），调用方入口不变、行为不变，消除算法漂移风险。
+
 ### 📖 文档同步
-- `release-notes.md`：本章节。
+- `release-notes.md`：本章节（含 v2.8.0 封板信息、Opus 依赖描述更正为本地 AAR）。
+- `AGENT.md`：底部 Tab 由 5 改为 6（补「习惯」）、`ui/habits/` 包补录、新增习惯 Tab 行为契约、封板引用 v2.7.1→v2.8.0、Opus 已知风险条更正为本地 AAR、零新依赖红线补注唯一本地 AAR 例外。
+- `docs/成熟度评估.md`：标题 v2.8.0、迁移链 1→8、综合评分 98.5→**99.0/100**、构建行 versionCode 16 / versionName 2.8.0、新增 §13「2026-08-02 v2.8.0 封板收口」。
 - `XIAOZHI_DIAGNOSTIC_README.md`：新增「image token 过滤」段、「语音上行诊断」段；「已知雷点」表加 listen state=detect / Device-Id 必须小写 / 25s 超时说明。
 - `docs/用户配置手册.md`：新增「语音不能用排查步骤」——看 logcat `XzTransport/AudioCapture/OpusCodec/AssistantVM` 四个标签。
 - `docs/语音助手实现说明.md`：在差异点处标注"REAL 模式语音上行日志路径"。
@@ -56,7 +74,7 @@
 
 ### 🧪 质量门禁
 - 待本地执行：`./gradlew :app:assembleDebug :app:lintRelease :app:testDebugUnitTest`（沙箱无 JDK/Gradle）。
-- 真机回归：① 消息列表不再出现 `@image#xxx`（带真实带 token 的 LLM 回复验证）② 语音启动后 logcat `AudioCapture` 标签出现"start OK ... frameCount=N" ③ **`OpusCodec` 标签不再有 `dequeueInputBuffer 返回 -1`，改为 `→ encodeFrame OK 输出 N B`** ④ `XzTransport` 标签出现 `→ sendAudio Opus 帧 len=...` ⑤ 端到端语音对话可正常 stt→llm→tts（带真实 e8:06 真机或控制台已绑定设备 MAC）。
+- 真机回归：① 消息列表不再出现 `@image#xxx`（带真实带 token 的 LLM 回复验证）② 语音启动后 logcat `AudioCapture` 标签出现"start OK ... frameCount=N" ③ **`OpusCodec` 标签不再有 `dequeueInputBuffer 返回 -1`，改为 `→ encodeFrame OK 输出 N B`**（arm64 真机需确认无 `libsenz.so not found`；若出现说明装的是旧 martoreto 版 APK，先 `adb uninstall` 再重装）④ `XzTransport` 标签出现 `→ sendAudio Opus 帧 len=...` ⑤ 端到端语音对话可正常 stt→llm→tts（带真实 e8:06 真机或控制台已绑定设备 MAC）⑥ **冷启动后助手页立即发第一条消息不闪退**（LazyColumn key 撞号回归）⑦ Android 14 新装未授精确闹钟权限时新建带提醒任务不闪退、提醒仍能到达（降级路径）⑧ 助手页与其他 Tab 反复切换不再出现重握手卡顿。
 - **红线校验**：`XiaozhiConnectionTester` 诊断文案硬编码中文已在本轮抽离 `strings.xml`（见上「工程代码审计修复」），源码零可见中文；其余 `AppLogger` 日志中文为开发者可见、不计入红线。
 
 ---
