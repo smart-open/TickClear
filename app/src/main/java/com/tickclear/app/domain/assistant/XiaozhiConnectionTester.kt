@@ -50,6 +50,22 @@ object XiaozhiConnectionTester {
      *  - 12s 容易踩在网关/反代 idle timeout（CloudFront 默认 10s）上，误判为「服务端拒收」。 */
     private const val WS_TOTAL_TIMEOUT_MS = 25_000L
 
+    /**
+     * V2.8X+：共享连接池，避免每次 test() / runHttpProbe() 都新建 OkHttpClient
+     * 导致 dispatcher / connectionPool 泄漏（旧实现每次调用 build() 且从不 shutdown）。
+     */
+    private val wsClient = OkHttpClient.Builder()
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(WS_TOTAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        // 加 pingInterval 给网关保活，避免 CloudFront 10s idle 提前 RST
+        .pingInterval(20, TimeUnit.SECONDS)
+        .build()
+
+    private val probeClient = OkHttpClient.Builder()
+        .connectTimeout(4, TimeUnit.SECONDS)
+        .readTimeout(HTTP_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .build()
+
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
@@ -103,12 +119,7 @@ object XiaozhiConnectionTester {
             if (clientId.isNotEmpty()) addHeader("Client-Id", clientId)
         }.build()
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(6, TimeUnit.SECONDS)
-            .readTimeout(WS_TOTAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            // V2.8X+：加 pingInterval 给网关保活，避免 CloudFront 10s idle 提前 RST
-            .pingInterval(20, TimeUnit.SECONDS)
-            .build()
+        val client = wsClient
 
         val deferred = kotlinx.coroutines.CompletableDeferred<Result>()
         // V2.8X+：记录是否收到过服务端 hello，用于 onClosed 时区分「握手前被拒」与「握手后被关」。
@@ -275,10 +286,7 @@ object XiaozhiConnectionTester {
             .replaceFirst("wss://", "https://")
             .replaceFirst("ws://", "http://")
         AppLogger.d(TAG, "预探：HTTP $probeUrl")
-        val client = OkHttpClient.Builder()
-            .connectTimeout(4, TimeUnit.SECONDS)
-            .readTimeout(HTTP_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            .build()
+        val client = probeClient
         val request = Request.Builder()
             .url(probeUrl)
             .header("User-Agent", "TickClear/xiaozhi-probe")
