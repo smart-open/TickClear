@@ -129,7 +129,7 @@ di/           Hilt 模块
 2. **中文全抽离 `strings.xml`** —— 用户可见中文不得硬编码在源码（识别词典 / 日志 `detail` / 注释允许）。
 3. **Room 显式 Migration** —— 版本 1→8 递增（schema 导出至 `app/schemas/`），禁用 `fallbackToDestructiveMigration`。
 4. **`.workbuddy/` 不提交 git** —— 仅本地工作区数据。
-5. **提交纪律** —— 每次自洽改动独立 `git commit`，中文类型前缀（`[fix]` / `[feature]` / `[docs]` / `[config]` / `[test]`）；默认不 `git push`。
+5. **提交纪律** —— 每次自洽改动独立 `git commit`，中文类型前缀（`[fix]` / `[feature]` / `[docs]` / `[config]` / `[test]`）；允许 `git push`（按功能拆分提交后由开发者于本地执行 `git push origin master` 完成推送）。
 
 ---
 
