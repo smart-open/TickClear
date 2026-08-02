@@ -18,7 +18,7 @@
 | ![今日 Tab — 分组任务、冲突角标、完成率环](docs/screenshots/screen-today.jpg) | ![小智助手 — REAL WebSocket 对话（含 MCP 工具调用与多模态资源净化）](docs/screenshots/screen-assistant.jpg) |
 | 分组任务 · 冲突提醒 · 完成率环 | WS 实时对话 · MCP 建任务 · 多模态资源净化 |
 
-> 截图来自真机 v2.7.2 + V2.8X（在做）。助手 Tab 中服务端塞进 `text` 字段的 `@image#<i>:<hash>.<ext>` 多模态资源引用，由 `MessageTextFilter` 在源头（`WebSocketXiaozhiTransport` llm / tts 两处）与 UI 层（`AssistantViewModel.onEvent` `LlmText` 分支）双层防御 strip 掉，聊天界面只保留表情图片本身，不会再以原始 token 形式进入消息列表。
+> 截图来自真机 v2.7.2 + v2.8.0 封板态。助手 Tab 中服务端塞进 `text` 字段的 `@image#<i>:<hash>.<ext>` 多模态资源引用，由 `MessageTextFilter` 在源头（`WebSocketXiaozhiTransport` llm / tts 两处）与 UI 层（`AssistantViewModel.onEvent` `LlmText` 分支）双层防御 strip 掉，聊天界面只保留表情图片本身，不会再以原始 token 形式进入消息列表。
 
 ## 功能特性
 
