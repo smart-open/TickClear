@@ -29,6 +29,12 @@ import com.tickclear.app.ui.tasks.RecycleBinScreen
 import com.tickclear.app.ui.habits.HabitsScreen
 import com.tickclear.app.ui.theme.TickClearTheme
 import com.tickclear.app.ui.today.TodayScreen
+import com.tickclear.app.ui.tools.ToolsScreen
+import com.tickclear.app.ui.tools.IntervalReminderScreen
+import com.tickclear.app.ui.tools.WaterReminderViewModel
+import com.tickclear.app.ui.tools.RestReminderViewModel
+import com.tickclear.app.ui.tools.VoiceMemoScreen
+import com.tickclear.app.ui.tools.PasswordVaultScreen
 
 @Composable
 fun TickClearApp(
@@ -205,6 +211,39 @@ private fun AppNavHost(
                     }
                 },
             )
+        }
+
+        // V2.9 工具箱：统计 Tab 改造为工具箱（统计详情仍经 Today 进度环进入 Routes.STATS）
+        composable(Routes.TOOLS) {
+            ToolsScreen(
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
+        }
+        composable(Routes.TOOLS_WATER) {
+            IntervalReminderScreen(
+                vm = hiltViewModel<WaterReminderViewModel>(),
+                onBack = { navController.popBackStack() },
+                isWide = isWide,
+            )
+        }
+        composable(Routes.TOOLS_REST) {
+            IntervalReminderScreen(
+                vm = hiltViewModel<RestReminderViewModel>(),
+                onBack = { navController.popBackStack() },
+                isWide = isWide,
+            )
+        }
+        composable(Routes.TOOLS_VOICE) {
+            VoiceMemoScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_VAULT) {
+            PasswordVaultScreen(onBack = { navController.popBackStack() })
         }
     }
 }
