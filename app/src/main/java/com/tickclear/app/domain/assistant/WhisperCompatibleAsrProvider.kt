@@ -95,7 +95,8 @@ class WhisperCompatibleAsrProvider @Inject constructor(
         runCatching {
             val req = Request.Builder().url("$baseUrl/models")
                 .addHeader("Authorization", "Bearer $apiKey").build()
-            client.newCall(req).execute().use { resp -> resp.isSuccessful || resp.code == 401 || resp.code == 403 }
+            // 仅 2xx 视为凭据有效；401/403 代表鉴权被拒（密钥无效），不得误判为成功。
+            client.newCall(req).execute().use { it.isSuccessful }
         }.getOrDefault(false)
     }
 
