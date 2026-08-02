@@ -112,7 +112,7 @@ abstract class AppDatabase : RoomDatabase() {
                         created_at INTEGER NOT NULL,
                         role TEXT NOT NULL,
                         text TEXT NOT NULL,
-                        kind TEXT NOT NULL DEFAULT 'utterance'
+                        kind TEXT NOT NULL
                     )
                     """.trimIndent(),
                 )
@@ -134,13 +134,13 @@ abstract class AppDatabase : RoomDatabase() {
                     CREATE TABLE IF NOT EXISTS habit (
                         id TEXT NOT NULL,
                         title TEXT NOT NULL,
-                        emoji TEXT NOT NULL DEFAULT '',
-                        repeatDays TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7',
-                        reminderMin INTEGER NOT NULL DEFAULT -1,
-                        colorIndex INTEGER NOT NULL DEFAULT 0,
-                        createdAt INTEGER NOT NULL DEFAULT 0,
-                        archived INTEGER NOT NULL DEFAULT 0,
-                        orderIndex INTEGER NOT NULL DEFAULT 0,
+                        emoji TEXT NOT NULL,
+                        repeatDays TEXT NOT NULL,
+                        reminderMin INTEGER NOT NULL,
+                        colorIndex INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        archived INTEGER NOT NULL,
+                        orderIndex INTEGER NOT NULL,
                         PRIMARY KEY(id)
                     )
                     """.trimIndent(),
@@ -150,7 +150,7 @@ abstract class AppDatabase : RoomDatabase() {
                     CREATE TABLE IF NOT EXISTS habit_checkin (
                         habitId TEXT NOT NULL,
                         dateLocal TEXT NOT NULL,
-                        checkedAt INTEGER NOT NULL DEFAULT 0,
+                        checkedAt INTEGER NOT NULL,
                         PRIMARY KEY(habitId, dateLocal)
                     )
                     """.trimIndent(),
