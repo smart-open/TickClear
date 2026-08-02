@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tickclear.app.BuildConfig
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.ThemeMode
 import com.tickclear.app.ui.theme.ThemeSkin
@@ -71,7 +72,13 @@ fun AboutScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        stringResource(R.string.about_version_label),
+                        // 版本号取自 BuildConfig，随 build.gradle.kts 的 versionName/versionCode 自动同步；
+                        // 曾经写死为「版本 1.0.0 (Debug)」，正式包也照此显示，属用户可见错误信息。
+                        stringResource(
+                            if (BuildConfig.DEBUG) R.string.about_version_label_debug else R.string.about_version_label,
+                            BuildConfig.VERSION_NAME,
+                            BuildConfig.VERSION_CODE,
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -475,7 +475,9 @@ fun SettingsScreen(
                 },
             ) {
                 FilterChip(
-                    selected = true,
+                    // 原先写死 selected = true：aiMode 已是云端时该 chip 仍高亮，
+                    // 与同一行 subtitle 显示的「云端」自相矛盾。改为绑定真实状态。
+                    selected = aiMode == "LOCAL_NLU",
                     onClick = { viewModel.setAiMode("LOCAL_NLU") },
                     label = { Text(stringResource(R.string.settings_ai_local)) },
                 )

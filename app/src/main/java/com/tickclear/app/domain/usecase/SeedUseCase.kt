@@ -1,10 +1,13 @@
 package com.tickclear.app.domain.usecase
 
+import android.content.Context
+import com.tickclear.app.R
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.TaskRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -18,6 +21,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class SeedUseCase @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val groupRepository: GroupRepository,
     private val taskRepository: TaskRepository,
     private val settingsRepository: SettingsRepository,
@@ -31,23 +35,24 @@ class SeedUseCase @Inject constructor(
         val gHealth = "seed_g_health"
         val gWork = "seed_g_work"
 
+        // 组名/任务名均为用户首屏可见文案，一律经 strings.xml 取值（红线：源码禁硬编码中文）。
         val groups = listOf(
-            TaskGroup(gMorning, "晨间流程", "🌅", "blue", 0),
-            TaskGroup(gHealth, "健康", "💊", "mint", 1),
-            TaskGroup(gWork, "工作", "💼", "violet", 2),
+            TaskGroup(gMorning, string(R.string.seed_group_morning), "🌅", "blue", 0),
+            TaskGroup(gHealth, string(R.string.seed_group_health), "💊", "mint", 1),
+            TaskGroup(gWork, string(R.string.seed_group_work), "💼", "violet", 2),
         )
         groups.forEach { groupRepository.upsert(it) }
 
         val tasks = listOf(
-            task("喝一杯温水", gMorning, 7 * 60 + 30, 8 * 60, "DAILY", reminderLevel = "mid"),
-            task("晨间拉伸", gMorning, 7 * 60 + 45, 8 * 60 + 15, "DAILY"),
-            task("吃维生素", gHealth, 8 * 60, 8 * 60 + 30, "DAILY", reminderEnabled = true, reminderLevel = "mid"),
-            task("测血压", gHealth, 8 * 60 + 30, 9 * 60, "DAILY", reminderEnabled = true, reminderLevel = "high"),
-            task("写今日待办", gWork, 9 * 60, 9 * 60 + 30, "DAILY"),
-            task("午间散步", gWork, 12 * 60 + 30, 13 * 60, "DAILY"),
-            task("阅读 30 分钟", null, 21 * 60, 21 * 60 + 30, "DAILY"),
+            task(string(R.string.seed_task_water), gMorning, 7 * 60 + 30, 8 * 60, "DAILY", reminderLevel = "mid"),
+            task(string(R.string.seed_task_stretch), gMorning, 7 * 60 + 45, 8 * 60 + 15, "DAILY"),
+            task(string(R.string.seed_task_vitamin), gHealth, 8 * 60, 8 * 60 + 30, "DAILY", reminderEnabled = true, reminderLevel = "mid"),
+            task(string(R.string.seed_task_blood_pressure), gHealth, 8 * 60 + 30, 9 * 60, "DAILY", reminderEnabled = true, reminderLevel = "high"),
+            task(string(R.string.seed_task_todo), gWork, 9 * 60, 9 * 60 + 30, "DAILY"),
+            task(string(R.string.seed_task_walk), gWork, 12 * 60 + 30, 13 * 60, "DAILY"),
+            task(string(R.string.seed_task_read), null, 21 * 60, 21 * 60 + 30, "DAILY"),
             // 一次性今日任务：今天 19:00 给妈妈打电话
-            task("给妈妈打电话", null, 19 * 60, 19 * 60 + 30, "NONE",
+            task(string(R.string.seed_task_call_mom), null, 19 * 60, 19 * 60 + 30, "NONE",
                 scheduledDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
                 reminderEnabled = true, reminderLevel = "high"),
         )
@@ -55,6 +60,8 @@ class SeedUseCase @Inject constructor(
 
         settingsRepository.setFirstRunDone(true)
     }
+
+    private fun string(resId: Int): String = context.getString(resId)
 
     private fun task(
         title: String,

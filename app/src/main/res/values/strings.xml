@@ -595,7 +595,9 @@
     <string name="settings_debug_subtitle">查看运行状态、测试通知与重新排程</string>
     <string name="settings_theme_dynamic_short">动态</string>
 
-    <string name="about_version_label">版本 1.0.0 (Debug)</string>
+    <!-- 版本号由 BuildConfig 动态注入，禁止写死字面量（历史上曾长期显示错误的「1.0.0 (Debug)」） -->
+    <string name="about_version_label">版本 %1$s（%2$d）</string>
+    <string name="about_version_label_debug">版本 %1$s（%2$d · Debug）</string>
     <string name="about_storage_title">存储与安全</string>
     <string name="about_storage_body">• 任务数据使用 SQLCipher 本地加密存储，口令仅保存在设备 Keystore 中。\n• 语音助手配置（网关令牌等敏感值）存入 EncryptedSharedPreferences。\n• 我们不上传你的任务内容；云端对话仅在「真实」模式下发生。</string>
     <string name="about_assistant_title">智能助手</string>
@@ -661,5 +663,21 @@
     <!-- V2.67 任务标签 / 分类 -->
     <string name="task_tags_hint">标签（用逗号分隔，如 工作,健康）</string>
     <string name="tasks_filter_clear">清除筛选</string>
+
+    <!--
+      首次启动种子数据（SeedUseCase）。这些是用户首屏可见的示例任务组与任务名，
+      属用户可见文案，必须走 strings.xml（此前硬编码在 SeedUseCase 中，为红线回归）。
+    -->
+    <string name="seed_group_morning">晨间流程</string>
+    <string name="seed_group_health">健康</string>
+    <string name="seed_group_work">工作</string>
+    <string name="seed_task_water">喝一杯温水</string>
+    <string name="seed_task_stretch">晨间拉伸</string>
+    <string name="seed_task_vitamin">吃维生素</string>
+    <string name="seed_task_blood_pressure">测血压</string>
+    <string name="seed_task_todo">写今日待办</string>
+    <string name="seed_task_walk">午间散步</string>
+    <string name="seed_task_read">阅读 30 分钟</string>
+    <string name="seed_task_call_mom">给妈妈打电话</string>
 
 </resources>
