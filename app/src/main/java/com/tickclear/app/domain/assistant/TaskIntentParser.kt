@@ -17,6 +17,9 @@ object TaskIntentParser {
         val repeatType: String, // NONE / DAILY / WEEKLY
         val weekdays: String?, // 周重复 csv "1..7"
         val reminderOffsetMin: Int? = null, // 提前 N 分钟提醒（null/0=准时；>0 提前）
+        val tags: List<String> = emptyList(), // 解析出的 #标签（如「#工作 #健康」）
+        val notes: String? = null, // 解析出的备注（「备注：xxx」/「说明：xxx」）
+        val level: String? = null, // 优先级：high/low/null（来自「重要」/「低优先级」等）
     )
 
     /** 中文星期单字 → ISO 数字（1=周一 … 7=周日），供单/多/范围匹配复用（正则捕获组仅含单字）。 */
@@ -42,6 +45,13 @@ object TaskIntentParser {
     private val RE_CLOCK_CN = Regex("""(\d{1,2})点(?:(\d{1,2})分)?""")
     // 提前量：「提前15分钟」或「15分钟前(提醒)」
     private val RE_OFFSET = Regex("""提前\s*(\d+)\s*分钟|(\d+)\s*分钟前""")
+    // 标签：#工作 / #健康（支持中英文与数字）
+    private val RE_TAG = Regex("""#([\w\u4e00-\u9fa5]+)""")
+    // 备注：备注：xxx / 说明：xxx / note：xxx（捕获到句末）
+    private val RE_NOTE = Regex("""(?:备注|说明|note|memo)[：:]\s*(.+)""", RegexOption.IGNORECASE)
+    // 优先级词（整词匹配，避免误伤「高/急」单字）。
+    private val HIGH_WORDS = listOf("重要", "紧急", "加急", "高优先级", "优先处理")
+    private val LOW_WORDS = listOf("低优先级", "不重要", "不急", "普通优先级")
 
     fun parse(input: String): ParsedTask? {
         val text = input.trim()
@@ -50,6 +60,11 @@ object TaskIntentParser {
         val isTask = TRIGGERS.any { text.contains(it) } ||
             text.contains("提醒") || text.contains("开会") || text.contains("会议")
         if (!isTask) return null
+
+        // 先抽取结构化附加字段（标签 / 备注 / 优先级），随后从标题中剥离对应词。
+        val tags = parseTags(text)
+        val notes = parseNotes(text)
+        val level = parseLevel(text)
 
         // 去除触发词，得到候选正文
         var body = text
@@ -104,6 +119,9 @@ object TaskIntentParser {
         title = title.replace(RE_HH_CN, " ")
         title = title.replace(RE_TIME_WORDS, " ")
         title = title.replace(RE_OFFSET, " ")
+        title = title.replace(RE_TAG, " ")
+        title = title.replace(RE_NOTE, " ")
+        for (w in HIGH_WORDS + LOW_WORDS) title = title.replace(w, "")
         title = title.replace(RE_WS, " ").trim()
         // 标题为空时不在此兜底中文，交由消费端（MockXiaozhiTransport）用 string 资源默认（task_default_title）。
 
@@ -120,8 +138,27 @@ object TaskIntentParser {
             repeatType = repeatType,
             weekdays = weekdays,
             reminderOffsetMin = reminderOffsetMin,
+            tags = tags,
+            notes = notes,
+            level = level,
         )
     }
+
+    /** 提取 #标签（去重保序）。 */
+    private fun parseTags(text: String): List<String> =
+        RE_TAG.findAll(text).map { it.groupValues[1] }.toSet().toList()
+
+    /** 提取备注（「备注：xxx」/「说明：xxx」/「note：xxx」），无则返回 null。 */
+    private fun parseNotes(text: String): String? =
+        RE_NOTE.find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** 提取优先级：high（重要/紧急等）/ low（低优先级等）/ null。 */
+    private fun parseLevel(text: String): String? =
+        when {
+            HIGH_WORDS.any { text.contains(it) } -> "high"
+            LOW_WORDS.any { text.contains(it) } -> "low"
+            else -> null
+        }
 
     /**
      * 解析周重复模式（V2.15 增强）：
