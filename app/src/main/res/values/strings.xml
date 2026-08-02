@@ -414,7 +414,6 @@
     <string name="assistant_asr_test_fail">连接失败，请检查凭据与网络</string>
 
     <!-- 助手：离线模拟传输文案（原硬编码，统一抽离） -->
-    <string name="assistant_mock_welcome">我在，请问有什么可以帮您？</string>
     <string name="assistant_mock_task_saved">好的，已为你记下「%1$s」（%2$s）。</string>
     <string name="assistant_mock_reply_hello">你好呀，今天也要把小事一件件清空～</string>
     <string name="assistant_mock_reply_who">我是你的专属智能助手，帮你记任务、陪你聊天。</string>
