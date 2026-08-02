@@ -57,7 +57,7 @@
 | 维度 | 技术 |
 |------|------|
 | 语言 / 构建 | Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 |
-| 平台 | minSdk 24 / targetSdk 34 / compileSdk 34 |
+| 平台 | minSdk 26 / targetSdk 34 / compileSdk 34 |
 | UI | Jetpack Compose + Material3 |
 | DI | Hilt（KSP） |
 | 本地存储 | Room（**SQLCipher** 加密）+ DataStore（偏好）+ Jetpack security-crypto / `SecureStore`（Android Keystore 派生并保存 SQLCipher 口令） |

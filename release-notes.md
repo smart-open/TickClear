@@ -6,7 +6,7 @@
 
 ## v2.8.0（2026-08-02 · 封板）· 消息净化 + 语音 Opus 根因修复 + 协议实证补漏 + 工程严谨性收敛
 
-**平台**：Android 7.0+（minSdk 24 / targetSdk 34）· 手机 + 平板
+**平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
 **版本**：versionCode 16 / versionName 2.8.0 · DB schema v8（无 schema 变更）
 **相对 v2.7.2**：P0/P1 修复（消息净化 / 语音诊断日志 / 协议实证补漏 / 语音 Opus 编码根因修复 / 助手连接生命周期 / 工程严谨性收敛 / 文档同步）。**唯一红线例外**：Opus 编解码引入本地 AAR `app/libs/opus.aar`（theeasiestway/android-opus-codec，含官方 libopus 1.3.1，全 ABI 含 arm64-v8a），以本地文件随仓库分发、不新增远程仓库与坐标解析（见下）；其余仍零新功能、中文全抽离、DB 版本不变（v8）。
 

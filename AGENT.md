@@ -6,7 +6,7 @@
 - **点清 TickClear**：Android 个人任务清理工具（手机 + 平板自适应）。
 - **定位**：纯本地、无云端账号；任务数据经 **SQLCipher** 加密存储。
 - **包名**：`com.tickclear.app`，单模块 `:app`（MVP 优先，未拆 :core/:data）。
-- **基线**：Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 / minSdk 24 / targetSdk 34 / compileSdk 34。
+- **基线**：Kotlin 2.0.21 / AGP 8.5.2 / Gradle 8.9 / minSdk 26 / targetSdk 34 / compileSdk 34。
 - **UI**：Jetpack Compose + Material3；底部 6 Tab：今日 / 任务 / 习惯 / 统计 / 助手 / 设置。
 - **DI**：Hilt。注解处理器 **Room 与 Hilt 均已统一走 KSP**（`ksp(libs.androidx.room.compiler)` / `ksp(libs.hilt.compiler)`），工程内无 KAPT。
 - **本地存储**：Room(SQLCipher) + DataStore(偏好) + EncryptedSharedPreferences(密钥/口令)。
