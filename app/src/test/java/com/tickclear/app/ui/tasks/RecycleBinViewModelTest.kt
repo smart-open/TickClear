@@ -4,6 +4,8 @@ import app.cash.turbine.test
 import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.model.RecycleBinItem
 import com.tickclear.app.domain.usecase.RestoreGroupCascadeUseCase
+import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
+import com.tickclear.app.domain.usecase.SoftDeleteGroupUseCase
 import com.tickclear.app.util.MainDispatcherRule
 import io.mockk.coVerify
 import io.mockk.coEvery
@@ -26,6 +28,8 @@ class RecycleBinViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val restoreGroupCascade = mockk<RestoreGroupCascadeUseCase>(relaxed = true)
+    private val softDeleteTask = mockk<SoftDeleteTaskUseCase>(relaxed = true)
+    private val softDeleteGroup = mockk<SoftDeleteGroupUseCase>(relaxed = true)
 
     private fun item(id: String, type: String) =
         RecycleBinItem(id = id, type = type, name = id, deletedAt = 1L)
@@ -36,7 +40,7 @@ class RecycleBinViewModelTest {
         val list = listOf(item("t1", "task"), item("g1", "group"))
         coEvery { repo.observeItems() } returns flowOf(list)
 
-        val vm = RecycleBinViewModel(repo, restoreGroupCascade)
+        val vm = RecycleBinViewModel(repo, restoreGroupCascade, softDeleteTask, softDeleteGroup)
 
         vm.items.test {
             assertEquals(list, awaitItem())
@@ -48,7 +52,7 @@ class RecycleBinViewModelTest {
     fun `restore 按 type 路由到任务或分组`() = runTest {
         val repo = mockk<RecycleBinRepository>(relaxed = true)
         coEvery { repo.observeItems() } returns flowOf(emptyList())
-        val vm = RecycleBinViewModel(repo, restoreGroupCascade)
+        val vm = RecycleBinViewModel(repo, restoreGroupCascade, softDeleteTask, softDeleteGroup)
 
         vm.restore(item("t1", "task"))
         vm.restore(item("g1", "group"))
@@ -61,7 +65,7 @@ class RecycleBinViewModelTest {
     fun `purge 按 type 路由到任务或分组`() = runTest {
         val repo = mockk<RecycleBinRepository>(relaxed = true)
         coEvery { repo.observeItems() } returns flowOf(emptyList())
-        val vm = RecycleBinViewModel(repo, restoreGroupCascade)
+        val vm = RecycleBinViewModel(repo, restoreGroupCascade, softDeleteTask, softDeleteGroup)
 
         vm.purge(item("t1", "task"))
         vm.purge(item("g1", "group"))
@@ -74,7 +78,7 @@ class RecycleBinViewModelTest {
     fun `purgeAll 强制清理全部软删记录`() = runTest {
         val repo = mockk<RecycleBinRepository>(relaxed = true)
         coEvery { repo.observeItems() } returns flowOf(emptyList())
-        val vm = RecycleBinViewModel(repo, restoreGroupCascade)
+        val vm = RecycleBinViewModel(repo, restoreGroupCascade, softDeleteTask, softDeleteGroup)
 
         vm.purgeAll()
 
