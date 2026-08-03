@@ -43,6 +43,10 @@ fun RulerScreen(onBack: () -> Unit) {
     // 每毫米对应的像素数：屏幕 XDPI（约值，仅用于简易测量）。
     val pxPerMm = context.resources.displayMetrics.xdpi / 25.4f
 
+    // Canvas 的 DrawScope lambda 非 @Composable 上下文，不能读 MaterialTheme.colorScheme，
+    // 故在此组合上下文先捕获主题色，供绘制块复用。
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     var startX by remember { mutableStateOf(0f) }
     var endX by remember { mutableStateOf(0f) }
     var initialized by remember { mutableStateOf(false) }
@@ -134,14 +138,14 @@ fun RulerScreen(onBack: () -> Unit) {
                         val left = minOf(startX, endX).coerceIn(0f, w)
                         val right = maxOf(startX, endX).coerceIn(0f, w)
                         drawLine(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = primaryColor,
                             start = Offset(left, baseY - 36f),
                             end = Offset(right, baseY - 36f),
                             strokeWidth = 4f,
                         )
                         if (endSet && right > left) {
                             drawLine(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                color = primaryColor.copy(alpha = 0.25f),
                                 start = Offset(left, 0f),
                                 end = Offset(right, h),
                                 strokeWidth = 1f,
@@ -149,12 +153,12 @@ fun RulerScreen(onBack: () -> Unit) {
                         }
                         // 两端把手
                         drawCircle(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = primaryColor,
                             radius = 8f,
                             center = Offset(left, baseY - 36f),
                         )
                         drawCircle(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = primaryColor,
                             radius = 8f,
                             center = Offset(right, baseY - 36f),
                         )

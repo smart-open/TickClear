@@ -184,10 +184,10 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：听力保护（V2.9++）──
     override suspend fun setHearingEnabled(enabled: Boolean) { dataStore.edit { it[KEY_HEARING_ENABLED] = enabled } }
     override suspend fun setHearingVolumeThreshold(threshold: Int) { dataStore.edit { it[KEY_HEARING_VOLUME] = threshold.coerceIn(0, 100) } }
-    override suspend fun setHearingMaxWearMin(min: Int) { dataStore.edit { it[KEY_HEARING_WEAR] = min.coerceAtLeast(5) }
+    override suspend fun setHearingMaxWearMin(min: Int) { dataStore.edit { it[KEY_HEARING_WEAR] = min.coerceAtLeast(5) } }
 
     // ── 工具箱：抽签器（V2.9++）──
-    override suspend fun setLotteryOptions(options: String) { dataStore.edit { it[KEY_LOTTERY_OPTIONS] = options } } }
+    override suspend fun setLotteryOptions(options: String) { dataStore.edit { it[KEY_LOTTERY_OPTIONS] = options } }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。

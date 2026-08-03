@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
