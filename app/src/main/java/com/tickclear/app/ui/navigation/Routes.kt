@@ -53,4 +53,9 @@ object Routes {
     const val TOOLS_EXPIRY = "tools/expiry"
     const val TOOLS_NAP = "tools/nap"
     const val TOOLS_HEARING = "tools/hearing"
+    // V2.9++：工具箱新增（手电筒 / 测距仪 / 噪音检测 / 抽签器）
+    const val TOOLS_FLASHLIGHT = "tools/flashlight"
+    const val TOOLS_RULER = "tools/ruler"
+    const val TOOLS_NOISE = "tools/noise"
+    const val TOOLS_LOTTERY = "tools/lottery"
 }

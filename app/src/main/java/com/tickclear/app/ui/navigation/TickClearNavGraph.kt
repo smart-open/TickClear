@@ -43,6 +43,11 @@ import com.tickclear.app.ui.tools.ExpiryScreen
 import com.tickclear.app.ui.tools.ExpiryViewModel
 import com.tickclear.app.ui.tools.HearingScreen
 import com.tickclear.app.ui.tools.HearingViewModel
+import com.tickclear.app.ui.tools.FlashlightScreen
+import com.tickclear.app.ui.tools.RulerScreen
+import com.tickclear.app.ui.tools.NoiseMeterScreen
+import com.tickclear.app.ui.tools.LotteryScreen
+import com.tickclear.app.ui.tools.LotteryViewModel
 
 @Composable
 fun TickClearApp(
@@ -272,6 +277,21 @@ private fun AppNavHost(
         composable(Routes.TOOLS_HEARING) {
             HearingScreen(
                 vm = hiltViewModel<HearingViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_FLASHLIGHT) {
+            FlashlightScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_RULER) {
+            RulerScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_NOISE) {
+            NoiseMeterScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_LOTTERY) {
+            LotteryScreen(
+                vm = hiltViewModel<LotteryViewModel>(),
                 onBack = { navController.popBackStack() },
             )
         }

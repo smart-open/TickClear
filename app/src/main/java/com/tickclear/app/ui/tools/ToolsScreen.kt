@@ -29,6 +29,10 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Weekend
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -116,6 +120,35 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_expiry_title,
                 descRes = R.string.tools_expiry_desc,
                 icon = Icons.Filled.Event,
+            ),
+        ),
+    ),
+    ToolCategory(
+        titleRes = R.string.tools_cat_utility,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FLASHLIGHT,
+                titleRes = R.string.tools_flashlight_title,
+                descRes = R.string.tools_flashlight_desc,
+                icon = Icons.Filled.FlashlightOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_RULER,
+                titleRes = R.string.tools_ruler_title,
+                descRes = R.string.tools_ruler_desc,
+                icon = Icons.Filled.Straighten,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_NOISE,
+                titleRes = R.string.tools_noise_title,
+                descRes = R.string.tools_noise_desc,
+                icon = Icons.Filled.GraphicEq,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LOTTERY,
+                titleRes = R.string.tools_lottery_title,
+                descRes = R.string.tools_lottery_desc,
+                icon = Icons.Filled.Casino,
             ),
         ),
     ),

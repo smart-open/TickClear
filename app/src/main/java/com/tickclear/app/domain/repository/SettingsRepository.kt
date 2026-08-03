@@ -98,6 +98,10 @@ interface SettingsRepository {
     /** 建议最大连续佩戴分钟数，超过则提醒休息。 */
     val hearingMaxWearMin: Flow<Int>
 
+    // ── 工具箱：抽签器（V2.9++）──
+    /** 抽签器自定义选项名单（每行一个，以换行符连接；空字符串=未设置）。 */
+    val lotteryOptions: Flow<String>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -166,6 +170,9 @@ interface SettingsRepository {
     suspend fun setHearingEnabled(enabled: Boolean)
     suspend fun setHearingVolumeThreshold(threshold: Int)
     suspend fun setHearingMaxWearMin(min: Int)
+
+    /** 保存抽签器选项名单（换行连接）。 */
+    suspend fun setLotteryOptions(options: String)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

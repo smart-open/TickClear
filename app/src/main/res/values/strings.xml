@@ -794,6 +794,66 @@
     <string name="nap_smart_hint">20–30 分钟落在浅睡窗口，醒后不易昏沉；超过 60 分钟易进入深睡，醒来反而昏沉。</string>
     <string name="nap_start">开始小憩</string>
     <string name="nap_start_toast">已设置 %1$s 唤醒，安心睡吧</string>
+
+    <!-- 工具箱：实用工具（V2.9++） -->
+    <string name="tools_cat_utility">实用工具</string>
+
+    <!-- 手电筒 -->
+    <string name="tools_flashlight_title">手电筒</string>
+    <string name="tools_flashlight_desc">一键闪光灯，常亮与频闪</string>
+    <string name="flashlight_turn_on">开启</string>
+    <string name="flashlight_turn_off">关闭</string>
+    <string name="flashlight_mode_steady">常亮</string>
+    <string name="flashlight_mode_strobe">频闪</string>
+    <string name="flashlight_strobe_freq">频闪频率</string>
+    <string name="flashlight_strobe_hz">约 %1$d 次/秒</string>
+    <string name="flashlight_permission_hint">手电筒需要相机权限</string>
+    <string name="flashlight_grant">授予权限</string>
+    <string name="flashlight_no_flash">此设备无闪光灯</string>
+
+    <!-- 测距仪 -->
+    <string name="tools_ruler_title">测距仪</string>
+    <string name="tools_ruler_desc">屏幕刻度测量小物件长度</string>
+    <string name="ruler_hint">轻点物件两端即可测距（按屏幕实际尺寸校准，结果为约值）</string>
+    <string name="ruler_length">长度 %1$.1f 厘米</string>
+    <string name="ruler_calibrated">已按设备屏幕密度校准</string>
+    <string name="ruler_tap_second">再轻点物件另一端</string>
+
+    <!-- 噪音检测 -->
+    <string name="tools_noise_title">噪音检测</string>
+    <string name="tools_noise_desc">麦克风测量环境分贝</string>
+    <string name="noise_hint">点击下方按钮，靠近声源测量环境噪音</string>
+    <string name="noise_start">开始测量</string>
+    <string name="noise_stop">停止测量</string>
+    <string name="noise_db">%1$d dB</string>
+    <string name="noise_level_quiet">安静</string>
+    <string name="noise_level_moderate">适中</string>
+    <string name="noise_level_loud">较吵</string>
+    <string name="noise_level_danger">危险</string>
+    <string name="noise_permission_hint">噪音检测需要麦克风权限</string>
+    <string name="noise_grant">授予权限</string>
+
+    <!-- 抽签器 -->
+    <string name="tools_lottery_title">抽签器</string>
+    <string name="tools_lottery_desc">抽签 / 掷骰子 / 抛硬币</string>
+    <string name="lottery_options_title">选项名单</string>
+    <string name="lottery_option_placeholder">输入一个选项</string>
+    <string name="lottery_add">添加</string>
+    <string name="lottery_draw">抽签</string>
+    <string name="lottery_dice">掷骰子</string>
+    <string name="lottery_coin">抛硬币</string>
+    <string name="lottery_action_pick">开始抽签</string>
+    <string name="lottery_action_dice">掷骰子</string>
+    <string name="lottery_action_coin">抛硬币</string>
+    <string name="lottery_result">结果</string>
+    <string name="lottery_pick_result">抽中：%1$s</string>
+    <string name="lottery_dice_result">骰子：%1$d 点</string>
+    <string name="lottery_coin_result">硬币：%1$s</string>
+    <string name="lottery_coin_heads">正面</string>
+    <string name="lottery_coin_tails">反面</string>
+    <string name="lottery_empty">请先添加选项</string>
+    <string name="lottery_clear">清空选项</string>
+    <string name="lottery_delete">删除</string>
     <string name="nap_wake_at">预计 %1$s 唤醒</string>
     <string name="channel_nap_name">午休小憩</string>
     <string name="channel_nap_desc">短午休闹钟唤醒提醒</string>
