@@ -178,8 +178,6 @@ fun VoiceMemoScreen(
             }
         }
     }
-}
-
     if (pendingDelete != null) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
