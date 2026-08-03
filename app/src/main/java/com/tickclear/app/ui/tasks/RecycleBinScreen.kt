@@ -84,10 +84,10 @@ fun RecycleBinScreen(
     // 单条恢复后撤销提示：恢复即弹出 snackbar，点「撤销」重新软删。
     LaunchedEffect(lastRestored) {
         val item = lastRestored ?: return@LaunchedEffect
-        val name = item.name.ifEmpty { stringResource(R.string.recycle_bin_unnamed) }
+        val name = item.name.ifEmpty { context.getString(R.string.recycle_bin_unnamed) }
         val result = snackbarHostState.showTimedSnackbar(
-            message = stringResource(R.string.recycle_bin_restore_snack, name),
-            actionLabel = stringResource(R.string.recycle_bin_undo_hint),
+            message = context.getString(R.string.recycle_bin_restore_snack, name),
+            actionLabel = context.getString(R.string.recycle_bin_undo_hint),
         )
         when (result) {
             SnackbarResult.ActionPerformed -> viewModel.undoRestore()
@@ -136,14 +136,15 @@ fun RecycleBinScreen(
                         TextButton(onClick = { viewModel.selectAll(items) }) {
                             Text(stringResource(R.string.recycle_bin_select))
                         }
+                        // MaterialTheme.colorScheme 是 @Composable 属性，必须在组合上下文取值后再交给 onClick。
+                        val cardColors = CardColors(
+                            bg = MaterialTheme.colorScheme.background.toArgb(),
+                            surface = MaterialTheme.colorScheme.surface.toArgb(),
+                            primary = MaterialTheme.colorScheme.primary.toArgb(),
+                            onSurface = MaterialTheme.colorScheme.onSurface.toArgb(),
+                            onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+                        )
                         TextButton(onClick = {
-                            val cardColors = CardColors(
-                                bg = MaterialTheme.colorScheme.background.toArgb(),
-                                surface = MaterialTheme.colorScheme.surface.toArgb(),
-                                primary = MaterialTheme.colorScheme.primary.toArgb(),
-                                onSurface = MaterialTheme.colorScheme.onSurface.toArgb(),
-                                onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
-                            )
                             val bmp = RecycleBinExportCard.generate(context, items, cardColors)
                             RecycleBinExportCard.share(context, bmp)
                         }) {
@@ -248,6 +249,7 @@ fun RecycleBinScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecycleBinRow(
     item: RecycleBinItem,

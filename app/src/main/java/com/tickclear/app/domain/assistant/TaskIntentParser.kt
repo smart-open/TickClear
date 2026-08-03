@@ -48,7 +48,7 @@ object TaskIntentParser {
     // 标签：#工作 / #健康（支持中英文与数字）
     private val RE_TAG = Regex("""#([\w\u4e00-\u9fa5]+)""")
     // 备注：备注：xxx / 说明：xxx / note：xxx（捕获到句末）
-    private val RE_NOTE = Regex("""(?:备注|说明|note|memo)[：:]\s*(.+)""", RegexOption.IGNORECASE)
+    private val RE_NOTE = Regex("""(?:备注|说明|note|memo)[：:]\s*(.+)""", RegexOption.IGNORE_CASE)
     // 优先级词（整词匹配，避免误伤「高/急」单字）。
     private val HIGH_WORDS = listOf("重要", "紧急", "加急", "高优先级", "优先处理")
     private val LOW_WORDS = listOf("低优先级", "不重要", "不急", "普通优先级")

@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.IntervalType
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -119,11 +120,12 @@ fun IntervalReminderScreen(
                 )
             }
 
+            // stringResource 必须在组合上下文取值，onClick 内是普通 lambda。
+            val testToast = stringResource(testToastRes)
             Button(
                 onClick = {
                     vm.testNotify()
-                    val toast = stringResource(testToastRes)
-                    scope.launch { snackbarHostState.showSnackbar(toast) }
+                    scope.launch { snackbarHostState.showSnackbar(testToast) }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
