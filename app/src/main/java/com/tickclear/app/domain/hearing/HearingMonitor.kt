@@ -1,5 +1,6 @@
 package com.tickclear.app.domain.hearing
 
+import com.tickclear.app.R
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -92,12 +93,15 @@ object HearingMonitor {
     }
 
     private fun handlePlug(ctx: Context, intent: Intent) {
-        val extraState = intent.getIntExtra(AudioManager.EXTRA_STATE, -1)
+        // ACTION_HEADSET_PLUG 的 state extra：0=未连接, 1=带麦耳机, 2=无麦耳机。
+        // 使用 AudioManager 上真实存在的 EXTRA_HEADSET_STATE；个别 ROM 不填充该 extra 时
+        // 回退读取旧版 "state" 字面量（值含义一致）。
+        val state = intent.getIntExtra(AudioManager.EXTRA_HEADSET_STATE, -1)
         val legacyState = intent.getIntExtra("state", 0)
         val isConnected = when {
-            extraState == AudioManager.EXTRA_STATE_CONNECTED -> true
-            extraState == AudioManager.EXTRA_STATE_DISCONNECTED -> false
-            else -> legacyState == 1
+            state == 1 || state == 2 -> true
+            state == 0 -> false
+            else -> legacyState == 1 || legacyState == 2
         }
         if (isConnected) {
             if (!connected.getAndSet(true)) {
