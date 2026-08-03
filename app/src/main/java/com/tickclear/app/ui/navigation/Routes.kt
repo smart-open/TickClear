@@ -58,4 +58,9 @@ object Routes {
     const val TOOLS_RULER = "tools/ruler"
     const val TOOLS_NOISE = "tools/noise"
     const val TOOLS_LOTTERY = "tools/lottery"
+    // V2.9++：工具箱新增（视力自测 / 情绪打卡 / 番茄专注 / 表格计算）
+    const val TOOLS_VISION = "tools/vision"
+    const val TOOLS_MOOD = "tools/mood"
+    const val TOOLS_POMODORO = "tools/pomodoro"
+    const val TOOLS_CALC = "tools/calc"
 }

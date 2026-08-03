@@ -854,6 +854,72 @@
     <string name="lottery_empty">请先添加选项</string>
     <string name="lottery_clear">清空选项</string>
     <string name="lottery_delete">删除</string>
+
+    <!-- 健康自查分类 -->
+    <string name="tools_cat_selfcheck">健康自查</string>
+    <string name="tools_cat_productivity">效率工具</string>
+
+    <!-- 视力自测 -->
+    <string name="tools_vision_title">视力自测</string>
+    <string name="tools_vision_desc">色盲与视力快速筛查</string>
+    <string name="vision_intro">本工具为简易自测，结果仅供参考，不能替代专业眼科检查。</string>
+    <string name="vision_start">开始测试</string>
+    <string name="vision_color_title">色觉测试：判断左右色块是否相同</string>
+    <string name="vision_same">完全相同</string>
+    <string name="vision_diff">不一样</string>
+    <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
+    <string name="vision_clear">能看清</string>
+    <string name="vision_blur">看不清</string>
+    <string name="vision_color_normal">色觉：未发现明显异常</string>
+    <string name="vision_color_suspect">色觉：部分题目判断异常，疑似色觉障碍</string>
+    <string name="vision_acuity_normal">视力：可看清较小字号，状况良好</string>
+    <string name="vision_acuity_suspect">视力：仅能看清较大字号，疑似近视或远视</string>
+    <string name="vision_result">测试结果</string>
+    <string name="vision_question">第 %1$d 题</string>
+    <string name="vision_retest">重新测试</string>
+
+    <!-- 情绪打卡 -->
+    <string name="tools_mood_title">情绪打卡</string>
+    <string name="tools_mood_desc">记录每日心情看变化</string>
+    <string name="mood_today">今日心情</string>
+    <string name="mood_note_hint">想说点什么？（可选）</string>
+    <string name="mood_save">保存打卡</string>
+    <string name="mood_saved_toast">已记录今日心情</string>
+    <string name="mood_month_stats">本月情绪分布</string>
+    <string name="mood_no_data">本月还没有打卡记录</string>
+    <string name="mood_recent">最近记录</string>
+    <string name="mood_1">开心</string>
+    <string name="mood_2">平静</string>
+    <string name="mood_3">疲惫</string>
+    <string name="mood_4">焦虑</string>
+    <string name="mood_5">难过</string>
+
+    <!-- 番茄专注 -->
+    <string name="tools_pomodoro_title">番茄专注</string>
+    <string name="tools_pomodoro_desc">专注+休息组合计时</string>
+    <string name="pomodoro_focus">专注</string>
+    <string name="pomodoro_break">休息</string>
+    <string name="pomodoro_start">开始</string>
+    <string name="pomodoro_pause">暂停</string>
+    <string name="pomodoro_reset">重置</string>
+    <string name="pomodoro_focus_len">专注时长</string>
+    <string name="pomodoro_break_len">休息时长</string>
+    <string name="pomodoro_completed">已完成专注 %1$d 次</string>
+    <string name="pomodoro_hint">专注中，请放下手机，远离干扰</string>
+
+    <!-- 表格计算 -->
+    <string name="tools_calc_title">表格计算</string>
+    <string name="tools_calc_desc">粘贴数字快速统计</string>
+    <string name="calc_input_hint">每行一组数字，同行用空格或逗号分隔多列</string>
+    <string name="calc_compute">计算</string>
+    <string name="calc_empty">暂无数据，请先粘贴数字</string>
+    <string name="calc_summary">共 %1$d 行 %2$d 列</string>
+    <string name="calc_sum">求和</string>
+    <string name="calc_avg">平均</string>
+    <string name="calc_max">最大</string>
+    <string name="calc_min">最小</string>
+    <string name="calc_col">列%1$d</string>
+
     <string name="nap_wake_at">预计 %1$s 唤醒</string>
     <string name="channel_nap_name">午休小憩</string>
     <string name="channel_nap_desc">短午休闹钟唤醒提醒</string>

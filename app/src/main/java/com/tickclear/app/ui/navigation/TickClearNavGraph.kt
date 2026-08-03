@@ -48,6 +48,12 @@ import com.tickclear.app.ui.tools.RulerScreen
 import com.tickclear.app.ui.tools.NoiseMeterScreen
 import com.tickclear.app.ui.tools.LotteryScreen
 import com.tickclear.app.ui.tools.LotteryViewModel
+import com.tickclear.app.ui.tools.VisionSelfTestScreen
+import com.tickclear.app.ui.tools.MoodScreen
+import com.tickclear.app.ui.tools.MoodViewModel
+import com.tickclear.app.ui.tools.PomodoroScreen
+import com.tickclear.app.ui.tools.PomodoroViewModel
+import com.tickclear.app.ui.tools.TableCalcScreen
 
 @Composable
 fun TickClearApp(
@@ -294,6 +300,24 @@ private fun AppNavHost(
                 vm = hiltViewModel<LotteryViewModel>(),
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.TOOLS_VISION) {
+            VisionSelfTestScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_MOOD) {
+            MoodScreen(
+                vm = hiltViewModel<MoodViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_POMODORO) {
+            PomodoroScreen(
+                vm = hiltViewModel<PomodoroViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_CALC) {
+            TableCalcScreen(onBack = { navController.popBackStack() })
         }
     }
 }

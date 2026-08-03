@@ -33,6 +33,10 @@ import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.RemoveRedEye
+import androidx.compose.material.icons.filled.Mood
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -149,6 +153,40 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_lottery_title,
                 descRes = R.string.tools_lottery_desc,
                 icon = Icons.Filled.Casino,
+            ),
+        ),
+    ),
+    ToolCategory(
+        titleRes = R.string.tools_cat_selfcheck,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VISION,
+                titleRes = R.string.tools_vision_title,
+                descRes = R.string.tools_vision_desc,
+                icon = Icons.Filled.RemoveRedEye,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOOD,
+                titleRes = R.string.tools_mood_title,
+                descRes = R.string.tools_mood_desc,
+                icon = Icons.Filled.Mood,
+            ),
+        ),
+    ),
+    ToolCategory(
+        titleRes = R.string.tools_cat_productivity,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POMODORO,
+                titleRes = R.string.tools_pomodoro_title,
+                descRes = R.string.tools_pomodoro_desc,
+                icon = Icons.Filled.Timer,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CALC,
+                titleRes = R.string.tools_calc_title,
+                descRes = R.string.tools_calc_desc,
+                icon = Icons.Filled.Calculate,
             ),
         ),
     ),
