@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import org.json.JSONArray
 import org.json.JSONObject
 import javax.crypto.SecretKey
@@ -59,6 +60,12 @@ class VaultViewModel @Inject constructor(
     private val _recoveryError = MutableStateFlow<String?>(null)
     val recoveryError: StateFlow<String?> = _recoveryError.asStateFlow()
 
+    /** 设置成功后的一次性事件（供 UI 弹提示 + 延时进入添加页）。 */
+    private val _justSetup = MutableStateFlow(false)
+    val justSetup: StateFlow<Boolean> = _justSetup.asStateFlow()
+
+    fun consumeSetupCompleted() { _justSetup.value = false }
+
     // ---------------- 设置 ----------------
 
     fun setup(pass: String, confirm: String, question: String, answer: String) {
@@ -67,19 +74,25 @@ class VaultViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val salt = VaultCrypto.randomSalt()
-                val answerSalt = VaultCrypto.randomSalt()
-                val key = VaultCrypto.deriveKey(pass.toCharArray(), salt)
-                val verifier = VaultCrypto.encrypt(key, VERIFIER_PLAIN)
-                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
-                val emptyBlob = VaultCrypto.encrypt(key, serialize(emptyList()))
-                VaultStore.setup(
-                    appContext,
-                    VaultMeta(salt, verifier, question.trim(), answerHash, emptyBlob, answerSalt),
-                )
+                // 派生密钥 / 加解密为 CPU 密集型（PBKDF2 慢哈希 + GCM），必须移出主线程，
+                // 否则设置/解锁会卡住 UI（V2.9+ 优化）。
+                val key = withContext(Dispatchers.Default) {
+                    val salt = VaultCrypto.randomSalt()
+                    val answerSalt = VaultCrypto.randomSalt()
+                    val k = VaultCrypto.deriveKey(pass.toCharArray(), salt)
+                    val verifier = VaultCrypto.encrypt(k, VERIFIER_PLAIN)
+                    val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
+                    val emptyBlob = VaultCrypto.encrypt(k, serialize(emptyList()))
+                    VaultStore.setup(
+                        appContext,
+                        VaultMeta(salt, verifier, question.trim(), answerHash, emptyBlob, answerSalt),
+                    )
+                    k
+                }
                 sessionKey = key
                 _entries.value = emptyList()
                 _mode.value = VaultMode.LIST
+                _justSetup.value = true
             } catch (e: Exception) {
                 AppLogger.e("VaultVM", "setup failed", e)
                 _setupError.value = appContext.getString(R.string.err_unknown)
@@ -97,14 +110,21 @@ class VaultViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val key = VaultCrypto.deriveKey(pass.toCharArray(), meta.salt)
-                val plain = VaultCrypto.decrypt(key, meta.verifier)
+                val key = withContext(Dispatchers.Default) {
+                    VaultCrypto.deriveKey(pass.toCharArray(), meta.salt)
+                }
+                val plain = withContext(Dispatchers.Default) {
+                    VaultCrypto.decrypt(key, meta.verifier)
+                }
                 if (plain != VERIFIER_PLAIN) {
                     _unlockError.value = appContext.getString(R.string.vault_wrong)
                     return@launch
                 }
+                val entries = withContext(Dispatchers.Default) {
+                    meta.entriesBlob?.let { decryptEntries(key, it) } ?: emptyList()
+                }
                 sessionKey = key
-                _entries.value = meta.entriesBlob?.let { decryptEntries(key, it) } ?: emptyList()
+                _entries.value = entries
                 _mode.value = VaultMode.LIST
             } catch (e: Exception) {
                 // GCM 校验失败 = 口令错误
@@ -118,6 +138,7 @@ class VaultViewModel @Inject constructor(
         recoveryAnswerText = null
         _entries.value = emptyList()
         _revealedIds.value = emptySet()
+        _justSetup.value = false
         _mode.value = if (VaultStore.exists(appContext)) VaultMode.UNLOCK else VaultMode.SETUP
     }
 
@@ -155,13 +176,16 @@ class VaultViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val salt = VaultCrypto.randomSalt()
-                val answerSalt = VaultCrypto.randomSalt()
-                val key = VaultCrypto.deriveKey(pass.toCharArray(), salt)
-                val verifier = VaultCrypto.encrypt(key, VERIFIER_PLAIN)
-                val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
-                val emptyBlob = VaultCrypto.encrypt(key, serialize(emptyList()))
-                VaultStore.rekey(appContext, salt, verifier, answerHash, emptyBlob, answerSalt)
+                val key = withContext(Dispatchers.Default) {
+                    val salt = VaultCrypto.randomSalt()
+                    val answerSalt = VaultCrypto.randomSalt()
+                    val k = VaultCrypto.deriveKey(pass.toCharArray(), salt)
+                    val verifier = VaultCrypto.encrypt(k, VERIFIER_PLAIN)
+                    val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
+                    val emptyBlob = VaultCrypto.encrypt(k, serialize(emptyList()))
+                    VaultStore.rekey(appContext, salt, verifier, answerHash, emptyBlob, answerSalt)
+                    k
+                }
                 recoveryAnswerText = null
                 sessionKey = key
                 _entries.value = emptyList()

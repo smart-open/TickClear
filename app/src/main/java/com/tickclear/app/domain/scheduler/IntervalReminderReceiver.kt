@@ -25,9 +25,9 @@ class IntervalReminderReceiver : BroadcastReceiver() {
     }
 
     private fun defaultFor(type: IntervalType): Int =
-        if (type == IntervalType.WATER) {
-            SettingsRepository.DEFAULT_WATER_INTERVAL_MIN
-        } else {
-            SettingsRepository.DEFAULT_REST_INTERVAL_MIN
+        when (type) {
+            IntervalType.WATER -> SettingsRepository.DEFAULT_WATER_INTERVAL_MIN
+            IntervalType.REST -> SettingsRepository.DEFAULT_REST_INTERVAL_MIN
+            IntervalType.EYECARE -> SettingsRepository.DEFAULT_EYECARE_INTERVAL_MIN
         }
 }

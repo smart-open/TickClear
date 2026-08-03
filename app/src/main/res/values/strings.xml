@@ -712,8 +712,10 @@
 
     <string name="tools_water_title">喝水提醒</string>
     <string name="tools_water_desc">每隔一段时间提醒喝水</string>
-    <string name="tools_rest_title">久坐 / 眨眼休息</string>
-    <string name="tools_rest_desc">定时提醒起身活动、放松双眼</string>
+    <string name="tools_rest_title">久坐休息</string>
+    <string name="tools_rest_desc">定时提醒起身活动</string>
+    <string name="tools_eyecare_title">眼保健</string>
+    <string name="tools_eyecare_desc">定时提醒放松双眼、做眼保健操</string>
     <string name="tools_voice_title">语音备忘录</string>
     <string name="tools_voice_desc">快速录制语音笔记</string>
     <string name="tools_vault_title">密码保险箱</string>
@@ -729,13 +731,21 @@
     <string name="water_test">立即试提醒</string>
     <string name="water_test_toast">已发送一条测试提醒</string>
 
-    <!-- 久坐 / 眨眼休息提醒 -->
-    <string name="rest_title">久坐 / 眨眼休息</string>
-    <string name="rest_enable">开启休息提醒</string>
+    <!-- 久坐休息提醒 -->
+    <string name="rest_title">久坐休息</string>
+    <string name="rest_enable">开启久坐休息提醒</string>
     <string name="rest_interval">提醒间隔</string>
     <string name="rest_next">下次提醒：%1$s</string>
     <string name="rest_test">立即试提醒</string>
     <string name="rest_test_toast">已发送一条测试提醒</string>
+
+    <!-- 眼保健提醒 -->
+    <string name="eyecare_title">眼保健</string>
+    <string name="eyecare_enable">开启眼保健提醒</string>
+    <string name="eyecare_interval">提醒间隔</string>
+    <string name="eyecare_next">下次提醒：%1$s</string>
+    <string name="eyecare_test">立即试提醒</string>
+    <string name="eyecare_test_toast">已发送一条测试提醒</string>
 
     <!-- 语音备忘录 -->
     <string name="voice_title">语音备忘录</string>
@@ -745,6 +755,8 @@
     <string name="voice_play">播放</string>
     <string name="voice_pause">暂停</string>
     <string name="voice_delete">删除</string>
+    <string name="voice_delete_title">删除备忘录</string>
+    <string name="voice_delete_confirm">确定删除这条语音备忘录吗？删除后无法恢复</string>
     <string name="voice_empty">还没有备忘录，点下方按钮开始录制</string>
     <string name="voice_permission_required">需要麦克风权限才能录音</string>
     <string name="voice_title_hint">标题（可选）</string>
@@ -766,12 +778,13 @@
     <string name="vault_answer">答案</string>
     <string name="vault_recovery_hint">忘记口令时，回答安全问题可重置（会清空已有条目）</string>
     <string name="vault_set">设置</string>
+    <string name="vault_setup_success">保险箱密码已设置成功，请保存你的密码信息</string>
     <string name="vault_wrong">口令错误</string>
     <string name="vault_entries_empty">还没有保存任何条目</string>
     <string name="vault_add">添加条目</string>
     <string name="vault_entry_name">名称</string>
     <string name="vault_entry_address">地址 / 网址</string>
-    <string name="vault_entry_username">用户名</string>
+    <string name="vault_entry_username">账号</string>
     <string name="vault_entry_password">密码</string>
     <string name="vault_entry_notes">备注</string>
     <string name="vault_show">显示</string>
@@ -793,11 +806,15 @@
     <!-- 工具通知渠道 -->
     <string name="channel_water_name">喝水提醒</string>
     <string name="channel_rest_name">休息提醒</string>
+    <string name="channel_eyecare_name">眼保健提醒</string>
     <string name="channel_water_desc">定时提醒你喝水</string>
-    <string name="channel_rest_desc">定时提醒你起身活动、放松双眼</string>
+    <string name="channel_rest_desc">定时提醒你起身活动</string>
+    <string name="channel_eyecare_desc">定时提醒放松双眼、做眼保健操</string>
     <string name="interval_water_title">该喝水啦</string>
     <string name="interval_water_text">喝一杯温水，给身体补补水</string>
     <string name="interval_rest_title">该休息一下啦</string>
     <string name="interval_rest_text">起身活动活动，放松双眼，远眺 20 秒</string>
+    <string name="interval_eyecare_title">该放松眼睛啦</string>
+    <string name="interval_eyecare_text">闭眼休息 20 秒，远眺远方，做做眼保健操</string>
 
 </resources>

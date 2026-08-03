@@ -2,6 +2,7 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +36,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-private val INTERVAL_OPTIONS = listOf(15, 30, 45, 60, 90, 120)
+private val INTERVAL_OPTIONS = listOf(15, 30, 45, 60, 90, 120, 150, 180, 240)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,12 +50,36 @@ fun IntervalReminderScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val titleRes = if (vm.type == IntervalType.WATER) R.string.water_title else R.string.rest_title
-    val enableLabelRes = if (vm.type == IntervalType.WATER) R.string.water_enable else R.string.rest_enable
-    val nextRes = if (vm.type == IntervalType.WATER) R.string.water_next else R.string.rest_next
-    val testRes = if (vm.type == IntervalType.WATER) R.string.water_test else R.string.rest_test
-    val testToastRes = if (vm.type == IntervalType.WATER) R.string.water_test_toast else R.string.rest_test_toast
-    val intervalLabelRes = if (vm.type == IntervalType.WATER) R.string.water_interval else R.string.rest_interval
+    val titleRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_title
+        IntervalType.REST -> R.string.rest_title
+        IntervalType.EYECARE -> R.string.eyecare_title
+    }
+    val enableLabelRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_enable
+        IntervalType.REST -> R.string.rest_enable
+        IntervalType.EYECARE -> R.string.eyecare_enable
+    }
+    val nextRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_next
+        IntervalType.REST -> R.string.rest_next
+        IntervalType.EYECARE -> R.string.eyecare_next
+    }
+    val testRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_test
+        IntervalType.REST -> R.string.rest_test
+        IntervalType.EYECARE -> R.string.eyecare_test
+    }
+    val testToastRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_test_toast
+        IntervalType.REST -> R.string.rest_test_toast
+        IntervalType.EYECARE -> R.string.eyecare_test_toast
+    }
+    val intervalLabelRes = when (vm.type) {
+        IntervalType.WATER -> R.string.water_interval
+        IntervalType.REST -> R.string.rest_interval
+        IntervalType.EYECARE -> R.string.eyecare_interval
+    }
 
     val nextTime = remember(enabled, intervalMin) {
         if (enabled) {
@@ -97,9 +122,10 @@ fun IntervalReminderScreen(
             }
 
             Text(stringResource(intervalLabelRes), style = MaterialTheme.typography.titleSmall)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 INTERVAL_OPTIONS.forEach { min ->
                     FilterChip(

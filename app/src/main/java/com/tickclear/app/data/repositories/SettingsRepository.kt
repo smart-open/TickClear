@@ -122,6 +122,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override val waterIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_WATER_INTERVAL] ?: SettingsRepository.DEFAULT_WATER_INTERVAL_MIN }
     override val restEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_REST_ENABLED] ?: false }
     override val restIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_REST_INTERVAL] ?: SettingsRepository.DEFAULT_REST_INTERVAL_MIN }
+    override val eyecareEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_EYECARE_ENABLED] ?: false }
+    override val eyecareIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_EYECARE_INTERVAL] ?: SettingsRepository.DEFAULT_EYECARE_INTERVAL_MIN }
 
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
@@ -166,6 +168,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setWaterIntervalMin(min: Int) { dataStore.edit { it[KEY_WATER_INTERVAL] = min.coerceAtLeast(5) } }
     override suspend fun setRestEnabled(enabled: Boolean) { dataStore.edit { it[KEY_REST_ENABLED] = enabled } }
     override suspend fun setRestIntervalMin(min: Int) { dataStore.edit { it[KEY_REST_INTERVAL] = min.coerceAtLeast(5) } }
+    override suspend fun setEyecareEnabled(enabled: Boolean) { dataStore.edit { it[KEY_EYECARE_ENABLED] = enabled } }
+    override suspend fun setEyecareIntervalMin(min: Int) { dataStore.edit { it[KEY_EYECARE_INTERVAL] = min.coerceAtLeast(5) } }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -278,6 +282,8 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_WATER_INTERVAL = intPreferencesKey("water_reminder_interval_min")
         private val KEY_REST_ENABLED = booleanPreferencesKey("rest_reminder_enabled")
         private val KEY_REST_INTERVAL = intPreferencesKey("rest_reminder_interval_min")
+        private val KEY_EYECARE_ENABLED = booleanPreferencesKey("eyecare_reminder_enabled")
+        private val KEY_EYECARE_INTERVAL = intPreferencesKey("eyecare_reminder_interval_min")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")

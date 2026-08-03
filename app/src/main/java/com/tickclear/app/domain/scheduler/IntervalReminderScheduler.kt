@@ -16,17 +16,18 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 
 /**
- * 工具箱「间隔提醒」调度（V2.9）：喝水 / 久坐休息。
+ * 工具箱「间隔提醒」调度（V2.9）：喝水 / 久坐休息 / 眼保健。
  * 基于 AlarmManager 精确闹钟 + 自调度（每次触发后由 [IntervalReminderReceiver] 续排下一次），
  * 与 WorkManager 不同，保证到点送达；三级降级与 [ReminderScheduler.setExact] 保持一致。
  */
-enum class IntervalType { WATER, REST }
+enum class IntervalType { WATER, REST, EYECARE }
 
 object IntervalReminderScheduler {
 
     private const val TAG = "IntervalReminderScheduler"
     private const val ACTION_WATER = "com.tickclear.app.action.INTERVAL_WATER"
     private const val ACTION_REST = "com.tickclear.app.action.INTERVAL_REST"
+    private const val ACTION_EYECARE = "com.tickclear.app.action.INTERVAL_EYECARE"
     const val EXTRA_TYPE = "interval_type"
     const val EXTRA_INTERVAL_MIN = "interval_min"
 
@@ -39,10 +40,17 @@ object IntervalReminderScheduler {
     private fun ep(context: Context) =
         EntryPointAccessors.fromApplication(context.applicationContext, IntervalEntryPoint::class.java)
 
-    private fun actionFor(type: IntervalType) =
-        if (type == IntervalType.WATER) ACTION_WATER else ACTION_REST
+    private fun actionFor(type: IntervalType) = when (type) {
+        IntervalType.WATER -> ACTION_WATER
+        IntervalType.REST -> ACTION_REST
+        IntervalType.EYECARE -> ACTION_EYECARE
+    }
 
-    private fun reqCodeFor(type: IntervalType) = if (type == IntervalType.WATER) 9101 else 9102
+    private fun reqCodeFor(type: IntervalType) = when (type) {
+        IntervalType.WATER -> 9101
+        IntervalType.REST -> 9102
+        IntervalType.EYECARE -> 9103
+    }
 
     /** 依据当前设置（开关 + 间隔）排程；关闭则取消。供 UI 开关/间隔变更时调用。 */
     suspend fun schedule(context: Context, type: IntervalType) {
@@ -50,6 +58,7 @@ object IntervalReminderScheduler {
         val (enabled, intervalMin) = when (type) {
             IntervalType.WATER -> settings.waterEnabled.first() to settings.waterIntervalMin.first()
             IntervalType.REST -> settings.restEnabled.first() to settings.restIntervalMin.first()
+            IntervalType.EYECARE -> settings.eyecareEnabled.first() to settings.eyecareIntervalMin.first()
         }
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pendingIntent(context, type, intervalMin)
@@ -70,6 +79,7 @@ object IntervalReminderScheduler {
     suspend fun rescheduleAll(context: Context) {
         schedule(context, IntervalType.WATER)
         schedule(context, IntervalType.REST)
+        schedule(context, IntervalType.EYECARE)
     }
 
     /** 接收器触发后自我续排（读取 Intent 携带的间隔）。 */

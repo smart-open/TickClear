@@ -33,6 +33,7 @@ import com.tickclear.app.ui.tools.ToolsScreen
 import com.tickclear.app.ui.tools.IntervalReminderScreen
 import com.tickclear.app.ui.tools.WaterReminderViewModel
 import com.tickclear.app.ui.tools.RestReminderViewModel
+import com.tickclear.app.ui.tools.EyeCareReminderViewModel
 import com.tickclear.app.ui.tools.VoiceMemoScreen
 import com.tickclear.app.ui.tools.PasswordVaultScreen
 
@@ -229,6 +230,13 @@ private fun AppNavHost(
         composable(Routes.TOOLS_REST) {
             IntervalReminderScreen(
                 vm = hiltViewModel<RestReminderViewModel>(),
+                onBack = { navController.popBackStack() },
+                isWide = isWide,
+            )
+        }
+        composable(Routes.TOOLS_EYECARE) {
+            IntervalReminderScreen(
+                vm = hiltViewModel<EyeCareReminderViewModel>(),
                 onBack = { navController.popBackStack() },
                 isWide = isWide,
             )

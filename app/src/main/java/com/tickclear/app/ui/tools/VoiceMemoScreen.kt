@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -80,6 +81,7 @@ fun VoiceMemoScreen(
     val permissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val snackbarHostState = remember { SnackbarHostState() }
     var permissionRequested by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<VoiceMemoEntity?>(null) }
 
     LaunchedEffect(permissionState.status) {
         if (permissionRequested && permissionState.status is PermissionStatus.Denied) {
@@ -169,12 +171,30 @@ fun VoiceMemoScreen(
                             positionMs = if (activeId == memo.id) playPositionMs else 0,
                             durationMs = if (activeId == memo.id && playDurationMs > 0) playDurationMs else memo.durationMs,
                             onTogglePlay = { viewModel.togglePlay(memo) },
-                            onDelete = { viewModel.deleteMemo(memo) },
+                            onDelete = { pendingDelete = memo },
                         )
                     }
                 }
             }
         }
+    }
+}
+
+    if (pendingDelete != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteMemo(pendingDelete!!)
+                    pendingDelete = null
+                }) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+            title = { Text(stringResource(R.string.voice_delete_title)) },
+            text = { Text(stringResource(R.string.voice_delete_confirm)) },
+        )
     }
 }
 

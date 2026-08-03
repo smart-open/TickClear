@@ -43,6 +43,7 @@ open class IntervalReminderViewModel(
     private suspend fun readSettings(): Pair<Boolean, Int> = when (type) {
         IntervalType.WATER -> settings.waterEnabled.first() to settings.waterIntervalMin.first()
         IntervalType.REST -> settings.restEnabled.first() to settings.restIntervalMin.first()
+        IntervalType.EYECARE -> settings.eyecareEnabled.first() to settings.eyecareIntervalMin.first()
     }
 
     fun setEnabled(value: Boolean) {
@@ -50,6 +51,7 @@ open class IntervalReminderViewModel(
             when (type) {
                 IntervalType.WATER -> settings.setWaterEnabled(value)
                 IntervalType.REST -> settings.setRestEnabled(value)
+                IntervalType.EYECARE -> settings.setEyecareEnabled(value)
             }
             _enabled.value = value
             IntervalReminderScheduler.schedule(appContext, type)
@@ -61,6 +63,7 @@ open class IntervalReminderViewModel(
             when (type) {
                 IntervalType.WATER -> settings.setWaterIntervalMin(min)
                 IntervalType.REST -> settings.setRestIntervalMin(min)
+                IntervalType.EYECARE -> settings.setEyecareIntervalMin(min)
             }
             _intervalMin.value = min
             IntervalReminderScheduler.schedule(appContext, type)
@@ -84,3 +87,9 @@ class RestReminderViewModel @Inject constructor(
     @ApplicationContext appContext: Context,
     settings: SettingsRepository,
 ) : IntervalReminderViewModel(appContext, settings, IntervalType.REST)
+
+@HiltViewModel
+class EyeCareReminderViewModel @Inject constructor(
+    @ApplicationContext appContext: Context,
+    settings: SettingsRepository,
+) : IntervalReminderViewModel(appContext, settings, IntervalType.EYECARE)

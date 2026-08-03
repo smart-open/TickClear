@@ -39,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,6 +49,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +69,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.model.VaultEntry
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,9 +86,25 @@ fun PasswordVaultScreen(
     val unlockError by viewModel.unlockError.collectAsStateWithLifecycle()
     val recoveryError by viewModel.recoveryError.collectAsStateWithLifecycle()
     val recoveryQuestion by viewModel.recoveryQuestion.collectAsStateWithLifecycle()
+    val justSetup by viewModel.justSetup.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // 添加 / 编辑条目对话框状态提升到屏幕层，供「设置成功 3s 后自动进入添加页」使用。
+    var editing by remember { mutableStateOf<VaultEntry?>(null) }
+    var editingIsNew by remember { mutableStateOf(false) }
+
+    // 设置主口令成功：先提示「请保存你的密码信息」，3 秒后自动弹出添加条目页。
+    LaunchedEffect(justSetup) {
+        if (justSetup) {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.vault_setup_success)) }
+            delay(3000)
+            editing = VaultEntry(0, "", "", "", "", "")
+            editingIsNew = true
+            viewModel.consumeSetupCompleted()
+        }
+    }
 
     fun copy(text: String) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -130,12 +150,31 @@ fun PasswordVaultScreen(
                 VaultMode.LIST -> VaultList(
                     entries = entries,
                     revealed = revealed,
-                    onAdd = { viewModel.upsertEntry(it) },
+                    onAddClick = {
+                        editing = VaultEntry(0, "", "", "", "", "")
+                        editingIsNew = true
+                    },
+                    onEditClick = { entry ->
+                        editing = entry
+                        editingIsNew = false
+                    },
                     onDelete = { viewModel.deleteEntry(it) },
                     onToggleReveal = { viewModel.toggleReveal(it) },
                     onCopy = ::copy,
                 )
             }
+        }
+
+        if (editing != null) {
+            EntryEditorDialog(
+                initial = editing!!,
+                isNew = editingIsNew,
+                onDismiss = { editing = null },
+                onSave = {
+                    viewModel.upsertEntry(it)
+                    editing = null
+                },
+            )
         }
     }
 }
@@ -248,14 +287,12 @@ private fun RecoveryNewPassForm(viewModel: VaultViewModel, error: String?) {
 private fun VaultList(
     entries: List<VaultEntry>,
     revealed: Set<Long>,
-    onAdd: (VaultEntry) -> Unit,
+    onAddClick: () -> Unit,
+    onEditClick: (VaultEntry) -> Unit,
     onDelete: (Long) -> Unit,
     onToggleReveal: (Long) -> Unit,
     onCopy: (String) -> Unit,
 ) {
-    var editing by remember { mutableStateOf<VaultEntry?>(null) }
-    var editingIsNew by remember { mutableStateOf(false) }
-
     Column(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(Spacing.md),
@@ -266,7 +303,7 @@ private fun VaultList(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Spacing.md),
+                    contentPadding = PaddingValues(Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     items(entries, key = { it.id }) { entry ->
@@ -275,7 +312,7 @@ private fun VaultList(
                             revealed = revealed.contains(entry.id),
                             onToggleReveal = { onToggleReveal(entry.id) },
                             onCopy = onCopy,
-                            onEdit = { editing = entry; editingIsNew = false },
+                            onEdit = { onEditClick(entry) },
                             onDelete = { onDelete(entry.id) },
                         )
                     }
@@ -283,27 +320,12 @@ private fun VaultList(
             }
         }
         Button(
-            onClick = {
-                editing = VaultEntry(0, "", "", "", "", "")
-                editingIsNew = true
-            },
+            onClick = onAddClick,
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
         ) {
             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
             Text(stringResource(R.string.vault_add))
         }
-    }
-
-    if (editing != null) {
-        EntryEditorDialog(
-            initial = editing!!,
-            isNew = editingIsNew,
-            onDismiss = { editing = null },
-            onSave = {
-                onAdd(it)
-                editing = null
-            },
-        )
     }
 }
 
@@ -320,33 +342,50 @@ private fun VaultEntryCard(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(Modifier.fillMaxWidth().padding(Spacing.md)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(entry.title.ifBlank { stringResource(R.string.vault_entry_name) }, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-            if (entry.username.isNotBlank()) {
-                Text("${stringResource(R.string.vault_entry_username)}：${entry.username}", style = MaterialTheme.typography.bodySmall)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "${stringResource(R.string.vault_entry_password)}：${if (revealed) entry.password else "••••••••"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onToggleReveal) {
-                    Icon(if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = stringResource(if (revealed) R.string.vault_hide else R.string.vault_show), tint = MaterialTheme.colorScheme.primary)
+        // 收紧内边距 + 缩小图标按钮触摸尺寸，整体面板高度减少约 1/4。
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 36.dp) {
+            Column(
+                Modifier.fillMaxWidth().padding(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        entry.title.ifBlank { stringResource(R.string.vault_entry_name) },
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                IconButton(onClick = { if (entry.password.isNotBlank()) onCopy(entry.password) }) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.vault_copied), tint = MaterialTheme.colorScheme.primary)
+                if (entry.username.isNotBlank()) {
+                    Text(
+                        "${stringResource(R.string.vault_entry_username)}：${entry.username}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
-            }
-            if (entry.address.isNotBlank()) {
-                Text("${stringResource(R.string.vault_entry_address)}：${entry.address}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (entry.note.isNotBlank()) {
-                Text("${stringResource(R.string.vault_entry_notes)}：${entry.note}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${stringResource(R.string.vault_entry_password)}：${if (revealed) entry.password else "••••••••"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onToggleReveal) {
+                        Icon(if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = stringResource(if (revealed) R.string.vault_hide else R.string.vault_show), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { if (entry.password.isNotBlank()) onCopy(entry.password) }) {
+                        Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.vault_copied), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                if (entry.address.isNotBlank()) {
+                    Text("${stringResource(R.string.vault_entry_address)}：${entry.address}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (entry.note.isNotBlank()) {
+                    Text("${stringResource(R.string.vault_entry_notes)}：${entry.note}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

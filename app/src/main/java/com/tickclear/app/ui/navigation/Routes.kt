@@ -45,6 +45,7 @@ object Routes {
     // V2.9：工具箱子路由（统计 Tab 改造为工具箱；统计详情仍经 Today 进度环进入 Routes.STATS）。
     const val TOOLS_WATER = "tools/water"
     const val TOOLS_REST = "tools/rest"
+    const val TOOLS_EYECARE = "tools/eyecare"
     const val TOOLS_VOICE = "tools/voice"
     const val TOOLS_VAULT = "tools/vault"
 }

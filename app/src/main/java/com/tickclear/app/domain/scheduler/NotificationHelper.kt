@@ -39,6 +39,7 @@ object NotificationHelper {
     // ── 工具箱间隔提醒渠道（V2.9）：喝水 / 休息。带版本后缀，便于统一清理。 ──
     const val CHANNEL_WATER = "tickclear.tools.water.$CHANNEL_VERSION"
     const val CHANNEL_REST = "tickclear.tools.rest.$CHANNEL_VERSION"
+    const val CHANNEL_EYECARE = "tickclear.tools.eyecare.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -148,7 +149,17 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 150, 200)
         }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest))
+        val eyecare = NotificationChannel(
+            CHANNEL_EYECARE,
+            context.getString(R.string.channel_eyecare_name),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = context.getString(R.string.channel_eyecare_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare))
     }
 
     /**
@@ -161,6 +172,8 @@ object NotificationHelper {
                 Quad(CHANNEL_WATER, R.string.interval_water_title, R.string.interval_water_text, 9201)
             com.tickclear.app.domain.scheduler.IntervalType.REST ->
                 Quad(CHANNEL_REST, R.string.interval_rest_title, R.string.interval_rest_text, 9202)
+            com.tickclear.app.domain.scheduler.IntervalType.EYECARE ->
+                Quad(CHANNEL_EYECARE, R.string.interval_eyecare_title, R.string.interval_eyecare_text, 9203)
         }
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val pi = android.app.PendingIntent.getActivity(
