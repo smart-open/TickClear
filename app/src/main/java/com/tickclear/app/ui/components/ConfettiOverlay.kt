@@ -20,9 +20,9 @@ import kotlin.random.Random
 
 /**
  * 打卡撒花：纯 Canvas 粒子爆发动画（零新依赖）。
- * [trigger] 为递增的触发计数：每次自增即从中心向上方喷射一束彩纸，约 1.4s 后自然落出屏幕。
+ * [trigger] 为递增的触发计数：每次自增即从中心向上方喷射一束彩纸，1.8s 内飞出屏幕并淡出。
  * [trigger] <= 0 时不渲染（初始态保持透明、不拦截点击）。
- * 动画进度由 [Animatable] 驱动，Canvas 的 onDraw 读取其值触发逐帧重绘。
+ * 动画结束后通过 [onFinished] 通知调用方重置 trigger，避免透明 Overlay 长期占住全屏组合。
  */
 private val CONFETTI_COLORS = listOf(
     Color(0xFF2F6BFF), Color(0xFF21C19B), Color(0xFF7C5CFF),
@@ -70,23 +70,25 @@ fun ConfettiOverlay(
     val progress = remember(trigger) { Animatable(0f) }
     LaunchedEffect(trigger) {
         progress.snapTo(0f)
-        progress.animateTo(1f, tween(durationMillis = 1400, easing = LinearEasing))
+        progress.animateTo(1f, tween(durationMillis = 1800, easing = LinearEasing))
         onFinished?.invoke()
     }
 
     val p = progress.value
+    // 最后 25% 时间整体淡出，避免粒子未落出屏幕就定格在画面上。
+    val alpha = if (p > 0.75f) ((1f - p) / 0.25f).coerceIn(0f, 1f) else 1f
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        // 重力（相对高度，每单位 progress 的二次下落系数）。
-        val gravity = 0.85f * h
+        // 增强重力，让粒子在 1.8s 内尽快落出屏幕。
+        val gravity = 1.4f * h
         for (pt in particles) {
             val x = pt.xN * w + pt.vxN * w * p
             val y = pt.yN * h + pt.vyN * h * p + 0.5f * gravity * p * p
-            if (y > h + 40f || x < -40f || x > w + 40f) continue
+            if (y > h + 40f || x < -40f || x > w + 40f || alpha <= 0f) continue
             rotate(pt.rot + pt.vr * p) {
                 drawRect(
-                    color = pt.color,
+                    color = pt.color.copy(alpha = alpha),
                     topLeft = Offset(x - pt.sizePx, y - pt.sizePx),
                     size = Size(pt.sizePx * 2f, pt.sizePx * 2f),
                 )

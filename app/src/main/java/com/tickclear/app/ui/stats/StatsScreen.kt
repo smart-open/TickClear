@@ -19,14 +19,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +65,18 @@ fun StatsScreen(
     isWide: Boolean = false,
     onGoToday: (() -> Unit)? = null,
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val period by viewModel.period.collectAsStateWithLifecycle()
+    val trend by viewModel.trend.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val hasData = state.totalCompleted > 0 || state.byGroup.isNotEmpty()
+    val cardColors = CardColors(
+        bg = MaterialTheme.colorScheme.background.toArgb(),
+        surface = MaterialTheme.colorScheme.surface.toArgb(),
+        primary = MaterialTheme.colorScheme.primary.toArgb(),
+        onSurface = MaterialTheme.colorScheme.onSurface.toArgb(),
+        onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+    )
     Scaffold(
         topBar = {
             // V2.8X 顶栏单行标题：Box 强制 48dp 高度下垂直居中。
@@ -73,6 +88,20 @@ fun StatsScreen(
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(stringResource(R.string.stats_title))
+                    }
+                },
+                actions = {
+                    // V2.8X 打卡分享入口：有数据时才显示，放在顶部状态栏右上角。
+                    if (hasData) {
+                        IconButton(onClick = {
+                            val bmp = StatsShareCard.generate(context, state, period, trend, cardColors)
+                            StatsShareCard.share(context, bmp)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = stringResource(R.string.stats_share),
+                            )
+                        }
                     }
                 },
             )
@@ -112,28 +141,6 @@ fun StatsContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        if (hasData) {
-            // V2.8X 打卡分享卡：本地生成成就图经系统分享 sheet 发出（纯本地、零依赖）。
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                val context = LocalContext.current
-                val cardColors = CardColors(
-                    bg = MaterialTheme.colorScheme.background.toArgb(),
-                    surface = MaterialTheme.colorScheme.surface.toArgb(),
-                    primary = MaterialTheme.colorScheme.primary.toArgb(),
-                    onSurface = MaterialTheme.colorScheme.onSurface.toArgb(),
-                    onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
-                )
-                OutlinedButton(onClick = {
-                    val bmp = StatsShareCard.generate(context, state, cardColors)
-                    StatsShareCard.share(context, bmp)
-                }) {
-                    Text(stringResource(R.string.stats_share))
-                }
-            }
-        }
         if (!hasData) {
             EmptyStateGuide(
                 icon = "📊",
@@ -154,7 +161,7 @@ fun StatsContent(
                     state = state,
                     period = period,
                     trend = trend,
-                    viewModel = viewModel,
+                    onPeriodChange = viewModel::setPeriod,
                     onMedalClick = { selectedMedal = it },
                     modifier = Modifier.weight(1f),
                 )
@@ -166,7 +173,7 @@ fun StatsContent(
                     state = state,
                     period = period,
                     trend = trend,
-                    viewModel = viewModel,
+                    onPeriodChange = viewModel::setPeriod,
                     onMedalClick = { selectedMedal = it },
                 )
             }
@@ -187,7 +194,7 @@ fun StatsContent(
  * 同时供窄屏单列与宽屏双栏复用。
  */
 @Composable
-private fun StatsOverviewColumn(
+internal fun StatsOverviewColumn(
     state: StatsUiState,
     modifier: Modifier = Modifier,
 ) {
@@ -294,11 +301,11 @@ private fun StatsOverviewColumn(
  * 同时供窄屏单列与宽屏双栏复用。
  */
 @Composable
-private fun StatsDetailColumn(
+internal fun StatsDetailColumn(
     state: StatsUiState,
     period: StatsPeriod,
     trend: List<TrendBucket>,
-    viewModel: StatsViewModel,
+    onPeriodChange: (StatsPeriod) -> Unit,
     onMedalClick: (Medal) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -308,17 +315,17 @@ private fun StatsDetailColumn(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = period == StatsPeriod.DAY,
-                onClick = { viewModel.setPeriod(StatsPeriod.DAY) },
+                onClick = { onPeriodChange(StatsPeriod.DAY) },
                 label = { Text(stringResource(R.string.period_day)) },
             )
             FilterChip(
                 selected = period == StatsPeriod.WEEK,
-                onClick = { viewModel.setPeriod(StatsPeriod.WEEK) },
+                onClick = { onPeriodChange(StatsPeriod.WEEK) },
                 label = { Text(stringResource(R.string.period_week)) },
             )
             FilterChip(
                 selected = period == StatsPeriod.MONTH,
-                onClick = { viewModel.setPeriod(StatsPeriod.MONTH) },
+                onClick = { onPeriodChange(StatsPeriod.MONTH) },
                 label = { Text(stringResource(R.string.period_month)) },
             )
         }

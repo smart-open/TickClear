@@ -261,7 +261,10 @@ fun TodayScreen(
         }
     }
 
-    ConfettiOverlay(trigger = confettiTrigger)
+    ConfettiOverlay(
+        trigger = confettiTrigger,
+        onFinished = { confettiTrigger = 0 },
+    )
     }
 
     if (showClearConfirm) {

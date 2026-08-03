@@ -37,12 +37,12 @@ object TaskIntentParser {
 
     // 正则提升为常量，避免每次 parse/parseClock 调用重复编译（性能）。
     private val RE_HHMM = Regex("""\d{1,2}[:：]\d{2}""")
-    private val RE_HH_MM_CN = Regex("""\d{1,2}点\d{1,2}分""")
-    private val RE_HH_CN = Regex("""\d{1,2}点""")
+    private val RE_HH_MM_CN = Regex("""\d{1,2}\s*点\s*\d{1,2}\s*分""")
+    private val RE_HH_CN = Regex("""\d{1,2}\s*点""")
     private val RE_TIME_WORDS = Regex("""(今天|明天|后天|大后天|每天|每日|周[一二三四五六日天]|星期[一二三四五六日天]|上午|下午|早上|中午|晚上|凌晨|傍晚|点|分)""")
     private val RE_WS = Regex("""\s+""")
     private val RE_CLOCK_HHMM = Regex("""(\d{1,2})[:：](\d{2})""")
-    private val RE_CLOCK_CN = Regex("""(\d{1,2})点(?:(\d{1,2})分)?""")
+    private val RE_CLOCK_CN = Regex("""(\d{1,2})\s*点(?:\s*(\d{1,2})\s*分)?""")
     // 提前量：「提前15分钟」或「15分钟前(提醒)」
     private val RE_OFFSET = Regex("""提前\s*(\d+)\s*分钟|(\d+)\s*分钟前""")
     // 标签：#工作 / #健康（支持中英文与数字）
