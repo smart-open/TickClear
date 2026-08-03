@@ -114,20 +114,26 @@ fun ToolsScreen(
                 )
                 // V2.8X 修复：LazyVerticalGrid 放在 verticalScroll 的 Column 内会在测量时
                 // 因无限高度约束抛 IllegalStateException 闪退。改用非 Lazy 的 chunked Row。
-                category.entries.chunked(2).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    ) {
-                        row.forEach { entry ->
-                            ToolCard(
-                                entry = entry,
-                                onClick = { onNavigate(entry.route) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        if (row.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
+                // 同行内横向 spacedBy(Spacing.sm)；多行之间用内层 Column 纵向 spacedBy 避免上下贴边。
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    category.entries.chunked(2).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            row.forEach { entry ->
+                                ToolCard(
+                                    entry = entry,
+                                    onClick = { onNavigate(entry.route) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (row.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
