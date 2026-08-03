@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.core.content.ContextCompat
 import com.tickclear.app.domain.log.AppLogger
 
 /**
@@ -17,7 +18,7 @@ object Haptic {
 
     fun vibrate(context: Context, millis: Long = 60, amplitude: Int = 200) {
         runCatching {
-            val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            val vib = ContextCompat.getSystemService(context, Vibrator::class.java) ?: return
             @Suppress("DEPRECATION")
             if (!vib.hasVibrator()) return
             when {
