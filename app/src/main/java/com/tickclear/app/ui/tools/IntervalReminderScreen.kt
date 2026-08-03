@@ -3,6 +3,7 @@ package com.tickclear.app.ui.tools
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,7 +39,7 @@ import java.time.format.DateTimeFormatter
 
 private val INTERVAL_OPTIONS = listOf(15, 30, 45, 60, 90, 120, 150, 180, 240)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun IntervalReminderScreen(
     vm: IntervalReminderViewModel,
