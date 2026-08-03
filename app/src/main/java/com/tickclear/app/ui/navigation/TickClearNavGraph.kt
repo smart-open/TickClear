@@ -39,6 +39,10 @@ import com.tickclear.app.ui.tools.PasswordVaultScreen
 import com.tickclear.app.ui.tools.QrScreen
 import com.tickclear.app.ui.tools.NapScreen
 import com.tickclear.app.ui.tools.NapViewModel
+import com.tickclear.app.ui.tools.ExpiryScreen
+import com.tickclear.app.ui.tools.ExpiryViewModel
+import com.tickclear.app.ui.tools.HearingScreen
+import com.tickclear.app.ui.tools.HearingViewModel
 
 @Composable
 fun TickClearApp(
@@ -256,6 +260,18 @@ private fun AppNavHost(
         composable(Routes.TOOLS_NAP) {
             NapScreen(
                 vm = hiltViewModel<NapViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_EXPIRY) {
+            ExpiryScreen(
+                vm = hiltViewModel<ExpiryViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_HEARING) {
+            HearingScreen(
+                vm = hiltViewModel<HearingViewModel>(),
                 onBack = { navController.popBackStack() },
             )
         }

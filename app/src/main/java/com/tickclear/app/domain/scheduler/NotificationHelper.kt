@@ -41,6 +41,8 @@ object NotificationHelper {
     const val CHANNEL_REST = "tickclear.tools.rest.$CHANNEL_VERSION"
     const val CHANNEL_EYECARE = "tickclear.tools.eyecare.$CHANNEL_VERSION"
     const val CHANNEL_NAP = "tickclear.tools.nap.$CHANNEL_VERSION"
+    const val CHANNEL_EXPIRY = "tickclear.tools.expiry.$CHANNEL_VERSION"
+    const val CHANNEL_HEARING = "tickclear.tools.hearing.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -170,7 +172,27 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 200, 250)
         }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap))
+        val expiry = NotificationChannel(
+            CHANNEL_EXPIRY,
+            context.getString(R.string.channel_expiry_name),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = context.getString(R.string.channel_expiry_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        val hearing = NotificationChannel(
+            CHANNEL_HEARING,
+            context.getString(R.string.channel_hearing_name),
+            android.app.NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = context.getString(R.string.channel_hearing_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 150, 200)
+        }
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing))
     }
 
     /**
@@ -229,4 +251,48 @@ object NotificationHelper {
 
     /** 内部四元组（避免引入额外依赖）。 */
     private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+
+    /** 到期提醒通知（V2.9++）。点击仅打开 App。固定 id，避免重复堆叠。 */
+    fun showExpiryNotification(context: Context, title: String) {
+        val notifyId = 9351
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_EXPIRY)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.expiry_notification_title, title))
+            .setContentText(context.getString(R.string.expiry_notification_text))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
+
+    /** 听力保护提醒（V2.9++）：音量过高 / 佩戴过久时弹通知。点击仅打开 App。 */
+    fun showHearingNotification(context: Context, reason: String) {
+        val notifyId = 9361
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_HEARING)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.hearing_notification_title))
+            .setContentText(reason)
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
 }

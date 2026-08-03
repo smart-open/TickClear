@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Weekend
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -75,6 +76,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_nap_title,
                 descRes = R.string.tools_nap_desc,
                 icon = Icons.Filled.Hotel,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_HEARING,
+                titleRes = R.string.tools_hearing_title,
+                descRes = R.string.tools_hearing_desc,
+                icon = Icons.Filled.VolumeUp,
             ),
         ),
     ),

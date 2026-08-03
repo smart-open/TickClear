@@ -4,6 +4,7 @@ import android.app.Application
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.di.AppEntryPoint
 import com.tickclear.app.domain.backup.AutoBackupScheduler
+import com.tickclear.app.domain.hearing.HearingMonitor
 import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.log.CrashReporter
 import com.tickclear.app.domain.scheduler.NotificationHelper
@@ -29,6 +30,8 @@ class TickClearApplication : Application() {
         SecureStore.getDbPassphrase(this)
         // 通知渠道（提醒系统）
         NotificationHelper.createChannels(this)
+        // V2.9++：听力保护监测（动态广播，App 运行时生效）
+        HearingMonitor.register(this)
         // 调度每日回收站清理
         RecycleBinScheduler.schedule(this)
         // 首次启动注入示例数据 + 重排今日提醒

@@ -16,6 +16,7 @@ import com.tickclear.app.data.local.dao.VoiceHistoryDao
 import com.tickclear.app.data.local.dao.VoiceMemoDao
 import com.tickclear.app.data.local.dao.HabitCheckInDao
 import com.tickclear.app.data.local.dao.HabitDao
+import com.tickclear.app.data.local.dao.ExpiryDao
 import com.tickclear.app.data.local.entities.CheckInEntity
 import com.tickclear.app.data.local.entities.CompletionLogEntity
 import com.tickclear.app.data.local.entities.MedalUnlockEntity
@@ -26,6 +27,7 @@ import com.tickclear.app.data.local.entities.VoiceHistoryEntity
 import com.tickclear.app.data.local.entities.VoiceMemoEntity
 import com.tickclear.app.data.local.entities.HabitEntity
 import com.tickclear.app.data.local.entities.HabitCheckInEntity
+import com.tickclear.app.data.local.entities.ExpiryEntity
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
@@ -40,8 +42,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         HabitEntity::class,
         HabitCheckInEntity::class,
         VoiceMemoEntity::class,
+        ExpiryEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -55,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun voiceMemoDao(): VoiceMemoDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCheckInDao(): HabitCheckInDao
+    abstract fun expiryDao(): ExpiryDao
 
     companion object {
         private const val DB_NAME = "tickclear.db"
@@ -181,11 +185,35 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v9 → v10：新增 expiry_reminders 表（V2.9++ 工具箱 · 到期提醒）。 */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // CREATE 语句须与 ExpiryEntity 生成的建表语句逐字一致，
+                // 否则 Room 的迁移校验（expected vs migrated schema）会报错。
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS expiry_reminders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        expire_epoch_day INTEGER NOT NULL,
+                        note TEXT NOT NULL,
+                        reminder_enabled INTEGER NOT NULL,
+                        reminder_days_before INTEGER NOT NULL,
+                        recurring INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         /** 全部显式迁移，供仪器化契约测试（MigrationTestHelper）引用，无需新增依赖。 */
         internal val MIGRATIONS: Array<Migration> =
             arrayOf(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                MIGRATION_9_10,
             )
 
         fun create(context: Context, passphrase: String): AppDatabase {
@@ -206,6 +234,7 @@ abstract class AppDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                 .build()
         }

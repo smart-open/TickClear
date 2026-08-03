@@ -745,10 +745,50 @@
     <!-- 到期提醒 -->
     <string name="tools_expiry_title">到期提醒</string>
     <string name="tools_expiry_desc">会员/账号/续费到期提醒</string>
+    <string name="expiry_list_empty">还没有到期提醒，点击右下角添加</string>
+    <string name="expiry_add">添加</string>
+    <string name="expiry_edit">编辑</string>
+    <string name="expiry_save">保存</string>
+    <string name="expiry_cancel">取消</string>
+    <string name="expiry_title_label">名称</string>
+    <string name="expiry_category_label">分类</string>
+    <string name="expiry_date_label">到期日</string>
+    <string name="expiry_note_label">备注</string>
+    <string name="expiry_reminder_enable">开启提醒</string>
+    <string name="expiry_reminder_advance">提前提醒</string>
+    <string name="expiry_recurring">每年重复</string>
+    <string name="expiry_days_before_0">当天</string>
+    <string name="expiry_days_before_1">1 天前</string>
+    <string name="expiry_days_before_3">3 天前</string>
+    <string name="expiry_days_before_7">7 天前</string>
+    <string name="expiry_days_left">剩 %1$d 天</string>
+    <string name="expiry_expired">已过期</string>
+    <string name="expiry_delete_title">删除到期提醒</string>
+    <string name="expiry_delete_confirm">确定删除「%1$s」？</string>
+    <string name="expiry_delete_confirm_btn">删除</string>
+    <string name="expiry_notification_title">到期提醒：%1$s</string>
+    <string name="expiry_notification_text">该项即将到期，请及时处理</string>
+    <string-array name="expiry_category_entries">
+        <item>会员</item>
+        <item>账号</item>
+        <item>续费</item>
+        <item>其他</item>
+    </string-array>
 
     <!-- 午休小憩 -->
     <string name="tools_nap_title">午休小憩</string>
     <string name="tools_nap_desc">智能短午休闹钟，防止睡过头</string>
+    <string name="tools_hearing_title">听力保护</string>
+    <string name="tools_hearing_desc">耳机音量/佩戴时长超标提醒</string>
+    <string name="hearing_enable_label">开启听力保护</string>
+    <string name="hearing_hint">连接耳机后，音量过大或佩戴过久将提醒你。监测在 App 运行时生效。</string>
+    <string name="hearing_volume_label">音量安全阈值</string>
+    <string name="hearing_volume_current">超过 %1$d%% 提醒</string>
+    <string name="hearing_wear_label">建议最大佩戴时长</string>
+    <string name="hearing_wear_min">%1$d 分钟</string>
+    <string name="hearing_notification_title">听力保护提醒</string>
+    <string name="hearing_notify_volume">当前媒体音量约 %1$d%%，已超过安全阈值，建议调低</string>
+    <string name="hearing_notify_wear">已连续佩戴约 %1$d 分钟，建议摘下休息一下</string>
     <string name="nap_duration_label">午休时长</string>
     <string name="nap_min_label">%1$d 分钟</string>
     <string name="nap_smart_hint">20–30 分钟落在浅睡窗口，醒后不易昏沉；超过 60 分钟易进入深睡，醒来反而昏沉。</string>
@@ -757,6 +797,10 @@
     <string name="nap_wake_at">预计 %1$s 唤醒</string>
     <string name="channel_nap_name">午休小憩</string>
     <string name="channel_nap_desc">短午休闹钟唤醒提醒</string>
+    <string name="channel_expiry_name">到期提醒</string>
+    <string name="channel_expiry_desc">会员/账号/续费到期提醒</string>
+    <string name="channel_hearing_name">听力保护</string>
+    <string name="channel_hearing_desc">耳机音量/佩戴时长超标提醒</string>
     <string name="nap_notification_title">该醒啦</string>
     <string name="nap_notification_text">午休结束，精神饱满地起来吧～</string>
 

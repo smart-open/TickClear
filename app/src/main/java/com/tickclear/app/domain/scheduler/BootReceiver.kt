@@ -59,6 +59,9 @@ class BootReceiver : BroadcastReceiver() {
                         // V2.9：工具箱间隔提醒（喝水 / 休息）同样依赖 AlarmManager，重启/升级/改时区后须重排。
                         runCatching { IntervalReminderScheduler.rescheduleAll(ctx) }
                             .onFailure { AppLogger.e("BootReceiver", "间隔提醒重排失败：${it.message}") }
+                        // V2.9++：到期提醒同样依赖 AlarmManager，重启/升级/改时区后须重排。
+                        runCatching { ExpiryScheduler.rescheduleAll(ctx) }
+                            .onFailure { AppLogger.e("BootReceiver", "到期提醒重排失败：${it.message}") }
                         // V2.13：重启后位置提醒改为前台轮询服务，需重新评估并启停。
                         runCatching { GeofenceScheduler.sync(ctx) }
                             .onFailure { AppLogger.e("BootReceiver", "位置提醒同步失败：${it.message}") }

@@ -126,6 +126,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override val eyecareIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_EYECARE_INTERVAL] ?: SettingsRepository.DEFAULT_EYECARE_INTERVAL_MIN }
     override val napLastDurationMin: Flow<Int> = dataStore.data.map { it[KEY_NAP_DURATION] ?: SettingsRepository.DEFAULT_NAP_DURATION_MIN }
 
+    // ── 工具箱：听力保护（V2.9++）──
+    override val hearingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_HEARING_ENABLED] ?: false }
+    override val hearingVolumeThreshold: Flow<Int> = dataStore.data.map { it[KEY_HEARING_VOLUME] ?: SettingsRepository.DEFAULT_HEARING_VOLUME_THRESHOLD }
+    override val hearingMaxWearMin: Flow<Int> = dataStore.data.map { it[KEY_HEARING_WEAR] ?: SettingsRepository.DEFAULT_HEARING_WEAR_MIN }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
@@ -172,6 +177,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setEyecareEnabled(enabled: Boolean) { dataStore.edit { it[KEY_EYECARE_ENABLED] = enabled } }
     override suspend fun setEyecareIntervalMin(min: Int) { dataStore.edit { it[KEY_EYECARE_INTERVAL] = min.coerceAtLeast(5) } }
     override suspend fun setNapLastDurationMin(min: Int) { dataStore.edit { it[KEY_NAP_DURATION] = min.coerceAtLeast(5) } }
+
+    // ── 工具箱：听力保护（V2.9++）──
+    override suspend fun setHearingEnabled(enabled: Boolean) { dataStore.edit { it[KEY_HEARING_ENABLED] = enabled } }
+    override suspend fun setHearingVolumeThreshold(threshold: Int) { dataStore.edit { it[KEY_HEARING_VOLUME] = threshold.coerceIn(0, 100) } }
+    override suspend fun setHearingMaxWearMin(min: Int) { dataStore.edit { it[KEY_HEARING_WEAR] = min.coerceAtLeast(5) } }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -287,6 +297,9 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_EYECARE_ENABLED = booleanPreferencesKey("eyecare_reminder_enabled")
         private val KEY_EYECARE_INTERVAL = intPreferencesKey("eyecare_reminder_interval_min")
         private val KEY_NAP_DURATION = intPreferencesKey("nap_last_duration_min")
+        private val KEY_HEARING_ENABLED = booleanPreferencesKey("hearing_protection_enabled")
+        private val KEY_HEARING_VOLUME = intPreferencesKey("hearing_volume_threshold")
+        private val KEY_HEARING_WEAR = intPreferencesKey("hearing_max_wear_min")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")

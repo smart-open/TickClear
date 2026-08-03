@@ -15,6 +15,7 @@ import com.tickclear.app.data.local.dao.TaskGroupDao
 import com.tickclear.app.data.local.dao.TaskInstanceDao
 import com.tickclear.app.data.local.dao.VoiceHistoryDao
 import com.tickclear.app.data.local.dao.VoiceMemoDao
+import com.tickclear.app.data.local.dao.ExpiryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,6 +43,7 @@ object DatabaseModule {
     @Provides fun provideVoiceMemoDao(db: AppDatabase): VoiceMemoDao = db.voiceMemoDao()
     @Provides fun provideHabitDao(db: AppDatabase): HabitDao = db.habitDao()
     @Provides fun provideHabitCheckInDao(db: AppDatabase): HabitCheckInDao = db.habitCheckInDao()
+    @Provides fun provideExpiryDao(db: AppDatabase): ExpiryDao = db.expiryDao()
 
     @Provides
     @Singleton

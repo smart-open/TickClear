@@ -88,6 +88,16 @@ interface SettingsRepository {
     /** 午休小憩上次选择的时长（分钟，V2.9++），用于记忆偏好。 */
     val napLastDurationMin: Flow<Int>
 
+    // ── 工具箱：听力保护（V2.9++）──
+    /** 听力保护总开关（监测耳机音量/佩戴时长）。 */
+    val hearingEnabled: Flow<Boolean>
+
+    /** 音量安全阈值（0-100，媒体音量占比超此值提醒）。 */
+    val hearingVolumeThreshold: Flow<Int>
+
+    /** 建议最大连续佩戴分钟数，超过则提醒休息。 */
+    val hearingMaxWearMin: Flow<Int>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -151,6 +161,11 @@ interface SettingsRepository {
 
     /** 午休小憩：保存上次选择的时长（分钟，V2.9++）。 */
     suspend fun setNapLastDurationMin(min: Int)
+
+    // ── 工具箱：听力保护（V2.9++）──
+    suspend fun setHearingEnabled(enabled: Boolean)
+    suspend fun setHearingVolumeThreshold(threshold: Int)
+    suspend fun setHearingMaxWearMin(min: Int)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
@@ -225,6 +240,12 @@ interface SettingsRepository {
 
     /** 午休小憩默认时长（分钟，V2.9++）：30 分钟落在浅睡窗口，醒后不易昏沉。 */
     const val DEFAULT_NAP_DURATION_MIN = 30
+
+    /** 听力保护默认音量阈值（媒体音量占比 %）。 */
+    const val DEFAULT_HEARING_VOLUME_THRESHOLD = 80
+
+    /** 听力保护默认最大连续佩戴分钟数。 */
+    const val DEFAULT_HEARING_WEAR_MIN = 60
 
         /** 判断某分钟数(0-1439)是否落在静音时段 [start,end)，支持跨午夜。 */
         fun isInQuietWindow(nowMin: Int, startMin: Int, endMin: Int): Boolean {
