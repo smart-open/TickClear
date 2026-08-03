@@ -93,16 +93,10 @@ object HearingMonitor {
     }
 
     private fun handlePlug(ctx: Context, intent: Intent) {
-        // ACTION_HEADSET_PLUG 的 state extra：0=未连接, 1=带麦耳机, 2=无麦耳机。
-        // 使用 AudioManager 上真实存在的 EXTRA_HEADSET_STATE；个别 ROM 不填充该 extra 时
-        // 回退读取旧版 "state" 字面量（值含义一致）。
-        val state = intent.getIntExtra(AudioManager.EXTRA_HEADSET_STATE, -1)
-        val legacyState = intent.getIntExtra("state", 0)
-        val isConnected = when {
-            state == 1 || state == 2 -> true
-            state == 0 -> false
-            else -> legacyState == 1 || legacyState == 2
-        }
+        // ACTION_HEADSET_PLUG 的 state extra 是契约字面量 "state"（0=未连接, 1=带麦耳机, 2=无麦耳机）。
+        // 不依赖 AudioManager.EXTRA_HEADSET_STATE —— 该常量在部分 compileSdk 上不可见，直接用字面量最稳。
+        val state = intent.getIntExtra("state", 0)
+        val isConnected = state == 1 || state == 2
         if (isConnected) {
             if (!connected.getAndSet(true)) {
                 connectAt.set(System.currentTimeMillis())
