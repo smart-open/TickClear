@@ -36,6 +36,7 @@ import com.tickclear.app.ui.tools.RestReminderViewModel
 import com.tickclear.app.ui.tools.EyeCareReminderViewModel
 import com.tickclear.app.ui.tools.VoiceMemoScreen
 import com.tickclear.app.ui.tools.PasswordVaultScreen
+import com.tickclear.app.ui.tools.QrScreen
 
 @Composable
 fun TickClearApp(
@@ -246,6 +247,9 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_VAULT) {
             PasswordVaultScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_QR) {
+            QrScreen(onBack = { navController.popBackStack() })
         }
     }
 }

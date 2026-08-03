@@ -48,4 +48,9 @@ object Routes {
     const val TOOLS_EYECARE = "tools/eyecare"
     const val TOOLS_VOICE = "tools/voice"
     const val TOOLS_VAULT = "tools/vault"
+    // V2.9++：工具箱新增（二维码 / 到期提醒 / 午休小憩 / 听力保护）
+    const val TOOLS_QR = "tools/qr"
+    const val TOOLS_EXPIRY = "tools/expiry"
+    const val TOOLS_NAP = "tools/nap"
+    const val TOOLS_HEARING = "tools/hearing"
 }

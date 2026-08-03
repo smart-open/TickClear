@@ -721,6 +721,31 @@
     <string name="tools_vault_title">密码保险箱</string>
     <string name="tools_vault_desc">加密保存账号密码</string>
 
+    <!-- V2.9++ 新增工具分类：生活助手 -->
+    <string name="tools_cat_life">生活助手</string>
+
+    <!-- 二维码 -->
+    <string name="tools_qr_title">二维码</string>
+    <string name="tools_qr_desc">生成文字/网址/联系人二维码</string>
+    <string name="qr_type_label">类型</string>
+    <string name="qr_type_text">文字</string>
+    <string name="qr_type_url">网址</string>
+    <string name="qr_type_contact">联系人</string>
+    <string name="qr_input_hint">输入要生成二维码的内容</string>
+    <string name="qr_url_hint">输入网址（自动补全 https://）</string>
+    <string name="qr_contact_name">姓名</string>
+    <string name="qr_contact_phone">电话</string>
+    <string name="qr_contact_email">邮箱</string>
+    <string name="qr_image_desc">二维码图片</string>
+    <string name="qr_long_press_save">长按二维码保存图片</string>
+    <string name="qr_empty_hint">输入内容后自动生成二维码</string>
+    <string name="qr_save_success">已保存到相册</string>
+    <string name="qr_save_fail">保存失败，请重试</string>
+
+    <!-- 到期提醒 -->
+    <string name="tools_expiry_title">到期提醒</string>
+    <string name="tools_expiry_desc">会员/账号/续费到期提醒</string>
+
     <!-- 喝水提醒 -->
     <string name="water_title">喝水提醒</string>
     <string name="water_enable">开启喝水提醒</string>

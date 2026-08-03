@@ -184,6 +184,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
     implementation(libs.accompanist.permissions)
+    // 二维码生成（工具箱「二维码」工具，破例引入；仅 core，自绘 Bitmap）。
+    implementation(libs.zxing)
 
     // Opus 编解码（theeasiestway/android-opus-codec，本地 libs/opus.aar，封装官方 libopus 1.3.1）。
     // 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全 ABI 的 libopus.so，arm64 设备原生 64 位可用，

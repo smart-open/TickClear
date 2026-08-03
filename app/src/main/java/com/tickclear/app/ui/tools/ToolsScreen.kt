@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Weekend
 import androidx.compose.runtime.Composable
@@ -83,6 +85,23 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_vault_title,
                 descRes = R.string.tools_vault_desc,
                 icon = Icons.Filled.Lock,
+            ),
+        ),
+    ),
+    ToolCategory(
+        titleRes = R.string.tools_cat_life,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_QR,
+                titleRes = R.string.tools_qr_title,
+                descRes = R.string.tools_qr_desc,
+                icon = Icons.Filled.QrCode,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_EXPIRY,
+                titleRes = R.string.tools_expiry_title,
+                descRes = R.string.tools_expiry_desc,
+                icon = Icons.Filled.Event,
             ),
         ),
     ),

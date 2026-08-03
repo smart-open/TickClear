@@ -24,6 +24,7 @@ espressoCore = "3.6.1"
 turbine = "1.1.0"
 mockk = "1.13.11"
 desugarJdkLibs = "2.0.4"
+zxing = "3.5.3"
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -70,3 +71,5 @@ androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "
 hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hilt" }
 coreDesugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 orgJson = { module = "org.json:json", version = "20231013" }
+# 二维码生成（工具箱「二维码」工具）：用户明确批准破例引入，仅引入 core（不含 android 封装，自绘 BitMatrix→Bitmap）。
+zxing = { module = "com.google.zxing:core", version.ref = "zxing" }
