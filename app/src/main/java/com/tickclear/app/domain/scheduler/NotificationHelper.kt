@@ -40,6 +40,7 @@ object NotificationHelper {
     const val CHANNEL_WATER = "tickclear.tools.water.$CHANNEL_VERSION"
     const val CHANNEL_REST = "tickclear.tools.rest.$CHANNEL_VERSION"
     const val CHANNEL_EYECARE = "tickclear.tools.eyecare.$CHANNEL_VERSION"
+    const val CHANNEL_NAP = "tickclear.tools.nap.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -159,7 +160,17 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 150, 200)
         }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare))
+        val nap = NotificationChannel(
+            CHANNEL_NAP,
+            context.getString(R.string.channel_nap_name),
+            android.app.NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = context.getString(R.string.channel_nap_desc)
+            enableLights(true)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 250, 200, 250)
+        }
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap))
     }
 
     /**
@@ -189,6 +200,28 @@ object NotificationHelper {
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
+
+    /** 午休小憩唤醒通知（V2.9++）。点击仅打开 App。 */
+    fun showNapNotification(context: Context) {
+        val notifyId = 9301
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_NAP)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.nap_notification_title))
+            .setContentText(context.getString(R.string.nap_notification_text))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         runCatching { manager.notify(notifyId, notification) }

@@ -37,6 +37,8 @@ import com.tickclear.app.ui.tools.EyeCareReminderViewModel
 import com.tickclear.app.ui.tools.VoiceMemoScreen
 import com.tickclear.app.ui.tools.PasswordVaultScreen
 import com.tickclear.app.ui.tools.QrScreen
+import com.tickclear.app.ui.tools.NapScreen
+import com.tickclear.app.ui.tools.NapViewModel
 
 @Composable
 fun TickClearApp(
@@ -250,6 +252,12 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_QR) {
             QrScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_NAP) {
+            NapScreen(
+                vm = hiltViewModel<NapViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

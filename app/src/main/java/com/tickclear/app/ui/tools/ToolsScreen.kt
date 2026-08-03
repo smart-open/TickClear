@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Weekend
@@ -68,6 +69,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_eyecare_title,
                 descRes = R.string.tools_eyecare_desc,
                 icon = Icons.Filled.Visibility,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_NAP,
+                titleRes = R.string.tools_nap_title,
+                descRes = R.string.tools_nap_desc,
+                icon = Icons.Filled.Hotel,
             ),
         ),
     ),
