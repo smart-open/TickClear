@@ -833,6 +833,43 @@
     <string name="noise_permission_hint">噪音检测需要麦克风权限</string>
     <string name="noise_grant">授予权限</string>
 
+    <!-- 噪声评价报告（GB 3096-2008 声环境质量标准 / GBZ 2.2-2007 职业接触限值） -->
+    <string name="noise_report_title">噪声评价报告</string>
+    <string name="noise_report_basis">依据 GB 3096-2008、GBZ 2.2-2007</string>
+    <string name="noise_report_leq">等效声级 Leq：%1$s dB(A)</string>
+    <string name="noise_report_peak">峰值声级：%1$d dB(A)</string>
+    <string name="noise_report_duration">测量时长：%1$d 秒</string>
+    <string name="noise_report_grade">评价等级：%1$s</string>
+    <string name="noise_report_effect_title">对人体的影响</string>
+    <string name="noise_report_zone_title">声环境功能区对照</string>
+    <string name="noise_report_exposure_title">职业接触限值</string>
+    <string name="noise_report_disclaimer">手机麦克风未经声学校准，测值仅供参考，不能替代专业声级计。</string>
+    <string name="noise_report_too_short">测量时间过短，未生成评价报告（请连续测量 3 秒以上）</string>
+    <string name="noise_grade_excellent">优（很安静）</string>
+    <string name="noise_grade_good">良（较安静）</string>
+    <string name="noise_grade_fair">一般（可接受）</string>
+    <string name="noise_grade_poor">较差（明显偏吵）</string>
+    <string name="noise_grade_harmful">有害（达到职业限值）</string>
+    <string name="noise_grade_danger">危险（严重超标）</string>
+    <string name="noise_effect_excellent">相当于图书馆或夜间卧室。对听力无风险，有利于睡眠与集中注意力。</string>
+    <string name="noise_effect_good">相当于安静的居住区。正常交谈、阅读不受影响；夜间长期高于 45 dB(A) 会轻微影响入睡质量。</string>
+    <string name="noise_effect_fair">相当于普通办公室或街道背景。交谈需略微提高音量，长时间停留易疲劳、注意力下降。</string>
+    <string name="noise_effect_poor">已超过各类声环境功能区昼间限值上限（70 dB(A)）。可引起烦躁、心率与血压升高，长期暴露易导致神经衰弱与睡眠障碍。</string>
+    <string name="noise_effect_harmful">达到或超过职业接触限值 85 dB(A)。每天 8 小时暴露即存在噪声性听力损失风险，应佩戴耳塞或耳罩并缩短暴露时间。</string>
+    <string name="noise_effect_danger">远超职业接触限值。短时间暴露即可造成不可逆的听力损伤，应立即远离声源或使用有效护听器。</string>
+    <string name="noise_zone_0">0 类（康复疗养区）</string>
+    <string name="noise_zone_1">1 类（居民、医疗、文教区）</string>
+    <string name="noise_zone_2">2 类（商住混杂区）</string>
+    <string name="noise_zone_3">3 类（工业仓储区）</string>
+    <string name="noise_zone_4a">4a 类（交通干线两侧）</string>
+    <string name="noise_zone_day_pass">昼间：符合 %1$s 限值 %2$d dB(A)</string>
+    <string name="noise_zone_day_fail">昼间：超过全部功能区限值（最宽松为 4a 类 70 dB(A)）</string>
+    <string name="noise_zone_night_pass">夜间：符合 %1$s 限值 %2$d dB(A)</string>
+    <string name="noise_zone_night_fail">夜间：超过全部功能区限值（最宽松为 55 dB(A)）</string>
+    <string name="noise_exposure_free">低于 80 dB(A)，GBZ 2.2-2007 对每日接触时长不作限制。</string>
+    <string name="noise_exposure_hours">按等能量原则（85 dB(A) 对应 8 小时，每增加 3 dB 允许时长减半），当前声级每日允许接触约 %1$s 小时。</string>
+    <string name="noise_exposure_forbidden">已超过 115 dB(A)，GBZ 2.2-2007 规定任何时长均不得接触。</string>
+
     <!-- 抽签器 -->
     <string name="tools_lottery_title">抽签器</string>
     <string name="tools_lottery_desc">抽签 / 掷骰子 / 抛硬币</string>
