@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,8 +40,6 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.max
-import kotlin.math.minOf
-import kotlin.math.toDegrees
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
@@ -84,8 +83,8 @@ fun LevelScreen(onBack: () -> Unit) {
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     // roll=左右倾斜（绕 Y 轴），pitch=前后倾斜（绕 X 轴）。平放时 gz≈9.8，gx/gy≈0 → 角度≈0。
-    val roll = toDegrees(atan2(gx.toDouble(), gz.toDouble())).toFloat()
-    val pitch = toDegrees(atan2(gy.toDouble(), gz.toDouble())).toFloat()
+    val roll = Math.toDegrees(atan2(gx.toDouble(), gz.toDouble())).toFloat()
+    val pitch = Math.toDegrees(atan2(gy.toDouble(), gz.toDouble())).toFloat()
     val maxAngle = max(abs(roll), abs(pitch))
     val isLevel = maxAngle < 1f
 
@@ -127,7 +126,8 @@ fun LevelScreen(onBack: () -> Unit) {
             ) {
                 val cx = size.width / 2f
                 val cy = size.height / 2f
-                val radius = minOf(size.width, size.height) / 3f
+                val minSide = if (size.width < size.height) size.width else size.height
+                val radius = minSide / 3f
                 val bubbleR = radius * 0.18f
                 // 气泡偏移与重力分量反向：平放(gx,gy≈0)→居中；倾斜→气泡移向高处。
                 val k = (radius - bubbleR) / 6f
