@@ -744,6 +744,20 @@
     <string name="qr_empty_hint">输入内容后自动生成二维码</string>
     <string name="qr_save_success">已保存到相册</string>
     <string name="qr_save_fail">保存失败，请重试</string>
+    <string name="qr_scan_pick">选择图片</string>
+    <string name="qr_scan_capture">拍照识别</string>
+    <string name="qr_scan_result_title">识别结果</string>
+    <string name="qr_scan_result_format">格式：%1$s</string>
+    <string name="qr_scan_failed">识别失败，请重试</string>
+    <string name="qr_scan_empty">未识别到二维码</string>
+    <string name="qr_scan_camera_denied">相机权限被拒绝，请在设置中开启</string>
+    <string name="qr_scan_copied">已复制</string>
+    <string name="qr_scan_copy">复制</string>
+    <string name="qr_scan_open">打开</string>
+    <string name="qr_scan_open_fail">无法打开该链接</string>
+    <string name="qr_intro">生成二维码分享信息，或拍照、从相册识别二维码内容。</string>
+    <string name="qr_section_generate">生成二维码</string>
+    <string name="qr_section_scan">识别二维码</string>
 
     <!-- 到期提醒 -->
     <string name="tools_expiry_title">到期提醒</string>
@@ -937,11 +951,6 @@
     <string name="mosaic_brush_width">笔刷宽度</string>
     <string name="mosaic_draw_brush">笔刷</string>
     <string name="mosaic_draw_box">框选</string>
-    <string name="vision_same">完全相同</string>
-    <string name="vision_diff">不一样</string>
-    <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
-    <string name="vision_clear">能看清</string>
-    <string name="vision_blur">看不清</string>
     <string name="vision_color_normal">色觉：未发现明显异常</string>
     <string name="vision_color_suspect">色觉：部分题目判断异常，疑似色觉障碍</string>
     <string name="vision_acuity_normal">视力：可看清较小字号，状况良好</string>
@@ -1255,6 +1264,8 @@
     <string name="cam_detect_perm_mic">麦克风</string>
     <string name="cam_detect_camera_perm">无法监听摄像头状态，请确认已授予相机权限</string>
     <string name="cam_detect_scan_fail">应用扫描失败</string>
+    <string name="cam_detect_section_system">系统应用</string>
+    <string name="cam_detect_section_installed">已安装应用</string>
 
     <!-- 剪贴板防窃取（V2.9++） -->
     <string name="tools_clipboard_guard_title">剪贴板保护</string>
@@ -1330,6 +1341,8 @@
     <string name="privacy_empty">未发现已授予以下隐私权限的应用</string>
     <string name="privacy_count">已授权应用：%1$d 个</string>
     <string name="privacy_scan_fail">应用扫描失败</string>
+    <string name="privacy_section_system">系统应用</string>
+    <string name="privacy_section_installed">已安装应用</string>
 
     <!-- 隐私检查：权限分组标签（抽离自 PrivacyCheckViewModel，遵守中文全抽离红线） -->
     <string name="perm_group_sms">短信</string>
