@@ -1,5 +1,6 @@
 package com.tickclear.app.ui.tools
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,6 +33,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -33,19 +42,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -178,7 +183,7 @@ fun CameraDetectScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    stringResource(R.string.cam_detect_apps_title, appList.size),
+                    stringResource(R.string.cam_detect_apps_title, appList.total),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -191,36 +196,103 @@ fun CameraDetectScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            appList.forEach { app ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+
+            // 系统应用
+            if (appList.systemApps.isNotEmpty()) {
+                SectionLabel(
+                    label = stringResource(R.string.cam_detect_section_system),
+                    count = appList.systemApps.size,
+                    bg = MaterialTheme.colorScheme.tertiaryContainer,
+                    fg = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                AppCardList(appList.systemApps)
+            }
+            // 安装的应用
+            if (appList.installedApps.isNotEmpty()) {
+                SectionLabel(
+                    label = stringResource(R.string.cam_detect_section_installed),
+                    count = appList.installedApps.size,
+                    bg = MaterialTheme.colorScheme.secondaryContainer,
+                    fg = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                AppCardList(appList.installedApps)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(
+    label: String,
+    count: Int,
+    bg: Color,
+    fg: Color,
+) {
+    Surface(color = bg, shape = RoundedCornerShape(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = fg,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(fg.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = fg,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppCardList(apps: List<PrivacyDetectViewModel.SensitiveApp>) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        for (app in apps) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(app.appName, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                app.packageName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        val perms = buildString {
-                            if (app.hasCamera) append(stringResource(R.string.cam_detect_perm_camera))
-                            if (app.hasCamera && app.hasMic) append(" / ")
-                            if (app.hasMic) append(stringResource(R.string.cam_detect_perm_mic))
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(app.appName, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            perms,
+                            app.packageName,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    val perms = buildString {
+                        if (app.hasCamera) append(stringResource(R.string.cam_detect_perm_camera))
+                        if (app.hasCamera && app.hasMic) append(" / ")
+                        if (app.hasMic) append(stringResource(R.string.cam_detect_perm_mic))
+                    }
+                    Text(
+                        perms,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
         }

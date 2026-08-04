@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
@@ -23,6 +24,8 @@ import javax.inject.Inject
  * 隐私检查（V2.9++，无需 root）：遍历已安装应用，按危险权限组检查「系统是否已授予」对应权限，
  * 分组展示哪些应用持有了短信/通讯录/通话记录/电话/日历/相机/麦克风/位置/存储等隐私权限。
  * 直接读取 PackageManager 的授权标志（REQUESTED_PERMISSION_GRANTED），不依赖 root。
+ *
+ * V2.9 扩展：每个 AppInfo 携带 `isSystem` 标记，UI 端按「系统应用」与「安装的应用」分两块展示。
  */
 @HiltViewModel
 class PrivacyCheckViewModel @Inject constructor(
@@ -30,8 +33,14 @@ class PrivacyCheckViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class PermGroup(val key: String, val labelRes: Int, val perms: List<String>)
-    data class AppInfo(val name: String, val pkg: String)
-    data class GroupResult(val label: String, val apps: List<AppInfo>)
+    data class AppInfo(val name: String, val pkg: String, val isSystem: Boolean)
+    data class GroupResult(
+        val label: String,
+        val systemApps: List<AppInfo>,
+        val installedApps: List<AppInfo>,
+    ) {
+        val total: Int get() = systemApps.size + installedApps.size
+    }
 
     // 权限名用字面量（非 Manifest.permission.* 字段引用），规避 minSdk26 下的 lint NewApi。
     // 分组中文标签抽离到 strings.xml（labelRes），遵守「中文全抽离」红线。
@@ -85,8 +94,9 @@ class PrivacyCheckViewModel @Inject constructor(
             try {
                 val pm = appContext.packageManager
                 val installed = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)
-                val grantedByPkg = mutableMapOf<String, MutableSet<String>>()
+                val infoByPkg = mutableMapOf<String, MutableSet<String>>()
                 val labelByPkg = mutableMapOf<String, String>()
+                val systemByPkg = mutableMapOf<String, Boolean>()
                 for (pi in installed) {
                     val perms = pi.requestedPermissions ?: continue
                     val flags = pi.requestedPermissionsFlags ?: continue
@@ -97,22 +107,36 @@ class PrivacyCheckViewModel @Inject constructor(
                         }
                     }
                     if (set.isNotEmpty()) {
-                        grantedByPkg[pi.packageName] = set
+                        infoByPkg[pi.packageName] = set
                         labelByPkg[pi.packageName] = runCatching {
                             pm.getApplicationLabel(pi.applicationInfo).toString()
                         }.getOrDefault(pi.packageName)
+                        // 系统应用 = FLAG_SYSTEM；FLAG_UPDATED_SYSTEM_APP（厂商预装但升级过的）
+                        // 也归类为系统应用，避免「QQ 音乐（厂商预装）」与「QQ 音乐（用户升级）」重复。
+                        val ai = pi.applicationInfo
+                        systemByPkg[pi.packageName] = (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
+                            (ai.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
                     }
                 }
                 val out = mutableListOf<GroupResult>()
                 for (g in GROUPS) {
-                    val apps = mutableListOf<AppInfo>()
-                    for ((pkg, set) in grantedByPkg) {
+                    val sys = mutableListOf<AppInfo>()
+                    val installed2 = mutableListOf<AppInfo>()
+                    for ((pkg, set) in infoByPkg) {
                         if (g.perms.any { it in set }) {
-                            apps.add(AppInfo(labelByPkg[pkg] ?: pkg, pkg))
+                            val info = AppInfo(
+                                name = labelByPkg[pkg] ?: pkg,
+                                pkg = pkg,
+                                isSystem = systemByPkg[pkg] == true,
+                            )
+                            if (info.isSystem) sys.add(info) else installed2.add(info)
                         }
                     }
-                    apps.sortBy { it.name }
-                    if (apps.isNotEmpty()) out.add(GroupResult(appContext.getString(g.labelRes), apps))
+                    sys.sortBy { it.name }
+                    installed2.sortBy { it.name }
+                    if (sys.isNotEmpty() || installed2.isNotEmpty()) {
+                        out.add(GroupResult(appContext.getString(g.labelRes), sys, installed2))
+                    }
                 }
                 out.sortBy { it.label }
                 _results.value = out
