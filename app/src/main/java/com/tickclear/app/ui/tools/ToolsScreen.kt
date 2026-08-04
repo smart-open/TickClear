@@ -1,25 +1,34 @@
 package com.tickclear.app.ui.tools
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
@@ -49,10 +58,15 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 
@@ -291,7 +305,17 @@ private val TOOL_CATEGORIES = listOf(
 @Composable
 fun ToolsScreen(
     onNavigate: (String) -> Unit,
+    vm: ToolsViewModel = hiltViewModel(),
 ) {
+    val favorites by vm.favorites.collectAsStateWithLifecycle()
+    // 用 route 索引所有分类里的 ToolEntry，常用工具按 route 解析展示
+    val entriesByRoute: Map<String, ToolEntry> = remember(TOOL_CATEGORIES) {
+        TOOL_CATEGORIES.flatMap { it.entries }.associateBy { it.route }
+    }
+    val pinnedEntries: List<ToolEntry> = remember(favorites, entriesByRoute) {
+        favorites.mapNotNull { entriesByRoute[it] }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.tools_title)) })
@@ -304,6 +328,30 @@ fun ToolsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         ) {
+            // 常用工具置顶：仅当列表非空时显示，水平 Row 紧凑卡片，可点 × 移除
+            if (pinnedEntries.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.tools_favorites_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    pinnedEntries.forEach { entry ->
+                        PinnedToolCard(
+                            entry = entry,
+                            onOpen = { onNavigate(entry.route) },
+                            onUnpin = { vm.toggleFavorite(entry.route) },
+                        )
+                    }
+                }
+            }
+
             TOOL_CATEGORIES.forEach { category ->
                 Text(
                     text = stringResource(category.titleRes),
@@ -326,7 +374,9 @@ fun ToolsScreen(
                             row.forEach { entry ->
                                 ToolCard(
                                     entry = entry,
+                                    isPinned = entry.route in favorites,
                                     onClick = { onNavigate(entry.route) },
+                                    onTogglePin = { vm.toggleFavorite(entry.route) },
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -344,7 +394,9 @@ fun ToolsScreen(
 @Composable
 private fun ToolCard(
     entry: ToolEntry,
+    isPinned: Boolean,
     onClick: () -> Unit,
+    onTogglePin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -356,26 +408,98 @@ private fun ToolCard(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            Icon(
-                imageVector = entry.icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = stringResource(entry.titleRes),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(entry.descRes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.md)
+                    .padding(end = 28.dp), // 给右上角星标留出空间
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                Icon(
+                    imageVector = entry.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(entry.titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(entry.descRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // 右上角星标：已置顶填充黄/主色，未置顶仅描边。点击切换置顶，不冒泡到卡片 onClick
+            IconButton(
+                onClick = onTogglePin,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(36.dp),
+            ) {
+                Icon(
+                    imageVector = if (isPinned) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = stringResource(
+                        if (isPinned) R.string.tools_unpin else R.string.tools_pin,
+                    ),
+                    tint = if (isPinned) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 置顶区紧凑卡片：图标 + 标题 + 右上角 × 移除按钮。
+ * 高度比分类卡片矮一半，省下竖向空间给下方分类区。
+ */
+@Composable
+private fun PinnedToolCard(
+    entry: ToolEntry,
+    onOpen: () -> Unit,
+    onUnpin: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .height(72.dp)
+            .clickable(onClick = onOpen),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = Spacing.md, top = Spacing.sm, bottom = Spacing.sm, end = 28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Icon(
+                    imageVector = entry.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = stringResource(entry.titleRes),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            IconButton(
+                onClick = onUnpin,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(28.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.tools_unpin),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
         }
     }
 }

@@ -707,6 +707,9 @@
 
     <!-- ============ V2.9 工具箱（统计 Tab 改造） ============ -->
     <string name="tools_title">工具箱</string>
+    <string name="tools_favorites_title">常用工具</string>
+    <string name="tools_pin">置顶</string>
+    <string name="tools_unpin">取消置顶</string>
     <string name="tools_cat_health">健康提醒</string>
     <string name="tools_cat_security">效率与安全</string>
 

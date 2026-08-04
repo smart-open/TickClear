@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.domain.backup.BackupHealth
@@ -155,6 +156,16 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：到站提醒（V2.9++）──
     override val arrivalStations: Flow<String> = dataStore.data.map { it[KEY_ARRIVAL_STATIONS] ?: "" }
     override val arrivalEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_ARRIVAL_ENABLED] ?: false }
+
+    // ── 工具箱：常用工具置顶（V2.9++）──
+    // 用 Set 存储去重，但 Flow 在 map 内转 List 时按插入顺序（DataStore 保证 Set 有序）。
+    override val favoriteToolRoutes: Flow<List<String>> = dataStore.data.map { prefs ->
+        prefs[KEY_FAVORITE_TOOLS]?.toList().orEmpty()
+    }
+    override suspend fun setFavoriteToolRoutes(routes: List<String>) {
+        // 同一路由重复传会被 LinkedHashSet 自动去重，保序
+        dataStore.edit { it[KEY_FAVORITE_TOOLS] = LinkedHashSet(routes) }
+    }
 
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
@@ -372,6 +383,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_CLIP_CLEAR_DELAY = intPreferencesKey("clipboard_clear_delay_sec")
         private val KEY_ARRIVAL_STATIONS = stringPreferencesKey("arrival_stations")
         private val KEY_ARRIVAL_ENABLED = booleanPreferencesKey("arrival_enabled")
+        private val KEY_FAVORITE_TOOLS = stringSetPreferencesKey("favorite_tool_routes")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")

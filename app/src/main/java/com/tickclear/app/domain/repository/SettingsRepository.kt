@@ -227,6 +227,13 @@ interface SettingsRepository {
     /** 设置到站提醒监测开关。 */
     suspend fun setArrivalEnabled(on: Boolean)
 
+    // ── 工具箱：常用工具置顶（V2.9++）──
+    /** 置顶工具路由列表（按用户点击顺序保存，列表前半段先展示）。 */
+    val favoriteToolRoutes: Flow<List<String>>
+
+    /** 覆盖置顶列表（路由按显示顺序传）。 */
+    suspend fun setFavoriteToolRoutes(routes: List<String>)
+
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
 
