@@ -40,6 +40,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import kotlinx.coroutines.delay
@@ -76,10 +80,14 @@ class ClockOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        // Service 无 Activity，ComposeView.setContent 必须先挂接 LifecycleOwner，否则 attach 时抛 IllegalStateException。
-        lifecycleOwner = ServiceLifecycleOwner().apply { onCreate() }
+        // Service 无 Activity，ComposeView 在 onAttachedToWindow 时会同时索取 ViewTreeLifecycleOwner
+        // 与 ViewTreeSavedStateRegistryOwner，缺任一个都抛 IllegalStateException。
+        // 该异常发生在 addView 之后的下一帧 traversal 里，runCatching(addView) 兜不住，会直接崩主进程。
+        val owner = ServiceLifecycleOwner().apply { onCreate() }
+        lifecycleOwner = owner
         val composeView = ComposeView(this@ClockOverlayService).apply {
-            setViewTreeLifecycleOwner(lifecycleOwner)
+            setViewTreeLifecycleOwner(owner)
+            setViewTreeSavedStateRegistryOwner(owner)
             setContent {
                 ClockOverlayContent(
                     onClose = { stopSelf() },
@@ -91,9 +99,16 @@ class ClockOverlayService : Service() {
                 )
             }
         }
-        lifecycleOwner?.onStart()
+        owner.onStart()
         overlayView = composeView
-        runCatching { windowManager.addView(composeView, params) }
+        val added = runCatching { windowManager.addView(composeView, params) }.isSuccess
+        if (!added) {
+            // 悬浮窗权限被回收等情况：挂不上就别留一个只有通知没有时钟的僵尸服务
+            overlayView = null
+            stopSelf()
+            return
+        }
+        isRunning = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -109,6 +124,7 @@ class ClockOverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isRunning = false
         lifecycleOwner?.onStop()
         lifecycleOwner?.onDestroy()
         lifecycleOwner = null
@@ -136,6 +152,13 @@ class ClockOverlayService : Service() {
 
     companion object {
         const val NOTIF_ID = 9401
+
+        /**
+         * 悬浮时钟是否在显示。设置页离开再回来时按此还原按钮文案，
+         * 避免「界面显示未开启、实际悬浮窗还挂着」的状态错位。
+         */
+        @Volatile
+        var isRunning: Boolean = false
 
         /** 当前时分秒字符串（HH:mm:ss）。 */
         fun currentTime(): String =
@@ -177,12 +200,24 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
     }
 }
 
-/** 为悬浮窗 ComposeView 提供 LifecycleOwner：Service 作用域下驱动重组（STARTED 触发首次组合）。 */
-private class ServiceLifecycleOwner : LifecycleOwner {
+/**
+ * 为悬浮窗 ComposeView 提供 Service 作用域的 LifecycleOwner + SavedStateRegistryOwner。
+ * 两者缺一不可：Compose 的 AndroidComposeView.onAttachedToWindow 会分别 checkNotNull 这两个 owner。
+ * performRestore 必须在 lifecycle 仍为 INITIALIZED 时调用，故顺序为「先 restore 再置 CREATED」。
+ */
+private class ServiceLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner {
     private val registry = LifecycleRegistry(this)
+    private val savedStateController = SavedStateRegistryController.create(this)
+
     override val lifecycle: Lifecycle get() = registry
-    fun onCreate() { registry.currentState = Lifecycle.State.CREATED }
-    fun onStart() { registry.currentState = Lifecycle.State.STARTED }
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateController.savedStateRegistry
+
+    fun onCreate() {
+        savedStateController.performRestore(null)
+        registry.currentState = Lifecycle.State.CREATED
+    }
+
+    fun onStart() { registry.currentState = Lifecycle.State.RESUMED }
     fun onStop() { registry.currentState = Lifecycle.State.CREATED }
     fun onDestroy() { registry.currentState = Lifecycle.State.DESTROYED }
 }

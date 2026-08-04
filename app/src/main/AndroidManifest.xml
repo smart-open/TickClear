@@ -182,9 +182,11 @@
             android:name=".ui.tools.ClockOverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
+            <!-- Android 14 起 specialUse 须声明用途说明，属性名固定为
+                 android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE，写错名字等同未声明。 -->
             <property
-                android:name="android.service.foregroundServiceType"
-                android:value="specialUse" />
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="desktop_clock_overlay" />
         </service>
 
         <!-- V2.8X 打卡分享卡：将本地生成的 PNG 经 FileProvider 授权给分享目标 App 读取（零新依赖，androidx.core 已含）。 -->
