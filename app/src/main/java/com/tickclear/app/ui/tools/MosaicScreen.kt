@@ -1,9 +1,11 @@
 package com.tickclear.app.ui.tools
 
 import android.graphics.Bitmap
-import android.graphics.RectF
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,13 +14,17 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,8 +50,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -58,15 +68,16 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
 import com.tickclear.app.domain.tools.QrGenerator
 import com.tickclear.app.ui.theme.Spacing
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import kotlinx.coroutines.launch
-import kotlin.math.max
-import kotlin.math.min
+
+/** 涂抹工具：矩形拖框 / 自由笔刷。 */
+private enum class DrawMode { BRUSH, BOX }
 
 /**
- * 马赛克 / 涂抹遮挡工具（V2.9++）：选图后在图上拖动框选敏感区域，
- * 支持「马赛克（像素块）」与「涂黑」两种方式，应用后保存到相册。纯 Compose + Bitmap 处理。
+ * 马赛克 / 涂抹遮挡工具（V2.9++）：
+ * - 选图后在图上自由笔刷涂抹（自由路径）或拖框选区域；
+ * - 两种模式应用时均为「马赛克（像素块平均）」或「涂黑」；
+ * - 应用后保存到相册。纯 Compose + Bitmap 处理。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -76,28 +87,17 @@ fun MosaicScreen(onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var rects by remember { mutableStateOf<List<RectF>>(emptyList()) }
-    var mode by remember { mutableStateOf(ImageMasker.MaskMode.MOSAIC) }
+    var shapes by remember { mutableStateOf<List<ImageMasker.MaskShape>>(emptyList()) }
+    var drawMode by remember { mutableStateOf(DrawMode.BRUSH) }
+    var maskMode by remember { mutableStateOf(ImageMasker.MaskMode.MOSAIC) }
     var strength by remember { mutableStateOf(10) }
+    var brushWidthRatio by remember { mutableStateOf(0.04f) } // 笔刷宽度占短边比例
     var busy by remember { mutableStateOf(false) }
 
+    // 实时拖拽状态：BRUSH 模式下累积点列，BOX 模式下记录矩形
     var overlaySize by remember { mutableStateOf(IntSize.Zero) }
-    var dragStart by remember { mutableStateOf<Offset?>(null) }
-    var dragCurrent by remember { mutableStateOf<Offset?>(null) }
-    val currentRect: RectF? = remember(dragStart, dragCurrent, overlaySize) {
-        if (dragStart != null && dragCurrent != null && overlaySize.width > 0) {
-            val w = overlaySize.width.toFloat()
-            val h = overlaySize.height.toFloat()
-            RectF(
-                min(dragStart!!.x, dragCurrent!!.x) / w,
-                min(dragStart!!.y, dragCurrent!!.y) / h,
-                max(dragStart!!.x, dragCurrent!!.x) / w,
-                max(dragStart!!.y, dragCurrent!!.y) / h,
-            )
-        } else {
-            null
-        }
-    }
+    var currentStroke by remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    var dragBox by remember { mutableStateOf<ImageMasker.MaskShape.Box?>(null) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -105,7 +105,9 @@ fun MosaicScreen(onBack: () -> Unit) {
             val bmp = ImageMasker.loadBitmap(context, uri)
             if (bmp != null) {
                 bitmap = bmp
-                rects = emptyList()
+                shapes = emptyList()
+                currentStroke = emptyList()
+                dragBox = null
             } else {
                 snackbarHostState.showSnackbar(context.getString(R.string.mosaic_pick_hint))
             }
@@ -113,6 +115,7 @@ fun MosaicScreen(onBack: () -> Unit) {
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     Scaffold(
         topBar = {
@@ -138,7 +141,11 @@ fun MosaicScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            OutlinedButton(onClick = { pickLauncher.launch("image/*") }) {
+            Button(
+                onClick = { pickLauncher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+            ) {
                 Text(stringResource(R.string.mosaic_pick))
             }
 
@@ -152,9 +159,6 @@ fun MosaicScreen(onBack: () -> Unit) {
             } else {
                 val bmp = bitmap!!
                 val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                // 预览区只占「扣掉下方控件后的剩余空间」。原先直接 fillMaxWidth().aspectRatio()，
-                // 竖图高度 = 屏宽 / ratio（3:4 图约为屏宽的 1.33 倍），会把模式选择、强度滑杆、
-                // 应用按钮整体挤出屏幕外，且 Column 不可滚动 → 用户只看得到图，看不到任何操作按钮。
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -162,39 +166,107 @@ fun MosaicScreen(onBack: () -> Unit) {
                         .padding(Spacing.xs),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(modifier = Modifier.aspectRatio(ratio)) {
-                        androidx.compose.foundation.Image(
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(ratio)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                            .onSizeChanged { overlaySize = it }
+                            .pointerInput(drawMode, bmp) {
+                                detectDragGestures(
+                                    onDragStart = { start ->
+                                        if (drawMode == DrawMode.BRUSH) {
+                                            currentStroke = listOf(
+                                                start.x / size.width.toFloat() to
+                                                    start.y / size.height.toFloat(),
+                                            )
+                                        } else {
+                                            dragBox = ImageMasker.MaskShape.Box(
+                                                left = start.x / size.width.toFloat(),
+                                                top = start.y / size.height.toFloat(),
+                                                right = start.x / size.width.toFloat(),
+                                                bottom = start.y / size.height.toFloat(),
+                                            )
+                                        }
+                                    },
+                                    onDrag = { change, _ ->
+                                        if (drawMode == DrawMode.BRUSH) {
+                                            val nx = change.position.x / size.width.toFloat()
+                                            val ny = change.position.y / size.height.toFloat()
+                                            // 距离上一次点过近则跳过，密集点只是浪费内存
+                                            val last = currentStroke.lastOrNull()
+                                            if (last == null || (last.first - nx) * (last.first - nx) +
+                                                (last.second - ny) * (last.second - ny) > 0.00005f
+                                            ) {
+                                                currentStroke = currentStroke + (nx to ny)
+                                            }
+                                        } else {
+                                            dragBox?.let { box ->
+                                                dragBox = box.copy(
+                                                    right = change.position.x / size.width.toFloat(),
+                                                    bottom = change.position.y / size.height.toFloat(),
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        if (drawMode == DrawMode.BRUSH) {
+                                            if (currentStroke.size >= 2) {
+                                                shapes = shapes + ImageMasker.MaskShape.Stroke(
+                                                    points = currentStroke,
+                                                    widthRatio = brushWidthRatio,
+                                                )
+                                            }
+                                            currentStroke = emptyList()
+                                        } else {
+                                            dragBox?.let { box ->
+                                                val l = minOf(box.left, box.right)
+                                                val t = minOf(box.top, box.bottom)
+                                                val r = maxOf(box.left, box.right)
+                                                val b = maxOf(box.top, box.bottom)
+                                                if (r - l > 0.005f && b - t > 0.005f) {
+                                                    shapes = shapes + ImageMasker.MaskShape.Box(l, t, r, b)
+                                                }
+                                            }
+                                            dragBox = null
+                                        }
+                                    },
+                                )
+                            },
+                    ) {
+                        Image(
                             painter = BitmapPainter(bmp.asImageBitmap()),
                             contentDescription = null,
                             contentScale = ContentScale.FillBounds,
                             modifier = Modifier.fillMaxSize(),
                         )
-                        androidx.compose.foundation.Canvas(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragStart = { dragStart = it },
-                                        onDrag = { change, _ -> dragCurrent = change.position },
-                                        onDragEnd = {
-                                            currentRect?.let { rects = rects + it }
-                                            dragStart = null
-                                            dragCurrent = null
-                                        },
-                                    )
-                                }
-                                .onSizeChanged { overlaySize = it },
-                        ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
                             val strokeW = 2.dp.toPx()
-                            for (r in rects) {
-                                drawOverlayRect(r, size, primaryColor, strokeW)
+                            // 已有 shapes 描边：区分 BRUSH 路径 vs BOX 矩形
+                            for (s in shapes) {
+                                when (s) {
+                                    is ImageMasker.MaskShape.Box -> drawBoxStroke(this, s, primaryColor, strokeW)
+                                    is ImageMasker.MaskShape.Stroke -> drawStrokePath(this, s, primaryColor, strokeW)
+                                }
                             }
-                            currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
+                            // 实时拖拽态
+                            if (drawMode == DrawMode.BRUSH && currentStroke.size >= 2) {
+                                drawStrokePath(
+                                    this,
+                                    ImageMasker.MaskShape.Stroke(currentStroke, brushWidthRatio),
+                                    primaryColor,
+                                    strokeW,
+                                )
+                            }
+                            dragBox?.let { drawBoxStroke(this, it, primaryColor, strokeW) }
                         }
                     }
                 }
                 Text(
-                    stringResource(R.string.mosaic_hint),
+                    stringResource(
+                        if (drawMode == DrawMode.BRUSH) R.string.mosaic_hint_brush
+                        else R.string.mosaic_hint_box,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -204,24 +276,45 @@ fun MosaicScreen(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     FilterChip(
-                        selected = mode == ImageMasker.MaskMode.MOSAIC,
-                        onClick = { mode = ImageMasker.MaskMode.MOSAIC },
+                        selected = drawMode == DrawMode.BRUSH,
+                        onClick = { drawMode = DrawMode.BRUSH },
+                        leadingIcon = { Icon(Icons.Filled.Brush, contentDescription = null) },
+                        label = { Text(stringResource(R.string.mosaic_draw_brush)) },
+                    )
+                    FilterChip(
+                        selected = drawMode == DrawMode.BOX,
+                        onClick = { drawMode = DrawMode.BOX },
+                        leadingIcon = { Icon(Icons.Filled.CropSquare, contentDescription = null) },
+                        label = { Text(stringResource(R.string.mosaic_draw_box)) },
+                    )
+                    FilterChip(
+                        selected = maskMode == ImageMasker.MaskMode.MOSAIC,
+                        onClick = { maskMode = ImageMasker.MaskMode.MOSAIC },
                         label = { Text(stringResource(R.string.mosaic_mode_mosaic)) },
                     )
                     FilterChip(
-                        selected = mode == ImageMasker.MaskMode.BLACK,
-                        onClick = { mode = ImageMasker.MaskMode.BLACK },
+                        selected = maskMode == ImageMasker.MaskMode.BLACK,
+                        onClick = { maskMode = ImageMasker.MaskMode.BLACK },
                         label = { Text(stringResource(R.string.mosaic_mode_black)) },
                     )
-                    OutlinedButton(onClick = { rects = rects.dropLast(1) }) {
+                    OutlinedButton(onClick = { shapes = shapes.dropLast(1) }) {
                         Text(stringResource(R.string.mosaic_undo))
                     }
-                    OutlinedButton(onClick = { rects = emptyList() }) {
+                    OutlinedButton(onClick = { shapes = emptyList() }) {
                         Text(stringResource(R.string.mosaic_clear))
                     }
                 }
 
-                if (mode == ImageMasker.MaskMode.MOSAIC) {
+                if (drawMode == DrawMode.BRUSH) {
+                    Text(stringResource(R.string.mosaic_brush_width))
+                    Slider(
+                        value = brushWidthRatio,
+                        onValueChange = { brushWidthRatio = it },
+                        valueRange = 0.01f..0.15f,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (maskMode == ImageMasker.MaskMode.MOSAIC) {
                     Text(stringResource(R.string.mosaic_strength))
                     Slider(
                         value = strength.toFloat(),
@@ -234,15 +327,15 @@ fun MosaicScreen(onBack: () -> Unit) {
 
                 Button(
                     onClick = {
-                        if (rects.isEmpty()) {
+                        if (shapes.isEmpty()) {
                             scope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint))
+                                snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint_brush))
                             }
                             return@Button
                         }
                         scope.launch {
                             busy = true
-                            val out = ImageMasker.applyMask(bmp, rects, mode, strength)
+                            val out = ImageMasker.applyMaskWithShapes(bmp, shapes, maskMode, strength)
                             val ok = QrGenerator.saveToGallery(context, out, "tickclear_mosaic")
                             snackbarHostState.showSnackbar(
                                 context.getString(if (ok) R.string.mosaic_saved else R.string.mosaic_save_fail),
@@ -250,14 +343,14 @@ fun MosaicScreen(onBack: () -> Unit) {
                             busy = false
                         }
                     },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (busy) {
                         CircularProgressIndicator(
                             modifier = Modifier.width(20.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = onPrimaryColor,
                         )
                         Spacer(Modifier.width(8.dp))
                     }
@@ -268,25 +361,61 @@ fun MosaicScreen(onBack: () -> Unit) {
     }
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawOverlayRect(
-    r: RectF,
-    size: Size,
+private fun drawBoxStroke(
+    scope: androidx.compose.ui.graphics.drawscope.DrawScope,
+    box: ImageMasker.MaskShape.Box,
     color: Color,
     strokeW: Float,
 ) {
-    val left = r.left * size.width
-    val top = r.top * size.height
-    val right = r.right * size.width
-    val bottom = r.bottom * size.height
-    drawRect(
+    val left = box.left * scope.size.width
+    val top = box.top * scope.size.height
+    val right = box.right * scope.size.width
+    val bottom = box.bottom * scope.size.height
+    scope.drawRect(
         color = color.copy(alpha = 0.35f),
         topLeft = Offset(left, top),
         size = Size(right - left, bottom - top),
     )
-    drawRect(
+    scope.drawRect(
         color = color,
         topLeft = Offset(left, top),
         size = Size(right - left, bottom - top),
         style = Stroke(width = strokeW),
     )
+}
+
+private fun drawStrokePath(
+    scope: androidx.compose.ui.graphics.drawscope.DrawScope,
+    stroke: ImageMasker.MaskShape.Stroke,
+    color: Color,
+    strokeW: Float,
+) {
+    if (stroke.points.size < 2) return
+    val path = Path()
+    val pts = stroke.points.map { (x, y) -> Offset(x * scope.size.width, y * scope.size.height) }
+    path.moveTo(pts[0].x, pts[0].y)
+    for (i in 1 until pts.size) path.lineTo(pts[i].x, pts[i].y)
+    val w = stroke.widthRatio * minOf(scope.size.width, scope.size.height)
+    // 半透明填充 + 主色描边
+    scope.drawIntoCanvas { canvas ->
+        val androidPath = android.graphics.Path().apply {
+            moveTo(pts[0].x, pts[0].y)
+            for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
+        }
+        val paint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            // `color` / `strokeWidth` 与外层 Compose Color 参数冲突，改用具名 setter
+            setColor(color.copy(alpha = 0.18f).toArgb())
+            style = android.graphics.Paint.Style.STROKE
+            setStrokeWidth(w)
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+        }
+        canvas.nativeCanvas.drawPath(androidPath, paint)
+        val paint2 = android.graphics.Paint(paint).apply {
+            setColor(color.toArgb())
+            setStrokeWidth(strokeW)
+        }
+        canvas.nativeCanvas.drawPath(androidPath, paint2)
+    }
 }

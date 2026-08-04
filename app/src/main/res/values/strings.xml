@@ -922,7 +922,21 @@
     <string name="tools_vision_desc">色盲与视力快速筛查</string>
     <string name="vision_intro">本工具为简易自测，结果仅供参考，不能替代专业眼科检查。</string>
     <string name="vision_start">开始测试</string>
-    <string name="vision_color_title">色觉测试：判断左右色块是否相同</string>
+    <string name="vision_hub_intro">请选择要测试的项目</string>
+    <string name="vision_color_card_title">色盲色弱</string>
+    <string name="vision_color_card_desc">判断左右色块是否相同，8 道题</string>
+    <string name="vision_acuity_card_title">近视远视</string>
+    <string name="vision_acuity_card_desc">逐级缩小字号，找到最低能看清的尺寸</string>
+    <string name="vision_color_title">色盲色弱测试：判断左右色块是否相同</string>
+    <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
+    <string name="vision_acuity_prompt">你能看清这一行字吗？</string>
+    <string name="vision_same">完全相同</string>
+    <string name="vision_diff">不一样</string>
+    <string name="vision_clear">能看清</string>
+    <string name="vision_blur">看不清</string>
+    <string name="mosaic_brush_width">笔刷宽度</string>
+    <string name="mosaic_draw_brush">笔刷</string>
+    <string name="mosaic_draw_box">框选</string>
     <string name="vision_same">完全相同</string>
     <string name="vision_diff">不一样</string>
     <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
@@ -1168,7 +1182,9 @@
     <string name="mosaic_no_image">请先选择图片</string>
     <string name="mosaic_saved">已保存到相册</string>
     <string name="mosaic_save_fail">保存失败</string>
-    <string name="mosaic_hint">在图片上拖动框选要遮挡的区域</string>
+    <string name="mosaic_hint_brush">在图片上拖动涂抹要遮挡的区域</string>
+    <string name="mosaic_hint_box">拖框选要遮挡的区域</string>
+
     <string name="mosaic_strength">马赛克强度</string>
 
     <!-- 指南针（V2.9++） -->
