@@ -1026,4 +1026,52 @@
     <string name="interval_eyecare_title">该放松眼睛啦</string>
     <string name="interval_eyecare_text">闭眼休息 20 秒，远眺远方，做做眼保健操</string>
 
+    <!-- 悬浮时钟渠道 -->
+    <string name="channel_clock_name">悬浮时钟</string>
+    <string name="channel_clock_desc">桌面悬浮极简时钟后台常驻</string>
+
+    <!-- 水平仪 -->
+    <string name="tools_level_title">水平仪</string>
+    <string name="tools_level_desc">检测桌面挂画是否水平</string>
+    <string name="level_hint">将手机平放在桌面或贴紧挂画边缘</string>
+    <string name="level_flat">已水平</string>
+    <string name="level_tilt">倾斜</string>
+    <string name="level_roll">左右倾斜 %1$.1f°</string>
+    <string name="level_pitch">前后倾斜 %1$.1f°</string>
+    <string name="level_no_sensor">未检测到方向传感器</string>
+
+    <!-- 称重器（诚实演示：手机无称重传感器） -->
+    <string name="tools_scale_title">称重器</string>
+    <string name="tools_scale_desc">趣味估算小件重量</string>
+    <string name="scale_disclaimer">手机没有称重传感器，本工具无法测量真实重量，仅作趣味演示。</string>
+    <string name="scale_barometer">环境气压 %1$.1f hPa</string>
+    <string name="scale_no_barometer">本设备无气压计</string>
+    <string name="scale_demo">趣味演示模式</string>
+    <string name="scale_demo_on">演示中：约 %1$d 克（非真实重量）</string>
+    <string name="scale_demo_off">点击开关开始趣味演示</string>
+    <string name="scale_demo_hint">数值为随机波动，仅用于娱乐，不代表任何真实质量。</string>
+
+    <!-- 悬浮时钟 -->
+    <string name="tools_clock_overlay_title">悬浮时钟</string>
+    <string name="tools_clock_overlay_desc">桌面悬浮极简时钟</string>
+    <string name="clock_overlay_running">悬浮时钟正在显示</string>
+    <string name="clock_overlay_grant_hint">需要「显示在其他应用上层」权限才能悬浮</string>
+    <string name="clock_overlay_grant">去开启权限</string>
+    <string name="clock_overlay_start">显示悬浮时钟</string>
+    <string name="clock_overlay_stop">关闭悬浮时钟</string>
+    <string name="clock_overlay_no_perm">尚未授予悬浮窗权限</string>
+
+    <!-- 倒计时 -->
+    <string name="tools_countdown_title">倒计时</string>
+    <string name="tools_countdown_desc">重要日子天数提醒</string>
+    <string name="countdown_add">添加</string>
+    <string name="countdown_name_hint">事件名称（如：项目交付）</string>
+    <string name="countdown_pick_date">选择日期</string>
+    <string name="countdown_empty">还没有添加倒计时，点「添加」记录重要日子</string>
+    <string name="countdown_days_left">还有 %1$d 天</string>
+    <string name="countdown_today">就是今天</string>
+    <string name="countdown_passed">已过去 %1$d 天</string>
+    <string name="countdown_delete">删除</string>
+    <string name="countdown_pick_hint">请先选择日期</string>
+
 </resources>

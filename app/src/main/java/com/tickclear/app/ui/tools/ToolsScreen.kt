@@ -37,6 +37,10 @@ import androidx.compose.material.icons.filled.RemoveRedEye
 import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -154,6 +158,24 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_lottery_desc,
                 icon = Icons.Filled.Casino,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LEVEL,
+                titleRes = R.string.tools_level_title,
+                descRes = R.string.tools_level_desc,
+                icon = Icons.Filled.ScreenRotation,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SCALE,
+                titleRes = R.string.tools_scale_title,
+                descRes = R.string.tools_scale_desc,
+                icon = Icons.Filled.Scale,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLOCK_OVERLAY,
+                titleRes = R.string.tools_clock_overlay_title,
+                descRes = R.string.tools_clock_overlay_desc,
+                icon = Icons.Filled.Schedule,
+            ),
         ),
     ),
     ToolCategory(
@@ -187,6 +209,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_calc_title,
                 descRes = R.string.tools_calc_desc,
                 icon = Icons.Filled.Calculate,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COUNTDOWN,
+                titleRes = R.string.tools_countdown_title,
+                descRes = R.string.tools_countdown_desc,
+                icon = Icons.Filled.HourglassBottom,
             ),
         ),
     ),

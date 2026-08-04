@@ -30,6 +30,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- V2.9++ 悬浮时钟：显示在其他应用上层（特殊权限，需经系统设置页授权，非运行时权限）。 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <!--
       设备兼容性声明（必须显式 required="false"）：
@@ -166,6 +168,16 @@
             android:name=".domain.assistant.WakeWordService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- V2.9++ 悬浮时钟：TYPE_APPLICATION_OVERLAY 常驻前台服务（specialUse 兜底类型）。 -->
+        <service
+            android:name=".ui.tools.ClockOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.service.foregroundServiceType"
+                android:value="specialUse" />
+        </service>
 
         <!-- V2.8X 打卡分享卡：将本地生成的 PNG 经 FileProvider 授权给分享目标 App 读取（零新依赖，androidx.core 已含）。 -->
         <provider

@@ -43,6 +43,7 @@ object NotificationHelper {
     const val CHANNEL_NAP = "tickclear.tools.nap.$CHANNEL_VERSION"
     const val CHANNEL_EXPIRY = "tickclear.tools.expiry.$CHANNEL_VERSION"
     const val CHANNEL_HEARING = "tickclear.tools.hearing.$CHANNEL_VERSION"
+    const val CHANNEL_CLOCK = "tickclear.tools.clock.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -192,7 +193,16 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 150, 200)
         }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing))
+        // 悬浮时钟渠道：低重要性、常驻、无声无震（后台显示时间用，不扰民）。
+        val clock = NotificationChannel(
+            CHANNEL_CLOCK,
+            context.getString(R.string.channel_clock_name),
+            android.app.NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = context.getString(R.string.channel_clock_desc)
+            setShowBadge(false)
+        }
+        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing, clock))
     }
 
     /**

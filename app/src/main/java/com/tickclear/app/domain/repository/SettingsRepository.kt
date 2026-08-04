@@ -106,6 +106,10 @@ interface SettingsRepository {
     /** 情绪打卡记录（每行 "epochDay|心情码|备注"，备注可含 '|' 用 limit=3 解析；空字符串=无记录）。 */
     val moodLog: Flow<String>
 
+    // ── 工具箱：重要日子倒计时（V2.9++）──
+    /** 倒计时事件列表（每行 "名称|目标epochMillis"，以换行连接；空字符串=无事件）。 */
+    val countdownEvents: Flow<String>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -180,6 +184,9 @@ interface SettingsRepository {
 
     /** 保存情绪打卡记录（换行连接，覆盖式写入）。 */
     suspend fun setMoodLog(log: String)
+
+    /** 保存倒计时事件列表（换行连接，覆盖式写入）。 */
+    suspend fun setCountdownEvents(events: String)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
