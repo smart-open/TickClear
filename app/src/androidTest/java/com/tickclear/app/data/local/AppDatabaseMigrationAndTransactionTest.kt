@@ -106,7 +106,7 @@ class AppDatabaseMigrationAndTransactionTest {
     }
 
     private companion object {
-        // 与 AppDatabase.DB_NAME 一致；迁移契约测试使用独立文件，测试后删除，不影响正式库。
-        private const val DB_NAME = "tickclear.db"
+        // 使用独立测试库名，避免 deleteDatabase 误删真实生产库（tickclear.db）。
+        private const val DB_NAME = "tickclear-instrumented-test.db"
     }
 }

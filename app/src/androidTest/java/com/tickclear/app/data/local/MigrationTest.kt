@@ -1,8 +1,7 @@
 package com.tickclear.app.data.local
 
 import androidx.room.testing.MigrationTestHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
-import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +30,7 @@ class MigrationTest {
 
     @get:Rule
     val helper = MigrationTestHelper(
-        ApplicationProvider.getApplicationContext(),
+        InstrumentationRegistry.getInstrumentation(),
         DB_NAME,
     )
 

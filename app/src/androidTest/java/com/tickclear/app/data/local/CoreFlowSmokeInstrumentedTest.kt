@@ -159,6 +159,7 @@ class CoreFlowSmokeInstrumentedTest {
     }
 
     private companion object {
-        private const val DB_NAME = "tickclear.db"
+        // 使用独立测试库名，避免 deleteDatabase 误删真实生产库（tickclear.db）。
+        private const val DB_NAME = "tickclear-instrumented-test.db"
     }
 }
