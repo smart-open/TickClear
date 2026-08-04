@@ -12,19 +12,27 @@ data class ArrivalStation(
     /** 提醒半径（米）。 */
     val radius: Int,
 ) {
-    fun encode(): String = "$id|$name|$lat|$lng|$radius"
+    /** 换行是记录分隔符，名称里的换行必须压平，否则整条记录会被拆成两行而丢失。 */
+    fun encode(): String =
+        "$id|${name.replace('\n', ' ').replace('\r', ' ')}|$lat|$lng|$radius"
 
     companion object {
+        /**
+         * 仅 name 允许含 `|`（用户可能输入「人民广场|1号线」这类名字）。
+         * 因此固定从两端取字段：首段是 id，末三段是 lat/lng/radius，中间整体还原为 name。
+         * 早期实现按 `p[1]` 取名，遇到含 `|` 的名称会把字段整体错位 → `toDouble()` 失败 → 站点被静默丢弃。
+         */
         fun decode(line: String): ArrivalStation? {
+            if (line.isBlank()) return null
             val p = line.split("|")
             if (p.size < 5) return null
             return runCatching {
                 ArrivalStation(
                     id = p[0],
-                    name = p[1],
-                    lat = p[2].toDouble(),
-                    lng = p[3].toDouble(),
-                    radius = p[4].toInt(),
+                    name = p.subList(1, p.size - 3).joinToString("|"),
+                    lat = p[p.size - 3].toDouble(),
+                    lng = p[p.size - 2].toDouble(),
+                    radius = p[p.size - 1].toInt(),
                 )
             }.getOrNull()
         }
