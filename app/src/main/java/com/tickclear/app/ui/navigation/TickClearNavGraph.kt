@@ -59,6 +59,12 @@ import com.tickclear.app.ui.tools.WeigherScreen
 import com.tickclear.app.ui.tools.ClockOverlayScreen
 import com.tickclear.app.ui.tools.CountdownScreen
 import com.tickclear.app.ui.tools.CountdownViewModel
+import com.tickclear.app.ui.tools.BarcodeScreen
+import com.tickclear.app.ui.tools.BarcodeViewModel
+import com.tickclear.app.ui.tools.MosaicScreen
+import com.tickclear.app.ui.tools.CompassScreen
+import com.tickclear.app.ui.tools.BackfillScreen
+import com.tickclear.app.ui.tools.BackfillViewModel
 
 @Composable
 fun TickClearApp(
@@ -336,6 +342,24 @@ private fun AppNavHost(
         composable(Routes.TOOLS_COUNTDOWN) {
             CountdownScreen(
                 vm = hiltViewModel<CountdownViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_BARCODE) {
+            BarcodeScreen(
+                vm = hiltViewModel<BarcodeViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_MOSAIC) {
+            MosaicScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_COMPASS) {
+            CompassScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_BACKFILL) {
+            BackfillScreen(
+                vm = hiltViewModel<BackfillViewModel>(),
                 onBack = { navController.popBackStack() },
             )
         }

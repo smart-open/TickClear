@@ -15,5 +15,6 @@ class CheckInRepositoryImpl @Inject constructor(
     override suspend fun upsert(entity: CheckInEntity) { dao.insert(entity) }
     override suspend fun getByDate(dateLocal: String): CheckInEntity? = dao.getByDate(dateLocal)
     override suspend fun getAll(): List<CheckInEntity> = dao.getAll()
+    override suspend fun delete(dateLocal: String) { dao.delete(dateLocal) }
     override fun observeDates(): Flow<List<String>> = dao.observeDates()
 }

@@ -11,5 +11,6 @@ interface CheckInRepository {
     suspend fun upsert(entity: CheckInEntity)
     suspend fun getByDate(dateLocal: String): CheckInEntity?
     suspend fun getAll(): List<CheckInEntity>
+    suspend fun delete(dateLocal: String)
     fun observeDates(): Flow<List<String>>
 }

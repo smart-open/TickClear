@@ -68,4 +68,9 @@ object Routes {
     const val TOOLS_SCALE = "tools/scale"
     const val TOOLS_CLOCK_OVERLAY = "tools/clockOverlay"
     const val TOOLS_COUNTDOWN = "tools/countdown"
+    // V2.9++：工具箱新增（条码识别 / 马赛克 / 指南针 / 打卡补录）
+    const val TOOLS_BARCODE = "tools/barcode"
+    const val TOOLS_MOSAIC = "tools/mosaic"
+    const val TOOLS_COMPASS = "tools/compass"
+    const val TOOLS_BACKFILL = "tools/backfill"
 }

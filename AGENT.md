@@ -42,8 +42,10 @@ di/         Hilt 模块
 ## 5. 六大 Tab 行为契约
 - **今日**：分组展示今日任务；完成/编辑/删除（左滑软删带撤销、右滑完成）；时间窗冲突角标 + `ConflictBanner`；今日完成率；AI 助手入口。
 - **任务**：全部任务 + 任务组 CRUD（级联软删）；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
-- **习惯**：习惯 CRUD（emoji / 重复星期 CSV / 提醒时刻 / 配色 / 排序 / 归档），按日打卡（`HabitCheckInEntity`，同日幂等、不允许补卡），连续天数统一走 `HabitDates.computeStreak`（`java.time.LocalDate` DST 安全实现，唯一事实来源）；提醒经 `HabitReminderScheduler` 排程、`HabitReminderReceiver` 触发后自动续排，**习惯提醒无条件响铃 + 震动，不受全局「声音」开关约束**。
+- **习惯**：习惯 CRUD（emoji / 重复星期 CSV / 提醒时刻 / 配色 / 排序 / 归档），按日打卡（`HabitCheckInEntity`，同日幂等；习惯列表内的快捷打卡仍仅限当天）。连续天数统一走 `HabitDates.computeStreak`（`java.time.LocalDate` DST 安全实现，唯一事实来源）；提醒经 `HabitReminderScheduler` 排程、`HabitReminderReceiver` 触发后自动续排，**习惯提醒无条件响铃 + 震动，不受全局「声音」开关约束**。
+  - **打卡补录（v2.9++ 工具）**：底层 `HabitRepository.checkIn(habitId, date)` / `CheckInRepository` 本就支持任意历史日期，该工具开放显式入口，为习惯或每日记录补打 / 取消过往日期的打卡，补全缺失记录；与习惯列表内「仅当天」的快捷打卡互不冲突。
 - **工具**：原「统计」Tab 改造为工具箱（v2.8X），分类展示小工具——健康类：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）；效率安全类：语音备忘录（录制/播放/删除，音频存本地）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回、条目含名称/地址/用户名/密码/备注）。统计详情仍经今日页进度环点击进入 `Routes.STATS`。
+  - **v2.9++ 新增工具（分类入工具箱）**：`条码识别`（生活助手：从相册选图经 ZXing core 解码商品条码，并可联网查 Open Food Facts 商品基础信息，无相机实时扫码以规避新增 CameraX 依赖）、`马赛克`（实用工具：选图后拖动框选，支持马赛克/涂黑两种遮挡方式，保存到相册）、`指南针`（实用工具：加速度计+磁力计融合解算方位角，表盘随朝向旋转）、`打卡补录`（实用工具：为习惯/每日记录补打或取消过往日期打卡）。新增工具统一在 `ToolsScreen.kt` 的 `TOOL_CATEGORIES` 登记、在 `TickClearNavGraph.kt` 登记路由（命名 `TOOLS_*`、值 `"tools/*"`），文案全部抽离 `strings.xml`，图标用 Material Icons Extended。
 - **助手**：模拟硬件设备对接小智(Xiaozhi) WebSocket 协议，语音 + 文字聊天；对话出现任务时经 **MCP 函数调用(`create_task`)** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 Mock 模式离线可跑。
 - **设置**：主题(浅色/深色/动态)、语音/ASR 配置 + 测试、回收站管理、调试(日志/测试按钮)、关于。
 

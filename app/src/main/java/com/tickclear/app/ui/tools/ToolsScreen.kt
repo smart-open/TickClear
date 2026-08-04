@@ -41,6 +41,10 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.BlurOn
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -129,6 +133,12 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_expiry_desc,
                 icon = Icons.Filled.Event,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BARCODE,
+                titleRes = R.string.tools_barcode_title,
+                descRes = R.string.tools_barcode_desc,
+                icon = Icons.Filled.CameraAlt,
+            ),
         ),
     ),
     ToolCategory(
@@ -175,6 +185,24 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_clock_overlay_title,
                 descRes = R.string.tools_clock_overlay_desc,
                 icon = Icons.Filled.Schedule,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOSAIC,
+                titleRes = R.string.tools_mosaic_title,
+                descRes = R.string.tools_mosaic_desc,
+                icon = Icons.Filled.BlurOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COMPASS,
+                titleRes = R.string.tools_compass_title,
+                descRes = R.string.tools_compass_desc,
+                icon = Icons.Filled.Explore,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKFILL,
+                titleRes = R.string.tools_backfill_title,
+                descRes = R.string.tools_backfill_desc,
+                icon = Icons.Filled.EditCalendar,
             ),
         ),
     ),

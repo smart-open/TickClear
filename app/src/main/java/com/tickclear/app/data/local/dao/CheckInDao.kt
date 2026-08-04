@@ -20,4 +20,7 @@ interface CheckInDao {
 
     @Query("SELECT dateLocal FROM check_in ORDER BY dateLocal ASC")
     fun observeDates(): Flow<List<String>>
+
+    @Query("DELETE FROM check_in WHERE dateLocal = :date")
+    suspend fun delete(date: String)
 }
