@@ -1073,8 +1073,10 @@
     <string name="level_hint">将手机平放在桌面或贴紧挂画边缘</string>
     <string name="level_flat">已水平</string>
     <string name="level_tilt">倾斜</string>
-    <string name="level_roll">左右倾斜 %1$.1f°</string>
-    <string name="level_pitch">前后倾斜 %1$.1f°</string>
+    <string name="level_roll_label">左右倾</string>
+    <string name="level_pitch_label">前后倾</string>
+    <string name="level_angle_value">%1$.1f°</string>
+    <string name="level_max_angle">%1$.1f°</string>
     <string name="level_no_sensor">未检测到方向传感器</string>
 
     <!-- 称重器（诚实演示：手机无称重传感器） -->
@@ -1163,6 +1165,7 @@
     <string name="compass_northwest">西北</string>
     <string name="compass_no_sensor">未检测到方向传感器</string>
     <string name="compass_hint">将手机平放并远离磁铁等干扰源</string>
+    <string name="compass_calibrate">磁场精度较低，请把手机在空中缓慢画「8」字校准</string>
 
     <!-- 打卡补录（V2.9++） -->
     <string name="tools_backfill_title">打卡补录</string>

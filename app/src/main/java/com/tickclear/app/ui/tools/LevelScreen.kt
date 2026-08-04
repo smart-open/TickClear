@@ -7,12 +7,19 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,12 +36,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.abs
@@ -43,6 +54,17 @@ import kotlin.math.max
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
+/** 水平达标时的提示绿，深浅主题下都有足够对比度。 */
+private val LevelOkColor = Color(0xFF43A047)
+
+/** 判定「已水平」的角度容差（度）。 */
+private const val LEVEL_TOLERANCE_DEG = 1f
+
+/**
+ * 水平仪：重力传感器解算左右倾（roll）与前后倾（pitch），
+ * 圆形气泡盘用于平放校平，下方横向气泡管用于贴墙挂画找水平。
+ * 传感器读数做低通滤波，避免气泡持续抖动。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LevelScreen(onBack: () -> Unit) {
@@ -59,9 +81,10 @@ fun LevelScreen(onBack: () -> Unit) {
                 if (event.sensor.type == Sensor.TYPE_GRAVITY ||
                     event.sensor.type == Sensor.TYPE_ACCELEROMETER
                 ) {
-                    gx = event.values[0]
-                    gy = event.values[1]
-                    gz = event.values[2]
+                    // 一阶低通：保留 82% 历史值，抑制手持微抖导致的气泡跳动
+                    gx = gx * 0.82f + event.values[0] * 0.18f
+                    gy = gy * 0.82f + event.values[1] * 0.18f
+                    gz = gz * 0.82f + event.values[2] * 0.18f
                 }
             }
 
@@ -72,21 +95,23 @@ fun LevelScreen(onBack: () -> Unit) {
         val sensor = gravity ?: accel
         hasSensor = sensor != null
         if (sensor != null) {
-            sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+            sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
         }
         onDispose { sensorManager.unregisterListener(listener) }
     }
 
     // 组合上下文先捕获主题色，供下方 Canvas 绘制使用（DrawScope 非 @Composable 上下文）。
-    val primaryColor = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
 
     // roll=左右倾斜（绕 Y 轴），pitch=前后倾斜（绕 X 轴）。平放时 gz≈9.8，gx/gy≈0 → 角度≈0。
     val roll = Math.toDegrees(atan2(gx.toDouble(), gz.toDouble())).toFloat()
     val pitch = Math.toDegrees(atan2(gy.toDouble(), gz.toDouble())).toFloat()
     val maxAngle = max(abs(roll), abs(pitch))
-    val isLevel = maxAngle < 1f
+    val isLevel = maxAngle < LEVEL_TOLERANCE_DEG
 
     Scaffold(
         topBar = {
@@ -107,6 +132,7 @@ fun LevelScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,72 +145,75 @@ fun LevelScreen(onBack: () -> Unit) {
                 )
             }
 
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.82f)
+                    .aspectRatio(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawBubbleDial(
+                        gx = gx,
+                        gy = gy,
+                        isLevel = isLevel,
+                        okColor = LevelOkColor,
+                        accentColor = primaryColor,
+                        onSurface = onSurface,
+                        surfaceColor = surfaceColor,
+                        surfaceVariant = surfaceVariant,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        stringResource(R.string.level_max_angle, maxAngle),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isLevel) LevelOkColor else onSurface,
+                    )
+                    Text(
+                        if (isLevel) stringResource(R.string.level_flat) else stringResource(R.string.level_tilt),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isLevel) LevelOkColor else onSurfaceVariant,
+                    )
+                }
+            }
+
+            // 横向气泡管：贴墙 / 挂画时看这一条
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(56.dp),
             ) {
-                val cx = size.width / 2f
-                val cy = size.height / 2f
-                val minSide = if (size.width < size.height) size.width else size.height
-                val radius = minSide / 3f
-                val bubbleR = radius * 0.18f
-                // 气泡偏移与重力分量反向：平放(gx,gy≈0)→居中；倾斜→气泡移向高处。
-                val k = (radius - bubbleR) / 6f
-                val offX = (gx * -k).coerceIn(-(radius - bubbleR), radius - bubbleR)
-                val offY = (gy * -k).coerceIn(-(radius - bubbleR), radius - bubbleR)
-
-                // 外圈
-                drawCircle(
-                    color = onSurface.copy(alpha = 0.15f),
-                    radius = radius,
-                    center = Offset(cx, cy),
-                    style = Stroke(width = 2.dp.toPx()),
-                )
-                // 中心十字参考线
-                drawLine(
-                    color = onSurface.copy(alpha = 0.25f),
-                    start = Offset(cx - radius, cy),
-                    end = Offset(cx + radius, cy),
-                    strokeWidth = 1.dp.toPx(),
-                )
-                drawLine(
-                    color = onSurface.copy(alpha = 0.25f),
-                    start = Offset(cx, cy - radius),
-                    end = Offset(cx, cy + radius),
-                    strokeWidth = 1.dp.toPx(),
-                )
-                // 水平判定环（水平时变绿）
-                drawCircle(
-                    color = if (isLevel) Color(0xFF4CAF50) else onSurface.copy(alpha = 0.3f),
-                    radius = radius * 0.5f,
-                    center = Offset(cx, cy),
-                    style = Stroke(width = 2.dp.toPx()),
-                )
-                // 气泡
-                drawCircle(
-                    color = if (isLevel) Color(0xFF4CAF50) else primaryColor,
-                    radius = bubbleR,
-                    center = Offset(cx + offX, cy + offY),
+                drawTubeLevel(
+                    angleDeg = roll,
+                    isLevel = abs(roll) < LEVEL_TOLERANCE_DEG,
+                    okColor = LevelOkColor,
+                    accentColor = primaryColor,
+                    onSurface = onSurface,
+                    surfaceVariant = surfaceVariant,
                 )
             }
 
-            Text(
-                if (isLevel) stringResource(R.string.level_flat) else stringResource(R.string.level_tilt),
-                style = MaterialTheme.typography.headlineSmall,
-                color = if (isLevel) Color(0xFF4CAF50) else onSurface,
-            )
-            Text(
-                stringResource(R.string.level_roll, roll),
-                style = MaterialTheme.typography.bodyMedium,
-                color = onSurfaceVariant,
-            )
-            Text(
-                stringResource(R.string.level_pitch, pitch),
-                style = MaterialTheme.typography.bodyMedium,
-                color = onSurfaceVariant,
-            )
-            Spacer(Modifier.height(Spacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                // weight 经 RowScope 接收器解析，不能按名 import（会解析到内部 ParentData 扩展）
+                AngleCard(
+                    label = stringResource(R.string.level_roll_label),
+                    value = stringResource(R.string.level_angle_value, roll),
+                    highlight = abs(roll) < LEVEL_TOLERANCE_DEG,
+                    modifier = Modifier.weight(1f),
+                )
+                AngleCard(
+                    label = stringResource(R.string.level_pitch_label),
+                    value = stringResource(R.string.level_angle_value, pitch),
+                    highlight = abs(pitch) < LEVEL_TOLERANCE_DEG,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Spacer(Modifier.height(Spacing.xs))
             Text(
                 stringResource(R.string.level_hint),
                 style = MaterialTheme.typography.bodySmall,
@@ -192,4 +221,189 @@ fun LevelScreen(onBack: () -> Unit) {
             )
         }
     }
+}
+
+/** 单个角度读数卡片。 */
+@Composable
+private fun AngleCard(
+    label: String,
+    value: String,
+    highlight: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = if (highlight) {
+                LevelOkColor.copy(alpha = 0.12f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (highlight) LevelOkColor else MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+/** 圆形气泡盘：渐变底 + 刻度环 + 十字虚线 + 带高光的气泡。 */
+private fun DrawScope.drawBubbleDial(
+    gx: Float,
+    gy: Float,
+    isLevel: Boolean,
+    okColor: Color,
+    accentColor: Color,
+    onSurface: Color,
+    surfaceColor: Color,
+    surfaceVariant: Color,
+) {
+    val cx = size.width / 2f
+    val cy = size.height / 2f
+    val center = Offset(cx, cy)
+    val radius = (if (size.width < size.height) size.width else size.height) / 2f * 0.92f
+    val bubbleR = radius * 0.16f
+    val bubbleColor = if (isLevel) okColor else accentColor
+
+    // 底盘渐变，中心略暗形成凹槽感
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(surfaceVariant.copy(alpha = 0.65f), surfaceColor),
+            center = center,
+            radius = radius,
+        ),
+        radius = radius,
+        center = center,
+    )
+    drawCircle(
+        color = onSurface.copy(alpha = 0.14f),
+        radius = radius,
+        center = center,
+        style = Stroke(width = 1.5.dp.toPx()),
+    )
+
+    // 30° 一根的边缘刻度
+    for (deg in 0 until 360 step 30) {
+        val rad = Math.toRadians(deg.toDouble())
+        val sinV = kotlin.math.sin(rad).toFloat()
+        val cosV = kotlin.math.cos(rad).toFloat()
+        val isMajor = deg % 90 == 0
+        val inner = radius * if (isMajor) 0.88f else 0.92f
+        drawLine(
+            color = onSurface.copy(alpha = if (isMajor) 0.4f else 0.2f),
+            start = Offset(cx + inner * sinV, cy - inner * cosV),
+            end = Offset(cx + radius * 0.98f * sinV, cy - radius * 0.98f * cosV),
+            strokeWidth = if (isMajor) 2.dp.toPx() else 1.dp.toPx(),
+        )
+    }
+
+    // 十字虚线参考
+    val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 6.dp.toPx()))
+    drawLine(
+        color = onSurface.copy(alpha = 0.18f),
+        start = Offset(cx - radius * 0.85f, cy),
+        end = Offset(cx + radius * 0.85f, cy),
+        strokeWidth = 1.dp.toPx(),
+        pathEffect = dash,
+    )
+    drawLine(
+        color = onSurface.copy(alpha = 0.18f),
+        start = Offset(cx, cy - radius * 0.85f),
+        end = Offset(cx, cy + radius * 0.85f),
+        strokeWidth = 1.dp.toPx(),
+        pathEffect = dash,
+    )
+
+    // 中央容差环：气泡完全落入即视为水平
+    drawCircle(
+        color = if (isLevel) okColor else onSurface.copy(alpha = 0.28f),
+        radius = bubbleR * 1.45f,
+        center = center,
+        style = Stroke(width = if (isLevel) 2.5.dp.toPx() else 1.5.dp.toPx()),
+    )
+
+    // 气泡：偏移与重力分量反向（倾斜时气泡浮向高处）
+    val travel = radius - bubbleR * 1.2f
+    val k = travel / 6f
+    val offX = (gx * -k).coerceIn(-travel, travel)
+    val offY = (gy * -k).coerceIn(-travel, travel)
+    val bubbleCenter = Offset(cx + offX, cy + offY)
+    drawCircle(color = bubbleColor.copy(alpha = 0.18f), radius = bubbleR * 1.6f, center = bubbleCenter)
+    drawCircle(color = bubbleColor, radius = bubbleR, center = bubbleCenter)
+    // 左上角高光，让气泡像有体积的液滴
+    drawCircle(
+        color = Color.White.copy(alpha = 0.45f),
+        radius = bubbleR * 0.3f,
+        center = Offset(bubbleCenter.x - bubbleR * 0.35f, bubbleCenter.y - bubbleR * 0.35f),
+    )
+}
+
+/** 横向气泡管：贴墙找水平用，气泡按左右倾角在管内移动。 */
+private fun DrawScope.drawTubeLevel(
+    angleDeg: Float,
+    isLevel: Boolean,
+    okColor: Color,
+    accentColor: Color,
+    onSurface: Color,
+    surfaceVariant: Color,
+) {
+    val w = size.width
+    val h = size.height
+    val tubeH = h * 0.62f
+    val top = (h - tubeH) / 2f
+    val corner = tubeH / 2f
+    val color = if (isLevel) okColor else accentColor
+
+    drawRoundRect(
+        color = surfaceVariant.copy(alpha = 0.75f),
+        topLeft = Offset(0f, top),
+        size = Size(w, tubeH),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
+    )
+    drawRoundRect(
+        color = onSurface.copy(alpha = 0.14f),
+        topLeft = Offset(0f, top),
+        size = Size(w, tubeH),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
+        style = Stroke(width = 1.dp.toPx()),
+    )
+
+    // 中央容差窗（两条竖线）
+    val bubbleR = tubeH * 0.36f
+    val gate = bubbleR * 1.35f
+    for (dx in listOf(-gate, gate)) {
+        drawLine(
+            color = onSurface.copy(alpha = 0.3f),
+            start = Offset(w / 2f + dx, top + tubeH * 0.12f),
+            end = Offset(w / 2f + dx, top + tubeH * 0.88f),
+            strokeWidth = 1.5.dp.toPx(),
+        )
+    }
+
+    // ±15° 映射到整条管长，超出则贴边
+    val travel = w / 2f - bubbleR * 1.4f
+    val offX = (angleDeg / 15f * travel).coerceIn(-travel, travel)
+    val center = Offset(w / 2f + offX, top + tubeH / 2f)
+    drawCircle(color = color.copy(alpha = 0.18f), radius = bubbleR * 1.4f, center = center)
+    drawCircle(color = color, radius = bubbleR, center = center)
+    drawCircle(
+        color = Color.White.copy(alpha = 0.45f),
+        radius = bubbleR * 0.3f,
+        center = Offset(center.x - bubbleR * 0.33f, center.y - bubbleR * 0.33f),
+    )
 }
