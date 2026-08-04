@@ -9,6 +9,7 @@ import android.media.AudioManager
 import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.scheduler.NotificationHelper
+import androidx.core.content.ContextCompat
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -88,8 +89,12 @@ object HearingMonitor {
             addAction(AudioManager.ACTION_HEADSET_PLUG)
             addAction(ACTION_VOLUME_CHANGED)
         }
-        runCatching { context.applicationContext.registerReceiver(receiver, filter) }
-            .onFailure { AppLogger.e(TAG, "register 失败：${it.message}") }
+        runCatching {
+            ContextCompat.registerReceiver(
+                context.applicationContext, receiver, filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+        }.onFailure { AppLogger.e(TAG, "register 失败：${it.message}") }
     }
 
     private fun handlePlug(ctx: Context, intent: Intent) {
