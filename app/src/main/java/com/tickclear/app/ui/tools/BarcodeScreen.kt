@@ -1,14 +1,17 @@
 package com.tickclear.app.ui.tools
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,12 +47,15 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * 条码识别工具（V2.9++）：从相册选图 → ZXing 解码条码 → 展示条码号，
@@ -69,6 +74,16 @@ fun BarcodeScreen(
 
     var preview by remember { mutableStateOf<Bitmap?>(null) }
 
+    // 拍照落盘位置复用已配置的 FileProvider cache/share 目录，避免新增 provider 声明
+    val photoUri = remember {
+        val dir = File(context.cacheDir, "share").apply { mkdirs() }
+        FileProvider.getUriForFile(
+            context,
+            "com.tickclear.app.fileprovider",
+            File(dir, "barcode_capture.jpg"),
+        )
+    }
+
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
@@ -80,6 +95,39 @@ fun BarcodeScreen(
                 snackbarHostState.showSnackbar(context.getString(R.string.barcode_pick_hint))
             }
         }
+    }
+
+    val captureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (!ok) return@rememberLauncherForActivityResult
+        scope.launch {
+            val bmp = ImageMasker.loadBitmap(context, photoUri)
+            if (bmp != null) {
+                preview = bmp
+                vm.decode(bmp)
+            } else {
+                snackbarHostState.showSnackbar(context.getString(R.string.barcode_capture_fail))
+            }
+        }
+    }
+
+    // 本应用在 manifest 声明了 CAMERA 权限，此时系统要求必须先持有该权限才允许发起
+    // ACTION_IMAGE_CAPTURE，否则抛 SecurityException，因此拍照前必须走运行时授权。
+    val cameraPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            captureLauncher.launch(photoUri)
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.barcode_camera_denied))
+            }
+        }
+    }
+
+    val onCapture: () -> Unit = {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) captureLauncher.launch(photoUri) else cameraPermLauncher.launch(Manifest.permission.CAMERA)
     }
 
     Scaffold(
@@ -107,8 +155,16 @@ fun BarcodeScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Button(onClick = { pickLauncher.launch("image/*") }) {
-                Text(stringResource(R.string.barcode_pick))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally),
+            ) {
+                Button(onClick = onCapture) {
+                    Text(stringResource(R.string.barcode_capture))
+                }
+                OutlinedButton(onClick = { pickLauncher.launch("image/*") }) {
+                    Text(stringResource(R.string.barcode_pick))
+                }
             }
 
             preview?.let {

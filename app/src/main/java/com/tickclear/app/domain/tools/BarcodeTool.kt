@@ -3,6 +3,8 @@ package com.tickclear.app.domain.tools
 import android.graphics.Bitmap
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.LuminanceSource
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
@@ -46,9 +48,17 @@ object BarcodeTool {
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
+    private val DECODE_HINTS: Map<DecodeHintType, Any> = mapOf(
+        // 相机实拍存在轻微模糊/透视，开启穷举可显著提升一次成功率（代价是单次耗时增加，已在 IO 线程执行）
+        DecodeHintType.TRY_HARDER to true,
+    )
+
     /**
      * 从位图中解码条码/二维码。识别失败返回 null。
-     * 注意：仅对整图做一次尝试，条码需基本正向清晰；复杂场景可多次旋转重试（本工具不做）。
+     *
+     * 相机竖持拍摄时，一维条码在图像里是竖直的，而 ZXing 的一维解码器只沿水平扫描线取样，
+     * 只解正向必然失败。故按 0/90/180/270 四个朝向依次重试（RGBLuminanceSource 支持无损旋转），
+     * 任一朝向命中即返回。
      */
     fun decode(bitmap: Bitmap): BarcodeResult? {
         val w = bitmap.width
@@ -56,16 +66,21 @@ object BarcodeTool {
         if (w <= 0 || h <= 0) return null
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-        val source = RGBLuminanceSource(w, h, pixels)
-        val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
-        val reader = MultiFormatReader()
-        return try {
-            val result = reader.decode(binaryBitmap)
-            val format = result.barcodeFormat ?: BarcodeFormat.CODE_128
-            BarcodeResult(result.text, format.name)
-        } catch (_: Exception) {
-            null
+
+        var source: LuminanceSource = RGBLuminanceSource(w, h, pixels)
+        repeat(4) {
+            // MultiFormatReader 内部持有解码状态，每个朝向新建一个避免串味
+            val hit = runCatching {
+                MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(source)), DECODE_HINTS)
+            }.getOrNull()
+            if (hit != null) {
+                val format = hit.barcodeFormat ?: BarcodeFormat.CODE_128
+                return BarcodeResult(hit.text, format.name)
+            }
+            if (!source.isRotateSupported) return null
+            source = source.rotateCounterClockwise()
         }
+        return null
     }
 
     /**

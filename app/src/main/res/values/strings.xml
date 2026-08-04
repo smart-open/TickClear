@@ -1077,8 +1077,11 @@
     <!-- 条码识别（选图解码 + 商品查询，V2.9++） -->
     <string name="tools_barcode_title">条码识别</string>
     <string name="tools_barcode_desc">扫条码查商品信息</string>
-    <string name="barcode_pick">选择条码图片</string>
-    <string name="barcode_pick_hint">从相册选择含商品条码的截图或照片</string>
+    <string name="barcode_pick">相册选图</string>
+    <string name="barcode_capture">拍照识别</string>
+    <string name="barcode_camera_denied">未授予相机权限，无法拍照识别</string>
+    <string name="barcode_capture_fail">照片读取失败，请重试</string>
+    <string name="barcode_pick_hint">对准条码拍照，或从相册选择含条码的截图</string>
     <string name="barcode_decoding">正在识别…</string>
     <string name="barcode_none">未在图片中检测到条码</string>
     <string name="barcode_format">格式：%1$s</string>
