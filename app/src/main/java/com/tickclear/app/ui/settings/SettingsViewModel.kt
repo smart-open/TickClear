@@ -70,10 +70,11 @@ class SettingsViewModel @Inject constructor(
     /** 从用户选择的 uri（SAF）导入备份。 */
     fun importFrom(uri: Uri) = viewModelScope.launch {
         try {
-            val json = appContext.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes().toString(Charsets.UTF_8)
-            } ?: throw AppException(ErrorCode.IMPORT_READ_FAILED)
-            val r = backupManager.importFromJson(json)
+            val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw AppException(ErrorCode.IMPORT_READ_FAILED)
+            // 同时支持自动备份的加密信封（.tcbackup）与手动明文 JSON：
+            // importEncrypted 内部按格式自动解密 / 透传，避免「自动备份不可恢复」。
+            val r = backupManager.importEncrypted(bytes)
             backupToasts.tryEmit(
                 BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups, r.habits)),
             )

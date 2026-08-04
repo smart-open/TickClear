@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
@@ -110,7 +110,7 @@ class BackupExportViewModel @Inject constructor(
 
                 val json = root.toString(2)
                 val dir = File(appContext.getExternalFilesDir(null), "backups").apply { mkdirs() }
-                val stamp = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                 val file = File(dir, "tickclear_backup_$stamp.json")
                 file.writeText(json, Charsets.UTF_8)
                 val uri = runCatching {
