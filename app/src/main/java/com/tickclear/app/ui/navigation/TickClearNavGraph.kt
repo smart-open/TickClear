@@ -168,11 +168,10 @@ private fun AppNavHost(
             TodayScreen(
                 onNavigateToAssistant = { navController.navigate(Routes.ASSISTANT) },
                 onNavigateToStats = {
-                    navController.navigate(Routes.STATS) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    // 统计详情是「今日」的子页，同工具详情一样必须裸 navigate。
+                    // 此处原写法带 popUpTo(start)，因当前栈恰为 [TODAY] 而退化为 no-op 未暴露问题，
+                    // 但属同一错误模式，统一规范掉，避免后续栈形状变化时重现「返回跳回今日」。
+                    navController.navigate(Routes.STATS) { launchSingleTop = true }
                 },
                 isWide = isWide,
             )
@@ -259,11 +258,11 @@ private fun AppNavHost(
         composable(Routes.TOOLS) {
             ToolsScreen(
                 onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    // 工具详情是工具箱的子页，必须保留 TOOLS 在回退栈上，返回才能回到工具列表。
+                    // 禁止套用底部 Tab 切换的 popUpTo(start){saveState}+restoreState 组合：
+                    // 那会把 TOOLS 从栈上弹掉，栈变成 [TODAY, 工具详情]，返回直接跳回「今日」。
+                    // launchSingleTop 仅用于防止快速连点重复压入同一详情页。
+                    navController.navigate(route) { launchSingleTop = true }
                 },
             )
         }
