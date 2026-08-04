@@ -106,6 +106,7 @@ fun TickClearApp(
                 ShortcutHelper.ACTION_TODAY -> navController.navigate(Routes.TODAY) {
                     popUpTo(navController.graph.startDestinationId) { saveState = true }
                     launchSingleTop = true
+                    restoreState = true
                 }
             }
             onStartActionConsumed()
@@ -257,7 +258,13 @@ private fun AppNavHost(
         // V2.9 工具箱：统计 Tab 改造为工具箱（统计详情仍经 Today 进度环进入 Routes.STATS）
         composable(Routes.TOOLS) {
             ToolsScreen(
-                onNavigate = { route -> navController.navigate(route) },
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
         composable(Routes.TOOLS_WATER) {
