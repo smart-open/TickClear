@@ -44,6 +44,8 @@ object NotificationHelper {
     const val CHANNEL_EXPIRY = "tickclear.tools.expiry.$CHANNEL_VERSION"
     const val CHANNEL_HEARING = "tickclear.tools.hearing.$CHANNEL_VERSION"
     const val CHANNEL_CLOCK = "tickclear.tools.clock.$CHANNEL_VERSION"
+    /** 到站提醒渠道（V2.9++）。 */
+    const val CHANNEL_ARRIVAL = "tickclear.tools.arrival.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -193,16 +195,27 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 150, 200)
         }
-        // 悬浮时钟渠道：低重要性、常驻、无声无震（后台显示时间用，不扰民）。
-        val clock = NotificationChannel(
-            CHANNEL_CLOCK,
-            context.getString(R.string.channel_clock_name),
-            android.app.NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = context.getString(R.string.channel_clock_desc)
-            setShowBadge(false)
-        }
-        manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing, clock))
+    // 悬浮时钟渠道：低重要性、常驻、无声无震（后台显示时间用，不扰民）。
+    val clock = NotificationChannel(
+        CHANNEL_CLOCK,
+        context.getString(R.string.channel_clock_name),
+        android.app.NotificationManager.IMPORTANCE_LOW,
+    ).apply {
+        description = context.getString(R.string.channel_clock_desc)
+        setShowBadge(false)
+    }
+    // 到站提醒渠道：标准重要性 + 震动（靠近站点震动 + 抬头通知）。
+    val arrival = NotificationChannel(
+        CHANNEL_ARRIVAL,
+        context.getString(R.string.channel_arrival_name),
+        android.app.NotificationManager.IMPORTANCE_DEFAULT,
+    ).apply {
+        description = context.getString(R.string.channel_arrival_desc)
+        enableLights(true)
+        enableVibration(true)
+        vibrationPattern = longArrayOf(0, 400, 200, 400)
+    }
+    manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing, clock, arrival))
     }
 
     /**
@@ -301,6 +314,28 @@ object NotificationHelper {
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
+
+    /** 到站提醒通知（V2.9++）：靠近站点时震动 + 该抬头通知。点击仅打开 App。固定 id 避免堆叠。 */
+    fun showArrivalNotification(context: Context, stationName: String) {
+        val notifyId = 9401
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ARRIVAL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.arrival_notify_title))
+            .setContentText(context.getString(R.string.arrival_notify_text, stationName))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         runCatching { manager.notify(notifyId, notification) }

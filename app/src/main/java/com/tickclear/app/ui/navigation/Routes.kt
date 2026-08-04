@@ -77,4 +77,8 @@ object Routes {
     const val TOOLS_WATERMARK = "tools/watermark"
     const val TOOLS_CAMERA_DETECT = "tools/cameraDetect"
     const val TOOLS_CLIPBOARD_GUARD = "tools/clipboardGuard"
+    // V2.9++：工具箱新增（到站提醒 / 备份导出 / 隐私检查）
+    const val TOOLS_ARRIVAL = "tools/arrival"
+    const val TOOLS_BACKUP = "tools/backup"
+    const val TOOLS_PRIVACY = "tools/privacy"
 }

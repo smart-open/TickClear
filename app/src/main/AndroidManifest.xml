@@ -165,6 +165,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- V2.9++ 到站提醒：前台轮询位置，靠近站点时震动（复用 location 前台服务类型，零 GMS 依赖）。 -->
+        <service
+            android:name=".domain.scheduler.ArrivalReminderService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <!-- V2.66 常驻语音唤醒前台服务：能量级 VAD（AudioRecord 原生麦克风），零新依赖 -->
         <service
             android:name=".domain.assistant.WakeWordService"

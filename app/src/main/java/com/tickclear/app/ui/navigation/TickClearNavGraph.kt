@@ -70,6 +70,12 @@ import com.tickclear.app.ui.tools.CameraDetectScreen
 import com.tickclear.app.ui.tools.PrivacyDetectViewModel
 import com.tickclear.app.ui.tools.ClipboardGuardScreen
 import com.tickclear.app.ui.tools.ClipboardGuardViewModel
+import com.tickclear.app.ui.tools.ArrivalScreen
+import com.tickclear.app.ui.tools.ArrivalViewModel
+import com.tickclear.app.ui.tools.BackupExportScreen
+import com.tickclear.app.ui.tools.BackupExportViewModel
+import com.tickclear.app.ui.tools.PrivacyCheckScreen
+import com.tickclear.app.ui.tools.PrivacyCheckViewModel
 
 @Composable
 fun TickClearApp(
@@ -380,6 +386,24 @@ private fun AppNavHost(
         composable(Routes.TOOLS_CLIPBOARD_GUARD) {
             ClipboardGuardScreen(
                 viewModel = hiltViewModel<ClipboardGuardViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_ARRIVAL) {
+            ArrivalScreen(
+                viewModel = hiltViewModel<ArrivalViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_BACKUP) {
+            BackupExportScreen(
+                viewModel = hiltViewModel<BackupExportViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_PRIVACY) {
+            PrivacyCheckScreen(
+                viewModel = hiltViewModel<PrivacyCheckViewModel>(),
                 onBack = { navController.popBackStack() },
             )
         }

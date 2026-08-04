@@ -22,7 +22,7 @@ import org.json.JSONObject
 import javax.crypto.SecretKey
 import javax.inject.Inject
 
-private const val VERIFIER_PLAIN = "tickclear-vault-verifier-v1"
+internal const val VAULT_VERIFIER_PLAIN = "tickclear-vault-verifier-v1"
 private const val MIN_PASS_LEN = 6
 
 enum class VaultMode { SETUP, UNLOCK, LIST, RECOVERY, RECOVERY_NEWPASS }
@@ -81,7 +81,7 @@ class VaultViewModel @Inject constructor(
                     val salt = VaultCrypto.randomSalt()
                     val answerSalt = VaultCrypto.randomSalt()
                     val k = VaultCrypto.deriveKey(pass.toCharArray(), salt)
-                    val verifier = VaultCrypto.encrypt(k, VERIFIER_PLAIN)
+                    val verifier = VaultCrypto.encrypt(k, VAULT_VERIFIER_PLAIN)
                     val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
                     val emptyBlob = VaultCrypto.encrypt(k, serialize(emptyList()))
                     VaultStore.setup(
@@ -117,7 +117,7 @@ class VaultViewModel @Inject constructor(
                 val plain = withContext(Dispatchers.Default) {
                     VaultCrypto.decrypt(key, meta.verifier)
                 }
-                if (plain != VERIFIER_PLAIN) {
+                if (plain != VAULT_VERIFIER_PLAIN) {
                     _unlockError.value = appContext.getString(R.string.vault_wrong)
                     return@launch
                 }
@@ -181,7 +181,7 @@ class VaultViewModel @Inject constructor(
                     val salt = VaultCrypto.randomSalt()
                     val answerSalt = VaultCrypto.randomSalt()
                     val k = VaultCrypto.deriveKey(pass.toCharArray(), salt)
-                    val verifier = VaultCrypto.encrypt(k, VERIFIER_PLAIN)
+                    val verifier = VaultCrypto.encrypt(k, VAULT_VERIFIER_PLAIN)
                     val answerHash = VaultCrypto.hashAnswer(answer.toCharArray(), answerSalt)
                     val emptyBlob = VaultCrypto.encrypt(k, serialize(emptyList()))
                     VaultStore.rekey(appContext, salt, verifier, answerHash, emptyBlob, answerSalt)

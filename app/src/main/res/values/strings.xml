@@ -1193,4 +1193,62 @@
     <string name="clip_guard_failed">复制失败，请重试</string>
     <string name="clip_guard_note">说明：Android 10+ 出于隐私保护，应用无法直接阻止其他 App 读取剪贴板。本工具采用「延迟自动清空」策略——复制后内容会在设定秒数后自动清空，使后台应用难以在延时后读到。工具界面打开期间持续生效。</string>
 
+    <!-- 到站提醒（V2.9++） -->
+    <string name="tools_arrival_title">到站提醒</string>
+    <string name="tools_arrival_desc">靠近站点震动提醒</string>
+    <string name="arrival_title">到站提醒</string>
+    <string name="arrival_desc">设置关注站点，靠近时震动提醒，避免坐过站</string>
+    <string name="arrival_monitor">到站监测</string>
+    <string name="arrival_add">添加站点</string>
+    <string name="arrival_empty_hint">还没有添加站点，点下方按钮添加常坐的公交/地铁站</string>
+    <string name="arrival_station_meta">经纬度 %1$s, %2$s｜提醒半径 %3$d 米</string>
+    <string name="arrival_name_required">请输入站点名称</string>
+    <string name="arrival_coord_required">请填写有效的经纬度</string>
+    <string name="arrival_coord_invalid">请输入有效的经纬度</string>
+    <string name="arrival_station_name">站点名称</string>
+    <string name="arrival_lat">纬度</string>
+    <string name="arrival_lng">经度</string>
+    <string name="arrival_use_current">使用当前位置</string>
+    <string name="arrival_radius">提醒半径：%1$d 米</string>
+    <string name="arrival_coord_hint">可在地图 App 长按站点查到经纬度；半径越小提醒越精准</string>
+    <string name="arrival_permission_required">到站提醒需要位置权限，请在系统设置中授予</string>
+    <string name="arrival_location_unavailable">无法获取当前位置，请手动输入经纬度</string>
+    <string name="arrival_empty">请先添加至少一个站点</string>
+    <string name="arrival_start_fail">到站提醒启动失败，请重试</string>
+    <string name="arrival_service_title">到站提醒监测中</string>
+    <string name="arrival_service_text">正在后台监测您关注的站点</string>
+    <string name="arrival_notify_title">即将到站</string>
+    <string name="arrival_notify_text">您已靠近「%1$s」，注意准备下车</string>
+    <string name="channel_arrival_name">到站提醒</string>
+    <string name="channel_arrival_desc">靠近站点时的震动提醒</string>
+
+    <!-- 备份导出（V2.9++） -->
+    <string name="tools_backup_title">备份导出</string>
+    <string name="tools_backup_desc">设置与保险箱一键备份</string>
+    <string name="backup_title">备份导出</string>
+    <string name="backup_desc">一键导出工具箱设置、密码保险箱与习惯记录</string>
+    <string name="backup_vault_pass">保险箱口令（留空则不导出明文）</string>
+    <string name="backup_include_plain">同时导出保险箱明文</string>
+    <string name="backup_plain_warn">明文包含账号密码，请妥善保管导出文件</string>
+    <string name="backup_exporting">导出中…</string>
+    <string name="backup_export">开始导出</string>
+    <string name="backup_done">导出完成</string>
+    <string name="backup_size">文件大小：%1$d KB</string>
+    <string name="backup_plain_included">已包含保险箱明文（含账号密码）</string>
+    <string name="backup_share_chooser">分享备份文件</string>
+    <string name="backup_share">分享文件</string>
+    <string name="backup_summary">已备份：习惯 %1$d 个、任务 %2$d 项</string>
+    <string name="backup_export_fail">备份导出失败，请重试</string>
+
+    <!-- 隐私检查（V2.9++） -->
+    <string name="tools_privacy_title">隐私检查</string>
+    <string name="tools_privacy_desc">查看隐私权限授权</string>
+    <string name="privacy_title">隐私检查</string>
+    <string name="privacy_desc">检查已获系统授权的隐私权限应用（无需 root）</string>
+    <string name="privacy_scanning">扫描中…</string>
+    <string name="privacy_scan">开始扫描</string>
+    <string name="privacy_empty">未发现已授予以下隐私权限的应用</string>
+    <string name="privacy_count">已授权应用：%1$d 个</string>
+    <string name="privacy_scan_fail">应用扫描失败</string>
+
 </resources>

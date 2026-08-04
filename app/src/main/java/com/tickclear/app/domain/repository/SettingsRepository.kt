@@ -114,6 +114,16 @@ interface SettingsRepository {
     /** 录音降噪开关：开启后语音备忘使用 VOICE_RECOGNITION 音源（平台级降噪/回声消除）。 */
     val voiceNoiseReduction: Flow<Boolean>
 
+    // ── 工具箱：到站提醒（V2.9++）──
+    /** 到站提醒站点列表（每行 "id|name|lat|lng|radius"，换行连接；空字符串=无站点）。 */
+    val arrivalStations: Flow<String>
+
+    /** 到站提醒监测开关（开启后启动前台定位轮询服务，靠近站点震动）。 */
+    val arrivalEnabled: Flow<Boolean>
+
+    /** 导出全部偏好设置（DataStore）为 JSON 字符串，供「备份导出」工具一键导出。 */
+    suspend fun exportSettingsJson(): String
+
     // ── 工具箱：剪贴板防窃取（V2.9++）──
     /** 剪贴板自动清除开关：开启后复制内容延迟 N 秒后自动清空，规避后台读取。 */
     val clipboardAutoClear: Flow<Boolean>
@@ -209,6 +219,13 @@ interface SettingsRepository {
 
     /** 设置剪贴板自动清除延迟（秒，5-120）。 */
     suspend fun setClipboardClearDelaySec(sec: Int)
+
+    // ── 工具箱：到站提醒（V2.9++）──
+    /** 保存到站提醒站点列表（换行连接编码串）。 */
+    suspend fun setArrivalStations(text: String)
+
+    /** 设置到站提醒监测开关。 */
+    suspend fun setArrivalEnabled(on: Boolean)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?

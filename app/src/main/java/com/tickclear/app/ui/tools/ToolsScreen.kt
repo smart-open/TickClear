@@ -45,6 +45,9 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -127,6 +130,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_clipboard_guard_title,
                 descRes = R.string.tools_clipboard_guard_desc,
                 icon = Icons.Filled.Lock,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_PRIVACY,
+                titleRes = R.string.tools_privacy_title,
+                descRes = R.string.tools_privacy_desc,
+                icon = Icons.Filled.Security,
             ),
         ),
     ),
@@ -221,6 +230,18 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_backfill_title,
                 descRes = R.string.tools_backfill_desc,
                 icon = Icons.Filled.EditCalendar,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ARRIVAL,
+                titleRes = R.string.tools_arrival_title,
+                descRes = R.string.tools_arrival_desc,
+                icon = Icons.Filled.LocationOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKUP,
+                titleRes = R.string.tools_backup_title,
+                descRes = R.string.tools_backup_desc,
+                icon = Icons.Filled.Backup,
             ),
         ),
     ),

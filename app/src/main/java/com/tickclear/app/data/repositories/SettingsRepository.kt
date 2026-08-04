@@ -16,8 +16,11 @@ import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -149,6 +152,10 @@ class SettingsRepositoryImpl @Inject constructor(
         (prefs[KEY_CLIP_CLEAR_DELAY] ?: SettingsRepository.DEFAULT_CLIPBOARD_CLEAR_DELAY_SEC).coerceIn(5, 120)
     }
 
+    // ── 工具箱：到站提醒（V2.9++）──
+    override val arrivalStations: Flow<String> = dataStore.data.map { it[KEY_ARRIVAL_STATIONS] ?: "" }
+    override val arrivalEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_ARRIVAL_ENABLED] ?: false }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
@@ -216,6 +223,29 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：剪贴板防窃取（V2.9++）──
     override suspend fun setClipboardAutoClear(enabled: Boolean) { dataStore.edit { it[KEY_CLIP_AUTO_CLEAR] = enabled } }
     override suspend fun setClipboardClearDelaySec(sec: Int) { dataStore.edit { it[KEY_CLIP_CLEAR_DELAY] = sec.coerceIn(5, 120) } }
+
+    // ── 工具箱：到站提醒（V2.9++）──
+    override suspend fun setArrivalStations(text: String) { dataStore.edit { it[KEY_ARRIVAL_STATIONS] = text } }
+    override suspend fun setArrivalEnabled(on: Boolean) { dataStore.edit { it[KEY_ARRIVAL_ENABLED] = on } }
+
+    /** 导出全部偏好为 JSON（零依赖，org.json）。覆盖布尔/整型/长整型/浮点/双精度/字符串/字符串集合。 */
+    override suspend fun exportSettingsJson(): String {
+        val prefs = dataStore.data.first()
+        val obj = JSONObject()
+        for ((key, value) in prefs.asMap()) {
+            when (value) {
+                is Boolean -> obj.put(key.name, value)
+                is Int -> obj.put(key.name, value)
+                is Long -> obj.put(key.name, value)
+                is Float -> obj.put(key.name, value)
+                is Double -> obj.put(key.name, value)
+                is String -> obj.put(key.name, value)
+                is Set<*> -> obj.put(key.name, JSONArray(value.map { it.toString() }))
+                else -> obj.put(key.name, value.toString())
+            }
+        }
+        return obj.toString()
+    }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -340,6 +370,8 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_VOICE_NOISE = booleanPreferencesKey("voice_noise_reduction")
         private val KEY_CLIP_AUTO_CLEAR = booleanPreferencesKey("clipboard_auto_clear")
         private val KEY_CLIP_CLEAR_DELAY = intPreferencesKey("clipboard_clear_delay_sec")
+        private val KEY_ARRIVAL_STATIONS = stringPreferencesKey("arrival_stations")
+        private val KEY_ARRIVAL_ENABLED = booleanPreferencesKey("arrival_enabled")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")
