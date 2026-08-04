@@ -839,7 +839,7 @@
 
     <!-- 噪音检测 -->
     <string name="tools_noise_title">噪音检测</string>
-    <string name="tools_noise_desc">麦克风测量环境分贝</string>
+    <string name="tools_noise_desc">麦克风测量并按国标输出评价</string>
     <string name="noise_hint">点击下方按钮，靠近声源测量环境噪音</string>
     <string name="noise_start">开始测量</string>
     <string name="noise_stop">停止测量</string>
@@ -1133,7 +1133,7 @@
 
     <!-- 条码识别（选图解码 + 商品查询，V2.9++） -->
     <string name="tools_barcode_title">条码识别</string>
-    <string name="tools_barcode_desc">扫条码查商品信息</string>
+    <string name="tools_barcode_desc">拍照或选图扫条码查商品</string>
     <string name="barcode_pick">相册选图</string>
     <string name="barcode_capture">拍照识别</string>
     <string name="barcode_camera_denied">未授予相机权限，无法拍照识别</string>
