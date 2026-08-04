@@ -154,39 +154,45 @@ fun WatermarkScreen(onBack: () -> Unit) {
             } else {
                 val bmp = bitmap!!
                 val ratio = bmp.width.toFloat() / bmp.height.toFloat()
+                // 预览区只占「扣掉下方控件后的剩余空间」。原先直接 fillMaxWidth().aspectRatio()，
+                // 竖图高度 = 屏宽 / ratio（3:4 图约为屏宽的 1.33 倍），会把模式选择、强度滑杆、
+                // 应用按钮整体挤出屏幕外，且 Column 不可滚动 → 用户只看得到图，看不到任何操作按钮。
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(ratio)
+                        .weight(1f, fill = false)
                         .padding(Spacing.xs),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.foundation.Image(
-                        painter = BitmapPainter(bmp.asImageBitmap()),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    androidx.compose.foundation.Canvas(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { dragStart = it },
-                                    onDrag = { change, _ -> dragCurrent = change.position },
-                                    onDragEnd = {
-                                        currentRect?.let { rects = rects + it }
-                                        dragStart = null
-                                        dragCurrent = null
-                                    },
-                                )
+                    Box(modifier = Modifier.aspectRatio(ratio)) {
+                        androidx.compose.foundation.Image(
+                            painter = BitmapPainter(bmp.asImageBitmap()),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragStart = { dragStart = it },
+                                        onDrag = { change, _ -> dragCurrent = change.position },
+                                        onDragEnd = {
+                                            currentRect?.let { rects = rects + it }
+                                            dragStart = null
+                                            dragCurrent = null
+                                        },
+                                    )
+                                }
+                                .onSizeChanged { overlaySize = it },
+                        ) {
+                            val strokeW = 2.dp.toPx()
+                            for (r in rects) {
+                                drawOverlayRect(r, size, primaryColor, strokeW)
                             }
-                            .onSizeChanged { overlaySize = it },
-                    ) {
-                        val strokeW = 2.dp.toPx()
-                        for (r in rects) {
-                            drawOverlayRect(r, size, primaryColor, strokeW)
+                            currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
                         }
-                        currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
                     }
                 }
                 Text(
