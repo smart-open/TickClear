@@ -26,6 +26,21 @@ object BarcodeTool {
     /** 商品基础信息（查不到字段时为空）。 */
     data class ProductInfo(val name: String?, val brand: String?)
 
+    /**
+     * 查询结果三态。
+     * 旧实现把「库里没有」「断网/超时」「响应解析失败」统一返回 null，UI 只能一律显示
+     * 「未找到该条码的商品信息」——断网时这句话是误导，用户会以为条码坏了而反复重扫。
+     */
+    sealed interface LookupResult {
+        data class Found(val info: ProductInfo) : LookupResult
+
+        /** 服务端明确答复：库中无此条码。 */
+        object NotFound : LookupResult
+
+        /** 无网络 / 超时 / 非 2xx / 响应无法解析。 */
+        object Failed : LookupResult
+    }
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(8, TimeUnit.SECONDS)
@@ -54,24 +69,28 @@ object BarcodeTool {
     }
 
     /**
-     * 按条码号查询商品基础信息（Open Food Facts）。无网络/超时/无结果均返回 null。
+     * 按条码号查询商品基础信息（Open Food Facts）。
+     * 区分 [LookupResult.NotFound]（服务端答复库中无此条码）与 [LookupResult.Failed]（网络层失败），
+     * 便于 UI 给出正确引导，而不是把断网也说成「未找到商品」。
      */
-    suspend fun lookupProduct(barcode: String): ProductInfo? = withContext(Dispatchers.IO) {
+    suspend fun lookupProduct(barcode: String): LookupResult = withContext(Dispatchers.IO) {
         try {
             val url = "https://world.openfoodfacts.org/api/v2/product/$barcode.json"
             val request = Request.Builder().url(url).get().build()
             client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) return@use null
-                val body = resp.body?.string() ?: return@use null
+                if (!resp.isSuccessful) return@use LookupResult.Failed
+                val body = resp.body?.string() ?: return@use LookupResult.Failed
                 val json = JSONObject(body)
-                if (json.optString("status") != "1") return@use null
-                val product = json.optJSONObject("product") ?: return@use null
+                if (json.optString("status") != "1") return@use LookupResult.NotFound
+                val product = json.optJSONObject("product") ?: return@use LookupResult.NotFound
                 val name = product.optString("product_name").takeIf { it.isNotBlank() }
                 val brand = product.optString("brands").takeIf { it.isNotBlank() }
-                ProductInfo(name, brand)
+                // 命中记录但名称与品牌都为空，对用户等同于查不到
+                if (name == null && brand == null) LookupResult.NotFound
+                else LookupResult.Found(ProductInfo(name, brand))
             }
         } catch (_: Exception) {
-            null
+            LookupResult.Failed
         }
     }
 }

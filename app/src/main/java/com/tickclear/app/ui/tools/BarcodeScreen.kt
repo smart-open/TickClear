@@ -175,8 +175,12 @@ fun BarcodeScreen(
                                     Text(stringResource(R.string.barcode_product_brand, it))
                                 }
                             } else {
+                                // 网络失败与「库里没有」文案区分开，避免断网时误导用户反复重扫
                                 Text(
-                                    stringResource(R.string.barcode_not_found),
+                                    stringResource(
+                                        if (s.queryFailed) R.string.barcode_query_fail
+                                        else R.string.barcode_not_found,
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

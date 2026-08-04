@@ -22,6 +22,8 @@ sealed interface BarcodeUiState {
         val product: BarcodeTool.ProductInfo? = null,
         val querying: Boolean = false,
         val queried: Boolean = false,
+        /** true=网络层失败（提示可离线复制条码）；false + product==null=库中确实没有。 */
+        val queryFailed: Boolean = false,
     ) : BarcodeUiState
 }
 
@@ -45,10 +47,22 @@ class BarcodeViewModel @Inject constructor() : ViewModel() {
     fun query() {
         val cur = _state.value
         if (cur !is BarcodeUiState.Decoded) return
+        if (cur.querying) return // 防重入：连点「查询」不重复发请求
+        val token = cur.result.text
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = cur.copy(querying = true)
-            val info = BarcodeTool.lookupProduct(cur.result.text)
-            _state.value = cur.copy(querying = false, product = info, queried = true)
+            val r = BarcodeTool.lookupProduct(token)
+            // 请求期间用户可能已重新扫码 → 条码变了就丢弃这次迟到的结果，避免覆盖成陈旧数据
+            val latest = _state.value
+            if (latest !is BarcodeUiState.Decoded || latest.result.text != token) return@launch
+            _state.value = when (r) {
+                is BarcodeTool.LookupResult.Found ->
+                    latest.copy(querying = false, product = r.info, queried = true, queryFailed = false)
+                BarcodeTool.LookupResult.NotFound ->
+                    latest.copy(querying = false, product = null, queried = true, queryFailed = false)
+                BarcodeTool.LookupResult.Failed ->
+                    latest.copy(querying = false, product = null, queried = true, queryFailed = true)
+            }
         }
     }
 }
