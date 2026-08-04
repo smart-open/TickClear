@@ -1139,4 +1139,58 @@
     <string name="backfill_no_habit">请先选择习惯</string>
     <string name="backfill_hint">为习惯或每日记录手动补打过往日期的打卡</string>
 
+    <!-- 语音备忘降噪（V2.9++） -->
+    <string name="voice_noise_reduction">录音降噪</string>
+
+    <!-- 去水印（V2.9++，简易版） -->
+    <string name="tools_watermark_title">去水印</string>
+    <string name="tools_watermark_desc">涂抹消除图片水印</string>
+    <string name="watermark_pick">选择图片</string>
+    <string name="watermark_pick_hint">从相册选择一张带水印的图片，框选水印区域后修复</string>
+    <string name="watermark_hint">在图上拖动框选水印区域，可多次框选；框好后点「修复并保存」</string>
+    <string name="watermark_mode_repair">色彩修复</string>
+    <string name="watermark_mode_blur">模糊柔化</string>
+    <string name="watermark_strength">修复强度</string>
+    <string name="watermark_undo">撤销</string>
+    <string name="watermark_clear">清空</string>
+    <string name="watermark_apply">修复并保存</string>
+    <string name="watermark_saved">已保存到相册</string>
+    <string name="watermark_save_fail">保存失败，请重试</string>
+
+    <!-- 摄像头/麦克风隐私检测（V2.9++） -->
+    <string name="tools_camera_detect_title">摄像头检测</string>
+    <string name="tools_camera_detect_desc">检测后台偷偷调用摄像头</string>
+    <string name="cam_detect_start">开始监测</string>
+    <string name="cam_detect_stop">停止监测</string>
+    <string name="cam_detect_camera">摄像头</string>
+    <string name="cam_detect_mic">麦克风</string>
+    <string name="cam_detect_status_used">被占用</string>
+    <string name="cam_detect_status_idle">空闲</string>
+    <string name="cam_detect_note">实时指示灯仅供参考：受系统隐私限制，无法枚举具体哪个第三方应用在调用，麦克风占用为尽力检测。建议定期审查下方权限清单，撤销不必要的相机/麦克风授权。</string>
+    <string name="cam_detect_events">检测事件</string>
+    <string name="cam_detect_rescan">重新扫描</string>
+    <string name="cam_detect_apps_title">已授权相机/麦克风的应用（%1$d）</string>
+    <string name="cam_detect_apps_hint">这些应用拥有相机或麦克风权限，可在系统设置中逐一撤销不必要的授权。</string>
+    <string name="cam_detect_perm_camera">相机</string>
+    <string name="cam_detect_perm_mic">麦克风</string>
+    <string name="cam_detect_camera_perm">无法监听摄像头状态，请确认已授予相机权限</string>
+    <string name="cam_detect_scan_fail">应用扫描失败</string>
+
+    <!-- 剪贴板防窃取（V2.9++） -->
+    <string name="tools_clipboard_guard_title">剪贴板保护</string>
+    <string name="tools_clipboard_guard_desc">防止后台读取剪贴板</string>
+    <string name="clip_guard_auto_clear">自动清除剪贴板</string>
+    <string name="clip_guard_delay">复制后 %1$d 秒自动清除</string>
+    <string name="clip_guard_input_hint">在此粘贴/输入要安全复制的敏感内容</string>
+    <string name="clip_guard_copy">复制并自动清除</string>
+    <string name="clip_guard_clear">立即清除剪贴板</string>
+    <string name="clip_guard_status">当前状态</string>
+    <string name="clip_guard_countdown">将在 %1$d 秒后自动清除</string>
+    <string name="clip_guard_empty_or_hidden">剪贴板为空，或系统限制本应用读取其他应用的剪贴板</string>
+    <string name="clip_guard_copied">已复制到剪贴板，将自动清除</string>
+    <string name="clip_guard_cleared">已立即清除剪贴板</string>
+    <string name="clip_guard_auto_cleared">已自动清除剪贴板</string>
+    <string name="clip_guard_failed">复制失败，请重试</string>
+    <string name="clip_guard_note">说明：Android 10+ 出于隐私保护，应用无法直接阻止其他 App 读取剪贴板。本工具采用「延迟自动清空」策略——复制后内容会在设定秒数后自动清空，使后台应用难以在延时后读到。工具界面打开期间持续生效。</string>
+
 </resources>

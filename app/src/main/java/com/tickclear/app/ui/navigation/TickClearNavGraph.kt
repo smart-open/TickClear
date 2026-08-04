@@ -65,6 +65,11 @@ import com.tickclear.app.ui.tools.MosaicScreen
 import com.tickclear.app.ui.tools.CompassScreen
 import com.tickclear.app.ui.tools.BackfillScreen
 import com.tickclear.app.ui.tools.BackfillViewModel
+import com.tickclear.app.ui.tools.WatermarkScreen
+import com.tickclear.app.ui.tools.CameraDetectScreen
+import com.tickclear.app.ui.tools.PrivacyDetectViewModel
+import com.tickclear.app.ui.tools.ClipboardGuardScreen
+import com.tickclear.app.ui.tools.ClipboardGuardViewModel
 
 @Composable
 fun TickClearApp(
@@ -360,6 +365,21 @@ private fun AppNavHost(
         composable(Routes.TOOLS_BACKFILL) {
             BackfillScreen(
                 vm = hiltViewModel<BackfillViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_WATERMARK) {
+            WatermarkScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_CAMERA_DETECT) {
+            CameraDetectScreen(
+                viewModel = hiltViewModel<PrivacyDetectViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_CLIPBOARD_GUARD) {
+            ClipboardGuardScreen(
+                viewModel = hiltViewModel<ClipboardGuardViewModel>(),
                 onBack = { navController.popBackStack() },
             )
         }

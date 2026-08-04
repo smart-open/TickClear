@@ -140,6 +140,15 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：重要日子倒计时（V2.9++）──
     override val countdownEvents: Flow<String> = dataStore.data.map { it[KEY_COUNTDOWN_EVENTS] ?: "" }
 
+    // ── 工具箱：语音备忘降噪（V2.9++）──
+    override val voiceNoiseReduction: Flow<Boolean> = dataStore.data.map { it[KEY_VOICE_NOISE] ?: false }
+
+    // ── 工具箱：剪贴板防窃取（V2.9++）──
+    override val clipboardAutoClear: Flow<Boolean> = dataStore.data.map { it[KEY_CLIP_AUTO_CLEAR] ?: false }
+    override val clipboardClearDelaySec: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[KEY_CLIP_CLEAR_DELAY] ?: SettingsRepository.DEFAULT_CLIPBOARD_CLEAR_DELAY_SEC).coerceIn(5, 120)
+    }
+
     override suspend fun setThemeMode(mode: ThemeMode) { dataStore.edit { it[KEY_THEME] = mode.name } }
     override suspend fun setThemeSkin(skin: ThemeSkin) { dataStore.edit { it[KEY_THEME_SKIN] = skin.name } }
     override suspend fun setAnimationEnabled(enabled: Boolean) { dataStore.edit { it[KEY_ANIMATION] = enabled } }
@@ -200,6 +209,13 @@ class SettingsRepositoryImpl @Inject constructor(
 
     // ── 工具箱：重要日子倒计时（V2.9++）──
     override suspend fun setCountdownEvents(events: String) { dataStore.edit { it[KEY_COUNTDOWN_EVENTS] = events } }
+
+    // ── 工具箱：语音备忘降噪（V2.9++）──
+    override suspend fun setVoiceNoiseReduction(enabled: Boolean) { dataStore.edit { it[KEY_VOICE_NOISE] = enabled } }
+
+    // ── 工具箱：剪贴板防窃取（V2.9++）──
+    override suspend fun setClipboardAutoClear(enabled: Boolean) { dataStore.edit { it[KEY_CLIP_AUTO_CLEAR] = enabled } }
+    override suspend fun setClipboardClearDelaySec(sec: Int) { dataStore.edit { it[KEY_CLIP_CLEAR_DELAY] = sec.coerceIn(5, 120) } }
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。
@@ -321,6 +337,9 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_LOTTERY_OPTIONS = stringPreferencesKey("lottery_options")
         private val KEY_MOOD_LOG = stringPreferencesKey("mood_log")
         private val KEY_COUNTDOWN_EVENTS = stringPreferencesKey("countdown_events")
+        private val KEY_VOICE_NOISE = booleanPreferencesKey("voice_noise_reduction")
+        private val KEY_CLIP_AUTO_CLEAR = booleanPreferencesKey("clipboard_auto_clear")
+        private val KEY_CLIP_CLEAR_DELAY = intPreferencesKey("clipboard_clear_delay_sec")
         private val KEY_XZ_DEVICE_ID = stringPreferencesKey("xz_device_id")
         private val KEY_XZ_CLIENT_ID = stringPreferencesKey("xz_client_id")
         private val KEY_XZ_SERIAL_NUMBER = stringPreferencesKey("xz_serial_number")

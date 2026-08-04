@@ -110,6 +110,17 @@ interface SettingsRepository {
     /** 倒计时事件列表（每行 "名称|目标epochMillis"，以换行连接；空字符串=无事件）。 */
     val countdownEvents: Flow<String>
 
+    // ── 工具箱：语音备忘降噪（V2.9++）──
+    /** 录音降噪开关：开启后语音备忘使用 VOICE_RECOGNITION 音源（平台级降噪/回声消除）。 */
+    val voiceNoiseReduction: Flow<Boolean>
+
+    // ── 工具箱：剪贴板防窃取（V2.9++）──
+    /** 剪贴板自动清除开关：开启后复制内容延迟 N 秒后自动清空，规避后台读取。 */
+    val clipboardAutoClear: Flow<Boolean>
+
+    /** 剪贴板自动清除延迟（秒）。 */
+    val clipboardClearDelaySec: Flow<Int>
+
     // ── 小智设备模拟（V2.8）：模拟 ESP32 设备接入官方 xiaozhi.me ──
     /** 模拟设备 ID（MAC 地址格式，如 "AA:BB:CC:DD:EE:FF"），用于 OTA 注册与 WS 认证头。 */
     val xzDeviceId: Flow<String>
@@ -187,6 +198,17 @@ interface SettingsRepository {
 
     /** 保存倒计时事件列表（换行连接，覆盖式写入）。 */
     suspend fun setCountdownEvents(events: String)
+
+    // ── 工具箱：语音备忘降噪（V2.9++）──
+    /** 设置录音降噪开关。 */
+    suspend fun setVoiceNoiseReduction(enabled: Boolean)
+
+    // ── 工具箱：剪贴板防窃取（V2.9++）──
+    /** 设置剪贴板自动清除开关。 */
+    suspend fun setClipboardAutoClear(enabled: Boolean)
+
+    /** 设置剪贴板自动清除延迟（秒，5-120）。 */
+    suspend fun setClipboardClearDelaySec(sec: Int)
 
     /** 真实小智模式的网关令牌（存于加密存储，非 DataStore）。 */
     suspend fun getAssistantToken(): String?
@@ -267,6 +289,9 @@ interface SettingsRepository {
 
     /** 听力保护默认最大连续佩戴分钟数。 */
     const val DEFAULT_HEARING_WEAR_MIN = 60
+
+    /** 剪贴板自动清除默认延迟（秒）。 */
+    const val DEFAULT_CLIPBOARD_CLEAR_DELAY_SEC = 30
 
         /** 判断某分钟数(0-1439)是否落在静音时段 [start,end)，支持跨午夜。 */
         fun isInQuietWindow(nowMin: Int, startMin: Int, endMin: Int): Boolean {

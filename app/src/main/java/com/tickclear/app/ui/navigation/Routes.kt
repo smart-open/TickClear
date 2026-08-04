@@ -73,4 +73,8 @@ object Routes {
     const val TOOLS_MOSAIC = "tools/mosaic"
     const val TOOLS_COMPASS = "tools/compass"
     const val TOOLS_BACKFILL = "tools/backfill"
+    // V2.9++：工具箱新增（去水印 / 摄像头检测 / 剪贴板保护）
+    const val TOOLS_WATERMARK = "tools/watermark"
+    const val TOOLS_CAMERA_DETECT = "tools/cameraDetect"
+    const val TOOLS_CLIPBOARD_GUARD = "tools/clipboardGuard"
 }

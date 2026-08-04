@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
 import com.tickclear.app.data.local.entities.VoiceMemoEntity
 import com.tickclear.app.domain.log.AppLogger
+import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.VoiceMemoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,6 +38,7 @@ import javax.inject.Inject
 class VoiceMemoViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val repo: VoiceMemoRepository,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
 
     private val dir = File(appContext.filesDir, "voice_memos").apply { mkdirs() }
@@ -56,6 +58,10 @@ class VoiceMemoViewModel @Inject constructor(
     /** 当前正在播放/暂停的备忘录 id（null 表示无活动播放器）。 */
     private val _activeId = MutableStateFlow<Long?>(null)
     val activeId: StateFlow<Long?> = _activeId.asStateFlow()
+
+    /** 录音降噪开关（持久化于 DataStore，默认关闭）。开启后用 VOICE_RECOGNITION 音源弱化环境杂音。 */
+    private val _noiseReduction = MutableStateFlow(false)
+    val noiseReduction: StateFlow<Boolean> = _noiseReduction.asStateFlow()
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -81,6 +87,17 @@ class VoiceMemoViewModel @Inject constructor(
         repo.observeAll()
             .onEach { _memos.value = it }
             .launchIn(viewModelScope)
+        settings.voiceNoiseReduction
+            .onEach { _noiseReduction.value = it }
+            .launchIn(viewModelScope)
+    }
+
+    /** 设置录音降噪开关（同步持久化）。 */
+    fun setNoiseReduction(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { settings.setVoiceNoiseReduction(enabled) }
+            _noiseReduction.value = enabled
+        }
     }
 
     fun onTitleChange(value: String) {
@@ -100,7 +117,15 @@ class VoiceMemoViewModel @Inject constructor(
                     @Suppress("DEPRECATION")
                     MediaRecorder()
                 }).apply {
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    // 降噪开启：使用 VOICE_RECOGNITION 音源，触发平台级降噪/回声消除（无新依赖）；
+                    // 关闭：标准 MIC 音源。
+                    setAudioSource(
+                        if (_noiseReduction.value) {
+                            MediaRecorder.AudioSource.VOICE_RECOGNITION
+                        } else {
+                            MediaRecorder.AudioSource.MIC
+                        },
+                    )
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     setOutputFile(file)

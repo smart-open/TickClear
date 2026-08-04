@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -77,6 +78,7 @@ fun VoiceMemoScreen(
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val playPositionMs by viewModel.playPositionMs.collectAsStateWithLifecycle()
     val playDurationMs by viewModel.playDurationMs.collectAsStateWithLifecycle()
+    val noiseReduction by viewModel.noiseReduction.collectAsStateWithLifecycle()
 
     val permissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -132,6 +134,22 @@ fun VoiceMemoScreen(
                 .padding(innerPadding),
         ) {
             if (!isRecording) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.voice_noise_reduction),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = noiseReduction,
+                        onCheckedChange = viewModel::setNoiseReduction,
+                    )
+                }
                 OutlinedTextField(
                     value = recordTitle,
                     onValueChange = viewModel::onTitleChange,

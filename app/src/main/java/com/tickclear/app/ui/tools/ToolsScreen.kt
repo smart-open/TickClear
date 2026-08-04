@@ -116,6 +116,18 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_vault_desc,
                 icon = Icons.Filled.Lock,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CAMERA_DETECT,
+                titleRes = R.string.tools_camera_detect_title,
+                descRes = R.string.tools_camera_detect_desc,
+                icon = Icons.Filled.CameraAlt,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLIPBOARD_GUARD,
+                titleRes = R.string.tools_clipboard_guard_title,
+                descRes = R.string.tools_clipboard_guard_desc,
+                icon = Icons.Filled.Lock,
+            ),
         ),
     ),
     ToolCategory(
@@ -190,6 +202,12 @@ private val TOOL_CATEGORIES = listOf(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOSAIC,
                 titleRes = R.string.tools_mosaic_title,
                 descRes = R.string.tools_mosaic_desc,
+                icon = Icons.Filled.BlurOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_WATERMARK,
+                titleRes = R.string.tools_watermark_title,
+                descRes = R.string.tools_watermark_desc,
                 icon = Icons.Filled.BlurOn,
             ),
             ToolEntry(
