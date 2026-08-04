@@ -813,11 +813,29 @@
 
     <!-- 测距仪 -->
     <string name="tools_ruler_title">测距仪</string>
-    <string name="tools_ruler_desc">屏幕刻度测量小物件长度</string>
+    <string name="tools_ruler_desc">屏幕刻度或拍照按参照物测量长度</string>
     <string name="ruler_hint">轻点物件两端即可测距（按屏幕实际尺寸校准，结果为约值）</string>
     <string name="ruler_length">长度 %1$.1f 厘米</string>
     <string name="ruler_calibrated">已按设备屏幕密度校准</string>
     <string name="ruler_tap_second">再轻点物件另一端</string>
+    <string name="ruler_mode_screen">屏幕刻度</string>
+    <string name="ruler_mode_photo">拍照测距</string>
+    <string name="ruler_photo_intro">在同一平面放一个已知尺寸的参照物（硬币、身份证、银行卡、A4 纸等），分别点取参照物与目标物两端即可换算长度。</string>
+    <string name="ruler_capture">拍照</string>
+    <string name="ruler_pick">相册选图</string>
+    <string name="ruler_reference_title">参照物</string>
+    <string name="ruler_reference_custom">自定义尺寸（mm）</string>
+    <string name="ruler_tap_ref1">第 1 步：点击参照物一端</string>
+    <string name="ruler_tap_ref2">第 2 步：点击参照物另一端</string>
+    <string name="ruler_tap_target1">第 3 步：点击目标物一端</string>
+    <string name="ruler_tap_target2">第 4 步：点击目标物另一端</string>
+    <string name="ruler_reset">重置</string>
+    <string name="ruler_undo">撤销</string>
+    <string name="ruler_result">长度 %1$.1f 厘米（%2$.0f 毫米）</string>
+    <string name="ruler_result_pending">再点两次目标物两端即可测距</string>
+    <string name="ruler_result_idle">尚未开始标记</string>
+    <string name="ruler_accuracy_hint">精度取决于参照物与目标物是否共面、与镜头光轴是否平行，仅供参考。</string>
+    <string name="ruler_no_image">请先拍照或从相册选图</string>
 
     <!-- 噪音检测 -->
     <string name="tools_noise_title">噪音检测</string>
