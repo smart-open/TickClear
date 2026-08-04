@@ -63,6 +63,14 @@ class LocationReminderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 无定位权限时无法以 location 类型前台服务运行（Android 14 会抛 SecurityException），
+        // 直接停止并返回 START_NOT_STICKY，避免 START_STICKY 重启陷入崩溃循环。
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         // 三参 startForeground(类型) 自 API 29(Q) 才有；低于 Q 无前台服务类型概念，退回两参。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)

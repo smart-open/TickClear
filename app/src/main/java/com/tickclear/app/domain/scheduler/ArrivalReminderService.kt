@@ -19,6 +19,7 @@ import android.os.Looper
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.tickclear.app.MainActivity
@@ -65,6 +66,12 @@ class ArrivalReminderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 无定位权限时无法以 location 类型前台服务运行（Android 14 会抛 SecurityException），
+        // 直接停止并返回 START_NOT_STICKY，避免 START_STICKY 重启陷入崩溃循环。
+        if (!hasLocationPermission()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -84,6 +91,10 @@ class ArrivalReminderService : Service() {
         }
         return START_STICKY
     }
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun startPolling() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -138,8 +149,17 @@ class ArrivalReminderService : Service() {
         NotificationHelper.showArrivalNotification(this, st.name)
     }
 
+    /** API 31 起 `VIBRATOR_SERVICE` 已废弃，须走 `VibratorManager.defaultVibrator`。 */
+    private fun obtainVibrator(): Vibrator? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+
     private fun vibrate() {
-        val v = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+        val v = obtainVibrator() ?: return
         if (!v.hasVibrator()) return
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

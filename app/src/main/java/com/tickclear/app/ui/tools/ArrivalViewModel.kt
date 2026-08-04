@@ -65,15 +65,32 @@ class ArrivalViewModel @Inject constructor(
         if (clean.isEmpty()) { _error.tryEmit(appContext.getString(R.string.arrival_name_required)); return }
         if (lat == 0.0 && lng == 0.0) { _error.tryEmit(appContext.getString(R.string.arrival_coord_required)); return }
         val st = ArrivalStation(UUID.randomUUID().toString(), clean, lat, lng, radius.coerceIn(50, 2000))
-        persist(_stations.value + st)
+        persist(_stations.value + st, restartIfEnabled = _enabled.value)
     }
 
     fun removeStation(id: String) {
-        persist(_stations.value.filter { it.id != id })
+        val next = _stations.value.filter { it.id != id }
+        if (next.isEmpty()) {
+            // 清空后自动关闭监测，避免「开关仍开但服务已无站点」的状态不一致。
+            if (_enabled.value) setEnabled(false)
+            persist(next)
+        } else {
+            persist(next, restartIfEnabled = _enabled.value)
+        }
     }
 
-    private fun persist(list: List<ArrivalStation>) {
-        viewModelScope.launch { settingsRepository.setArrivalStations(encodeStations(list)) }
+    private fun persist(list: List<ArrivalStation>, restartIfEnabled: Boolean = false) {
+        viewModelScope.launch {
+            settingsRepository.setArrivalStations(encodeStations(list))
+            // 监测开启时，重新触发服务 onStartCommand 以重新加载站点列表（已有实例复用监听）。
+            if (restartIfEnabled && _enabled.value) restartService()
+        }
+    }
+
+    private fun restartService() {
+        runCatching {
+            ContextCompat.startForegroundService(appContext, Intent(appContext, ArrivalReminderService::class.java))
+        }.onFailure { AppLogger.e("ArrivalVM", "restart service failed", it) }
     }
 
     fun setEnabled(on: Boolean) {
@@ -107,6 +124,11 @@ class ArrivalViewModel @Inject constructor(
             viewModelScope.launch { settingsRepository.setArrivalEnabled(false) }
             return
         }
+        if (!hasLocationPermission()) {
+            _error.tryEmit(appContext.getString(R.string.arrival_permission_required))
+            viewModelScope.launch { settingsRepository.setArrivalEnabled(false) }
+            return
+        }
         runCatching {
             ContextCompat.startForegroundService(appContext, Intent(appContext, ArrivalReminderService::class.java))
         }.onFailure {
@@ -115,6 +137,10 @@ class ArrivalViewModel @Inject constructor(
             viewModelScope.launch { settingsRepository.setArrivalEnabled(false) }
         }
     }
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun stopService() {
         runCatching { appContext.stopService(Intent(appContext, ArrivalReminderService::class.java)) }
