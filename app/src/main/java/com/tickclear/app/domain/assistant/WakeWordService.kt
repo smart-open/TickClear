@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -60,7 +61,7 @@ class WakeWordService : Service() {
         NotificationHelper.createChannels(this)
         // 再兜一层：权限在检查后被撤销等竞态下 startForeground 仍可能抛 SecurityException，捕获降级为停止服务。
         try {
-            startForeground(NOTIF_ID, buildNotification())
+            startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: SecurityException) {
             stopSelf()
             return START_NOT_STICKY

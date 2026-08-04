@@ -30,6 +30,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- V2.9++ 悬浮时钟：specialUse 前台服务类型（targetSdk 34+ 强制要求配套权限，否则 startForeground 抛 SecurityException）。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- V2.9++ 悬浮时钟：显示在其他应用上层（特殊权限，需经系统设置页授权，非运行时权限）。 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
