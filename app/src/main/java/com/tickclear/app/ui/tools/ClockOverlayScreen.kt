@@ -33,6 +33,7 @@ import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.core.content.ContextCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +101,7 @@ fun ClockOverlayScreen(onBack: () -> Unit) {
                             running = false
                         } else {
                             runCatching {
-                                context.startService(Intent(context, ClockOverlayService::class.java))
+                                ContextCompat.startForegroundService(context, Intent(context, ClockOverlayService::class.java))
                                 running = true
                             }
                         }

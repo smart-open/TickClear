@@ -35,6 +35,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import kotlinx.coroutines.delay
@@ -51,6 +56,7 @@ class ClockOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+    private var lifecycleOwner: ServiceLifecycleOwner? = null
     private val params by lazy {
         WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -70,7 +76,10 @@ class ClockOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        // Service 无 Activity，ComposeView.setContent 必须先挂接 LifecycleOwner，否则 attach 时抛 IllegalStateException。
+        lifecycleOwner = ServiceLifecycleOwner().apply { onCreate() }
         val composeView = ComposeView(this@ClockOverlayService).apply {
+            setViewTreeLifecycleOwner(lifecycleOwner)
             setContent {
                 ClockOverlayContent(
                     onClose = { stopSelf() },
@@ -82,6 +91,7 @@ class ClockOverlayService : Service() {
                 )
             }
         }
+        lifecycleOwner?.onStart()
         overlayView = composeView
         runCatching { windowManager.addView(composeView, params) }
     }
@@ -99,6 +109,9 @@ class ClockOverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        lifecycleOwner?.onStop()
+        lifecycleOwner?.onDestroy()
+        lifecycleOwner = null
         overlayView?.let { runCatching { windowManager.removeView(it) } }
         overlayView = null
     }
@@ -162,4 +175,14 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
             )
         }
     }
+}
+
+/** 为悬浮窗 ComposeView 提供 LifecycleOwner：Service 作用域下驱动重组（STARTED 触发首次组合）。 */
+private class ServiceLifecycleOwner : LifecycleOwner {
+    private val registry = LifecycleRegistry(this)
+    override val lifecycle: Lifecycle get() = registry
+    fun onCreate() { registry.currentState = Lifecycle.State.CREATED }
+    fun onStart() { registry.currentState = Lifecycle.State.STARTED }
+    fun onStop() { registry.currentState = Lifecycle.State.CREATED }
+    fun onDestroy() { registry.currentState = Lifecycle.State.DESTROYED }
 }
