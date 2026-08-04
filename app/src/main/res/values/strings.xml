@@ -1251,4 +1251,24 @@
     <string name="privacy_count">已授权应用：%1$d 个</string>
     <string name="privacy_scan_fail">应用扫描失败</string>
 
+    <!-- 隐私检查：权限分组标签（抽离自 PrivacyCheckViewModel，遵守中文全抽离红线） -->
+    <string name="perm_group_sms">短信</string>
+    <string name="perm_group_contacts">通讯录</string>
+    <string name="perm_group_call_log">通话记录</string>
+    <string name="perm_group_phone">电话</string>
+    <string name="perm_group_calendar">日历</string>
+    <string name="perm_group_camera">相机</string>
+    <string name="perm_group_microphone">麦克风</string>
+    <string name="perm_group_location">位置</string>
+    <string name="perm_group_storage">存储</string>
+    <string name="perm_group_body_sensors">身体传感器</string>
+    <string name="perm_group_nearby">附近设备</string>
+    <string name="perm_group_notifications">通知</string>
+
+    <!-- 摄像头/麦克风占用事件（抽离自 PrivacyDetectViewModel） -->
+    <string name="cam_detect_idle">摄像头空闲</string>
+    <string name="cam_detect_busy">摄像头被占用（可能有应用正在调用）</string>
+    <string name="cam_detect_camera_call">摄像头调用：%1$s</string>
+    <string name="cam_detect_mic_call">麦克风调用：%1$s</string>
+
 </resources>

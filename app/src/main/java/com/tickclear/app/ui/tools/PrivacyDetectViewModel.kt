@@ -83,12 +83,12 @@ class PrivacyDetectViewModel @Inject constructor(
             availCb = object : CameraManager.AvailabilityCallback() {
                 override fun onCameraAvailable(cameraId: String) {
                     _cameraInUse.value = false
-                    pushEvent("摄像头空闲", "camera")
+                    pushEvent(appContext.getString(R.string.cam_detect_idle), "camera")
                 }
 
                 override fun onCameraUnavailable(cameraId: String) {
                     _cameraInUse.value = true
-                    pushEvent("摄像头被占用（可能有应用正在调用）", "camera")
+                    pushEvent(appContext.getString(R.string.cam_detect_busy), "camera")
                 }
             }
             cm.registerAvailabilityCallback(availCb!!, null)
@@ -101,11 +101,11 @@ class PrivacyDetectViewModel @Inject constructor(
             opCb = AppOpsManager.OnOpChangedListener { op, packageName ->
                 when (op) {
                     AppOpsManager.OPSTR_CAMERA -> {
-                        pushEvent("摄像头调用：${packageName ?: "?"}", "camera")
+                        pushEvent(appContext.getString(R.string.cam_detect_camera_call, packageName ?: "?"), "camera")
                     }
                     AppOpsManager.OPSTR_RECORD_AUDIO -> {
                         _micInUse.value = true
-                        pushEvent("麦克风调用：${packageName ?: "?"}", "mic")
+                        pushEvent(appContext.getString(R.string.cam_detect_mic_call, packageName ?: "?"), "mic")
                         scheduleMicReset()
                     }
                 }
