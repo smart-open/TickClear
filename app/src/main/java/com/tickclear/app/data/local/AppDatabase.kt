@@ -75,18 +75,26 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) { /* 空迁移：v2 与 v3 schema 一致 */ }
         }
 
-        /** v3 → v4：为 task 新增位置提醒三列（地理围栏）。 */
+        /**
+         * v3 → v4：为 task 新增位置提醒三列（地理围栏）。
+         *
+         * 列名必须与 `TaskEntity` 字段名（camelCase）逐字一致——Room 导出的 5.json~10.json
+         * 契约为 `geoLat/geoLng/geoRadius`。历史实现误写成 snake_case（`geo_lat` 等），
+         * 会让任何从 v3 库升级上来的用户在 Room 校验阶段抛
+         * `IllegalStateException: Migration didn't properly handle: task(...)` 直接崩溃。
+         */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE task ADD COLUMN geo_lat REAL")
-                db.execSQL("ALTER TABLE task ADD COLUMN geo_lng REAL")
-                db.execSQL("ALTER TABLE task ADD COLUMN geo_radius INTEGER")
+                db.execSQL("ALTER TABLE task ADD COLUMN geoLat REAL")
+                db.execSQL("ALTER TABLE task ADD COLUMN geoLng REAL")
+                db.execSQL("ALTER TABLE task ADD COLUMN geoRadius INTEGER")
             }
         }
 
         /**
          * v4 → v5：
-         *  - task 新增 repeat_interval_hours（每 N 小时重复，PRD §7 自定义间隔）；
+         *  - task 新增 repeatIntervalHours（每 N 小时重复，PRD §7 自定义间隔）；
+         *    列名与实体字段同名 + `DEFAULT 0`，与 5.json 的 `defaultValue: "0"` 对齐；
          *  - task_instance 索引由 (taskId, dueDateLocal) 扩展到 (taskId, dueDateLocal, dueMinute)，
          *    支持子日级重复（每 N 小时）同一天多个实例；
          *  - V2.56 修正：v5 实体另声明单列 dueDateLocal 索引，迁移须显式补建，
@@ -95,7 +103,7 @@ abstract class AppDatabase : RoomDatabase() {
          */
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE task ADD COLUMN repeat_interval_hours INTEGER")
+                db.execSQL("ALTER TABLE task ADD COLUMN repeatIntervalHours INTEGER DEFAULT 0")
                 // 旧 2 列索引（taskId, dueDateLocal）→ 3 列唯一索引
                 db.execSQL("DROP INDEX IF EXISTS index_task_instance_taskId_dueDateLocal")
                 db.execSQL(

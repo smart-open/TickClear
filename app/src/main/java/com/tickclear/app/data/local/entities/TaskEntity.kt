@@ -39,6 +39,8 @@ data class TaskEntity(
     @ColumnInfo(defaultValue = "manual") val source: String = "manual", // manual/voice/llm/xiaozhi
     @ColumnInfo(defaultValue = "") val tags: String = "", // V2.67 标签 CSV，如 "工作,健康"
     // ── 位置提醒（地理围栏；nullable 表示该任务无位置触发）──
+    // 列名即字段名（camelCase），与 5.json~10.json 导出的 schema 契约一致；
+    // MIGRATION_3_4 必须按同名建列，否则老库升级后 Room 校验失败崩溃。
     val geoLat: Double? = null,  // 纬度
     val geoLng: Double? = null,  // 经度
     val geoRadius: Int? = null,  // 触发半径（米），非空表示启用位置提醒
