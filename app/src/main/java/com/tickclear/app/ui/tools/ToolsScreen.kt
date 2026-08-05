@@ -67,6 +67,12 @@ import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.FilterBAndW
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.EmojiFoodBeverage
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -193,11 +199,52 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_cook_timer_desc,
                 icon = Icons.Filled.Restaurant,
             ),
+        ),
+    ),
+    ToolCategory(
+        titleRes = R.string.tools_cat_sim,
+        entries = listOf(
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_ANIMAL,
                 titleRes = R.string.tools_animal_title,
                 descRes = R.string.tools_animal_desc,
                 icon = Icons.Filled.Pets,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_CAN,
+                titleRes = R.string.tools_sim_can_title,
+                descRes = R.string.tools_sim_can_desc,
+                icon = Icons.Filled.EmojiFoodBeverage,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_CANDLE,
+                titleRes = R.string.tools_sim_candle_title,
+                descRes = R.string.tools_sim_candle_desc,
+                icon = Icons.Filled.Cake,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_WOOD,
+                titleRes = R.string.tools_sim_wood_title,
+                descRes = R.string.tools_sim_wood_desc,
+                icon = Icons.Filled.Spa,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_LIGHTER,
+                titleRes = R.string.tools_sim_lighter_title,
+                descRes = R.string.tools_sim_lighter_desc,
+                icon = Icons.Filled.LocalFireDepartment,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_FIREWORKS,
+                titleRes = R.string.tools_sim_fireworks_title,
+                descRes = R.string.tools_sim_fireworks_desc,
+                icon = Icons.Filled.Celebration,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_PINBALL,
+                titleRes = R.string.tools_sim_pinball_title,
+                descRes = R.string.tools_sim_pinball_desc,
+                icon = Icons.Filled.SportsEsports,
             ),
         ),
     ),

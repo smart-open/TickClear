@@ -83,6 +83,12 @@ import com.tickclear.app.ui.tools.ImageGrayscaleScreen
 import com.tickclear.app.ui.tools.CookingTimerScreen
 import com.tickclear.app.ui.tools.CookingTimerViewModel
 import com.tickclear.app.ui.tools.AnimalSoundScreen
+import com.tickclear.app.ui.tools.SimCanShakeScreen
+import com.tickclear.app.ui.tools.SimCandleScreen
+import com.tickclear.app.ui.tools.SimWoodFishScreen
+import com.tickclear.app.ui.tools.SimLighterScreen
+import com.tickclear.app.ui.tools.SimFireworksScreen
+import com.tickclear.app.ui.tools.SimPinballScreen
 
 @Composable
 fun TickClearApp(
@@ -440,6 +446,24 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_ANIMAL) {
             AnimalSoundScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_CAN) {
+            SimCanShakeScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_CANDLE) {
+            SimCandleScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_WOOD) {
+            SimWoodFishScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_LIGHTER) {
+            SimLighterScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_FIREWORKS) {
+            SimFireworksScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_PINBALL) {
+            SimPinballScreen(onBack = { navController.popBackStack() })
         }
     }
 }

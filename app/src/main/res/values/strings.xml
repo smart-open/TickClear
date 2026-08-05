@@ -1462,4 +1462,50 @@
     <string name="tools_animal_frog">青蛙</string>
     <string name="tools_animal_horse">马</string>
 
+    <!-- ============ V2.9++ 新增工具分类：模拟解压 ============ -->
+    <string name="tools_cat_sim">模拟解压</string>
+
+    <!-- 模拟易拉罐摇晃 -->
+    <string name="tools_sim_can_title">易拉罐摇晃</string>
+    <string name="tools_sim_can_desc">摇一摇攒压力，开罐喷一脸</string>
+    <string name="tools_sim_can_hint">摇手机或点“摇晃”攒压力，再点“开罐”</string>
+    <string name="tools_sim_can_shake">摇晃</string>
+    <string name="tools_sim_can_open">开罐</string>
+    <string name="tools_sim_can_fizzle">压力不够，只滋了一下…</string>
+
+    <!-- 虚拟吹蜡烛 -->
+    <string name="tools_sim_candle_title">吹蜡烛</string>
+    <string name="tools_sim_candle_desc">对着麦克风吹气，吹灭小蜡烛</string>
+    <string name="tools_sim_candle_hint">对着麦克风吹气，把蜡烛吹灭</string>
+    <string name="tools_sim_candle_blow">正在吹…</string>
+    <string name="tools_sim_candle_out">蜡烛已吹灭</string>
+    <string name="tools_sim_candle_relight">重新点燃</string>
+    <string name="tools_sim_candle_mic_denied">未授权麦克风：长按屏幕也能吹灭</string>
+
+    <!-- 拟物敲木鱼 -->
+    <string name="tools_sim_wood_title">敲木鱼</string>
+    <string name="tools_sim_wood_desc">点一下敲一下，静心解压</string>
+    <string name="tools_sim_wood_hint">点击木鱼，敲一下静心一下</string>
+    <string name="tools_sim_wood_count">已敲 %1$d 下</string>
+
+    <!-- 虚拟打火机 -->
+    <string name="tools_sim_lighter_title">打火机</string>
+    <string name="tools_sim_lighter_desc">滑动开盖，点火把玩</string>
+    <string name="tools_sim_lighter_open_hint">向上滑动开盖</string>
+    <string name="tools_sim_lighter_ignite">点火</string>
+    <string name="tools_sim_lighter_close">收起</string>
+    <string name="tools_sim_lighter_lit">已点火</string>
+
+    <!-- 模拟烟花 -->
+    <string name="tools_sim_fireworks_title">烟花特效</string>
+    <string name="tools_sim_fireworks_desc">点哪炸哪，氛围拉满</string>
+    <string name="tools_sim_fireworks_hint">点击屏幕任意位置放烟花</string>
+
+    <!-- 虚拟弹珠台 -->
+    <string name="tools_sim_pinball_title">弹珠台</string>
+    <string name="tools_sim_pinball_desc">拖拽瞄准，发射弹珠碰撞</string>
+    <string name="tools_sim_pinball_hint">在底部拖拽瞄准，松手发射弹珠</string>
+    <string name="tools_sim_pinball_score">得分 %1$d</string>
+    <string name="tools_sim_pinball_reset">重置</string>
+
 </resources>

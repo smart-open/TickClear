@@ -90,4 +90,11 @@ object Routes {
     // V2.9++：工具箱新增（烹饪多组定时器 / 动物拟声）
     const val TOOLS_COOK_TIMER = "tools/cookTimer"
     const val TOOLS_ANIMAL = "tools/animal"
+    // V2.9++：工具箱新增「模拟解压」分类（动物拟声归纳于此 + 6 个解压玩具）
+    const val TOOLS_SIM_CAN = "tools/simCan"
+    const val TOOLS_SIM_CANDLE = "tools/simCandle"
+    const val TOOLS_SIM_WOOD = "tools/simWood"
+    const val TOOLS_SIM_LIGHTER = "tools/simLighter"
+    const val TOOLS_SIM_FIREWORKS = "tools/simFireworks"
+    const val TOOLS_SIM_PINBALL = "tools/simPinball"
 }
