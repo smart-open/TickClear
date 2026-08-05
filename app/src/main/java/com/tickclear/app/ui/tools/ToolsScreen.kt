@@ -12,14 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
@@ -32,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
@@ -62,7 +63,9 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -304,7 +307,7 @@ private val TOOL_CATEGORIES = listOf(
     ),
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(
     onNavigate: (String) -> Unit,
@@ -339,17 +342,28 @@ fun ToolsScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
                 )
-                FlowRow(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    pinnedEntries.forEach { entry ->
-                        PinnedToolCard(
-                            entry = entry,
-                            onOpen = { onNavigate(entry.route) },
-                            onUnpin = { vm.toggleFavorite(entry.route) },
-                        )
+                    pinnedEntries.chunked(3).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            row.forEach { entry ->
+                                PinnedToolCard(
+                                    entry = entry,
+                                    onOpen = { onNavigate(entry.route) },
+                                    onUnpin = { vm.toggleFavorite(entry.route) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            // 不足 3 个时用占位补齐，保持三列对齐
+                            repeat(3 - row.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
             }
@@ -454,52 +468,88 @@ private fun ToolCard(
 }
 
 /**
- * 置顶区紧凑卡片：图标 + 标题 + 右上角 × 移除按钮。
- * 高度比分类卡片矮一半，省下竖向空间给下方分类区。
+ * 置顶区紧凑卡片：左侧删除按钮（垂直居中）+ 图标（染色圆圈）+ 标题。
+ * 卡片等宽排成三列；删除需二次确认，避免误触。
  */
 @Composable
 private fun PinnedToolCard(
     entry: ToolEntry,
     onOpen: () -> Unit,
     onUnpin: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    // 平铺紧凑卡片：大小包裹图标+文字，内部整体水平垂直居中；删除用垃圾桶图标
+    var showConfirm by remember { mutableStateOf(false) }
+
     Card(
-        modifier = Modifier.clickable(onClick = onOpen),
+        modifier = modifier.clickable(onClick = onOpen),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Row(
-                modifier = Modifier
-                    .padding(start = Spacing.md, top = Spacing.sm, bottom = Spacing.sm, end = 32.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                Icon(
-                    imageVector = entry.icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = stringResource(entry.titleRes),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.sm, vertical = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 删除按钮：靠左、垂直居中；点击先弹确认框
             IconButton(
-                onClick = onUnpin,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(28.dp),
+                onClick = { showConfirm = true },
+                modifier = Modifier.size(32.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.tools_unpin),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.error,
                 )
             }
+            Spacer(modifier = Modifier.width(Spacing.xs))
+            // 图标放进染色圆圈，作为美化后的“按钮”
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        shape = CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = entry.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                text = stringResource(entry.titleRes),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
+    }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirm = false
+                    onUnpin()
+                }) { Text(stringResource(R.string.dialog_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text(stringResource(R.string.dialog_cancel))
+                }
+            },
+            title = { Text(stringResource(R.string.tools_unpin_title)) },
+            text = {
+                Text(stringResource(R.string.tools_unpin_msg, stringResource(entry.titleRes)))
+            },
+        )
     }
 }

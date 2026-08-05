@@ -710,6 +710,10 @@
     <string name="tools_favorites_title">常用工具</string>
     <string name="tools_pin">置顶</string>
     <string name="tools_unpin">取消置顶</string>
+    <string name="tools_unpin_title">取消置顶</string>
+    <string name="tools_unpin_msg">确定将“%1$s”从常用工具中移除吗？</string>
+    <string name="dialog_confirm">确定</string>
+    <string name="dialog_cancel">取消</string>
     <string name="tools_cat_health">健康提醒</string>
     <string name="tools_cat_security">效率与安全</string>
 
