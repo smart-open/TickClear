@@ -1564,7 +1564,7 @@
     <string name="deadpixel_blue">蓝</string>
     <string name="deadpixel_white">白</string>
     <string name="deadpixel_black">黑</string>
-    <string name="deadpixel_current">当前颜色</string>
+    <string name="deadpixel_current">当前颜色：%1$s</string>
     <string name="deadpixel_fullscreen">全屏沉浸</string>
     <string name="deadpixel_exit_fullscreen">退出全屏</string>
 
@@ -1586,11 +1586,11 @@
     <string name="points_desc">完成任务赚积分，兑换心仪奖励</string>
     <string name="points_hint">孩子完成事项得积分，积分可兑换玩具 / 吃食 / 零花钱</string>
     <string name="points_score">积分</string>
-    <string name="points_redeemed">已兑换</string>
+    <string name="points_redeemed">已兑换：%1$s</string>
     <string name="points_not_enough">积分不足</string>
     <string name="points_tasks">今日任务</string>
     <string name="points_rewards">奖励兑换</string>
-    <string name="points_cost">需 {cost} 分</string>
+    <string name="points_reward_label">%1$s · 需 %2$d 分</string>
     <string name="points_member_child1">小明</string>
     <string name="points_member_child2">小红</string>
     <string name="points_task_tidy">整理房间</string>

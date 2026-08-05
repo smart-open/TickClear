@@ -110,7 +110,7 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
         scores = scores.toMutableMap().apply { put(memberId, next) }
         saveScore(context, memberId, next)
         Haptic.vibrate(context, 24)
-        Toast.makeText(context, context.getString(R.string.points_redeemed) + "：" + rewardName, Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.points_redeemed, rewardName), Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -210,7 +210,7 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                                 onClick = { redeem(selectedId, r.cost, rewardName) },
                                 enabled = affordable,
                             ) {
-                                Text(rewardName + " · " + stringResource(R.string.points_cost, r.cost))
+                                Text(stringResource(R.string.points_reward_label, rewardName, r.cost))
                             }
                         }
                     }
