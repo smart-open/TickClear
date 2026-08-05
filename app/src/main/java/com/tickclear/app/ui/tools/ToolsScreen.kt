@@ -73,6 +73,11 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Games
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.WbIncandescent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -128,6 +133,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_nap_title,
                 descRes = R.string.tools_nap_desc,
                 icon = Icons.Filled.Hotel,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_WHITE_NOISE,
+                titleRes = R.string.tools_white_noise_title,
+                descRes = R.string.tools_white_noise_desc,
+                icon = Icons.Filled.Audiotrack,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_HEARING,
@@ -246,6 +257,24 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_sim_pinball_desc,
                 icon = Icons.Filled.SportsEsports,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FORTUNE,
+                titleRes = R.string.tools_fortune_title,
+                descRes = R.string.tools_fortune_desc,
+                icon = Icons.Filled.EmojiEmotions,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_RPS,
+                titleRes = R.string.tools_rps_title,
+                descRes = R.string.tools_rps_desc,
+                icon = Icons.Filled.Games,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VIBE,
+                titleRes = R.string.tools_vibe_title,
+                descRes = R.string.tools_vibe_desc,
+                icon = Icons.Filled.Vibration,
+            ),
         ),
     ),
     ToolCategory(
@@ -340,6 +369,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_img_gray_title,
                 descRes = R.string.tools_img_gray_desc,
                 icon = Icons.Filled.FilterBAndW,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_REFLECTOR,
+                titleRes = R.string.tools_reflector_title,
+                descRes = R.string.tools_reflector_desc,
+                icon = Icons.Filled.WbIncandescent,
             ),
         ),
     ),

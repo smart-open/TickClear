@@ -89,6 +89,11 @@ import com.tickclear.app.ui.tools.SimWoodFishScreen
 import com.tickclear.app.ui.tools.SimLighterScreen
 import com.tickclear.app.ui.tools.SimFireworksScreen
 import com.tickclear.app.ui.tools.SimPinballScreen
+import com.tickclear.app.ui.tools.FortuneScreen
+import com.tickclear.app.ui.tools.RpsScreen
+import com.tickclear.app.ui.tools.VibrationMassageScreen
+import com.tickclear.app.ui.tools.WhiteNoiseScreen
+import com.tickclear.app.ui.tools.ReflectorScreen
 
 @Composable
 fun TickClearApp(
@@ -464,6 +469,21 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_SIM_PINBALL) {
             SimPinballScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_FORTUNE) {
+            FortuneScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_RPS) {
+            RpsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_VIBE) {
+            VibrationMassageScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_WHITE_NOISE) {
+            WhiteNoiseScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_REFLECTOR) {
+            ReflectorScreen(onBack = { navController.popBackStack() })
         }
     }
 }
