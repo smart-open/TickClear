@@ -12,6 +12,18 @@ local.properties
 *.apk
 *.aab
 
+# ===== 构建临时残留（沙箱内重定向 Gradle 缓存产生的备用目录 / 一次性排障脚本）=====
+# 沙箱禁止写入 ~/.gradle，Gradle 落地 native-platform.dll 会失败，
+# 因此需把 GRADLE_USER_HOME / ANDROID_USER_HOME 重定向到工程内，
+# 产生 .gradle_uh* / .gradle_android / .gradle_user 等目录，不属于工程资产。
+/.gradle_*
+/init_cache.gradle
+/build_check.log
+/del_dirs.java
+/del_locks.java
+/.kill_result.txt
+*.class
+
 # ===== IDE =====
 .idea/
 *.iml
