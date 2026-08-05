@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -30,8 +36,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -43,7 +55,7 @@ import com.tickclear.app.ui.theme.Spacing
  * 振动按摩（休闲解压）：选择模式后调用系统振动循环播放，离开页面自动停止。
  * 纯本地、零新依赖；振动仅作体感反馈，不涉及任何健康疗效宣称。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun VibrationMassageScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -107,19 +119,46 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.fillMaxWidth(),
             )
-            modes.chunked(2).forEach { row ->
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                maxItemsInEachRow = 3,
+            ) {
+                modes.forEach { (key, labelRes) ->
+                    FilterChip(
+                        selected = selected == key,
+                        onClick = { selected = key },
+                        label = { Text(stringResource(labelRes)) },
+                    )
+                }
+            }
+
+            // 运行时脉动指示
+            if (running) {
+                val infinite = rememberInfiniteTransition(label = "vibePulse")
+                val pulse by infinite.animateFloat(
+                    initialValue = 0.35f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+                    label = "vibePulseAlpha",
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
-                    row.forEach { (key, labelRes) ->
-                        FilterChip(
-                            selected = selected == key,
-                            onClick = { selected = key },
-                            label = { Text(stringResource(labelRes)) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = pulse)),
+                    )
+                    Text(
+                        stringResource(R.string.vibe_running),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
