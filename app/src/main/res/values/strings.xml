@@ -1521,4 +1521,75 @@
     <string name="tools_tax_hint">填写月薪与扣除项，估算本月个税与税后到手</string>
     <string name="tools_cook_timer_hint">可同时运行多组计时，到点震动并响铃提醒</string>
     <string name="tools_mood_hint">记录今日心情，查看本月分布与最近打卡</string>
+
+    <!-- 今日运势（纯娱乐） -->
+    <string name="tools_fortune_title">今日运势</string>
+    <string name="tools_fortune_desc">纯娱乐趣味小测试</string>
+    <string name="tools_fortune_hint">纯趣味，不预测、不迷信，仅供开心</string>
+    <string name="fortune_keyword_label">今日关键词</string>
+    <string name="fortune_lucky_num_label">幸运数字</string>
+    <string name="fortune_lucky_color_label">幸运颜色</string>
+    <string name="fortune_blessing_label">今日寄语</string>
+    <string name="fortune_index_label">开心指数</string>
+    <string name="fortune_reroll">再抽一次</string>
+    <string name="fortune_disclaimer">每日依日期生成，纯属娱乐，请勿当真</string>
+
+    <!-- 石头剪刀布 -->
+    <string name="tools_rps_title">石头剪刀布</string>
+    <string name="tools_rps_desc">人机对战，休闲小游戏</string>
+    <string name="tools_rps_hint">出拳吧，看看能不能赢过机器</string>
+    <string name="rps_rock">石头</string>
+    <string name="rps_scissors">剪刀</string>
+    <string name="rps_paper">布</string>
+    <string name="rps_you">你</string>
+    <string name="rps_machine">机器</string>
+    <string name="rps_win">你赢了</string>
+    <string name="rps_lose">你输了</string>
+    <string name="rps_draw">平局</string>
+    <string name="rps_wins">胜</string>
+    <string name="rps_losses">负</string>
+    <string name="rps_draws">平</string>
+    <string name="rps_reset">重置战绩</string>
+    <string name="rps_result_format">你出%1$s，机器出%2$s</string>
+
+    <!-- 振动按摩 -->
+    <string name="tools_vibe_title">振动按摩</string>
+    <string name="tools_vibe_desc">多档振动，休闲解压</string>
+    <string name="tools_vibe_hint">选择模式开始按摩，离开页面自动停止</string>
+    <string name="vibe_start">开始</string>
+    <string name="vibe_stop">停止</string>
+    <string name="vibe_mode_label">按摩模式</string>
+    <string name="vibe_mode_gentle">轻柔</string>
+    <string name="vibe_mode_strong">强劲</string>
+    <string name="vibe_mode_wave">波浪</string>
+    <string name="vibe_mode_rhythm">节奏</string>
+    <string name="vibe_mode_pulse">脉冲</string>
+
+    <!-- 睡眠白噪音 -->
+    <string name="tools_white_noise_title">睡眠白噪音</string>
+    <string name="tools_white_noise_desc">雨声·咖啡馆·溪流，助眠</string>
+    <string name="tools_white_noise_hint">本地循环音效，无需联网，戴耳机更沉浸</string>
+    <string name="white_noise_rain">雨声</string>
+    <string name="white_noise_cafe">咖啡馆</string>
+    <string name="white_noise_stream">溪流</string>
+    <string name="white_noise_play">播放</string>
+    <string name="white_noise_stop">停止</string>
+    <string name="white_noise_volume">音量</string>
+
+    <!-- 反光板 -->
+    <string name="tools_reflector_title">补光反光板</string>
+    <string name="tools_reflector_desc">最高亮度当临时补光</string>
+    <string name="tools_reflector_hint">把屏幕调到最高亮度当作临时补光灯，注意别晃眼</string>
+    <string name="reflector_brightness">亮度</string>
+    <string name="reflector_white">白光</string>
+    <string name="reflector_warm">暖光</string>
+    <string name="reflector_cool">冷光</string>
+    <string name="reflector_restore_note">退出自动恢复原有亮度</string>
+
+    <!-- 测距仪优化 -->
+    <string name="ruler_unit_cm">厘米</string>
+    <string name="ruler_unit_inch">英寸</string>
+    <string name="ruler_orientation_toggle">切换横/竖屏</string>
+    <string name="ruler_note_screen">屏幕刻度依据出厂参数估算，仅供粗略测量</string>
+    <string name="ruler_length_unit">长度 %1$.1f %2$s</string>
 </resources>
