@@ -109,6 +109,7 @@ fun LoanCalculatorScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            SimHintCard(stringResource(R.string.tools_loan_hint))
             OutlinedTextField(
                 value = amountStr,
                 onValueChange = { amountStr = it },
@@ -156,9 +157,9 @@ fun LoanCalculatorScreen(onBack: () -> Unit) {
                 )
             } else {
                 if (method == 0) {
-                    ResultCard(stringResource(R.string.tools_loan_monthly), yuan(result.monthlyFixed ?: 0.0))
+                    ResultCard(stringResource(R.string.tools_loan_monthly), yuan(result.monthlyFixed ?: 0.0), primary = true)
                 } else {
-                    ResultCard(stringResource(R.string.tools_loan_first_month), yuan(result.firstMonth ?: 0.0))
+                    ResultCard(stringResource(R.string.tools_loan_first_month), yuan(result.firstMonth ?: 0.0), primary = true)
                     ResultCard(stringResource(R.string.tools_loan_decrease), yuan(result.decrease ?: 0.0))
                 }
                 ResultCard(stringResource(R.string.tools_loan_total_interest), yuan(result.totalInterest))
@@ -181,24 +182,32 @@ fun LoanCalculatorScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ResultCard(label: String, value: String) {
+private fun ResultCard(label: String, value: String, primary: Boolean = false) {
+    val container = if (primary) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val onContainer = if (primary) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(4.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = onContainer)
+            Spacer(Modifier.height(Spacing.xs))
             Text(
                 value,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = if (primary) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                color = onContainer,
             )
         }
     }

@@ -155,11 +155,7 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                stringResource(R.string.tools_sim_can_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SimHintCard(stringResource(R.string.tools_sim_can_hint))
             Spacer(Modifier.height(Spacing.md))
 
             Box(
@@ -216,10 +212,11 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(Spacing.md))
-            Text(
-                "压力 ${pressure.toInt()}%",
-                style = MaterialTheme.typography.titleSmall,
+            SimStatCard(
+                value = "${pressure.toInt()}%",
+                label = stringResource(R.string.tools_sim_can_pressure),
             )
+            Spacer(Modifier.height(Spacing.sm))
             LinearProgressIndicator(
                 progress = { pressure / 100f },
                 modifier = Modifier

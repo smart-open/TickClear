@@ -156,6 +156,7 @@ fun CookingTimerScreen(
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            SimHintCard(stringResource(R.string.tools_cook_timer_hint))
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -276,7 +277,7 @@ private fun TimerCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 if (finished) stringResource(R.string.tools_cook_timer_done) else fmtTime(remainSec),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
             )
             Spacer(Modifier.height(Spacing.xs))
             if (!finished && totalSec > 0) {

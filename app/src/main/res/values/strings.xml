@@ -1430,6 +1430,15 @@
     <string name="tools_img_gray_save_fail">保存失败，请重试</string>
     <string name="tools_img_gray_noimg">请先选择图片</string>
 
+    <!-- ============ 图片编辑通用：侧边工具面板 / 缩放 ============ -->
+    <string name="tools_panel_toggle">展开/收起工具面板</string>
+    <string name="tools_zoom_in">放大</string>
+    <string name="tools_zoom_out">缩小</string>
+    <string name="tools_zoom_reset">复位</string>
+    <string name="tools_unit_times">下</string>
+    <string name="tools_unit_points">分</string>
+    <string name="tools_sim_can_pressure">压力</string>
+
     <!-- ============ V2.9++ 新增工具：烹饪多组定时器 ============ -->
     <string name="tools_cook_timer_title">烹饪定时</string>
     <string name="tools_cook_timer_desc">多组同时计时提醒</string>
@@ -1508,4 +1517,8 @@
     <string name="tools_sim_pinball_score">得分 %1$d</string>
     <string name="tools_sim_pinball_reset">重置</string>
 
+    <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
+    <string name="tools_tax_hint">填写月薪与扣除项，估算本月个税与税后到手</string>
+    <string name="tools_cook_timer_hint">可同时运行多组计时，到点震动并响铃提醒</string>
+    <string name="tools_mood_hint">记录今日心情，查看本月分布与最近打卡</string>
 </resources>

@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -107,10 +109,12 @@ fun SimLighterScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                if (lit) stringResource(R.string.tools_sim_lighter_lit) else stringResource(R.string.tools_sim_lighter_open_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            SimHintCard(
+                if (lit) {
+                    stringResource(R.string.tools_sim_lighter_lit)
+                } else {
+                    stringResource(R.string.tools_sim_lighter_open_hint)
+                },
             )
             Spacer(Modifier.height(Spacing.md))
 
@@ -204,7 +208,14 @@ fun SimLighterScreen(onBack: () -> Unit) {
                 Button(
                     onClick = { if (lit) closeLid() else ignite() },
                     modifier = Modifier.weight(1f),
-                ) { Text(if (lit) stringResource(R.string.tools_sim_lighter_close) else stringResource(R.string.tools_sim_lighter_ignite)) }
+                ) {
+                    Icon(
+                        Icons.Filled.LocalFireDepartment,
+                        contentDescription = null,
+                    )
+                    Spacer(Modifier.width(Spacing.xs))
+                    Text(if (lit) stringResource(R.string.tools_sim_lighter_close) else stringResource(R.string.tools_sim_lighter_ignite))
+                }
             }
             Spacer(Modifier.height(Spacing.md))
         }

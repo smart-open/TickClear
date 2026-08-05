@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -184,19 +186,13 @@ fun SimCandleScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (micPermission.status is PermissionStatus.Granted) {
-                Text(
-                    if (lit) stringResource(R.string.tools_sim_candle_hint) else stringResource(R.string.tools_sim_candle_out),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    stringResource(R.string.tools_sim_candle_mic_denied),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            SimHintCard(
+                when {
+                    !lit -> stringResource(R.string.tools_sim_candle_out)
+                    micPermission.status is PermissionStatus.Granted -> stringResource(R.string.tools_sim_candle_hint)
+                    else -> stringResource(R.string.tools_sim_candle_mic_denied)
+                },
+            )
             Spacer(Modifier.height(Spacing.md))
 
             Box(
@@ -281,6 +277,8 @@ fun SimCandleScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(Spacing.md))
             if (!lit) {
                 Button(onClick = { lit = true; particles = emptyList() }) {
+                    Icon(Icons.Filled.Cake, contentDescription = null)
+                    Spacer(Modifier.width(Spacing.xs))
                     Text(stringResource(R.string.tools_sim_candle_relight))
                 }
             } else if (micPermission.status is PermissionStatus.Granted) {

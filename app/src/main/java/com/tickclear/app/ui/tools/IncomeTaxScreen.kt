@@ -89,6 +89,7 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            SimHintCard(stringResource(R.string.tools_tax_hint))
             OutlinedTextField(
                 value = salaryStr,
                 onValueChange = { salaryStr = it },
@@ -145,33 +146,31 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
 
 @Composable
 private fun ResultCard(label: String, value: String, highlight: Boolean = false) {
+    val container = if (highlight) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val onContainer = if (highlight) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (highlight) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-        ),
+        colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(4.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = onContainer)
+            Spacer(Modifier.height(Spacing.xs))
             Text(
                 value,
-                style = MaterialTheme.typography.titleLarge,
-                color = if (highlight) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                style = if (highlight) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                color = onContainer,
             )
         }
     }

@@ -115,6 +115,7 @@ fun MoodScreen(
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            SimHintCard(stringResource(R.string.tools_mood_hint))
             Text(todayLabel, style = MaterialTheme.typography.titleSmall)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),

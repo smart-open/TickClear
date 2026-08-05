@@ -95,11 +95,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                stringResource(R.string.tools_sim_fireworks_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SimHintCard(stringResource(R.string.tools_sim_fireworks_hint))
             Spacer(Modifier.height(Spacing.md))
 
             Box(

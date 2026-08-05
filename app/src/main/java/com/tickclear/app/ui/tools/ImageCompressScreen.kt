@@ -4,7 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,16 +14,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,8 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -77,6 +78,9 @@ fun ImageCompressScreen(onBack: () -> Unit) {
     var quality by remember { mutableFloatStateOf(80f) }
     var maxDim by remember { mutableIntStateOf(1920) } // 0 = 原始
     var format by remember { mutableStateOf(CompressFormat.JPEG) }
+
+    var panelExpanded by remember { mutableStateOf(true) }
+    var scale by remember { mutableStateOf(1f) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -114,40 +118,71 @@ fun ImageCompressScreen(onBack: () -> Unit) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            OutlinedButton(
-                onClick = { pickLauncher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth(),
+        Row(Modifier.fillMaxSize().padding(innerPadding)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .padding(Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(stringResource(R.string.tools_img_compress_pick))
-            }
-
-            processed?.let { bmp ->
-                Card(
+                OutlinedButton(
+                    onClick = { pickLauncher.launch("image/*") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
                 ) {
-                    Image(
-                        bitmap = bmp.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.sm),
-                    )
+                    Text(stringResource(R.string.tools_img_compress_pick))
                 }
 
-                Text(
-                    stringResource(R.string.tools_img_compress_quality),
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                if (processed == null) {
+                    Spacer(Modifier.height(Spacing.md))
+                    Text(
+                        stringResource(R.string.tools_img_compress_noimg),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                    ) {
+                        ZoomableImagePreview(
+                            bitmap = processed!!,
+                            scale = scale,
+                            onScaleChange = { scale = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
+
+            ToolSidePanel(
+                expanded = panelExpanded,
+                onToggle = { panelExpanded = !panelExpanded },
+                modifier = Modifier.width(if (panelExpanded) 200.dp else 52.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { scale = (scale - 0.5f).coerceAtLeast(1f) }) {
+                        Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out))
+                    }
+                    Text("${scale.toInt()}×", style = MaterialTheme.typography.labelMedium)
+                    IconButton(onClick = { scale = (scale + 0.5f).coerceAtMost(4f) }) {
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in))
+                    }
+                }
+                OutlinedButton(
+                    onClick = { scale = 1f },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.tools_zoom_reset)) }
+
+                HorizontalDivider()
+
+                Text(stringResource(R.string.tools_img_compress_quality), style = MaterialTheme.typography.labelMedium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Slider(
                         value = quality,
@@ -159,65 +194,61 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                     Text("${quality.toInt()}%", fontSize = 14.sp)
                 }
 
-                Text(
-                    stringResource(R.string.tools_img_compress_maxdim),
-                    style = MaterialTheme.typography.labelMedium,
+                Text(stringResource(R.string.tools_img_compress_maxdim), style = MaterialTheme.typography.labelMedium)
+                MAX_DIMS.forEach { dim ->
+                    FilterChip(
+                        selected = maxDim == dim,
+                        onClick = { maxDim = dim },
+                        label = {
+                            Text(
+                                if (dim == 0) {
+                                    stringResource(R.string.tools_img_compress_dim_orig)
+                                } else {
+                                    dim.toString()
+                                },
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                Text(stringResource(R.string.tools_img_compress_format), style = MaterialTheme.typography.labelMedium)
+                FilterChip(
+                    selected = format == CompressFormat.JPEG,
+                    onClick = { format = CompressFormat.JPEG },
+                    label = { Text(stringResource(R.string.tools_img_compress_format_jpeg)) },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    MAX_DIMS.forEach { dim ->
-                        FilterChip(
-                            selected = maxDim == dim,
-                            onClick = { maxDim = dim },
-                            label = {
-                                Text(
-                                    if (dim == 0) {
-                                        stringResource(R.string.tools_img_compress_dim_orig)
-                                    } else {
-                                        dim.toString()
-                                    },
-                                )
-                            },
+                FilterChip(
+                    selected = format == CompressFormat.WEBP,
+                    onClick = { format = CompressFormat.WEBP },
+                    label = { Text(stringResource(R.string.tools_img_compress_format_webp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                if (processed != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        InfoChip(
+                            stringResource(R.string.tools_img_compress_before),
+                            "${processed!!.width}×${processed!!.height}",
+                            formatBytes(originalSize),
+                            modifier = Modifier.weight(1f),
+                        )
+                        InfoChip(
+                            stringResource(R.string.tools_img_compress_after),
+                            "${processed!!.width}×${processed!!.height}",
+                            formatBytes(compressed?.size?.toLong()),
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
 
-                Text(
-                    stringResource(R.string.tools_img_compress_format),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    FilterChip(
-                        selected = format == CompressFormat.JPEG,
-                        onClick = { format = CompressFormat.JPEG },
-                        label = { Text(stringResource(R.string.tools_img_compress_format_jpeg)) },
-                    )
-                    FilterChip(
-                        selected = format == CompressFormat.WEBP,
-                        onClick = { format = CompressFormat.WEBP },
-                        label = { Text(stringResource(R.string.tools_img_compress_format_webp)) },
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
-                    InfoChip(
-                        stringResource(R.string.tools_img_compress_before),
-                        "${bmp.width}×${bmp.height}",
-                        formatBytes(originalSize),
-                        modifier = Modifier.weight(1f),
-                    )
-                    InfoChip(
-                        stringResource(R.string.tools_img_compress_after),
-                        "${bmp.width}×${bmp.height}",
-                        formatBytes(compressed?.size?.toLong()),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
                 Button(
                     onClick = {
+                        val bmp = processed ?: return@Button
                         scope.launch {
                             val name = "tickclear_compress_${System.currentTimeMillis()}"
                             val saved = ImageProcessor.saveToGallery(
@@ -242,11 +273,6 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                 ) {
                     Text(stringResource(R.string.tools_img_compress_save))
                 }
-            } ?: run {
-                Text(
-                    stringResource(R.string.tools_img_compress_noimg),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

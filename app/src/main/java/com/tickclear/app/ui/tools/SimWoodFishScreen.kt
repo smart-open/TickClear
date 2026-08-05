@@ -102,16 +102,11 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                stringResource(R.string.tools_sim_wood_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SimHintCard(stringResource(R.string.tools_sim_wood_hint))
             Spacer(Modifier.height(Spacing.sm))
-            Text(
-                stringResource(R.string.tools_sim_wood_count, count),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
+            SimStatCard(
+                value = count.toString(),
+                label = stringResource(R.string.tools_unit_times),
             )
             Spacer(Modifier.height(Spacing.md))
 

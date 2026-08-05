@@ -4,27 +4,29 @@ import android.graphics.Bitmap
 import android.graphics.RectF
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,32 +48,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
 import com.tickclear.app.domain.tools.ImageRepair
 import com.tickclear.app.domain.tools.QrGenerator
 import com.tickclear.app.ui.theme.Spacing
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.launch
 
 /**
  * 去水印工具（V2.9++，简易版）：选图后在图上拖动框选水印区域，
- * 支持「色彩修复」（四周取色覆盖，适合纯色背景水印/AI 文字水印）与「模糊柔化」（轻度模糊），
- * 应用后保存到相册。纯 Compose + Bitmap 处理，零新依赖。
+ * 支持「色彩修复」与「模糊柔化」，应用后保存到相册。工具收进可折叠侧边面板，图片区放大并支持缩放。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -86,23 +78,11 @@ fun WatermarkScreen(onBack: () -> Unit) {
     var strength by remember { mutableStateOf(10) }
     var busy by remember { mutableStateOf(false) }
 
-    var overlaySize by remember { mutableStateOf(IntSize.Zero) }
     var dragStart by remember { mutableStateOf<Offset?>(null) }
     var dragCurrent by remember { mutableStateOf<Offset?>(null) }
-    val currentRect: RectF? = remember(dragStart, dragCurrent, overlaySize) {
-        if (dragStart != null && dragCurrent != null && overlaySize.width > 0) {
-            val w = overlaySize.width.toFloat()
-            val h = overlaySize.height.toFloat()
-            RectF(
-                min(dragStart!!.x, dragCurrent!!.x) / w,
-                min(dragStart!!.y, dragCurrent!!.y) / h,
-                max(dragStart!!.x, dragCurrent!!.x) / w,
-                max(dragStart!!.y, dragCurrent!!.y) / h,
-            )
-        } else {
-            null
-        }
-    }
+
+    var panelExpanded by remember { mutableStateOf(true) }
+    var scale by remember { mutableStateOf(1f) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -118,6 +98,19 @@ fun WatermarkScreen(onBack: () -> Unit) {
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
+
+    val currentRect: RectF? = remember(dragStart, dragCurrent) {
+        if (dragStart != null && dragCurrent != null) {
+            RectF(
+                min(dragStart!!.x, dragCurrent!!.x),
+                min(dragStart!!.y, dragCurrent!!.y),
+                max(dragStart!!.x, dragCurrent!!.x),
+                max(dragStart!!.y, dragCurrent!!.y),
+            )
+        } else {
+            null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -135,112 +128,120 @@ fun WatermarkScreen(onBack: () -> Unit) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            OutlinedButton(onClick = { pickLauncher.launch("image/*") }) {
-                Text(stringResource(R.string.watermark_pick))
-            }
-
-            if (bitmap == null) {
-                Spacer(Modifier.height(Spacing.md))
-                Text(
-                    stringResource(R.string.watermark_pick_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                val bmp = bitmap!!
-                val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                // 预览区只占「扣掉下方控件后的剩余空间」。原先直接 fillMaxWidth().aspectRatio()，
-                // 竖图高度 = 屏宽 / ratio（3:4 图约为屏宽的 1.33 倍），会把模式选择、强度滑杆、
-                // 应用按钮整体挤出屏幕外，且 Column 不可滚动 → 用户只看得到图，看不到任何操作按钮。
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .padding(Spacing.xs),
-                    contentAlignment = Alignment.Center,
+        Row(Modifier.fillMaxSize().padding(innerPadding)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .padding(Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                OutlinedButton(
+                    onClick = { pickLauncher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    val maxW = maxWidth
-                    val maxH = maxHeight
-                    // 按图片比例内接，避免竖图把下方操作按钮挤出屏幕（原 aspectRatio 方案溢出）
-                    val fittedW: Dp
-                    val fittedH: Dp
-                    if (maxW / ratio <= maxH) {
-                        fittedW = maxW
-                        fittedH = maxW / ratio
-                    } else {
-                        fittedH = maxH
-                        fittedW = maxH * ratio
-                    }
+                    Text(stringResource(R.string.watermark_pick))
+                }
+
+                if (bitmap == null) {
+                    Spacer(Modifier.height(Spacing.md))
+                    Text(
+                        stringResource(R.string.watermark_pick_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
                     Box(
                         modifier = Modifier
-                            .size(fittedW, fittedH)
-                            .onSizeChanged { overlaySize = it }
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { dragStart = it },
-                                    onDrag = { change, _ -> dragCurrent = change.position },
-                                    onDragEnd = {
-                                        currentRect?.let { rects = rects + it }
-                                        dragStart = null
-                                        dragCurrent = null
-                                    },
-                                )
-                            },
+                            .fillMaxSize()
+                            .weight(1f)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
                     ) {
-                        androidx.compose.foundation.Image(
-                            painter = BitmapPainter(bmp.asImageBitmap()),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillBounds,
-                            modifier = Modifier.fillMaxSize(),
+                        val bmp = bitmap!!
+                        ZoomableDrawCanvas(
+                            bitmap = bmp,
+                            scale = scale,
+                            onDrawStart = { nx, ny -> dragStart = Offset(nx, ny) },
+                            onDrawMove = { nx, ny -> dragCurrent = Offset(nx, ny) },
+                            onDrawEnd = {
+                                currentRect?.let {
+                                    if (it.right - it.left > 0.005f && it.bottom - it.top > 0.005f) {
+                                        rects = rects + RectF(it.left, it.top, it.right, it.bottom)
+                                    }
+                                }
+                                dragStart = null
+                                dragCurrent = null
+                            },
+                            overlay = {
+                                Canvas(Modifier.fillMaxSize()) {
+                                    val strokeW = 2.dp.toPx()
+                                    for (r in rects) drawOverlayRect(r, size, primaryColor, strokeW)
+                                    currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
+                                }
+                            },
                         )
-                        androidx.compose.foundation.Canvas(
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            val strokeW = 2.dp.toPx()
-                            for (r in rects) {
-                                drawOverlayRect(r, size, primaryColor, strokeW)
-                            }
-                            currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
-                        }
                     }
+                    Text(
+                        stringResource(R.string.watermark_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Text(
-                    stringResource(R.string.watermark_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            }
 
-                FlowRow(
+            ToolSidePanel(
+                expanded = panelExpanded,
+                onToggle = { panelExpanded = !panelExpanded },
+                modifier = Modifier.width(if (panelExpanded) 196.dp else 52.dp),
+            ) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilterChip(
-                        selected = mode == ImageRepair.RepairMode.REPAIR,
-                        onClick = { mode = ImageRepair.RepairMode.REPAIR },
-                        label = { Text(stringResource(R.string.watermark_mode_repair)) },
-                    )
-                    FilterChip(
-                        selected = mode == ImageRepair.RepairMode.BLUR,
-                        onClick = { mode = ImageRepair.RepairMode.BLUR },
-                        label = { Text(stringResource(R.string.watermark_mode_blur)) },
-                    )
-                    OutlinedButton(onClick = { rects = rects.dropLast(1) }) {
-                        Text(stringResource(R.string.watermark_undo))
+                    IconButton(onClick = { scale = (scale - 0.5f).coerceAtLeast(1f) }) {
+                        Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out))
                     }
-                    OutlinedButton(onClick = { rects = emptyList() }) {
-                        Text(stringResource(R.string.watermark_clear))
+                    Text("${scale.toInt()}×", style = MaterialTheme.typography.labelMedium)
+                    IconButton(onClick = { scale = (scale + 0.5f).coerceAtMost(4f) }) {
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in))
                     }
                 }
+                OutlinedButton(
+                    onClick = { scale = 1f },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.tools_zoom_reset)) }
 
-                Text(stringResource(R.string.watermark_strength))
+                HorizontalDivider()
+
+                FilterChip(
+                    selected = mode == ImageRepair.RepairMode.REPAIR,
+                    onClick = { mode = ImageRepair.RepairMode.REPAIR },
+                    label = { Text(stringResource(R.string.watermark_mode_repair)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FilterChip(
+                    selected = mode == ImageRepair.RepairMode.BLUR,
+                    onClick = { mode = ImageRepair.RepairMode.BLUR },
+                    label = { Text(stringResource(R.string.watermark_mode_blur)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    OutlinedButton(
+                        onClick = { rects = rects.dropLast(1) },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.watermark_undo)) }
+                    OutlinedButton(
+                        onClick = { rects = emptyList() },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.watermark_clear)) }
+                }
+
+                Text(stringResource(R.string.watermark_strength), style = MaterialTheme.typography.labelMedium)
                 Slider(
                     value = strength.toFloat(),
                     onValueChange = { strength = it.toInt() },
@@ -251,10 +252,12 @@ fun WatermarkScreen(onBack: () -> Unit) {
 
                 Button(
                     onClick = {
+                        val bmp = bitmap ?: run {
+                            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.watermark_hint)) }
+                            return@Button
+                        }
                         if (rects.isEmpty()) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.watermark_hint))
-                            }
+                            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.watermark_hint)) }
                             return@Button
                         }
                         scope.launch {

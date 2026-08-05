@@ -157,16 +157,11 @@ fun SimPinballScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                stringResource(R.string.tools_sim_pinball_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(Spacing.xs))
-            Text(
-                stringResource(R.string.tools_sim_pinball_score, score),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+            SimHintCard(stringResource(R.string.tools_sim_pinball_hint))
+            Spacer(Modifier.height(Spacing.sm))
+            SimStatCard(
+                value = score.toString(),
+                label = stringResource(R.string.tools_unit_points),
             )
             Spacer(Modifier.height(Spacing.md))
 
