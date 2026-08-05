@@ -71,6 +71,7 @@ import androidx.compose.material.icons.filled.EmojiFoodBeverage
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.LocalBar
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.EmojiEmotions
@@ -256,6 +257,18 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_sim_pinball_title,
                 descRes = R.string.tools_sim_pinball_desc,
                 icon = Icons.Filled.SportsEsports,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_GLASS,
+                titleRes = R.string.sim_glass_title,
+                descRes = R.string.sim_glass_desc,
+                icon = Icons.Filled.LocalBar,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_FLUTE,
+                titleRes = R.string.sim_flute_title,
+                descRes = R.string.sim_flute_desc,
+                icon = Icons.Filled.GraphicEq,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_FORTUNE,

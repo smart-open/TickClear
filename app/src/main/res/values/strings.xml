@@ -1517,6 +1517,25 @@
     <string name="tools_sim_pinball_score">得分 %1$d</string>
     <string name="tools_sim_pinball_reset">重置</string>
 
+    <!-- 拟声玻璃杯敲击 -->
+    <string name="sim_glass_title">玻璃杯敲击</string>
+    <string name="sim_glass_desc">点不同位置，敲出高低叮声</string>
+    <string name="sim_glass_hint">点击杯身不同位置，越靠杯口音越高，敲出 1234567 音符</string>
+    <string name="sim_glass_tap">点一下试试</string>
+    <string name="sim_glass_solfege">哆|来|咪|发|唆|拉|西</string>
+
+    <!-- 模拟解压：吹笛子 -->
+    <string name="sim_flute_title">吹笛子</string>
+    <string name="sim_flute_desc">对着麦克风吹气，吹出清澈笛声</string>
+    <string name="sim_flute_hint">选一个音，对着麦克风吹气即可吹响，松口即停</string>
+    <string name="sim_flute_mic_denied">未授权麦克风，可改为按住吹奏</string>
+    <string name="sim_flute_pick_note">当前音高</string>
+    <string name="sim_flute_breath">气息强度</string>
+    <string name="sim_flute_start">开始吹奏</string>
+    <string name="sim_flute_stop">停止吹奏</string>
+    <string name="sim_flute_blow">按住吹奏</string>
+    <string name="sim_flute_solfege">哆|来|咪|发|唆|拉|西|哆</string>
+
     <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
     <string name="tools_tax_hint">填写月薪与扣除项，估算本月个税与税后到手</string>
     <string name="tools_cook_timer_hint">可同时运行多组计时，到点震动并响铃提醒</string>

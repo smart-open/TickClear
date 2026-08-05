@@ -89,6 +89,8 @@ import com.tickclear.app.ui.tools.SimWoodFishScreen
 import com.tickclear.app.ui.tools.SimLighterScreen
 import com.tickclear.app.ui.tools.SimFireworksScreen
 import com.tickclear.app.ui.tools.SimPinballScreen
+import com.tickclear.app.ui.tools.GlassCupScreen
+import com.tickclear.app.ui.tools.FluteScreen
 import com.tickclear.app.ui.tools.FortuneScreen
 import com.tickclear.app.ui.tools.RpsScreen
 import com.tickclear.app.ui.tools.VibrationMassageScreen
@@ -469,6 +471,12 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_SIM_PINBALL) {
             SimPinballScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_GLASS) {
+            GlassCupScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_SIM_FLUTE) {
+            FluteScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.TOOLS_FORTUNE) {
             FortuneScreen(onBack = { navController.popBackStack() })

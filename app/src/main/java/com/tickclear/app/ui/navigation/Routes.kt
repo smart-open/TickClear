@@ -97,6 +97,10 @@ object Routes {
     const val TOOLS_SIM_LIGHTER = "tools/simLighter"
     const val TOOLS_SIM_FIREWORKS = "tools/simFireworks"
     const val TOOLS_SIM_PINBALL = "tools/simPinball"
+    // V2.9++：模拟解压（拟声玻璃杯敲击）
+    const val TOOLS_SIM_GLASS = "tools/simGlass"
+    // V2.9++：模拟解压（吹笛子：麦克风采集气流→时域能量分析→驱动 AudioTrack 合成笛声）
+    const val TOOLS_SIM_FLUTE = "tools/simFlute"
     // V2.9++：娱乐休闲（今日运势 / 石头剪刀布 / 振动按摩）
     const val TOOLS_FORTUNE = "tools/fortune"
     const val TOOLS_RPS = "tools/rps"
