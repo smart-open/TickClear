@@ -1138,6 +1138,7 @@
     <string name="tools_clock_overlay_title">悬浮时钟</string>
     <string name="tools_clock_overlay_desc">桌面悬浮极简时钟</string>
     <string name="clock_overlay_running">悬浮时钟正在显示</string>
+    <string name="clock_overlay_close">关闭悬浮时钟</string>
     <string name="clock_overlay_grant_hint">需要「显示在其他应用上层」权限才能悬浮</string>
     <string name="clock_overlay_grant">去开启权限</string>
     <string name="clock_overlay_start">显示悬浮时钟</string>

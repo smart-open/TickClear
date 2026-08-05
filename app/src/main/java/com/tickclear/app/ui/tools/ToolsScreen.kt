@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Card
@@ -301,7 +304,7 @@ private val TOOL_CATEGORIES = listOf(
     ),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ToolsScreen(
     onNavigate: (String) -> Unit,
@@ -336,11 +339,10 @@ fun ToolsScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     pinnedEntries.forEach { entry ->
                         PinnedToolCard(
@@ -461,19 +463,17 @@ private fun PinnedToolCard(
     onOpen: () -> Unit,
     onUnpin: () -> Unit,
 ) {
+    // 平铺紧凑卡片：大小包裹图标+文字，内部整体水平垂直居中；删除用垃圾桶图标
     Card(
-        modifier = Modifier
-            .height(72.dp)
-            .clickable(onClick = onOpen),
+        modifier = Modifier.clickable(onClick = onOpen),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(contentAlignment = Alignment.Center) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = Spacing.md, top = Spacing.sm, bottom = Spacing.sm, end = 28.dp),
+                    .padding(start = Spacing.md, top = Spacing.sm, bottom = Spacing.sm, end = 32.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
@@ -495,7 +495,7 @@ private fun PinnedToolCard(
                     .size(28.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.tools_unpin),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )

@@ -13,13 +13,17 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,8 +31,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
@@ -177,24 +187,45 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
     }
     Box(
         modifier = Modifier
-            .background(Color(0xCC000000), RoundedCornerShape(8.dp))
+            // 半透明悬浮：30% 黑底 + 细描边，不挡内容又清晰可读
+            .background(
+                color = Color(0x4D000000),
+                shape = RoundedCornerShape(14.dp),
+            )
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(14.dp),
+            )
             .pointerInput(Unit) {
                 detectDragGestures { _, dragAmount -> onDrag(dragAmount.x, dragAmount.y) }
             }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
                 text = timeText,
                 color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                style = LocalTextStyle.current.copy(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(0f, 1f),
+                        blurRadius = 6f,
+                    ),
+                ),
             )
-            Text(
-                text = " ✕",
-                color = Color.White,
-                fontSize = 16.sp,
-                modifier = Modifier.clickable(onClick = onClose),
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.clock_overlay_close),
+                tint = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable(onClick = onClose),
             )
         }
     }

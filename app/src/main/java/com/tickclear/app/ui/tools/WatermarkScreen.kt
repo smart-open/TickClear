@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -53,6 +55,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
@@ -157,14 +160,41 @@ fun WatermarkScreen(onBack: () -> Unit) {
                 // 预览区只占「扣掉下方控件后的剩余空间」。原先直接 fillMaxWidth().aspectRatio()，
                 // 竖图高度 = 屏宽 / ratio（3:4 图约为屏宽的 1.33 倍），会把模式选择、强度滑杆、
                 // 应用按钮整体挤出屏幕外，且 Column 不可滚动 → 用户只看得到图，看不到任何操作按钮。
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                         .padding(Spacing.xs),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(modifier = Modifier.aspectRatio(ratio)) {
+                    val maxW = maxWidth
+                    val maxH = maxHeight
+                    // 按图片比例内接，避免竖图把下方操作按钮挤出屏幕（原 aspectRatio 方案溢出）
+                    val fittedW: Dp
+                    val fittedH: Dp
+                    if (maxW / ratio <= maxH) {
+                        fittedW = maxW
+                        fittedH = maxW / ratio
+                    } else {
+                        fittedH = maxH
+                        fittedW = maxH * ratio
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(fittedW, fittedH)
+                            .onSizeChanged { overlaySize = it }
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragStart = { dragStart = it },
+                                    onDrag = { change, _ -> dragCurrent = change.position },
+                                    onDragEnd = {
+                                        currentRect?.let { rects = rects + it }
+                                        dragStart = null
+                                        dragCurrent = null
+                                    },
+                                )
+                            },
+                    ) {
                         androidx.compose.foundation.Image(
                             painter = BitmapPainter(bmp.asImageBitmap()),
                             contentDescription = null,
@@ -172,20 +202,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxSize(),
                         )
                         androidx.compose.foundation.Canvas(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragStart = { dragStart = it },
-                                        onDrag = { change, _ -> dragCurrent = change.position },
-                                        onDragEnd = {
-                                            currentRect?.let { rects = rects + it }
-                                            dragStart = null
-                                            dragCurrent = null
-                                        },
-                                    )
-                                }
-                                .onSizeChanged { overlaySize = it },
+                            modifier = Modifier.fillMaxSize(),
                         ) {
                             val strokeW = 2.dp.toPx()
                             for (r in rects) {

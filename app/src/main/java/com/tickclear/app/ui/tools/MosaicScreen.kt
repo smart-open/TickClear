@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -63,6 +65,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
@@ -159,17 +162,28 @@ fun MosaicScreen(onBack: () -> Unit) {
             } else {
                 val bmp = bitmap!!
                 val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                         .padding(Spacing.xs),
                     contentAlignment = Alignment.Center,
                 ) {
+                    val maxW = maxWidth
+                    val maxH = maxHeight
+                    // 按图片比例内接，避免竖图把下方操作按钮挤出屏幕（原 aspectRatio 方案溢出 → 排版错乱）
+                    val fittedW: Dp
+                    val fittedH: Dp
+                    if (maxW / ratio <= maxH) {
+                        fittedW = maxW
+                        fittedH = maxW / ratio
+                    } else {
+                        fittedH = maxH
+                        fittedW = maxH * ratio
+                    }
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(ratio)
+                            .size(fittedW, fittedH)
                             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                             .onSizeChanged { overlaySize = it }
                             .pointerInput(drawMode, bmp) {
