@@ -109,4 +109,14 @@ object Routes {
     const val TOOLS_WHITE_NOISE = "tools/whiteNoise"
     // V2.9++：实用工具（补光反光板）
     const val TOOLS_REFLECTOR = "tools/reflector"
+    // V2.9++：模拟解压（养宠物：鱼/狗/猪/猫）
+    const val TOOLS_PET = "tools/pet"
+    // V2.9++：模拟解压（手指涂鸦画板）
+    const val TOOLS_DOODLE = "tools/doodle"
+    // V2.9++：实用工具（屏幕坏点检测）
+    const val TOOLS_DEADPIXEL = "tools/deadPixel"
+    // V2.9++：实用工具（地磁场观测）
+    const val TOOLS_MAGNET = "tools/magnet"
+    // V2.9++：生活助手（家庭成员积分仪）
+    const val TOOLS_POINTS = "tools/points"
 }

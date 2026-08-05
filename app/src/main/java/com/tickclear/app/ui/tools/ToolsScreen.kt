@@ -79,6 +79,10 @@ import androidx.compose.material.icons.filled.Games
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.WbIncandescent
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -211,6 +215,12 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_cook_timer_desc,
                 icon = Icons.Filled.Restaurant,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POINTS,
+                titleRes = R.string.points_title,
+                descRes = R.string.points_desc,
+                icon = Icons.Filled.EmojiEvents,
+            ),
         ),
     ),
     ToolCategory(
@@ -287,6 +297,18 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_vibe_title,
                 descRes = R.string.tools_vibe_desc,
                 icon = Icons.Filled.Vibration,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_PET,
+                titleRes = R.string.pet_title,
+                descRes = R.string.pet_desc,
+                icon = Icons.Filled.Pets,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_DOODLE,
+                titleRes = R.string.doodle_title,
+                descRes = R.string.doodle_desc,
+                icon = Icons.Filled.Brush,
             ),
         ),
     ),
@@ -388,6 +410,18 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_reflector_title,
                 descRes = R.string.tools_reflector_desc,
                 icon = Icons.Filled.WbIncandescent,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_DEADPIXEL,
+                titleRes = R.string.deadpixel_title,
+                descRes = R.string.deadpixel_desc,
+                icon = Icons.Filled.Smartphone,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MAGNET,
+                titleRes = R.string.magnet_title,
+                descRes = R.string.magnet_desc,
+                icon = Icons.Filled.Tune,
             ),
         ),
     ),

@@ -96,6 +96,11 @@ import com.tickclear.app.ui.tools.RpsScreen
 import com.tickclear.app.ui.tools.VibrationMassageScreen
 import com.tickclear.app.ui.tools.WhiteNoiseScreen
 import com.tickclear.app.ui.tools.ReflectorScreen
+import com.tickclear.app.ui.tools.PetScreen
+import com.tickclear.app.ui.tools.DeadPixelScreen
+import com.tickclear.app.ui.tools.DoodleScreen
+import com.tickclear.app.ui.tools.FamilyPointsScreen
+import com.tickclear.app.ui.tools.MagnetScreen
 
 @Composable
 fun TickClearApp(
@@ -492,6 +497,21 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_REFLECTOR) {
             ReflectorScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_PET) {
+            PetScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_DOODLE) {
+            DoodleScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_DEADPIXEL) {
+            DeadPixelScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_MAGNET) {
+            MagnetScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_POINTS) {
+            FamilyPointsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

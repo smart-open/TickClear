@@ -1536,6 +1536,87 @@
     <string name="sim_flute_blow">按住吹奏</string>
     <string name="sim_flute_solfege">哆|来|咪|发|唆|拉|西|哆</string>
 
+    <!-- 养宠物（模拟解压） -->
+    <string name="pet_title">养宠物</string>
+    <string name="pet_desc">选动物，喂食互动解压</string>
+    <string name="pet_fish">鱼</string>
+    <string name="pet_dog">小狗</string>
+    <string name="pet_pig">小猪</string>
+    <string name="pet_cat">小猫</string>
+    <string name="pet_fish_hint">点「喂食」投喂饵料，小鱼会追食；「换水」让水体更清透</string>
+    <string name="pet_dog_hint">点「喂食」给骨头，「摸摸」或点屏幕冒爱心、摇尾巴</string>
+    <string name="pet_pig_hint">点「喂食」给苹果，「摸摸」或点屏幕冒爱心</string>
+    <string name="pet_cat_hint">点「喂食」放饭碗，「撸猫」呼噜冒爱心，「逗猫棒」逗它扑逗</string>
+    <string name="pet_fullness">饱食度</string>
+    <string name="pet_happiness">心情</string>
+    <string name="pet_feed">喂食</string>
+    <string name="pet_change_water">换水</string>
+    <string name="pet_pet">摸摸</string>
+    <string name="pet_stroke">撸猫</string>
+    <string name="pet_tease">逗猫棒</string>
+
+    <!-- 屏幕坏点检测（实用工具） -->
+    <string name="deadpixel_title">屏幕坏点检测</string>
+    <string name="deadpixel_desc">全屏纯色，手动查坏点亮点</string>
+    <string name="deadpixel_hint">切换纯色铺满屏幕，凑近看有无不亮的坏点 / 常亮的亮点</string>
+    <string name="deadpixel_red">红</string>
+    <string name="deadpixel_green">绿</string>
+    <string name="deadpixel_blue">蓝</string>
+    <string name="deadpixel_white">白</string>
+    <string name="deadpixel_black">黑</string>
+    <string name="deadpixel_current">当前颜色</string>
+    <string name="deadpixel_fullscreen">全屏沉浸</string>
+    <string name="deadpixel_exit_fullscreen">退出全屏</string>
+
+    <!-- 手指涂鸦画板（模拟解压） -->
+    <string name="doodle_title">涂鸦画板</string>
+    <string name="doodle_desc">随手画，解压放松</string>
+    <string name="doodle_hint">选颜色随手画，支持撤销与保存图片</string>
+    <string name="doodle_undo">撤销</string>
+    <string name="doodle_clear">清空</string>
+    <string name="doodle_save">保存图片</string>
+    <string name="doodle_saved">已保存到相册</string>
+    <string name="doodle_save_fail">保存失败，请重试</string>
+    <string name="doodle_fullscreen">全屏</string>
+    <string name="doodle_exit_fullscreen">退出全屏</string>
+    <string name="doodle_size">笔刷</string>
+
+    <!-- 家庭成员积分仪（生活助手） -->
+    <string name="points_title">家庭成员积分仪</string>
+    <string name="points_desc">完成任务赚积分，兑换心仪奖励</string>
+    <string name="points_hint">孩子完成事项得积分，积分可兑换玩具 / 吃食 / 零花钱</string>
+    <string name="points_score">积分</string>
+    <string name="points_redeemed">已兑换</string>
+    <string name="points_not_enough">积分不足</string>
+    <string name="points_tasks">今日任务</string>
+    <string name="points_rewards">奖励兑换</string>
+    <string name="points_cost">需 {cost} 分</string>
+    <string name="points_member_child1">小明</string>
+    <string name="points_member_child2">小红</string>
+    <string name="points_task_tidy">整理房间</string>
+    <string name="points_task_homework">完成作业</string>
+    <string name="points_task_dish">帮忙洗碗</string>
+    <string name="points_task_early">早起打卡</string>
+    <string name="points_task_read">阅读15分钟</string>
+    <string name="points_task_sport">运动30分钟</string>
+    <string name="points_reward_toy">玩具</string>
+    <string name="points_reward_milktea">奶茶</string>
+    <string name="points_reward_money">零花钱10元</string>
+    <string name="points_reward_park">去公园</string>
+    <string name="points_reward_movie">看电影</string>
+
+    <!-- 地磁场观测（实用工具） -->
+    <string name="magnet_title">地磁场观测</string>
+    <string name="magnet_desc">观测周围磁场强度变化</string>
+    <string name="magnet_hint">手机转动，观察 X/Y/Z 与合成磁场强度(µT)的变化</string>
+    <string name="magnet_x">X</string>
+    <string name="magnet_y">Y</string>
+    <string name="magnet_z">Z</string>
+    <string name="magnet_total">合成强度</string>
+    <string name="magnet_unit">µT</string>
+    <string name="magnet_no_sensor">本设备无磁力传感器</string>
+
+
     <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
     <string name="tools_tax_hint">填写月薪与扣除项，估算本月个税与税后到手</string>
     <string name="tools_cook_timer_hint">可同时运行多组计时，到点震动并响铃提醒</string>
