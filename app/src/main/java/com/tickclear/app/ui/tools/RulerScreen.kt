@@ -3,6 +3,9 @@ package com.tickclear.app.ui.tools
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.app.Activity
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,6 +97,14 @@ fun RulerScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(RulerMode.SCREEN) }
+    var landscape by remember { mutableStateOf(false) }
+
+    // 退出时恢复系统默认朝向，避免锁定残留
+    DisposableEffect(Unit) {
+        onDispose {
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -116,6 +128,16 @@ fun RulerScreen(onBack: () -> Unit) {
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         ) {
             ModeSelector(mode, onChange = { mode = it })
+            Spacer(Modifier.height(Spacing.sm))
+            OrientationToggle(
+                landscape = landscape,
+                onToggle = {
+                    landscape = !landscape
+                    context.findActivity()?.requestedOrientation =
+                        if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                },
+            )
             Spacer(Modifier.height(Spacing.sm))
             when (mode) {
                 RulerMode.SCREEN -> ScreenRuler()
@@ -146,26 +168,51 @@ private fun ModeSelector(mode: RulerMode, onChange: (RulerMode) -> Unit) {
     }
 }
 
-/** 屏幕刻度模式。 */
+/** 屏幕刻度模式：支持厘米/英寸切换与点击测量。 */
 @Composable
 private fun ScreenRuler() {
     val context = LocalContext.current
-    val pxPerMm = context.resources.displayMetrics.xdpi / 25.4f
+    val metrics = context.resources.displayMetrics
+    val pxPerMm = metrics.xdpi / 25.4f
+    val pxPerCm = pxPerMm * 10f
+    val pxPerInch = metrics.xdpi
     val primaryColor = MaterialTheme.colorScheme.primary
 
+    var useCm by remember { mutableStateOf(true) }
     var startX by remember { mutableStateOf(0f) }
     var endX by remember { mutableStateOf(0f) }
     var initialized by remember { mutableStateOf(false) }
     var endSet by remember { mutableStateOf(false) }
+
+    val pxPerUnit = if (useCm) pxPerCm else pxPerInch
+    val minorCount = if (useCm) 10 else 8
 
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(R.string.ruler_hint),
             style = MaterialTheme.typography.bodyMedium,
         )
-        val lengthCm = if (initialized) abs(endX - startX) / pxPerMm / 10f else 0f
+        // 单位切换：厘米 / 英寸
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            FilterChip(
+                selected = useCm,
+                onClick = { useCm = true },
+                label = { Text(stringResource(R.string.ruler_unit_cm)) },
+                modifier = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected = !useCm,
+                onClick = { useCm = false },
+                label = { Text(stringResource(R.string.ruler_unit_inch)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        val length = if (initialized) abs(endX - startX) / pxPerUnit else 0f
         Text(
-            stringResource(R.string.ruler_length, lengthCm),
+            stringResource(R.string.ruler_length_unit, length, if (useCm) "cm" else "in"),
             style = MaterialTheme.typography.headlineSmall,
         )
         Text(
@@ -200,16 +247,34 @@ private fun ScreenRuler() {
                 val h = size.height
                 val baseY = h * 0.55f
                 val primary = Color.Gray
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    setColor(android.graphics.Color.DKGRAY)
+                    textSize = 22f
+                    textAlign = android.graphics.Paint.Align.LEFT
+                }
                 drawLine(primary, Offset(0f, baseY), Offset(w, baseY), strokeWidth = 2f)
-                val totalMm = (w / pxPerMm).toInt()
-                for (i in 0..totalMm) {
-                    val x = i * pxPerMm
-                    val tickH = when {
-                        i % 10 == 0 -> 28f
-                        i % 5 == 0 -> 16f
-                        else -> 9f
+                val totalUnits = (w / pxPerUnit).toInt()
+                for (i in 0..totalUnits) {
+                    val x = i * pxPerUnit
+                    if (x > w + 1f) break
+                    // 主刻度 + 数值标签
+                    drawLine(primary, Offset(x, baseY - 28f), Offset(x, baseY), strokeWidth = 2f)
+                    if (i > 0) {
+                        drawContext.canvas.nativeCanvas.drawText(
+                            i.toString(),
+                            x + 3f,
+                            baseY - 32f,
+                            paint,
+                        )
                     }
-                    drawLine(primary, Offset(x, baseY - tickH), Offset(x, baseY), strokeWidth = 1.5f)
+                    // 次刻度
+                    for (j in 1 until minorCount) {
+                        val xm = x + j * pxPerUnit / minorCount
+                        if (xm > w) break
+                        val h2 = if (minorCount == 8 && j == 4) 14f else 8f
+                        drawLine(primary, Offset(xm, baseY - h2), Offset(xm, baseY), strokeWidth = 1.2f)
+                    }
                 }
                 if (initialized) {
                     val left = minOf(startX, endX).coerceIn(0f, w)
@@ -235,7 +300,34 @@ private fun ScreenRuler() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Text(
+            stringResource(R.string.ruler_note_screen),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
+}
+
+/** 横/竖屏切换按钮。 */
+@Composable
+private fun OrientationToggle(landscape: Boolean, onToggle: () -> Unit) {
+    OutlinedButton(
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Text(stringResource(R.string.ruler_orientation_toggle))
+    }
+}
+
+/** 从任意 Context 向上回溯找到宿主 Activity。 */
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }
 
 /** 拍照测距模式。 */
