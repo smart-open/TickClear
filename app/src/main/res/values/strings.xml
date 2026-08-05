@@ -1557,6 +1557,7 @@
     <string name="tools_vibe_desc">多档振动，休闲解压</string>
     <string name="tools_vibe_hint">选择模式开始按摩，离开页面自动停止</string>
     <string name="vibe_start">开始</string>
+    <string name="vibe_running">按摩中…</string>
     <string name="vibe_stop">停止</string>
     <string name="vibe_mode_label">按摩模式</string>
     <string name="vibe_mode_gentle">轻柔</string>
@@ -1575,6 +1576,8 @@
     <string name="white_noise_play">播放</string>
     <string name="white_noise_stop">停止</string>
     <string name="white_noise_volume">音量</string>
+    <string name="white_noise_scene">场景</string>
+    <string name="white_noise_playing">播放中…</string>
 
     <!-- 反光板 -->
     <string name="tools_reflector_title">补光反光板</string>
@@ -1592,4 +1595,8 @@
     <string name="ruler_orientation_toggle">切换横/竖屏</string>
     <string name="ruler_note_screen">屏幕刻度依据出厂参数估算，仅供粗略测量</string>
     <string name="ruler_length_unit">长度 %1$.1f %2$s</string>
+    <string name="ruler_clear_measure">清除测量</string>
+
+    <!-- 石头剪刀布 -->
+    <string name="rps_your_move">你的出招</string>
 </resources>
