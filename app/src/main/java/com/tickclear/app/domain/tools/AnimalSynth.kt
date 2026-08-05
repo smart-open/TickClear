@@ -42,18 +42,25 @@ object AnimalSynth {
             "horse" -> horse()
             else -> return
         }
-        val fmt = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setSampleRate(SR)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
-        val track = AudioTrack.Builder()
-            .setAudioFormat(fmt)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .build()
-        track.write(samples, 0, samples.size)
-        current = track
-        track.play()
+        // 关键修复：MODE_STATIC 必须显式声明 buffer 大小（≥ 数据字节数），否则
+        // build()/write() 在部分机型抛 IllegalStateException；该调用在后台协程且无
+        // 异常处理器时会直接杀死进程（表现为点击动物音效闪退）。用 try/catch 兜住，
+        // 合成/播放失败只静默放弃，绝不连累主流程。
+        runCatching {
+            val fmt = AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(SR)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build()
+            val track = AudioTrack.Builder()
+                .setAudioFormat(fmt)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(samples.size * 2)
+                .build()
+            track.write(samples, 0, samples.size)
+            current = track
+            track.play()
+        }
     }
 
     // ---------- 合成基元 ----------

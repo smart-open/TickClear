@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.AnimalSynth
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -59,7 +60,10 @@ private val ANIMALS = listOf(
 @Composable
 fun AnimalSoundScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    // 兜底异常处理器：哪怕合成/播放出错也只吞掉，绝不让后台协程异常冲垮进程。
+    val scope = rememberCoroutineScope {
+        CoroutineExceptionHandler { _, _ -> /* 静默 */ }
+    }
 
     DisposableEffect(Unit) {
         onDispose { AnimalSynth.stop() }
