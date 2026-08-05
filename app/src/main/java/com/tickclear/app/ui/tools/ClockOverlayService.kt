@@ -8,7 +8,9 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -25,7 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,7 +58,6 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.NotificationHelper
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -179,11 +180,20 @@ class ClockOverlayService : Service() {
 @Composable
 private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> Unit) {
     var timeText by remember { mutableStateOf(ClockOverlayService.currentTime()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000)
-            timeText = ClockOverlayService.currentTime()
+    // 用主线程 Handler 递归 post 来计时，独立于 Compose recomposer 生命周期：
+    // 不依赖 LaunchedEffect 的协程作用域，长时间运行也不会因重组/生命周期变化而静默取消。
+    // 每次对齐到下一整秒边界，消除 delay(1000) 累积漂移，与手机时间严格同步。
+    val handler = remember { Handler(Looper.getMainLooper()) }
+    DisposableEffect(Unit) {
+        val ticker = object : Runnable {
+            override fun run() {
+                timeText = ClockOverlayService.currentTime()
+                val delayMs = 1000L - (System.currentTimeMillis() % 1000L)
+                handler.postDelayed(this, delayMs)
+            }
         }
+        handler.post(ticker)
+        onDispose { handler.removeCallbacks(ticker) }
     }
     Box(
         modifier = Modifier
