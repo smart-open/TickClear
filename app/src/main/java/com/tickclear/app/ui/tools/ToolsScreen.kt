@@ -468,8 +468,8 @@ private fun ToolCard(
 }
 
 /**
- * 置顶区紧凑卡片：左侧删除按钮（垂直居中）+ 图标（染色圆圈）+ 标题。
- * 卡片等宽排成三列；删除需二次确认，避免误触。
+ * 置顶区紧凑卡片：图标（小染色圆圈）+ 标题（左对齐），删除按钮靠右垂直居中。
+ * 图标与文字均调小以适配三列窄卡片；删除需二次确认，避免误触。
  */
 @Composable
 private fun PinnedToolCard(
@@ -491,25 +491,13 @@ private fun PinnedToolCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.sm, vertical = Spacing.sm),
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 删除按钮：靠左、垂直居中；点击先弹确认框
-            IconButton(
-                onClick = { showConfirm = true },
-                modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.tools_unpin),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-            Spacer(modifier = Modifier.width(Spacing.xs))
-            // 图标放进染色圆圈，作为美化后的“按钮”
+            // 图标放进小染色圆圈，尺寸调小以适配三列窄卡片
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(28.dp)
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                         shape = CircleShape,
@@ -520,15 +508,29 @@ private fun PinnedToolCard(
                     imageVector = entry.icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(Spacing.sm))
+            Spacer(modifier = Modifier.width(Spacing.xs))
             Text(
                 text = stringResource(entry.titleRes),
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 1,
             )
+            // 把剩余空间推到右侧，删除按钮靠右垂直居中
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = { showConfirm = true },
+                modifier = Modifier.size(30.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.tools_unpin),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 
