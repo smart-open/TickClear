@@ -492,13 +492,13 @@ private fun PinnedToolCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 图标放进小染色圆圈，尺寸调小以适配三列窄卡片
+            // 图标放进小染色圆圈，尺寸调小以适配三列窄卡片（一行最多5字）
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(22.dp)
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                         shape = CircleShape,
@@ -509,7 +509,7 @@ private fun PinnedToolCard(
                     imageVector = entry.icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(13.dp),
                 )
             }
             Spacer(modifier = Modifier.width(Spacing.xs))
@@ -517,18 +517,19 @@ private fun PinnedToolCard(
                 text = stringResource(entry.titleRes),
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.weight(1f),
+                maxLines = 1,
             )
-            Spacer(modifier = Modifier.width(Spacing.xs))
+            // 弹性空白把删除按钮推到最右；文字与删除均不带 weight，永不被挤压/折行
+            Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = { showConfirm = true },
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(28.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.tools_unpin),
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
