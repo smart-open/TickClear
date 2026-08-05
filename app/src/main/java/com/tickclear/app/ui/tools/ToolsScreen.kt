@@ -61,6 +61,12 @@ import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.FilterBAndW
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -181,6 +187,18 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_barcode_desc,
                 icon = Icons.Filled.CameraAlt,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COOK_TIMER,
+                titleRes = R.string.tools_cook_timer_title,
+                descRes = R.string.tools_cook_timer_desc,
+                icon = Icons.Filled.Restaurant,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ANIMAL,
+                titleRes = R.string.tools_animal_title,
+                descRes = R.string.tools_animal_desc,
+                icon = Icons.Filled.Pets,
+            ),
         ),
     ),
     ToolCategory(
@@ -264,6 +282,18 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_backup_desc,
                 icon = Icons.Filled.Backup,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_COMPRESS,
+                titleRes = R.string.tools_img_compress_title,
+                descRes = R.string.tools_img_compress_desc,
+                icon = Icons.Filled.Compress,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_GRAY,
+                titleRes = R.string.tools_img_gray_title,
+                descRes = R.string.tools_img_gray_desc,
+                icon = Icons.Filled.FilterBAndW,
+            ),
         ),
     ),
     ToolCategory(
@@ -303,6 +333,18 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_countdown_title,
                 descRes = R.string.tools_countdown_desc,
                 icon = Icons.Filled.HourglassBottom,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LOAN,
+                titleRes = R.string.tools_loan_title,
+                descRes = R.string.tools_loan_desc,
+                icon = Icons.Filled.AccountBalance,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_TAX,
+                titleRes = R.string.tools_tax_title,
+                descRes = R.string.tools_tax_desc,
+                icon = Icons.AutoMirrored.Filled.ReceiptLong,
             ),
         ),
     ),

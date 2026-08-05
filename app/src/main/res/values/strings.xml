@@ -1369,4 +1369,97 @@
     <string name="cam_detect_camera_call">摄像头调用：%1$s</string>
     <string name="cam_detect_mic_call">麦克风调用：%1$s</string>
 
+    <!-- ============ V2.9++ 新增工具：贷款测算 / 个税测算 ============ -->
+    <string name="tools_loan_title">贷款测算</string>
+    <string name="tools_loan_desc">等额本息/本金月供试算</string>
+    <string name="tools_loan_amount">贷款金额（元）</string>
+    <string name="tools_loan_rate">年利率（%）</string>
+    <string name="tools_loan_years">贷款期限（年）</string>
+    <string name="tools_loan_method">还款方式</string>
+    <string name="tools_loan_equal_installment">等额本息</string>
+    <string name="tools_loan_equal_principal">等额本金</string>
+    <string name="tools_loan_monthly">每月还款</string>
+    <string name="tools_loan_first_month">首月还款</string>
+    <string name="tools_loan_decrease">每月递减</string>
+    <string name="tools_loan_total_interest">总利息</string>
+    <string name="tools_loan_total_pay">总还款</string>
+    <string name="tools_loan_reset">重置</string>
+    <string name="tools_loan_invalid">请输入有效的金额、利率与期限</string>
+
+    <string name="tools_tax_title">个税测算</string>
+    <string name="tools_tax_desc">估算税后到手工资</string>
+    <string name="tools_tax_salary">税前月薪（元）</string>
+    <string name="tools_tax_insurance">五险一金（元/月）</string>
+    <string name="tools_tax_extra">专项附加扣除（元/月）</string>
+    <string name="tools_tax_taxable">应纳税所得额</string>
+    <string name="tools_tax_rate">适用税率</string>
+    <string name="tools_tax_amount">本月个税</string>
+    <string name="tools_tax_after">税后到手</string>
+    <string name="tools_tax_insurance_label">五险一金</string>
+    <string name="tools_tax_note">简易估算，未含年终奖等特殊情形</string>
+    <string name="tools_tax_reset">重置</string>
+
+    <!-- ============ V2.9++ 新增工具：图片压缩 / 图片黑白 ============ -->
+    <string name="tools_img_compress_title">图片压缩</string>
+    <string name="tools_img_compress_desc">本地压缩，调质量与尺寸</string>
+    <string name="tools_img_compress_pick">选择图片</string>
+    <string name="tools_img_compress_quality">压缩质量</string>
+    <string name="tools_img_compress_maxdim">最大边长</string>
+    <string name="tools_img_compress_format">格式</string>
+    <string name="tools_img_compress_format_jpeg">JPEG</string>
+    <string name="tools_img_compress_format_webp">WebP</string>
+    <string name="tools_img_compress_dim_orig">原始</string>
+    <string name="tools_img_compress_before">压缩前</string>
+    <string name="tools_img_compress_after">压缩后</string>
+    <string name="tools_img_compress_dim">尺寸</string>
+    <string name="tools_img_compress_size">大小</string>
+    <string name="tools_img_compress_save">保存到相册</string>
+    <string name="tools_img_compress_saved">已保存到相册</string>
+    <string name="tools_img_compress_save_fail">保存失败，请重试</string>
+    <string name="tools_img_compress_noimg">请先选择图片</string>
+
+    <string name="tools_img_gray_title">图片黑白</string>
+    <string name="tools_img_gray_desc">一键灰度/黑白，本地处理</string>
+    <string name="tools_img_gray_pick">选择图片</string>
+    <string name="tools_img_gray_mode">模式</string>
+    <string name="tools_img_gray_gray">灰度</string>
+    <string name="tools_img_gray_bw">黑白</string>
+    <string name="tools_img_gray_threshold">黑白阈值</string>
+    <string name="tools_img_gray_save">保存到相册</string>
+    <string name="tools_img_gray_saved">已保存到相册</string>
+    <string name="tools_img_gray_save_fail">保存失败，请重试</string>
+    <string name="tools_img_gray_noimg">请先选择图片</string>
+
+    <!-- ============ V2.9++ 新增工具：烹饪多组定时器 ============ -->
+    <string name="tools_cook_timer_title">烹饪定时</string>
+    <string name="tools_cook_timer_desc">多组同时计时提醒</string>
+    <string name="tools_cook_timer_name">名称（如：炖肉）</string>
+    <string name="tools_cook_timer_min">分</string>
+    <string name="tools_cook_timer_sec">秒</string>
+    <string name="tools_cook_timer_add">添加计时</string>
+    <string name="tools_cook_timer_empty">还没有计时，添加一组开始吧</string>
+    <string name="tools_cook_timer_start">开始</string>
+    <string name="tools_cook_timer_pause">暂停</string>
+    <string name="tools_cook_timer_reset">重置</string>
+    <string name="tools_cook_timer_delete">删除</string>
+    <string name="tools_cook_timer_done">完成！</string>
+    <string name="tools_cook_timer_finished">计时结束：%1$s</string>
+
+    <!-- ============ V2.9++ 新增工具：动物拟声 ============ -->
+    <string name="tools_animal_title">动物拟声</string>
+    <string name="tools_animal_desc">点击播放动物音效，解压一下</string>
+    <string name="tools_animal_hint">点击下面的动物，听听它的声音</string>
+    <string name="tools_animal_dog">狗</string>
+    <string name="tools_animal_cat">猫</string>
+    <string name="tools_animal_cow">牛</string>
+    <string name="tools_animal_sheep">羊</string>
+    <string name="tools_animal_duck">鸭</string>
+    <string name="tools_animal_pig">猪</string>
+    <string name="tools_animal_chicken">鸡</string>
+    <string name="tools_animal_lion">狮子</string>
+    <string name="tools_animal_tiger">老虎</string>
+    <string name="tools_animal_bird">鸟</string>
+    <string name="tools_animal_frog">青蛙</string>
+    <string name="tools_animal_horse">马</string>
+
 </resources>

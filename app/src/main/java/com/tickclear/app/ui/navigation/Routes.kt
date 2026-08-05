@@ -81,4 +81,13 @@ object Routes {
     const val TOOLS_ARRIVAL = "tools/arrival"
     const val TOOLS_BACKUP = "tools/backup"
     const val TOOLS_PRIVACY = "tools/privacy"
+    // V2.9++：工具箱新增（贷款测算 / 个税测算）
+    const val TOOLS_LOAN = "tools/loan"
+    const val TOOLS_TAX = "tools/tax"
+    // V2.9++：工具箱新增（图片压缩 / 图片黑白）
+    const val TOOLS_IMG_COMPRESS = "tools/imgCompress"
+    const val TOOLS_IMG_GRAY = "tools/imgGray"
+    // V2.9++：工具箱新增（烹饪多组定时器 / 动物拟声）
+    const val TOOLS_COOK_TIMER = "tools/cookTimer"
+    const val TOOLS_ANIMAL = "tools/animal"
 }

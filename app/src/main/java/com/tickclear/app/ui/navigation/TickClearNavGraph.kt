@@ -76,6 +76,13 @@ import com.tickclear.app.ui.tools.BackupExportScreen
 import com.tickclear.app.ui.tools.BackupExportViewModel
 import com.tickclear.app.ui.tools.PrivacyCheckScreen
 import com.tickclear.app.ui.tools.PrivacyCheckViewModel
+import com.tickclear.app.ui.tools.LoanCalculatorScreen
+import com.tickclear.app.ui.tools.IncomeTaxScreen
+import com.tickclear.app.ui.tools.ImageCompressScreen
+import com.tickclear.app.ui.tools.ImageGrayscaleScreen
+import com.tickclear.app.ui.tools.CookingTimerScreen
+import com.tickclear.app.ui.tools.CookingTimerViewModel
+import com.tickclear.app.ui.tools.AnimalSoundScreen
 
 @Composable
 fun TickClearApp(
@@ -412,6 +419,27 @@ private fun AppNavHost(
                 viewModel = hiltViewModel<PrivacyCheckViewModel>(),
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.TOOLS_LOAN) {
+            LoanCalculatorScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_TAX) {
+            IncomeTaxScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_IMG_COMPRESS) {
+            ImageCompressScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_IMG_GRAY) {
+            ImageGrayscaleScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_COOK_TIMER) {
+            CookingTimerScreen(
+                vm = hiltViewModel<CookingTimerViewModel>(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.TOOLS_ANIMAL) {
+            AnimalSoundScreen(onBack = { navController.popBackStack() })
         }
     }
 }
