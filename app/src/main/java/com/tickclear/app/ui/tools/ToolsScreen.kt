@@ -70,7 +70,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -514,12 +516,13 @@ private fun PinnedToolCard(
             Spacer(modifier = Modifier.width(Spacing.xs))
             Text(
                 text = stringResource(entry.titleRes),
-                style = MaterialTheme.typography.labelMedium,
+                fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            // 把剩余空间推到右侧，删除按钮靠右垂直居中
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(Spacing.xs))
             IconButton(
                 onClick = { showConfirm = true },
                 modifier = Modifier.size(30.dp),
