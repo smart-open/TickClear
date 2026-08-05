@@ -30,10 +30,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -501,7 +501,7 @@ private fun ScanSection(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(10.dp),
                                 ) {
-                                    Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
                                     Spacer(Modifier.size(Spacing.xs))
                                     Text(stringResource(R.string.qr_scan_open))
                                 }
