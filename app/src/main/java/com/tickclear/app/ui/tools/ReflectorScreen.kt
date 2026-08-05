@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.roundToInt
 
 /** 反光板色温选项：白光 / 暖光 / 冷光。 */
 private val TINTS = listOf(
@@ -134,6 +135,7 @@ fun ReflectorScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Spacing.md),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(
@@ -142,10 +144,22 @@ fun ReflectorScreen(onBack: () -> Unit) {
                         .padding(Spacing.md),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Text(
-                        stringResource(R.string.reflector_brightness),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.reflector_brightness),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        val pct = (brightness * 100).roundToInt()
+                        Text(
+                            "$pct%",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Slider(
                         value = brightness,
                         onValueChange = { brightness = it.coerceIn(0f, 1f) },

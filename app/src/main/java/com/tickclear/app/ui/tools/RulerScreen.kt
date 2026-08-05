@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +43,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -177,6 +180,7 @@ private fun ScreenRuler() {
     val pxPerCm = pxPerMm * 10f
     val pxPerInch = metrics.xdpi
     val primaryColor = MaterialTheme.colorScheme.primary
+    val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     var useCm by remember { mutableStateOf(true) }
     var startX by remember { mutableStateOf(0f) }
@@ -246,10 +250,10 @@ private fun ScreenRuler() {
                 val w = size.width
                 val h = size.height
                 val baseY = h * 0.55f
-                val primary = Color.Gray
+                val primary = tickColor
                 val paint = android.graphics.Paint().apply {
                     isAntiAlias = true
-                    setColor(android.graphics.Color.DKGRAY)
+                    setColor(tickColor.toArgb())
                     textSize = 22f
                     textAlign = android.graphics.Paint.Align.LEFT
                 }
@@ -300,6 +304,11 @@ private fun ScreenRuler() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (initialized) {
+            TextButton(onClick = { initialized = false; endSet = false }) {
+                Text(stringResource(R.string.ruler_clear_measure))
+            }
+        }
         Text(
             stringResource(R.string.ruler_note_screen),
             style = MaterialTheme.typography.labelSmall,
@@ -316,6 +325,11 @@ private fun OrientationToggle(landscape: Boolean, onToggle: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
     ) {
+        Icon(
+            imageVector = Icons.Filled.ScreenRotation,
+            contentDescription = null,
+            modifier = Modifier.padding(end = Spacing.xs),
+        )
         Text(stringResource(R.string.ruler_orientation_toggle))
     }
 }

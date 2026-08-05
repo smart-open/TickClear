@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -26,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -51,6 +53,7 @@ import kotlin.random.Random
 
 /** 出拳：0=石头 1=剪刀 2=布。 */
 private val CHOICE_LABELS = listOf(R.string.rps_rock, R.string.rps_scissors, R.string.rps_paper)
+private val CHOICE_EMOJI = listOf("✊", "✌️", "✋")
 
 /**
  * 石头剪刀布（人机对战，休闲小游戏）。
@@ -142,6 +145,7 @@ fun RpsScreen(onBack: () -> Unit) {
             // 对战展示
             Card(
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(
@@ -154,8 +158,15 @@ fun RpsScreen(onBack: () -> Unit) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ChoiceBadge(stringResource(R.string.rps_you), player)
+                        Text(
+                            "VS",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         ChoiceBadge(stringResource(R.string.rps_machine), machine)
                     }
                     if (player != null && machine != null) {
@@ -173,24 +184,35 @@ fun RpsScreen(onBack: () -> Unit) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            resultText,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                        Surface(
                             color = when (resultWon) {
-                                true -> MaterialTheme.colorScheme.primary
-                                false -> MaterialTheme.colorScheme.error
-                                null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                true -> MaterialTheme.colorScheme.primaryContainer
+                                false -> MaterialTheme.colorScheme.errorContainer
+                                null -> MaterialTheme.colorScheme.surfaceVariant
                             },
-                        )
+                            shape = RoundedCornerShape(999.dp),
+                        ) {
+                            Text(
+                                resultText,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = when (resultWon) {
+                                    true -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    false -> MaterialTheme.colorScheme.onErrorContainer
+                                    null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                            )
+                        }
                     }
                 }
             }
 
-            // 出拳按钮
+            // 出招
             Text(
-                stringResource(R.string.tools_rps_title),
+                stringResource(R.string.rps_your_move),
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.align(Alignment.Start),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -201,14 +223,20 @@ fun RpsScreen(onBack: () -> Unit) {
                         onClick = { play(idx) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(72.dp),
+                            .height(88.dp),
                         shape = RoundedCornerShape(14.dp),
                     ) {
-                        Text(
-                            stringResource(labelRes),
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            Text(CHOICE_EMOJI[idx], style = MaterialTheme.typography.headlineSmall)
+                            Text(
+                                stringResource(labelRes),
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }
@@ -218,7 +246,14 @@ fun RpsScreen(onBack: () -> Unit) {
                     wins = 0; losses = 0; draws = 0
                     player = null; machine = null; resultWon = null
                 },
-            ) { Text(stringResource(R.string.rps_reset)) }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Replay,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = Spacing.xs),
+                )
+                Text(stringResource(R.string.rps_reset))
+            }
         }
     }
 }
@@ -247,18 +282,20 @@ private fun ChoiceBadge(who: String, choice: Int?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .size(72.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                choice?.let { stringResource(CHOICE_LABELS[it]) } ?: "—",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                choice?.let { CHOICE_EMOJI[it] } ?: "—",
+                style = MaterialTheme.typography.headlineMedium,
             )
         }
         Spacer(Modifier.height(Spacing.xs))
-        Text(who, style = MaterialTheme.typography.labelMedium)
+        Text(
+            choice?.let { stringResource(CHOICE_LABELS[it]) } ?: who,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }

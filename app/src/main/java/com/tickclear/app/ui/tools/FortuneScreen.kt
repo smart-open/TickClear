@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Button
@@ -38,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
@@ -118,126 +122,91 @@ fun FortuneScreen(onBack: () -> Unit) {
         ) {
             SimHintCard(stringResource(R.string.tools_fortune_hint))
 
-            FortuneField(stringResource(R.string.fortune_keyword_label), fortune.keyword)
-            FortuneField(stringResource(R.string.fortune_lucky_num_label), fortune.luckyNum.toString())
-
-            // 幸运颜色：文字 + 色块
+            // 运势主卡：以幸运色做底色，关键词 / 幸运数 / 幸运色 / 星级 / 寄语集中呈现
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        stringResource(R.string.fortune_lucky_color_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .background(fortune.color),
-                        )
-                        Spacer(Modifier.size(Spacing.sm))
-                        Text(fortune.colorName, style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-            }
-
-            // 今日寄语
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = fortune.color.copy(alpha = 0.14f)),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        .padding(Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        stringResource(R.string.fortune_blessing_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fortune.keyword,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
-                    Text(
-                        fortune.blessing,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            }
-
-            // 开心指数（星级）
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        stringResource(R.string.fortune_index_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(fortune.color),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            fortune.luckyNum.toString(),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(fortune.color),
+                        )
+                        Text(fortune.colorName, style = MaterialTheme.typography.titleMedium)
+                    }
                     Row {
                         repeat(5) { i ->
                             Icon(
                                 imageVector = if (i < fortune.index) Icons.Filled.Star else Icons.Outlined.StarOutline,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = fortune.color,
                                 modifier = Modifier.size(22.dp),
                             )
                         }
                     }
+                    Text(
+                        "“${fortune.blessing}”",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(Spacing.xs))
             Text(
                 stringResource(R.string.fortune_disclaimer),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(Spacing.sm))
             Button(
                 onClick = { seed = todayEpoch + Random.nextLong(1, 100000) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = Spacing.xs),
+                )
                 Text(stringResource(R.string.fortune_reroll))
             }
         }
     }
 }
 
-@Composable
-private fun FortuneField(label: String, value: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(value, style = MaterialTheme.typography.titleLarge)
-        }
-    }
-}
+
 
 /** 由 seed 确定性地生成一条趣味运势。 */
 private fun computeFortune(seed: Long): FortuneResult {
