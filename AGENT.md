@@ -75,4 +75,4 @@ di/         Hilt 模块
 - Opus 编解码：语音链路使用本地 AAR `app/libs/opus.aar`（theeasiestway，libopus 1.3.1 软件实现，各机型可用）；不再依赖设备 `MediaCodec`(audio/opus) 编码器（多数机型 `dequeueInputBuffer` 恒 -1 导致零帧上行）。Mock 模式不需真实 Opus。集中封装在 `domain/assistant/OpusCodec`。
 - 真实小智服务端联调（Real 模式）依赖外部 token；Mock 模式为默认演示路径（v1.0 已含）。
 - 动态取色(DYNAMIC)仅 API31+，低版本回退浅色。
-- **平台限制（v1.0 已知）**：Android 14+ 对 `setFullScreenIntent` 全屏提醒与 `LocationManager.addProximityAlert` 邻近警报均有限制/降级，详见 `release-notes.md` 的「已知限制」。后续增强见 `docs/成熟度评估.md` §6 已知限制（V2.72–V2.75 显式保留项）。
+- **平台限制（v1.0 已知）**：Android 14+ 对 `setFullScreenIntent` 全屏提醒与 `LocationManager.addProximityAlert` 邻近警报均有限制/降级，详见 `docs/release-notes.md` 的「已知限制」。后续增强见 `docs/成熟度评估.md` §6 已知限制（V2.72–V2.75 显式保留项）。
