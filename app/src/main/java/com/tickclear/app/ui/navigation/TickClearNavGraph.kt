@@ -120,7 +120,11 @@ fun TickClearApp(
         LaunchedEffect(startAction) {
             val action = startAction ?: return@LaunchedEffect
             when (action) {
-                ShortcutHelper.ACTION_NEW_TASK -> navController.navigate("${Routes.TASKS}?openEditor=true") {
+                // 带上一次性 nonce：否则重复点击同一快捷方式时路由与参数完全一致，
+                // launchSingleTop 会复用栈顶条目，编辑器不会二次弹出。
+                ShortcutHelper.ACTION_NEW_TASK -> navController.navigate(
+                    "${Routes.TASKS}?openEditor=true&editorNonce=${System.currentTimeMillis()}",
+                ) {
                     popUpTo(navController.graph.startDestinationId) { saveState = true }
                     launchSingleTop = true
                 }
@@ -202,15 +206,17 @@ private fun AppNavHost(
             )
         }
         composable(
-            route = "${Routes.TASKS}?openEditor={openEditor}",
+            route = "${Routes.TASKS}?openEditor={openEditor}&editorNonce={editorNonce}",
             arguments = listOf(
                 navArgument("openEditor") { type = NavType.BoolType; defaultValue = false },
+                navArgument("editorNonce") { type = NavType.StringType; defaultValue = "" },
             ),
         ) { entry ->
             TasksScreen(
                 isWide = isWide,
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
                 initialOpenEditor = entry.arguments?.getBoolean("openEditor") ?: false,
+                openEditorNonce = entry.arguments?.getString("editorNonce").orEmpty(),
             )
         }
         composable(Routes.HABITS) {

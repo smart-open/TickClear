@@ -86,28 +86,31 @@ fun TasksScreen(
     isWide: Boolean = false,
     onNavigateToRecycleBin: () -> Unit = {},
     initialOpenEditor: Boolean = false,
+    openEditorNonce: String = "",
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
-    // V2.9：由「新建任务」快捷方式进入时，自动弹出新建编辑器（仅消费一次，避免重组/旋转重复弹出）。
-    var shortcutEditorConsumed by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(initialOpenEditor) {
-        if (initialOpenEditor && !shortcutEditorConsumed) {
+    // V2.9：由「新建任务」快捷方式进入时自动弹出新建编辑器。
+    // 以 nonce 记录已消费的那一次：同一 nonce 只弹一次（重组/旋转不重复弹），
+    // 再次点击快捷方式会带来新的 nonce，因此可以正常二次弹出。
+    var consumedEditorNonce by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(initialOpenEditor, openEditorNonce) {
+        if (initialOpenEditor && consumedEditorNonce != openEditorNonce) {
             editingTaskId = null
             showEditor = true
-            shortcutEditorConsumed = true
+            consumedEditorNonce = openEditorNonce
         }
     }
     var showGroupEditor by rememberSaveable { mutableStateOf(false) }
     var editingGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var groupToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
-    // ��ת�󱣳ֱ༭/ɾ�����㣺�� id���� id �ӵ�ǰ�б��ָ�����Task/TaskGroup ����ֱ�� saveable����
+    // 旋转后保持编辑/删除目标：只存 id，实体按 id 从当前列表恢复（Task/TaskGroup 不便直接 saveable）
     val editingTask = state.tasks.find { it.id == editingTaskId }
     val editingGroup = state.groups.find { it.id == editingGroupId }
     val groupToDelete = state.groups.find { it.id == groupToDeleteId }
-    // 宽屏主从双栏：选中任务 id�?"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
+    // 宽屏主从双栏：选中任务 id（"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
     var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 软删任务撤销提示
@@ -127,7 +130,7 @@ fun TasksScreen(
         }
     }
 
-    // 任务行点击：宽屏进右侧详情面板，窄屏弹底部编辑弹�?
+    // 任务行点击：宽屏进右侧详情面板，窄屏弹底部编辑弹窗
     val onTaskClick: (Task) -> Unit = if (isWide) {
         { selectedTaskId = it.id }
     } else {
@@ -374,7 +377,7 @@ private fun TasksList(
                 }
             }
 
-        // 无分组任�?
+        // 无分组任务
         if (ungrouped.isNotEmpty()) {
             item(key = "ungrouped_header") {
                 Text(
