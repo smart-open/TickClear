@@ -12,9 +12,15 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const RES = 'app/src/main/res/values/strings.xml';
-const SRC = 'app/src/main/java';
+// 脚本位于 test/，相对路径需向上跳一级到仓库根
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, '..');
+
+const RES = path.join(ROOT, 'app/src/main/res/values/strings.xml');
+const SRC = path.join(ROOT, 'app/src/main/java');
 
 /** 运行期按前缀 + 变量拼接资源名的场景，静态扫描无法解析具体 name，非缺失。 */
 const DYNAMIC_PREFIXES = ['assistant_asr_', 'assistant_provider_'];
@@ -35,7 +41,7 @@ function walk(dir, out) {
 const files = [];
 walk(SRC, files);
 // also scan manifest & layouts for R.string usage
-walk('app/src/main/res', files);
+walk(path.join(ROOT, 'app/src/main/res'), files);
 
 const used = new Map(); // name -> Set<file>
 // 捕获限定前缀，用于剔除 android.R.string.* 这类不在本模块定义的资源

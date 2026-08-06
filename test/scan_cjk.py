@@ -10,7 +10,8 @@ import sys
 
 STR = re.compile(r'"(?:[^"\\]|\\.)*"')
 CJK = re.compile(r'[\u4e00-\u9fff]')
-ROOT = 'app/src/main/java'
+# 脚本位于 test/，相对路径需向上跳一级到仓库根
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'app', 'src', 'main', 'java')
 
 
 def scan():

@@ -11,7 +11,7 @@ def tone(freq, dur, gain=0.4):
     return out
 
 samples = tone(880, 0.22) + tone(1320, 0.26)
-out_path = os.path.join(os.path.dirname(__file__), "app", "src", "main", "res", "raw", "notify_chime.wav")
+out_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "src", "main", "res", "raw", "notify_chime.wav")
 os.makedirs(os.path.dirname(out_path), exist_ok=True)
 with wave.open(out_path, "w") as w:
     w.setnchannels(1)

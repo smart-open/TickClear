@@ -1,11 +1,11 @@
 import sys
 
 files = [
- "app/src/main/java/com/tickclear/app/ui/assistant/AssistantViewModel.kt",
- "app/src/main/java/com/tickclear/app/domain/assistant/WebSocketXiaozhiTransport.kt",
- "app/src/main/java/com/tickclear/app/domain/assistant/XiaozhiConnectionTester.kt",
- "app/src/main/java/com/tickclear/app/domain/assistant/LocalSpeechRecognizer.kt",
- "app/src/main/java/com/tickclear/app/ui/settings/SettingsViewModel.kt",
+ "../app/src/main/java/com/tickclear/app/ui/assistant/AssistantViewModel.kt",
+ "../app/src/main/java/com/tickclear/app/domain/assistant/WebSocketXiaozhiTransport.kt",
+ "../app/src/main/java/com/tickclear/app/domain/assistant/XiaozhiConnectionTester.kt",
+ "../app/src/main/java/com/tickclear/app/domain/assistant/LocalSpeechRecognizer.kt",
+ "../app/src/main/java/com/tickclear/app/ui/settings/SettingsViewModel.kt",
 ]
 
 def check(path):

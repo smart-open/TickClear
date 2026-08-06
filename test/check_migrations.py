@@ -31,8 +31,10 @@ import os
 import re
 import sys
 
-SRC = 'app/src/main/java/com/tickclear/app/data/local/AppDatabase.kt'
-SCH = 'app/schemas/com.tickclear.app.data.local.AppDatabase'
+# 脚本位于 test/，相对路径需向上跳一级到仓库根
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(_ROOT, 'app/src/main/java/com/tickclear/app/data/local/AppDatabase.kt')
+SCH = os.path.join(_ROOT, 'app/schemas/com.tickclear.app.data.local.AppDatabase')
 
 AFFINITY = {'INTEGER': 'INTEGER', 'REAL': 'REAL', 'TEXT': 'TEXT', 'BLOB': 'BLOB'}
 
