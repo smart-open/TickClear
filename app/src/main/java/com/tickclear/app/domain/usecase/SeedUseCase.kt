@@ -11,7 +11,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,7 +72,9 @@ class SeedUseCase @Inject constructor(
         reminderEnabled: Boolean = false,
         reminderLevel: String = "mid",
     ): Task = Task(
-        id = UUID.randomUUID().toString(),
+        // 确定性 id：种子任务用稳定标识，首次注入若中途崩溃重跑时以 REPLACE upsert 覆盖，
+        // 避免每次重跑生成全新 UUID 导致重复示例数据。
+        id = "seed_t_$title",
         groupId = groupId,
         title = title,
         notes = "",

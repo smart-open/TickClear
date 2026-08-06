@@ -56,6 +56,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.tickclear.app.MainActivity
 import com.tickclear.app.R
 import com.tickclear.app.domain.scheduler.NotificationHelper
 import java.text.SimpleDateFormat
@@ -144,7 +145,9 @@ class ClockOverlayService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        // 显式指向 MainActivity，避免 getLaunchIntentForPackage 在部分 ROM 冻结/隐藏时返回 null
+        // 导致 PendingIntent 构造抛 NPE，进而连带触发前台服务启动崩溃。
+        val launch = Intent(this, MainActivity::class.java)
         val pi = PendingIntent.getActivity(
             this,
             NOTIF_ID,

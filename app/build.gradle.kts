@@ -57,8 +57,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // 有 release 密钥用正式签名，否则回退 debug（仅影响本地构建，不入库）。
-            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            // 有 release 密钥用正式签名；缺失时回退 debug 但显式告警，避免「静默用公开 debug 密钥签名可分发包」。
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("⚠ [signing] release 包正在使用 debug 签名，禁止分发！请在 local.properties 配置 release.storeFile/release.storePassword/release.keyAlias/release.keyPassword")
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -66,17 +71,8 @@ android {
             // unit 覆盖率本地可跑，androidTest 覆盖率供 CI 真机/模拟器生成。
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
-            // 仅 debug 注入本地 ASR 密钥（local.properties 含明文凭据，已 gitignore，禁止入库/禁止提交到 release）。
-            val localProps = Properties().apply {
-                val f = rootProject.file("local.properties")
-                if (f.exists()) load(f.inputStream())
-            }
-            val secretId = localProps["tencent.asr.secretId"]?.toString().orEmpty()
-            val secretKey = localProps["tencent.asr.secretKey"]?.toString().orEmpty()
-            val region = localProps["tencent.asr.region"]?.toString().orEmpty().ifEmpty { "ap-guangzhou" }
-            buildConfigField("String", "TENCENT_ASR_SECRET_ID", "\"$secretId\"")
-            buildConfigField("String", "TENCENT_ASR_SECRET_KEY", "\"$secretKey\"")
-            buildConfigField("String", "TENCENT_ASR_REGION", "\"$region\"")
+            // ASR 密钥统一走 SecureStore + 设置页录入（当前默认阿里云 ASR），
+            // 不再经 BuildConfig 内联明文（腾讯 ASR 配置已名存实亡且易误植明文，已移除）。
         }
     }
 

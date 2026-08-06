@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.tickclear.app.domain.conflict.isEnabled
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.model.Task
 import com.tickclear.app.domain.repository.TaskRepository
 import dagger.hilt.EntryPoint
@@ -56,8 +57,13 @@ class GeofenceScheduler @Inject constructor(
             val permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             val intent = Intent(context, LocationReminderService::class.java)
             if (permitted && hasGeoTasks(context)) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-                else context.startService(intent)
+                // 用户保存含位置提醒的任务后立刻切后台，协程恢复时进程已处于后台，
+                // Android 12+ 会抛 ForegroundServiceStartNotAllowedException（且无 try/catch 的协程里直接崩溃）。
+                // 兜底捕获，避免崩溃；失败时由下次进入前台/重启的 rescheduleAll 重建。
+                runCatching {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+                    else context.startService(intent)
+                }.onFailure { AppLogger.w("GeofenceScheduler", "startForegroundService 失败（可能进程在后台）：${it.message}") }
             } else {
                 context.stopService(intent)
             }
