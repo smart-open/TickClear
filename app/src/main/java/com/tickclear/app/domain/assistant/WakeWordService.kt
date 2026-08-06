@@ -1,6 +1,7 @@
 package com.tickclear.app.domain.assistant
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.Service
 import android.app.PendingIntent
@@ -48,6 +49,10 @@ class WakeWordService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // FOREGROUND_SERVICE_TYPE_MICROPHONE 是 API 30 引入的常量，但会在编译期内联为字面量 0x80，
+    // manifest 的 foregroundServiceType flags 同样被 aapt2 解析成该数值，API 29 系统按数值校验可通过。
+    // 不能标 @RequiresApi：onStartCommand 是框架回调，低版本设备上系统一样会调用它。
+    @SuppressLint("InlinedApi")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // ⚠️ 权限检查必须在 startForeground 之前：Android 14 上启动 type=microphone 的前台服务
         // 若运行时 RECORD_AUDIO 未授权，startForeground 会直接抛 SecurityException 令 App 崩溃。

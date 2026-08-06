@@ -1,5 +1,6 @@
 package com.tickclear.app.ui.tools
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -123,6 +124,11 @@ class ClockOverlayService : Service() {
         isRunning = true
     }
 
+    // FOREGROUND_SERVICE_TYPE_SPECIAL_USE 是 API 34 引入的常量，但会在编译期内联为字面量 0x40000000，
+    // 且 manifest 的 foregroundServiceType 是 flags 属性、由 aapt2 按 compileSdk 34 解析成同一数值写入二进制清单，
+    // 因此 API 29~33 系统做「传入类型 ⊆ 清单声明类型」校验时同样通过，不会抛 IllegalArgumentException。
+    // 不能标 @RequiresApi：onStartCommand 是框架回调，低版本设备上系统一样会调用它。
+    @SuppressLint("InlinedApi")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // 三参 startForeground(类型) 自 API 29(Q) 才有；低于 Q 无前台服务类型概念，退回两参。
         // manifest 的 foregroundServiceType 属性在 <Q 被系统忽略，故两参路径安全且不缺权限。

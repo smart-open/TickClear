@@ -1,5 +1,6 @@
 package com.tickclear.app.ui.tools
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -87,6 +88,11 @@ class PrivacyCheckViewModel @Inject constructor(
     private val _error = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val errorEvents: SharedFlow<String> = _error.asSharedFlow()
 
+    // Android 11+ 包可见性：manifest 已声明 <queries> MAIN/LAUNCHER，可枚举全部「有启动图标的应用」，
+    // 这已覆盖隐私审计的目标场景。彻底消除本警告需申请 QUERY_ALL_PACKAGES，
+    // 但该权限是 Google Play 严格管控的敏感权限（需单独申报理由、滥用会被拒审），
+    // 对一个「本地权限自查」工具不成立 → 主动接受「仅可见应用」的范围限制。
+    @SuppressLint("QueryPermissionsNeeded")
     fun scan() {
         if (_scanning.value) return
         _scanning.value = true

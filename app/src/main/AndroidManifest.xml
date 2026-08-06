@@ -50,6 +50,16 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
 
+    <!-- V2.9++ 隐私工具（隐私检查 / 摄像头检测）：需枚举已安装应用以审计权限。
+         Android 11(API 30)+ 包可见性限制使 getInstalledPackages 默认仅返回可见应用，
+         此处声明 LAUNCHER 意图以扩大可见范围，使隐私审计能覆盖绝大多数用户安装的应用。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".TickClearApplication"
         android:allowBackup="false"

@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -148,7 +149,14 @@ class PrivacyDetectViewModel @Inject constructor(
         _micInUse.value = false
     }
 
-    /** 静态审计：列出所有申请了相机或麦克风权限的已安装应用，按系统/安装分两块。 */
+    /**
+     * 静态审计：列出所有申请了相机或麦克风权限的已安装应用，按系统/安装分两块。
+     *
+     * Android 11+ 包可见性：manifest 已声明 <queries> MAIN/LAUNCHER，可枚举全部「有启动图标的应用」。
+     * 彻底消除 QueryPermissionsNeeded 需申请 QUERY_ALL_PACKAGES，但那是 Google Play 严格管控的敏感权限
+     * （需单独申报理由、滥用会被拒审），对本地审计工具不成立 → 主动接受「仅可见应用」的范围限制。
+     */
+    @SuppressLint("QueryPermissionsNeeded")
     fun scanApps() {
         viewModelScope.launch(Dispatchers.IO) {
             val sys = mutableListOf<SensitiveApp>()
