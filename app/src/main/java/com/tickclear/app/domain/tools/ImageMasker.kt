@@ -59,6 +59,10 @@ object ImageMasker {
         }
     }
 
+    /**
+     * 按 maxSide 等比缩小。缩放发生时立即 [Bitmap.recycle] 原图——全分辨率解码结果不再被引用，
+     * 保留到 GC 触发只会与缩放图、mask 副本叠加占用 Native 内存，是大图连续处理的 OOM 主因。
+     */
     private fun downscaleIfNeeded(src: Bitmap, maxSide: Int): Bitmap {
         val w = src.width
         val h = src.height
@@ -67,7 +71,9 @@ object ImageMasker {
         val scale = maxSide.toFloat() / long
         val tw = max(1, (w * scale).toInt())
         val th = max(1, (h * scale).toInt())
-        return Bitmap.createScaledBitmap(src, tw, th, true)
+        val out = Bitmap.createScaledBitmap(src, tw, th, true)
+        if (out !== src) src.recycle()
+        return out
     }
 
     /**

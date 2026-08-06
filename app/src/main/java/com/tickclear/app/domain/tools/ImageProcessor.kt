@@ -42,16 +42,23 @@ object ImageProcessor {
             }
         }
 
+    /**
+     * 按 maxSide 等比缩小。缩放发生时必须立即 [Bitmap.recycle] 原图：
+     * 全分辨率解码结果（手机主摄轻松 4000×3000，约 48MB ARGB_8888）在返回后仅靠 GC 回收，
+     * 与缩放图、后续处理副本并存会让 Native 内存峰值翻倍，低内存机型连续处理大图时会 OOM。
+     */
     private fun downscale(src: Bitmap, maxSide: Int): Bitmap {
         val long = max(src.width, src.height)
         if (long <= maxSide) return src
         val scale = maxSide.toFloat() / long
-        return Bitmap.createScaledBitmap(
+        val out = Bitmap.createScaledBitmap(
             src,
             max(1, (src.width * scale).toInt()),
             max(1, (src.height * scale).toInt()),
             true,
         )
+        if (out !== src) src.recycle()
+        return out
     }
 
     /** 按最大边长等比缩放（不放大）。 */

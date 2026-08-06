@@ -2,6 +2,7 @@ package com.tickclear.app.domain.tools
 
 import android.media.AudioFormat
 import android.media.AudioTrack
+import com.tickclear.app.domain.log.AppLogger
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -12,16 +13,18 @@ import kotlin.random.Random
  * 这是「模拟」音效，并非真实录音，主打解压好玩。
  */
 object AnimalSynth {
+    private const val TAG = "AnimalSynth"
     private const val SR = 44100
     private var current: AudioTrack? = null
 
     /** 停止并释放当前正在播放的音轨。 */
     fun stop() {
-        try {
+        // 未播放状态下 stop() 会抛 IllegalStateException，属预期；但不得裸吞（AGENT.md §3 禁裸 catch），
+        // 记 w 级日志以便排查「音轨未释放」这类偶发问题。
+        runCatching {
             current?.stop()
             current?.release()
-        } catch (_: Exception) {
-        }
+        }.onFailure { AppLogger.w(TAG, "AudioTrack 释放异常：${it.message}") }
         current = null
     }
 
@@ -60,7 +63,7 @@ object AnimalSynth {
             track.write(samples, 0, samples.size)
             current = track
             track.play()
-        }
+        }.onFailure { AppLogger.w(TAG, "音效合成/播放失败（key=$key）：${it.message}") }
     }
 
     // ---------- 合成基元 ----------

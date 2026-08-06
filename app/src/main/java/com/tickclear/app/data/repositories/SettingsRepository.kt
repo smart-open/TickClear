@@ -2,6 +2,7 @@ package com.tickclear.app.data.repositories
 
 import android.content.Context
 import com.tickclear.app.R
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -11,6 +12,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tickclear.app.data.SecureStore
 import com.tickclear.app.domain.backup.BackupHealth
+import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.ui.theme.ThemeMode
 import com.tickclear.app.ui.theme.ThemeSkin
@@ -19,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -264,16 +268,27 @@ class SettingsRepositoryImpl @Inject constructor(
     override val xzDeviceId: Flow<String> = dataStore.data.map { prefs ->
         prefs[KEY_XZ_DEVICE_ID] ?: ""
     }
-    override val xzClientId: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_XZ_CLIENT_ID] ?: java.util.UUID.randomUUID().toString().also { uuid ->
-            runCatching { dataStore.edit { it[KEY_XZ_CLIENT_ID] = uuid } }
-        }
+    // clientId / serialNumber 首次缺失时惰性生成并持久化。
+    // 必须串行 + 二次检查：SettingsViewModel 与 WebSocketXiaozhiTransport 都经 .first() 消费，
+    // 并发触发时若各自生成随机 UUID 会互相覆盖，导致握手用的设备身份在同一次启动内漂移。
+    // 写失败亦不可静默——一旦吞掉，下次冷启动会再生成新 ID，服务端设备绑定与会话连续性直接失效。
+    private val identityMutex = Mutex()
+
+    private suspend fun ensureIdentity(key: Preferences.Key<String>): String = identityMutex.withLock {
+        dataStore.data.first()[key]?.takeIf { it.isNotEmpty() }?.let { return@withLock it }
+        val generated = java.util.UUID.randomUUID().toString()
+        runCatching { dataStore.edit { it[key] = generated } }
+            .onFailure { AppLogger.e(TAG_SETTINGS, "持久化小智设备身份失败：${key.name}", it) }
+        generated
     }
-    override val xzSerialNumber: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_XZ_SERIAL_NUMBER] ?: java.util.UUID.randomUUID().toString().also { sn ->
-            runCatching { dataStore.edit { it[KEY_XZ_SERIAL_NUMBER] = sn } }
-        }
-    }
+
+    override val xzClientId: Flow<String> = dataStore.data
+        .map { it[KEY_XZ_CLIENT_ID].orEmpty() }
+        .map { it.ifEmpty { ensureIdentity(KEY_XZ_CLIENT_ID) } }
+
+    override val xzSerialNumber: Flow<String> = dataStore.data
+        .map { it[KEY_XZ_SERIAL_NUMBER].orEmpty() }
+        .map { it.ifEmpty { ensureIdentity(KEY_XZ_SERIAL_NUMBER) } }
 
     // 注意：dataStore.edit 返回 Preferences，接口声明返回 Unit → 必须用块体而非表达式体。
     override suspend fun setXzDeviceId(deviceId: String) { dataStore.edit { it[KEY_XZ_DEVICE_ID] = deviceId } }
@@ -335,6 +350,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     private companion object {
+        private const val TAG_SETTINGS = "SettingsRepo"
         private val KEY_THEME = stringPreferencesKey("theme_mode")
         private val KEY_THEME_SKIN = stringPreferencesKey("theme_skin")
         private val KEY_ANIMATION = booleanPreferencesKey("animation_enabled")
