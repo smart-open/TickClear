@@ -1,11 +1,19 @@
 package com.tickclear.app.ui.plan
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBox
@@ -19,8 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -33,6 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,6 +55,7 @@ import com.tickclear.app.ui.habits.HabitsViewModel
 import com.tickclear.app.ui.tasks.GroupEditDialog
 import com.tickclear.app.ui.tasks.TasksContent
 import com.tickclear.app.ui.tasks.TasksViewModel
+import com.tickclear.app.ui.theme.Spacing
 
 /**
  * 合并 tab「计划」：内部以二级分段（任务 | 习惯）承载原「任务」「习惯」两页的管理能力。
@@ -107,50 +117,28 @@ fun PlanScreen(
             },
         ) { innerPadding ->
             Column(Modifier.fillMaxSize().padding(innerPadding)) {
-                TabRow(
-                    selectedTabIndex = if (selectedTab == "habits") 1 else 0,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
+                // 自绘半高 36dp + 靠左的 Tab：M3 TabRow 的 Tab 内部被
+                // LocalMinimumInteractiveComponentEnforcement 强制 48dp 最小高度，靠 modifier 减不掉，
+                // 故放弃 M3 TabRow；自绘 Row + PlanTab 同时满足"高度减半"与"靠左"两点要求。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .padding(horizontal = Spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Tab(
+                    PlanTab(
+                        icon = Icons.Filled.CheckBox,
+                        label = stringResource(R.string.tab_tasks),
                         selected = selectedTab == "tasks",
                         onClick = { selectedTab = "tasks" },
-                        icon = {
-                            Icon(
-                                Icons.Filled.CheckBox,
-                                contentDescription = null,
-                                modifier = Modifier.height(20.dp),
-                            )
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.tab_tasks),
-                                fontWeight = if (selectedTab == "tasks") FontWeight.SemiBold else FontWeight.Normal,
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Tab(
+                    Spacer(Modifier.width(Spacing.lg))
+                    PlanTab(
+                        icon = Icons.Filled.Repeat,
+                        label = stringResource(R.string.tab_habits),
                         selected = selectedTab == "habits",
                         onClick = { selectedTab = "habits" },
-                        icon = {
-                            Icon(
-                                Icons.Filled.Repeat,
-                                contentDescription = null,
-                                modifier = Modifier.height(20.dp),
-                            )
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.tab_habits),
-                                fontWeight = if (selectedTab == "habits") FontWeight.SemiBold else FontWeight.Normal,
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Box(Modifier.fillMaxSize().weight(1f)) {
@@ -200,6 +188,47 @@ fun PlanScreen(
             dismissButton = {
                 TextButton(onClick = { groupToDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
+        )
+    }
+}
+
+/**
+ * 计划 tab 自绘分段（半高 36dp、靠左排列、图标 + 文本、选中加粗 + 主色下划线）。
+ * 取代 M3 TabRow：其内部 Tab 被 LocalMinimumInteractiveComponentEnforcement 强制 48dp 最小高度，
+ * 靠 modifier 改不掉；同时 M3 TabRow 内的 Tab 强制均分宽度居中，无法靠左。
+ * 自绘 Row + PlanTab 同时满足"高度减半"与"靠左"两个要求。
+ */
+@Composable
+private fun PlanTab(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.sm, vertical = 4.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label,
+                color = color,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
         )
     }
 }
