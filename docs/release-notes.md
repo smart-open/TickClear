@@ -67,7 +67,7 @@
 - `release-notes.md`：本章节（含 v2.8.0 封板信息、Opus 依赖描述更正为本地 AAR）。
 - `AGENT.md`：底部 Tab 由 5 改为 6（补「习惯」）、`ui/habits/` 包补录、新增习惯 Tab 行为契约、封板引用 v2.7.1→v2.8.0、Opus 已知风险条更正为本地 AAR、零新依赖红线补注唯一本地 AAR 例外。
 - `docs/成熟度评估.md`：标题 v2.8.0、迁移链 1→8、综合评分 98.5→**99.0/100**、构建行 versionCode 16 / versionName 2.8.0、新增 §13「2026-08-02 v2.8.0 封板收口」。
-- `XIAOZHI_DIAGNOSTIC_README.md`：新增「image token 过滤」段、「语音上行诊断」段；「已知雷点」表加 listen state=detect / Device-Id 必须小写 / 25s 超时说明。
+- `test/XIAOZHI_DIAGNOSTIC_README.md`：新增「image token 过滤」段、「语音上行诊断」段；「已知雷点」表加 listen state=detect / Device-Id 必须小写 / 25s 超时说明。
 - `docs/用户配置手册.md`：新增「语音不能用排查步骤」——看 logcat `XzTransport/AudioCapture/OpusCodec/AssistantVM` 四个标签。
 - `docs/语音助手实现说明.md`：在差异点处标注"REAL 模式语音上行日志路径"。
 - `.workbuddy/memory/MEMORY.md`：本次根因 + 方案 + 关键代码位置（`MessageTextFilter` / `WebSocketXiaozhiTransport.sendAudio` / `AudioCapture.start` / `OpusCodec.encodeFrame`）。
@@ -503,7 +503,7 @@
   - 今日键盘监听改用 `rememberUpdatedState` 读取最新 `state`，修复过期闭包误操已变更列表项
   - `GeofenceScheduler` 去除 `runBlocking(Dispatchers.IO)` 主线程阻塞，改用内部协程作用域 + `withContext`
 - 单元测试 30 例 + 仪器化测试脚手架全绿；全工程无 `!!`/`GlobalScope`/`fallbackToDestructiveMigration`
-- 四维成熟度评估 **98+/100**（产品 / 开发 / 测试 / 配置），详见 `docs/archive/开发计划_v2.0_任务清单.md`
+- 四维成熟度评估 **98+/100**（产品 / 开发 / 测试 / 配置），详见 `docs/成熟度评估.md`
 
 ### ⚠️ 已知限制（系统级，非缺陷）
 - 含 v1.0.0 全部已知限制（Android 14+ 全屏提醒降级、位置提醒受厂商省电影响、本地语音识别 best-effort）
@@ -571,7 +571,7 @@
 - GitHub Actions CI：`assembleDebug` + `testDebugUnitTest` 提交门禁
 - lint `abortOnError=true`，0 errors；全工程无 `!!`/`TODO`/`GlobalScope`
 - release：minify + shrinkResources + ProGuard；签名经 `local.properties` 注入（密钥不入库）
-- 封板前深度审计修复 9 类问题（子日级实例完成/跳过脱节、备份字段丢失、语音识别器泄漏、旋转丢对话框、除零守卫等），四维成熟度评估 98+/100（详见 `docs/archive/开发计划_任务清单.md` Phase 9）
+- 封板前深度审计修复 9 类问题（子日级实例完成/跳过脱节、备份字段丢失、语音识别器泄漏、旋转丢对话框、除零守卫等），四维成熟度评估 98+/100（详见 `docs/成熟度评估.md` Phase 9）
 
 ### ⚠️ 已知限制（系统级，非缺陷）
 
