@@ -19,8 +19,8 @@ data class TopLevelDestination(
 
 val topLevelDestinations = listOf(
     TopLevelDestination(Routes.TODAY, R.string.tab_today, Icons.Filled.Today),
-    TopLevelDestination(Routes.ASSISTANT, R.string.tab_assistant, Icons.Filled.SmartToy),
     TopLevelDestination(Routes.TASKS, R.string.tab_plan, Icons.AutoMirrored.Filled.ListAlt),
+    TopLevelDestination(Routes.ASSISTANT, R.string.tab_assistant, Icons.Filled.SmartToy),
     TopLevelDestination(Routes.TOOLS, R.string.tab_tools, Icons.Filled.Build),
     TopLevelDestination(Routes.SETTINGS, R.string.tab_settings, Icons.Filled.Settings),
 )
