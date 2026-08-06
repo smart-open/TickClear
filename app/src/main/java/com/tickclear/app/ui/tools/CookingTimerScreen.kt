@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,8 +63,8 @@ private fun fmtTime(sec: Int): String {
     val h = sec / 3600
     val m = (sec % 3600) / 60
     val s = sec % 60
-    return if (h > 0) String.format("%d:%02d:%02d", h, m, s)
-    else String.format("%02d:%02d", m, s)
+    return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s)
+    else String.format(Locale.ROOT, "%02d:%02d", m, s)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +54,7 @@ fun PomodoroScreen(
 
     val mm = vm.remainingSec / 60
     val ss = vm.remainingSec % 60
-    val timeText = String.format("%02d:%02d", mm, ss)
+    val timeText = String.format(Locale.ROOT, "%02d:%02d", mm, ss)
     val total = (if (vm.phase == "focus") vm.focusMin else vm.breakMin) * 60
     val progress = if (total > 0) 1f - vm.remainingSec.toFloat() / total else 0f
 

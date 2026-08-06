@@ -330,7 +330,7 @@
     <string name="assistant_activate_two_step_btn">激活设备（获取验证码）</string>
     <string name="assistant_two_step_waiting">已获取验证码，正在等待你到官网输码（自动轮询中，最长 5 分钟）…</string>
     <string name="assistant_two_step_ok">激活成功！设备已在官网完成绑定，serial_number 与 hmac 已写入服务端设备记录。现在可直接点「测试连接」。</string>
-    <string name="assistant_two_step_step1_error">Step1 失败（OTA 注册/拿 challenge）：%1$s</string>
+    <string name="assistant_two_step_step1_error">Step 1 失败（OTA 注册/拿 challenge）：%1$s</string>
     <string name="assistant_two_step_step2_error">激活轮询异常：%1$s。请重新点击「激活设备」再试。</string>
     <string name="assistant_two_step_timeout">未在 5 分钟内检测到官网输码完成。请重新点击「激活设备」获取新验证码，并在轮询期间（不要离开本页）到 xiaozhi.me 控制台 → 添加设备 → 输入验证码。</string>
     <string name="assistant_two_step_unknown">激活流程状态未知，请查看「设置 → 调试日志」中 XzSim 标签的详细记录。</string>

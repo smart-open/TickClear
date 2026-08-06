@@ -20,6 +20,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import java.util.Locale
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -137,10 +138,10 @@ fun TableCalcScreen(onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(Spacing.xs))
                 listOf(
-                    sumLabel to r.columns.map { String.format("%.2f", it.sum) },
-                    avgLabel to r.columns.map { String.format("%.2f", it.avg) },
-                    maxLabel to r.columns.map { String.format("%.2f", it.max) },
-                    minLabel to r.columns.map { String.format("%.2f", it.min) },
+                    sumLabel to r.columns.map { String.format(Locale.ROOT, "%.2f", it.sum) },
+                    avgLabel to r.columns.map { String.format(Locale.ROOT, "%.2f", it.avg) },
+                    maxLabel to r.columns.map { String.format(Locale.ROOT, "%.2f", it.max) },
+                    minLabel to r.columns.map { String.format(Locale.ROOT, "%.2f", it.min) },
                 ).forEach { (label, values) ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),

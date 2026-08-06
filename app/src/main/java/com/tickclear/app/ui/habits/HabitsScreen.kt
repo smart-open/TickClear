@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import java.util.Locale
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -244,7 +245,7 @@ private fun HabitCard(
                 // 开启提醒时追加时间提示，便于一眼看到下次提醒时刻；休息日提示仍保留。
                 val suffix = when {
                     habit.reminderMin >= 0 ->
-                        " · ${String.format("%02d:%02d", habit.reminderMin / 60, habit.reminderMin % 60)}"
+                        " · ${String.format(Locale.ROOT, "%02d:%02d", habit.reminderMin / 60, habit.reminderMin % 60)}"
                     !item.dueToday -> " · ${stringResource(R.string.habits_rest_day)}"
                     else -> ""
                 }
@@ -433,7 +434,7 @@ private fun HabitEditDialog(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        if (reminderOn) String.format("%02d:%02d", reminderMin / 60, reminderMin % 60)
+                        if (reminderOn) String.format(Locale.ROOT, "%02d:%02d", reminderMin / 60, reminderMin % 60)
                         else stringResource(R.string.habits_reminder_off),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
