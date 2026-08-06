@@ -266,14 +266,20 @@ private fun TasksList(
     onDeleteTask: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 组内/无分组均按实例生效分钟升序（无时刻置末尾）
-    val byTime = compareBy<Task> { it.instanceDueMinute() ?: Int.MAX_VALUE }
-    val ungrouped = state.tasks.filter { it.groupId == null }.sortedWith(byTime)
-    // 分组：空组跳过；组间按组内最早任务时间升序
-    val sortedGroups = state.groups.mapNotNull { group ->
-        val tasks = state.tasks.filter { it.groupId == group.id }.sortedWith(byTime)
-        if (tasks.isEmpty()) null else group to tasks
-    }.sortedBy { (_, tasks) -> tasks.first().instanceDueMinute() ?: Int.MAX_VALUE }
+    // 组内/无分组均按实例生效分钟升序（无时刻置末尾）。
+    // 必须 remember：原实现裸写在组合体内，且对每个分组都要全量 filter 一遍 tasks（O(组数×任务数)），
+    // 任何无关状态变化（标签筛选 chip、滚动）都会触发整体重算。这里改为单次 groupBy + remember。
+    val (ungrouped, sortedGroups) = remember(state.tasks, state.groups) {
+        val byTime = compareBy<Task> { it.instanceDueMinute() ?: Int.MAX_VALUE }
+        val byGroup = state.tasks.groupBy { it.groupId }
+        val ung = byGroup[null].orEmpty().sortedWith(byTime)
+        // 分组：空组跳过；组间按组内最早任务时间升序
+        val grouped = state.groups.mapNotNull { group ->
+            val tasks = byGroup[group.id].orEmpty().sortedWith(byTime)
+            if (tasks.isEmpty()) null else group to tasks
+        }.sortedBy { (_, tasks) -> tasks.first().instanceDueMinute() ?: Int.MAX_VALUE }
+        ung to grouped
+    }
     LazyColumn(
         contentPadding = PaddingValues(bottom = 88.dp, top = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),

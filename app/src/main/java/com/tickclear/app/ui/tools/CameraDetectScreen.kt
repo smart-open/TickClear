@@ -70,6 +70,10 @@ fun CameraDetectScreen(
     val events by viewModel.events.collectAsStateWithLifecycle()
     val appList by viewModel.appList.collectAsStateWithLifecycle()
 
+    // 事件流持续追加时列表重组频繁，格式化器与倒序视图都必须提到组合体外缓存。
+    val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val reversedEvents = remember(events) { events.asReversed() }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -161,8 +165,10 @@ fun CameraDetectScreen(
                         .height(180.dp),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
-                    items(events.reversed(), key = { it.id }) { ev ->
-                        val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(ev.time))
+                    // SimpleDateFormat 构造需解析 locale 数据，属重量级对象，不可每项每次重组新建；
+                    // asReversed 返回视图不复制列表（reversed() 每次组合都会整表拷贝）。
+                    items(reversedEvents, key = { it.id }) { ev ->
+                        val time = timeFormatter.format(Date(ev.time))
                         Text(
                             "$time  ${ev.text}",
                             style = MaterialTheme.typography.bodySmall,

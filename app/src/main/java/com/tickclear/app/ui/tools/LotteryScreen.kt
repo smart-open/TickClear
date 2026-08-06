@@ -132,7 +132,9 @@ fun LotteryScreen(
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
-                itemsIndexed(options) { index, option ->
+                // 选项内容允许重复，故 key 必须带下标：删除中间项时纯内容 key 会撞车，
+                // 纯下标（缺省行为）又会让后续项全部错位复用。
+                itemsIndexed(options, key = { index, option -> "$index-$option" }) { index, option ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(

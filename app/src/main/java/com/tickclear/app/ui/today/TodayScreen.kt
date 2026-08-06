@@ -108,7 +108,7 @@ fun TodayScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 今日页主列表混排：把「今日应打卡」的所有习惯（含已打卡）与「进行中任务」按提醒时间穿插排列。
     val habitsState by habitsViewModel.uiState.collectAsStateWithLifecycle()
-    val todayHabits = habitsState.items.filter { it.dueToday }
+    val todayHabits = remember(habitsState.items) { habitsState.items.filter { it.dueToday } }
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -372,14 +372,20 @@ private fun TodayMainContent(
     // V2.32：拆分进行中/已完成；已完成数超过阈值时默认折叠（用户可手动展开）。
     // 注意：rememberSaveable / LaunchedEffect 必须在 @Composable 函数体作用域，
     // 不能放在 LazyColumn 的 LazyListScope（仅 item/items 内部是 composable 上下文）。
-    val activeItems = state.items.filter { !it.done }
-    val doneItems = state.items.filter { it.done }
+    val activeItems = remember(state.items) { state.items.filter { !it.done } }
+    val doneItems = remember(state.items) { state.items.filter { it.done } }
     // V2.54：键盘焦点只在「进行中」段内移动，故持有 active 列表的最新引用，
     // 让监听闭包始终读取最新 activeItems，避免按合并序号（active+done）索引导致的跨段错位。
     val currentActive = rememberUpdatedState(activeItems)
+    // 自动折叠必须以 doneItems.size 为键：state 来自 collectAsStateWithLifecycle，首帧恒为空初值，
+    // 若用 LaunchedEffect(Unit) 判定，永远只在 size==0 时跑一次 → 自动折叠从不生效。
+    // 同时用 userToggled 记录用户是否手动干预过，避免数据刷新/返回本页时把用户刚展开的段重新折叠回去。
+    var userToggledDone by rememberSaveable { mutableStateOf(false) }
     var collapseDone by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size)) collapseDone = true
+    LaunchedEffect(doneItems.size, userToggledDone) {
+        if (!userToggledDone) {
+            collapseDone = TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size)
+        }
     }
     DisposableEffect(view, shortcutsEnabled) {
         val listener = View.OnKeyListener { _, keyCode, event ->
@@ -431,7 +437,7 @@ private fun TodayMainContent(
         // 今日页主列表混排：把「进行中任务」与「今日应打卡习惯」按提醒时间穿插排列。
         // 排序键：任务用 instanceDueMinute（任务模型派生的当日分钟），习惯用 reminderMin（>=0）；
         // 无时间的项 sortKey 为 null，用 Int.MIN_VALUE 排到最上方，避免「有时间项把无时间项挤到底」。
-        val allLines: List<TodayLine> = run {
+        val allLines: List<TodayLine> = remember(activeItems, todayHabits, state.groups) {
             val taskLines = activeItems.mapIndexed { idx, item ->
                 TodayLine.Task(item, state.groups[item.task.groupId], activeIndex = idx)
             }
@@ -499,7 +505,7 @@ private fun TodayMainContent(
                                 count = doneItems.size,
                                 collapsed = collapseDone,
                                 showToggle = TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size),
-                                onToggle = { collapseDone = !collapseDone },
+                                onToggle = { collapseDone = !collapseDone; userToggledDone = true },
                             )
                         }
                         if (!collapseDone) {
