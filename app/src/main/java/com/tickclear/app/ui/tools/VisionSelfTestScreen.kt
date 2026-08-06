@@ -63,7 +63,6 @@ private val COLOR_TRIALS = listOf(
 
 /** 视力阶梯字号（sp），从大到小。 */
 private val ACUITY_SIZES = listOf(60, 44, 34, 26, 20, 15, 12, 9)
-private const val ACUITY_TEXT = "上中下大小王干"
 
 /** 内部子页面枚举。 */
 private enum class VisionSub { HUB, COLOR, ACUITY }
@@ -369,7 +368,7 @@ private fun AcuityTest() {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    ACUITY_TEXT,
+                    stringResource(R.string.vision_acuity_chars),
                     fontSize = ACUITY_SIZES[idx].sp,
                     fontWeight = FontWeight.Bold,
                 )

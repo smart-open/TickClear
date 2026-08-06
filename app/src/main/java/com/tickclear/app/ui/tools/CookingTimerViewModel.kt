@@ -64,11 +64,16 @@ class CookingTimerViewModel @Inject constructor() : ViewModel() {
         if (changed) _timers.value = next
     }
 
-    fun add(name: String, sec: Int) {
+    /**
+     * 新增一组倒计时。
+     *
+     * @param name 计时名称，为空时使用 [fallbackName]（由 UI 层从资源解析，避免 VM 硬编码中文）。
+     */
+    fun add(name: String, sec: Int, fallbackName: String) {
         if (sec <= 0) return
         val t = Timer(
             id = UUID.randomUUID().toString(),
-            name = name.ifBlank { "计时" },
+            name = name.ifBlank { fallbackName },
             totalSec = sec,
             remainSec = sec,
             running = false,

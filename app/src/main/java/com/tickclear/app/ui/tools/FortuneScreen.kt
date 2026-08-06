@@ -39,7 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,31 +61,10 @@ private data class FortuneResult(
     val index: Int, // 1..5 开心指数
 )
 
-private val FORTUNE_KEYWORDS = listOf(
-    "元气满满", "佛系一天", "锦鲤附体", "灵感爆发", "贵人相助",
-    "适合摸鱼", "小确幸", "稳如老狗", "适合独处", "想躺平",
-    "冲劲十足", "云淡风轻",
-)
-
-private val FORTUNE_COLORS = listOf(
-    "中国红" to Color(0xFFE53935),
-    "暖橙" to Color(0xFFFB8C00),
-    "明黄" to Color(0xFFFDD835),
-    "青草绿" to Color(0xFF43A047),
-    "天空蓝" to Color(0xFF1E88E5),
-    "梦幻紫" to Color(0xFF8E24AA),
-    "蜜桃粉" to Color(0xFFEC407A),
-    "薄荷青" to Color(0xFF26A69A),
-)
-
-private val FORTUNE_BLESSINGS = listOf(
-    "今天也要对自己好一点，辛苦啦。",
-    "别把小事放心上，开心最重要。",
-    "运气藏在细节里，留意身边的小美好。",
-    "累了就歇会儿，世界不会因为你停一秒而崩塌。",
-    "今天适合做点让自己笑出来的事。",
-    "你已经比昨天的自己更棒了一点。",
-    "把期待调低一点，惊喜就会多一点。",
+/** 幸运色色值，顺序与 R.array.fortune_color_names 一一对应。 */
+private val FORTUNE_COLOR_VALUES = listOf(
+    Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
+    Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFEC407A), Color(0xFF26A69A),
 )
 
 /**
@@ -95,7 +77,20 @@ fun FortuneScreen(onBack: () -> Unit) {
     val todayEpoch = remember { LocalDate.now().toEpochDay() }
     var seed by remember { mutableStateOf(todayEpoch) }
 
-    val fortune = remember(seed) { computeFortune(seed) }
+    val keywords = stringArrayResource(R.array.fortune_keywords)
+    val colorNames = stringArrayResource(R.array.fortune_color_names)
+    val blessings = stringArrayResource(R.array.fortune_blessings)
+
+    val fortune = remember(seed, keywords, colorNames, blessings) {
+        computeFortune(seed, keywords, colorNames, blessings)
+    }
+
+    val keywordLabel = stringResource(R.string.fortune_keyword_label)
+    val luckyNumLabel = stringResource(R.string.fortune_lucky_num_label)
+    val luckyColorLabel = stringResource(R.string.fortune_lucky_color_label)
+    val blessingLabel = stringResource(R.string.fortune_blessing_label)
+    val indexLabel = stringResource(R.string.fortune_index_label)
+    val indexValue = stringResource(R.string.fortune_index_value, fortune.index)
 
     Scaffold(
         topBar = {
@@ -140,12 +135,18 @@ fun FortuneScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.semantics {
+                            contentDescription = "$keywordLabel ${fortune.keyword}"
+                        },
                     )
                     Box(
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
-                            .background(fortune.color),
+                            .background(fortune.color)
+                            .semantics {
+                                contentDescription = "$luckyNumLabel ${fortune.luckyNum}"
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -158,6 +159,9 @@ fun FortuneScreen(onBack: () -> Unit) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = "$luckyColorLabel ${fortune.colorName}"
+                        },
                     ) {
                         Box(
                             modifier = Modifier
@@ -167,7 +171,11 @@ fun FortuneScreen(onBack: () -> Unit) {
                         )
                         Text(fortune.colorName, style = MaterialTheme.typography.titleMedium)
                     }
-                    Row {
+                    Row(
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = "$indexLabel $indexValue"
+                        },
+                    ) {
                         repeat(5) { i ->
                             Icon(
                                 imageVector = if (i < fortune.index) Icons.Filled.Star else Icons.Outlined.StarOutline,
@@ -178,10 +186,13 @@ fun FortuneScreen(onBack: () -> Unit) {
                         }
                     }
                     Text(
-                        "“${fortune.blessing}”",
+                        stringResource(R.string.fortune_blessing_quote, fortune.blessing),
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.semantics {
+                            contentDescription = "$blessingLabel ${fortune.blessing}"
+                        },
                     )
                 }
             }
@@ -208,13 +219,21 @@ fun FortuneScreen(onBack: () -> Unit) {
 
 
 
-/** 由 seed 确定性地生成一条趣味运势。 */
-private fun computeFortune(seed: Long): FortuneResult {
+/** 由 seed 确定性地生成一条趣味运势。文案全部来自资源数组，色值按下标对齐。 */
+private fun computeFortune(
+    seed: Long,
+    keywords: Array<String>,
+    colorNames: Array<String>,
+    blessings: Array<String>,
+): FortuneResult {
     val r = Random(seed)
-    val kw = FORTUNE_KEYWORDS[r.nextInt(FORTUNE_KEYWORDS.size)]
+    val kw = keywords[r.nextInt(keywords.size)]
     val num = r.nextInt(1, 100)
-    val (cName, cColor) = FORTUNE_COLORS[r.nextInt(FORTUNE_COLORS.size)]
-    val blessing = FORTUNE_BLESSINGS[r.nextInt(FORTUNE_BLESSINGS.size)]
+    val colorIdx = r.nextInt(colorNames.size)
+    val cName = colorNames[colorIdx]
+    // 资源数组若与色值列表长度不一致，取模兜底避免越界
+    val cColor = FORTUNE_COLOR_VALUES[colorIdx % FORTUNE_COLOR_VALUES.size]
+    val blessing = blessings[r.nextInt(blessings.size)]
     val index = r.nextInt(1, 6)
     return FortuneResult(kw, num, cName, cColor, blessing, index)
 }

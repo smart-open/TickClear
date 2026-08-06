@@ -846,6 +846,13 @@
     <string name="ruler_pick">相册选图</string>
     <string name="ruler_reference_title">参照物</string>
     <string name="ruler_reference_custom">自定义尺寸（mm）</string>
+    <!-- 拍照测距预设参照物，与 PhotoRuler.PRESETS 一一对应 -->
+    <string name="ruler_ref_coin_1rmb">1 元硬币（直径 25.0 mm）</string>
+    <string name="ruler_ref_coin_50fen">5 角硬币（直径 20.5 mm）</string>
+    <string name="ruler_ref_id_card">身份证（长边 85.6 mm）</string>
+    <string name="ruler_ref_bank_card">银行卡（长边 85.6 mm）</string>
+    <string name="ruler_ref_a4_short">A4 纸短边（210 mm）</string>
+    <string name="ruler_ref_a4_long">A4 纸长边（297 mm）</string>
     <string name="ruler_tap_ref1">第 1 步：点击参照物一端</string>
     <string name="ruler_tap_ref2">第 2 步：点击参照物另一端</string>
     <string name="ruler_tap_target1">第 3 步：点击目标物一端</string>
@@ -948,6 +955,8 @@
     <string name="vision_color_title">色盲色弱测试：判断左右色块是否相同</string>
     <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
     <string name="vision_acuity_prompt">你能看清这一行字吗？</string>
+    <!-- 视力表用字：需笔画数接近、结构差异明显，替换需同时保证这两点 -->
+    <string name="vision_acuity_chars">上中下大小王干</string>
     <string name="vision_same">完全相同</string>
     <string name="vision_diff">不一样</string>
     <string name="vision_clear">能看清</string>
@@ -1443,6 +1452,7 @@
     <string name="tools_cook_timer_title">烹饪定时</string>
     <string name="tools_cook_timer_desc">多组同时计时提醒</string>
     <string name="tools_cook_timer_name">名称（如：炖肉）</string>
+    <string name="tools_cook_timer_default_name">计时</string>
     <string name="tools_cook_timer_min">分</string>
     <string name="tools_cook_timer_sec">秒</string>
     <string name="tools_cook_timer_add">添加计时</string>
@@ -1604,6 +1614,8 @@
     <string name="points_reward_money">零花钱10元</string>
     <string name="points_reward_park">去公园</string>
     <string name="points_reward_movie">看电影</string>
+    <string name="points_undo">撤销上一步</string>
+    <string name="points_undone">已撤销</string>
 
     <!-- 地磁场观测（实用工具） -->
     <string name="magnet_title">地磁场观测</string>
@@ -1615,6 +1627,7 @@
     <string name="magnet_total">合成强度</string>
     <string name="magnet_unit">µT</string>
     <string name="magnet_no_sensor">本设备无磁力传感器</string>
+    <string name="magnet_low_accuracy">传感器精度偏低，请握持手机画「8」字校准</string>
 
 
     <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
@@ -1633,6 +1646,42 @@
     <string name="fortune_index_label">开心指数</string>
     <string name="fortune_reroll">再抽一次</string>
     <string name="fortune_disclaimer">每日依日期生成，纯属娱乐，请勿当真</string>
+    <string name="fortune_blessing_quote">“%1$s”</string>
+    <string name="fortune_index_value">%1$d 星</string>
+    <string-array name="fortune_keywords">
+        <item>元气满满</item>
+        <item>佛系一天</item>
+        <item>锦鲤附体</item>
+        <item>灵感爆发</item>
+        <item>贵人相助</item>
+        <item>适合摸鱼</item>
+        <item>小确幸</item>
+        <item>稳如老狗</item>
+        <item>适合独处</item>
+        <item>想躺平</item>
+        <item>冲劲十足</item>
+        <item>云淡风轻</item>
+    </string-array>
+    <!-- 与 FortuneScreen.FORTUNE_COLOR_VALUES 顺序一一对应，增删需同步 -->
+    <string-array name="fortune_color_names">
+        <item>中国红</item>
+        <item>暖橙</item>
+        <item>明黄</item>
+        <item>青草绿</item>
+        <item>天空蓝</item>
+        <item>梦幻紫</item>
+        <item>蜜桃粉</item>
+        <item>薄荷青</item>
+    </string-array>
+    <string-array name="fortune_blessings">
+        <item>今天也要对自己好一点，辛苦啦。</item>
+        <item>别把小事放心上，开心最重要。</item>
+        <item>运气藏在细节里，留意身边的小美好。</item>
+        <item>累了就歇会儿，世界不会因为你停一秒而崩塌。</item>
+        <item>今天适合做点让自己笑出来的事。</item>
+        <item>你已经比昨天的自己更棒了一点。</item>
+        <item>把期待调低一点，惊喜就会多一点。</item>
+    </string-array>
 
     <!-- 石头剪刀布 -->
     <string name="tools_rps_title">石头剪刀布</string>

@@ -455,7 +455,7 @@ private fun PhotoRulerPanel(
                                 selectedPreset = preset
                                 customMm = ""
                             },
-                            label = { Text(preset.label) },
+                            label = { Text(stringResource(preset.labelRes)) },
                         )
                     }
                 }

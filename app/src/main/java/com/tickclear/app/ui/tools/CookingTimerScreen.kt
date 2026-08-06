@@ -77,6 +77,7 @@ fun CookingTimerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val timers by vm.timers.collectAsStateWithLifecycle()
+    val defaultTimerName = stringResource(R.string.tools_cook_timer_default_name)
 
     var name by remember { mutableStateOf("") }
     var minStr by remember { mutableStateOf("") }
@@ -188,7 +189,7 @@ fun CookingTimerScreen(
                 Button(
                     onClick = {
                         if (totalSec > 0) {
-                            vm.add(name.trim(), totalSec)
+                            vm.add(name.trim(), totalSec, defaultTimerName)
                             name = ""
                             minStr = ""
                             secStr = ""

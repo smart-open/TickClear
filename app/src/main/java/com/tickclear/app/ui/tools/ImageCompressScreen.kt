@@ -231,9 +231,10 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
+                        // 「压缩前」必须显示原图尺寸；processed 已是缩放后的结果
                         InfoChip(
                             stringResource(R.string.tools_img_compress_before),
-                            "${processed!!.width}×${processed!!.height}",
+                            "${bitmap!!.width}×${bitmap!!.height}",
                             formatBytes(originalSize),
                             modifier = Modifier.weight(1f),
                         )

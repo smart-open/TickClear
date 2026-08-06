@@ -1,5 +1,8 @@
 package com.tickclear.app.domain.tools
 
+import androidx.annotation.StringRes
+import com.tickclear.app.R
+
 /**
  * 拍照测距：让用户先在同一平面内放置一个已知尺寸的参照物（如硬币、银行卡、身份证、A4 纸），
  * 分别在屏幕上点取参照物的两端与目标物的两端，按像素比例换算得到目标的实际长度。
@@ -9,20 +12,20 @@ package com.tickclear.app.domain.tools
  */
 object PhotoRuler {
 
-    /** 预设参照物（均为长边尺寸，单位 mm）。 */
+    /** 预设参照物（均为长边尺寸，单位 mm）。文案走资源，避免硬编码中文。 */
     data class ReferencePreset(
         val key: String,
-        val label: String,
+        @StringRes val labelRes: Int,
         val mm: Float,
     )
 
     val PRESETS: List<ReferencePreset> = listOf(
-        ReferencePreset("coin_1rmb", "1 元硬币（直径 25.0 mm）", 25.0f),
-        ReferencePreset("coin_50fen", "5 角硬币（直径 20.5 mm）", 20.5f),
-        ReferencePreset("id_card", "身份证（长边 85.6 mm）", 85.6f),
-        ReferencePreset("bank_card", "银行卡（长边 85.6 mm）", 85.6f),
-        ReferencePreset("a4_short", "A4 纸短边（210 mm）", 210.0f),
-        ReferencePreset("a4_long", "A4 纸长边（297 mm）", 297.0f),
+        ReferencePreset("coin_1rmb", R.string.ruler_ref_coin_1rmb, 25.0f),
+        ReferencePreset("coin_50fen", R.string.ruler_ref_coin_50fen, 20.5f),
+        ReferencePreset("id_card", R.string.ruler_ref_id_card, 85.6f),
+        ReferencePreset("bank_card", R.string.ruler_ref_bank_card, 85.6f),
+        ReferencePreset("a4_short", R.string.ruler_ref_a4_short, 210.0f),
+        ReferencePreset("a4_long", R.string.ruler_ref_a4_long, 297.0f),
     )
 
     /**
