@@ -11,6 +11,7 @@
 
     <!-- 底部导航 -->
     <string name="tab_today">今日</string>
+    <string name="tab_plan">计划</string>
     <string name="tab_tasks">任务</string>
     <string name="tab_assistant">助手</string>
     <string name="tab_settings">设置</string>

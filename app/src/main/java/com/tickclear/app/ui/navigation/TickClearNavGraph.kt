@@ -24,9 +24,8 @@ import com.tickclear.app.ui.settings.DebugScreen
 import com.tickclear.app.ui.settings.SettingsScreen
 import com.tickclear.app.ui.settings.VoiceHistoryScreen
 import com.tickclear.app.ui.stats.StatsScreen
-import com.tickclear.app.ui.tasks.TasksScreen
+import com.tickclear.app.ui.plan.PlanScreen
 import com.tickclear.app.ui.tasks.RecycleBinScreen
-import com.tickclear.app.ui.habits.HabitsScreen
 import com.tickclear.app.ui.theme.TickClearTheme
 import com.tickclear.app.ui.today.TodayScreen
 import com.tickclear.app.ui.tools.ToolsScreen
@@ -206,21 +205,22 @@ private fun AppNavHost(
             )
         }
         composable(
-            route = "${Routes.TASKS}?openEditor={openEditor}&editorNonce={editorNonce}",
+            // V2.9++：合并「任务/习惯」为「计划」tab。父路由名保留 "tasks"（兼容 tasks/recycleBin 子路由
+            // 与底部选中判据）；tab 参数用于深链预选分段（默认值 tasks，故快捷方式 tasks?openEditor=... 仍生效）。
+            route = "${Routes.TASKS}?tab={tab}&openEditor={openEditor}&editorNonce={editorNonce}",
             arguments = listOf(
+                navArgument("tab") { type = NavType.StringType; defaultValue = "tasks" },
                 navArgument("openEditor") { type = NavType.BoolType; defaultValue = false },
                 navArgument("editorNonce") { type = NavType.StringType; defaultValue = "" },
             ),
         ) { entry ->
-            TasksScreen(
+            PlanScreen(
                 isWide = isWide,
                 onNavigateToRecycleBin = { navController.navigate(Routes.RECYCLE_BIN) },
+                initialTab = entry.arguments?.getString("tab").orEmpty().ifEmpty { "tasks" },
                 initialOpenEditor = entry.arguments?.getBoolean("openEditor") ?: false,
                 openEditorNonce = entry.arguments?.getString("editorNonce").orEmpty(),
             )
-        }
-        composable(Routes.HABITS) {
-            HabitsScreen(isWide = isWide)
         }
         composable(Routes.STATS) {
             StatsScreen(
