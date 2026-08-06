@@ -17,15 +17,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -45,6 +46,7 @@ import androidx.compose.material3.Text
 import com.tickclear.app.ui.components.showTimedSnackbar
 import com.tickclear.app.ui.components.ConfettiOverlay
 import com.tickclear.app.ui.components.Haptic
+import com.tickclear.app.ui.components.formatMinute
 import com.tickclear.app.domain.model.MedalCatalog
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.TextButton
@@ -79,6 +81,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
+import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.usecase.TodayItem
 import com.tickclear.app.domain.usecase.TodayListPrefs
 import com.tickclear.app.ui.components.ConflictBanner
@@ -103,10 +106,9 @@ fun TodayScreen(
     isWide: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    // 方案 C：今日页顶部习惯打卡横条所需数据（仅展示「今日应打卡且未打卡」的习惯）。
+    // 今日页主列表混排：把「今日应打卡」的所有习惯（含已打卡）与「进行中任务」按提醒时间穿插排列。
     val habitsState by habitsViewModel.uiState.collectAsStateWithLifecycle()
-    val todayHabits = habitsState.items.filter { it.dueToday }      // 今日所有应打卡（含已打卡）
-    val dueHabits = todayHabits.filter { !it.todayChecked }         // 今日未打卡（顶部横条用）
+    val todayHabits = habitsState.items.filter { it.dueToday }
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -258,7 +260,6 @@ fun TodayScreen(
                     onEdit = { editingTaskId = it.task.id; showEditor = true },
                     onAdd = { editingTaskId = null; showEditor = true },
                     shortcutsEnabled = !showEditor && !showClearConfirm,
-                    habitChips = dueHabits,
                     todayHabits = todayHabits,
                     onHabitCheck = { habitsViewModel.toggleToday(it) },
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -282,7 +283,6 @@ fun TodayScreen(
                 onEdit = { editingTaskId = it.task.id; showEditor = true },
                 onAdd = { editingTaskId = null; showEditor = true },
                     shortcutsEnabled = !showEditor && !showClearConfirm,
-                    habitChips = dueHabits,
                     todayHabits = todayHabits,
                     onHabitCheck = { habitsViewModel.toggleToday(it) },
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -358,7 +358,6 @@ private fun TodayMainContent(
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
     shortcutsEnabled: Boolean = true,
-    habitChips: List<HabitItem> = emptyList(),
     todayHabits: List<HabitItem> = emptyList(),
     onHabitCheck: (String) -> Unit = {},
 ) {
@@ -425,14 +424,19 @@ private fun TodayMainContent(
         onDispose { view.setOnKeyListener(null) }
     }
     Column(modifier = modifier) {
-        // 方案 C：今日页顶部习惯打卡横条（仅「今日应打卡且未打卡」的习惯；无则不显示）。
-        HabitQuickStrip(
-            habits = habitChips,
-            onCheck = onHabitCheck,
-            modifier = Modifier.fillMaxWidth(),
-        )
         if (state.conflictIds.isNotEmpty()) {
             ConflictBanner(count = state.conflictIds.size, modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm))
+        }
+
+        // 今日页主列表混排：把「进行中任务」与「今日应打卡习惯」按提醒时间穿插排列。
+        // 排序键：任务用 instanceDueMinute（任务模型派生的当日分钟），习惯用 reminderMin（>=0）；
+        // 无时间的项 sortKey 为 null，用 Int.MIN_VALUE 排到最上方，避免「有时间项把无时间项挤到底」。
+        val allLines: List<TodayLine> = run {
+            val taskLines = activeItems.mapIndexed { idx, item ->
+                TodayLine.Task(item, state.groups[item.task.groupId], activeIndex = idx)
+            }
+            val habitLines = todayHabits.map { TodayLine.Habit(it) }
+            (taskLines + habitLines).sortedBy { it.sortKey ?: Int.MIN_VALUE }
         }
 
         PullToRefreshBox(
@@ -441,7 +445,7 @@ private fun TodayMainContent(
             state = ptrState,
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (state.items.isEmpty()) {
+            if (state.items.isEmpty() && todayHabits.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(bottom = Spacing.sm))
@@ -467,42 +471,25 @@ private fun TodayMainContent(
                         )
                     }
 
-                    // 横条 + 列表都展示：今日所有应打卡习惯（含已打卡，含未打卡）；
-                    // 顶部横条只渲染未打卡的快速入口；这里在主列表里也呈现一份供勾选/回顾。
-                    if (todayHabits.isNotEmpty()) {
-                        item(key = "habits_section_header") {
-                            Text(
-                                text = stringResource(R.string.habits_section_title, todayHabits.size),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                            )
-                        }
-                        items(todayHabits, key = { "habit_" + it.habit.id }) { item ->
-                            Box(modifier = Modifier.animateItem()) {
-                                HabitRow(
-                                    item = item,
-                                    onCheck = { onHabitCheck(item.habit.id) },
+                    // 任务 + 习惯按 sortKey 混排；key 用行唯一标识符，避免 LazyColumn 在重排时复用错位。
+                    itemsIndexed(allLines, key = { _, line -> line.key }) { _, line ->
+                        Box(modifier = Modifier.animateItem()) {
+                            when (line) {
+                                is TodayLine.Task -> TaskItem(
+                                    item = line.item,
+                                    group = line.group,
+                                    isConflict = state.conflictIds.contains(line.item.instanceId),
+                                    onComplete = { onComplete(line.item) },
+                                    onDelete = { onDelete(line.item) },
+                                    onEdit = { onEdit(line.item) },
+                                    isFocused = line.activeIndex == focusedIndex,
+                                    index = line.activeIndex,
+                                )
+                                is TodayLine.Habit -> HabitRow(
+                                    item = line.habit,
+                                    onCheck = { onHabitCheck(line.habit.habit.id) },
                                 )
                             }
-                        }
-                    }
-
-                    // V2.54：以 active 段本地序号 index 判断高亮，与键盘焦点一致；done 段不可键盘聚焦。
-                    // V2.8：index 同时驱动隔行底色（偶数浅色/奇数纯 surface）。
-                    itemsIndexed(activeItems, key = { _, item -> item.instanceId }) { index, item ->
-                        // V2.21 列表项进入/重排动画
-                        Box(modifier = Modifier.animateItem()) {
-                            TaskItem(
-                                item = item,
-                                group = state.groups[item.task.groupId],
-                                isConflict = state.conflictIds.contains(item.instanceId),
-                                onComplete = { onComplete(item) },
-                                onDelete = { onDelete(item) },
-                                onEdit = { onEdit(item) },
-                                isFocused = index == focusedIndex,
-                                index = index,
-                            )
                         }
                     }
 
@@ -600,8 +587,9 @@ private fun DoneSectionHeader(
 }
 
 /**
- * 今日习惯行：圆形勾选按钮 + emoji + 标题。点击即打卡/取消打卡；已打卡时图标变实心、文字半透明。
- * 与顶部 HabitQuickStrip 共用 onHabitCheck 回调（同一 HabitsViewModel.toggleToday），数据天然一致。
+ * 今日习惯行：类型图标（Repeat，与计划 TabRow 一致）+ 圆形打卡勾选 + emoji + 标题 + 提醒时间。
+ * reminderMin >= 0 时尾部显示 Schedule 图标 + HH:MM 时间，参考任务行的 timeText 呈现方式。
+ * 已打卡时整行 alpha 0.6、勾选图标变实心，与未打卡态视觉区分。
  */
 @Composable
 private fun HabitRow(
@@ -610,6 +598,9 @@ private fun HabitRow(
     modifier: Modifier = Modifier,
 ) {
     val checked = item.todayChecked
+    val habit = item.habit
+    val timeText = if (habit.reminderMin >= 0) formatMinute(habit.reminderMin) else null
+    val typeTint = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -617,94 +608,72 @@ private fun HabitRow(
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 类型图标：习惯用 Repeat，与计划 TabRow 一致用于一眼区分任务/习惯。
+        Icon(
+            imageVector = Icons.Filled.Repeat,
+            contentDescription = null,
+            tint = typeTint,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(Spacing.sm))
+        // 打卡勾选圆圈。
         Icon(
             imageVector = if (checked) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
             contentDescription = stringResource(if (checked) R.string.habits_checked_desc else R.string.habits_unchecked_desc),
             tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(22.dp),
         )
-        Spacer(Modifier.width(Spacing.md))
-        if (item.habit.emoji.isNotEmpty()) {
-            Text(item.habit.emoji, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.width(Spacing.sm))
+        Spacer(Modifier.width(Spacing.sm))
+        if (habit.emoji.isNotEmpty()) {
+            Text(habit.emoji, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(Spacing.xs))
         }
         Text(
-            text = item.habit.title,
+            text = habit.title,
             style = MaterialTheme.typography.bodyLarge,
             color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             modifier = if (checked) Modifier.alpha(0.6f) else Modifier,
         )
+        if (timeText != null) {
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(2.dp))
+                Text(
+                    text = timeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
 /**
- * 方案 C：今日页顶部的习惯快速打卡横条。仅展示「今日应打卡且未打卡」的习惯，
- * 点击即打卡（触发撒花+震动，由 TodayScreen 的 ConfettiOverlay 承载）。无待打卡习惯时不渲染。
+ * 今日页主列表的行类型抽象：任务与习惯共用同一条 LazyColumn、按 sortKey（提醒分钟数）混排。
+ * Task 携带 activeIndex 用于与键盘焦点的 active 段序号对账，保持 V2.54 的焦点行为。
+ * sortKey 为 null 时（任务无时间、习惯未设提醒）走 Int.MIN_VALUE，固定排到最上。
  */
-@Composable
-private fun HabitQuickStrip(
-    habits: List<HabitItem>,
-    onCheck: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (habits.isEmpty()) return
-    LazyRow(
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        item {
-            val quickCheckinDesc = stringResource(R.string.habits_quick_checkin_desc)
-            Row(
-                modifier = Modifier.semantics(mergeDescendants = true) {
-                    contentDescription = quickCheckinDesc
-                },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    stringResource(R.string.habits_quick_checkin),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        items(habits, key = { it.habit.id }) { item ->
-            val h = item.habit
-            Card(
-                onClick = { onCheck(h.id) },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                ),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (h.emoji.isNotEmpty()) {
-                        Text(h.emoji, style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.width(4.dp))
-                    }
-                    Text(
-                        h.title,
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                    )
-                    Spacer(Modifier.width(Spacing.sm))
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(R.string.habits_checkin),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-        }
+private sealed class TodayLine {
+    abstract val sortKey: Int?
+    abstract val key: String
+
+    data class Task(
+        val item: TodayItem,
+        val group: TaskGroup?,
+        val activeIndex: Int,
+    ) : TodayLine() {
+        override val sortKey: Int? = item.dueMinute
+        override val key: String = "task_" + item.instanceId
+    }
+
+    data class Habit(val habit: HabitItem) : TodayLine() {
+        override val sortKey: Int? = if (habit.habit.reminderMin >= 0) habit.habit.reminderMin else null
+        override val key: String = "habit_" + habit.habit.id
     }
 }
