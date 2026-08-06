@@ -28,12 +28,7 @@ object MassageVibrator {
             @Suppress("DEPRECATION")
             if (!vib.hasVibrator()) return
             val pattern = PATTERNS[mode] ?: PATTERNS["gentle"]!!
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vib.vibrate(VibrationEffect.createWaveform(pattern, 0))
-            } else {
-                @Suppress("DEPRECATION")
-                vib.vibrate(pattern, 0)
-            }
+            vib.vibrate(VibrationEffect.createWaveform(pattern, 0))
         }
     }
 

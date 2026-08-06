@@ -24,7 +24,6 @@ object ShortcutHelper {
 
     @SuppressLint("ReportShortcutUsage")
     fun register(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         val manager = context.getSystemService(ShortcutManager::class.java) ?: return
         val shortcuts = listOf(
             build(
@@ -52,7 +51,6 @@ object ShortcutHelper {
         runCatching { manager.dynamicShortcuts = shortcuts }
     }
 
-    @TargetApi(Build.VERSION_CODES.N_MR1)
     private fun build(
         context: Context,
         action: String,

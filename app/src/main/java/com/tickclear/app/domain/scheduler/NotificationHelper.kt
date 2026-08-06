@@ -69,7 +69,6 @@ object NotificationHelper {
     }
 
     fun createChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // 清理旧版（无版本后缀）渠道：其音/震/重要性无法就地升级，残留会污染设备、
         // 使新通知落在旧静音渠道上静默。删除后下方以新 ID 重建带正确音/震的渠道。

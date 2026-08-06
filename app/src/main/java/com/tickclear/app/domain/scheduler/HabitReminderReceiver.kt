@@ -86,9 +86,7 @@ class HabitReminderReceiver : BroadcastReceiver() {
         builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
         // 习惯提醒用抬头通知（HIGH 渠道已含），不抢占全屏，避免每天强制弹窗打扰。
         val nm = notificationManager(context)
-        val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.getNotificationChannel(channel)?.importance ?: -1
-        } else -1
+        val imp = nm.getNotificationChannel(channel)?.importance ?: -1
         val globalSoundEnabled = ep.settingsRepository().soundEnabled.first()
         AppLogger.w(TAG, "showNotification 弹出 habit=${habit.id} title=${habit.title} channel=$channel 全局声音=$globalSoundEnabled 系统重要性=$imp (>=4 应响铃震动)")
         nm.notify(ReminderIds.fnv1a("habit:$habitId"), builder.build())

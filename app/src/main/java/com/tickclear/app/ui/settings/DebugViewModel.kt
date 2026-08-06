@@ -94,30 +94,20 @@ class DebugViewModel @Inject constructor(
             aiMode = settingsRepository.aiMode.first(),
             voiceSupported = opusCodec.isEncoderAvailable(),
             canScheduleExact = canExact,
-            batteryOptimized = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            batteryOptimized = run {
                 val pm = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
                 pm.isIgnoringBatteryOptimizations(appContext.packageName).not()
-            } else {
-                false
             },
             quietHoursEnabled = settingsRepository.quietHoursEnabled.first(),
             notificationsEnabled = nm.areNotificationsEnabled(),
-            channelCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                nm.notificationChannels.size
-            } else {
-                -1
-            },
+            channelCount = nm.notificationChannels.size,
             taskCount = taskRepository.observeAll().first().size,
             groupCount = groupRepository.observeActive().first().size,
             completionCount = completionRepository.observeAll().first().size,
             checkInCount = checkInRepository.getAll().size,
             medalCount = medalRepository.all().size,
-            dndAccessGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                (appContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
-                    .isNotificationPolicyAccessGranted
-            } else {
-                true
-            },
+            dndAccessGranted = (appContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
+                .isNotificationPolicyAccessGranted,
         )
     }
 

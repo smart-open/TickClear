@@ -195,18 +195,12 @@ class ReminderReceiver : BroadcastReceiver() {
             if (Build.VERSION.SDK_INT < 34 || notificationManager(context).canUseFullScreenIntent()) {
                 builder.setFullScreenIntent(fullScreenIntent(context, taskId, instanceId), true)
             }
-        } else if (muteMid && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            // Android 8.0 以下没有渠道，声音/震动由 builder 决定：清空声音、只保留震动。
-            builder.setSound(null)
-            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE)
         }
         // 以 instanceId 的稳定 FNV-1a 哈希作为通知键：避免不同任务哈希碰撞互相覆盖，
         // 且重复任务多实例各自独立（互不覆盖）。
         // 诊断（与测试通知一致）：打印渠道在系统层的真实重要性，便于区分「渠道被静音/勿扰」与「开关问题」。
         val nm = notificationManager(context)
-        val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.getNotificationChannel(channel)?.importance ?: -1
-        } else -1
+        val imp = nm.getNotificationChannel(channel)?.importance ?: -1
         AppLogger.w(TAG, "showNotification 弹出 task=${task.id} title=${task.title} level=$level channel=$channel 强制响铃=$forcedSound 全局声音=$globalSoundEnabled 静音改投=$muteMid 系统重要性=$imp (>=4 应响铃震动)")
         nm.notify(ReminderIds.notificationId(instanceId), builder.build())
         // 续排下一发生日：保证重复任务持续提醒（一次性任务无后续发生日，自动跳过）。
@@ -290,9 +284,7 @@ class ReminderReceiver : BroadcastReceiver() {
         // 诊断：先把渠道在系统层的真实重要性打出来——若 <4(IMPORTANCE_HIGH) 说明设备端该渠道被降权/静音，
         // 此时即便代码正确也无声音/震动（Android 8+ 渠道不可就地升级，需靠新版本后缀的渠道 ID 重建）。
         val nm = notificationManager(context)
-        val imp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.getNotificationChannel(NotificationHelper.CHANNEL_HIGH)?.importance ?: -1
-        } else -1
+        val imp = nm.getNotificationChannel(NotificationHelper.CHANNEL_HIGH)?.importance ?: -1
         AppLogger.w(TAG, "fireTestNotification 发出 渠道=${NotificationHelper.CHANNEL_HIGH} 系统重要性=$imp (>=4 为高/应响铃震动；<4 多为设备被静音或勿扰)")
         val chime = android.net.Uri.parse(
             "${android.content.ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.notify_chime}",

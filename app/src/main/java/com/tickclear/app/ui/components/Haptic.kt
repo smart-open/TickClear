@@ -21,19 +21,12 @@ object Haptic {
             val vib = ContextCompat.getSystemService(context, Vibrator::class.java) ?: return
             @Suppress("DEPRECATION")
             if (!vib.hasVibrator()) return
-            when {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // API 29+ 预定义「重击」效果：设备调校过的强震动，体验更一致。
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                    vib.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
-                }
+                vib.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
+            } else {
                 // API 26+ 使用指定振幅的一次性震动；amplitude 用 200/255 保证大多数机型可感知。
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
-                    vib.vibrate(VibrationEffect.createOneShot(millis, amplitude.coerceIn(1, 255)))
-                }
-                else -> {
-                    @Suppress("DEPRECATION")
-                    vib.vibrate(millis)
-                }
+                vib.vibrate(VibrationEffect.createOneShot(millis, amplitude.coerceIn(1, 255)))
             }
         }.onFailure { AppLogger.d(TAG, "vibrate skipped: ${it.message}") }
     }

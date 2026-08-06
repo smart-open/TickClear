@@ -61,8 +61,7 @@ class GeofenceScheduler @Inject constructor(
                 // Android 12+ 会抛 ForegroundServiceStartNotAllowedException（且无 try/catch 的协程里直接崩溃）。
                 // 兜底捕获，避免崩溃；失败时由下次进入前台/重启的 rescheduleAll 重建。
                 runCatching {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-                    else context.startService(intent)
+                    context.startForegroundService(intent)
                 }.onFailure { AppLogger.w("GeofenceScheduler", "startForegroundService 失败（可能进程在后台）：${it.message}") }
             } else {
                 context.stopService(intent)

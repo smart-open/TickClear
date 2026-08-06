@@ -156,20 +156,12 @@ fun SettingsScreen(
     }
     val openNotificationChannel: () -> Unit = {
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startActivity(
-                    Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                        putExtra(Settings.EXTRA_CHANNEL_ID, NotificationHelper.CHANNEL_REMINDER)
-                    },
-                )
-            } else {
-                context.startActivity(
-                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    },
-                )
-            }
+            context.startActivity(
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    putExtra(Settings.EXTRA_CHANNEL_ID, NotificationHelper.CHANNEL_REMINDER)
+                },
+            )
         }
     }
     // ⚠️ 这两个 Action 规范要求用 data URI（package:包名），EXTRA_APP_PACKAGE 在多数 ROM 上
@@ -872,11 +864,7 @@ private fun toggleWakeWordService(context: android.content.Context, enabled: Boo
     val intent = Intent(context, WakeWordService::class.java)
     runCatching {
         if (enabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         } else {
             context.stopService(intent)
         }
