@@ -1,5 +1,6 @@
 package com.tickclear.app.domain.tools
 
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,18 +12,17 @@ class ImageMaskerTest {
 
     @Test
     fun `MaskShape Stroke widthRatio 为 0 抛 IllegalArgumentException`() {
-        val ok = runCatching {
+        // 必须校验异常类型：runCatching{}.isFailure 连 NPE 都算通过，等于没测
+        assertThrows(IllegalArgumentException::class.java) {
             ImageMasker.MaskShape.Stroke(listOf(0f to 0f, 1f to 1f), 0f)
-        }.isFailure
-        assertTrue("widthRatio=0 必须抛 IllegalArgumentException", ok)
+        }
     }
 
     @Test
     fun `MaskShape Stroke widthRatio 为负 抛 IllegalArgumentException`() {
-        val ok = runCatching {
+        assertThrows(IllegalArgumentException::class.java) {
             ImageMasker.MaskShape.Stroke(listOf(0f to 0f, 1f to 1f), -0.05f)
-        }.isFailure
-        assertTrue("widthRatio=-0.05 必须抛 IllegalArgumentException", ok)
+        }
     }
 
     @Test

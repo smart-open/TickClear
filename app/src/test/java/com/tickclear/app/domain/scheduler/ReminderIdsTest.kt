@@ -2,6 +2,7 @@ package com.tickclear.app.domain.scheduler
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -41,11 +42,12 @@ class ReminderIdsTest {
     @Test
     fun idsAreNonNegative() {
         val id = "task-a@2026-07-25"
-        assert(ReminderIds.notificationId(id) >= 0)
-        assert(ReminderIds.contentRequestCode(id) >= 0)
-        assert(ReminderIds.completeRequestCode(id) >= 0)
-        assert(ReminderIds.snoozeRequestCode(id) >= 0)
-        assert(ReminderIds.skipRequestCode(id) >= 0)
-        assert(ReminderIds.fullScreenRequestCode("task-a") >= 0)
+        // 注意：不可用 Kotlin 的 assert()，JVM 默认 -da 会整段跳过导致测试永远绿
+        assertTrue("notificationId 必须非负", ReminderIds.notificationId(id) >= 0)
+        assertTrue("contentRequestCode 必须非负", ReminderIds.contentRequestCode(id) >= 0)
+        assertTrue("completeRequestCode 必须非负", ReminderIds.completeRequestCode(id) >= 0)
+        assertTrue("snoozeRequestCode 必须非负", ReminderIds.snoozeRequestCode(id) >= 0)
+        assertTrue("skipRequestCode 必须非负", ReminderIds.skipRequestCode(id) >= 0)
+        assertTrue("fullScreenRequestCode 必须非负", ReminderIds.fullScreenRequestCode("task-a") >= 0)
     }
 }
