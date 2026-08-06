@@ -30,6 +30,12 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle-
       - name: Grant execute permission
         run: chmod +x gradlew
+      # 两条工程红线此前只靠人工自觉执行，CI 从未调用 → 实际无门禁。
+      # 二者均为零依赖静态检查（runner 自带 python3 + node20），秒级完成，放在编译前快速失败。
+      - name: Gate - Room 迁移与 schema 一致性
+        run: python3 test/check_migrations.py
+      - name: Gate - strings.xml 引用完整性
+        run: node test/scan_strings.mjs
       - name: Assemble debug
         run: ./gradlew :app:assembleDebug --no-daemon
       # release 变体启用 R8 + shrinkResources。此前 CI 从不构建 release，
@@ -51,6 +57,8 @@ jobs:
   instrumented-test:
     name: Instrumented Test (Emulator)
     runs-on: ubuntu-latest
+    # 模拟器 job 约 15 分钟。编译/单测秒级挂掉时没必要白跑，串行以节省 runner 配额。
+    needs: unit-test
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 17

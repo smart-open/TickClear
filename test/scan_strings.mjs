@@ -69,7 +69,11 @@ let missing = 0;
 let dynamic = 0;
 for (const [n, set] of used) {
   if (defined.has(n)) continue;
-  if (DYNAMIC_PREFIXES.includes(n)) {
+  // DYNAMIC_PREFIXES 存的是「前缀」，必须用 startsWith 判定。
+  // 原实现用 includes(n) 做数组精确匹配，等价于要求资源名恰好等于 'assistant_asr_'，
+  // 该分支实际从未命中过——是一颗哑弹：只要出现一处运行期拼接的 R.string.assistant_asr_xxx
+  // 未在 strings.xml 静态定义，就会被误报 MISSING 并让门禁 exit(1)。
+  if (DYNAMIC_PREFIXES.some((p) => n.startsWith(p))) {
     dynamic++;
     continue;
   }

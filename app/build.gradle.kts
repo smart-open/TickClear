@@ -26,12 +26,18 @@ android {
         // coreLibraryDesugaring 仍保留（其他 desugared API 可能依赖，移除有回归风险）。
         minSdk = 26
         targetSdk = 34
-        // v2.8.0 封板：V2.8X 全部增量（小组件/习惯/标签/皮肤/语音历史/常驻唤醒/
-        // 通知三态可靠性/助手闪退根因/轻提示 3 秒）随本版本一并发布。
-        versionCode = 16
-        versionName = "2.8.0"
+        // v2.9.0 封板：五大 Tab 改版（计划页合并任务+习惯）、工具箱扩至 55 工具、
+        // P0 主题/系统栏失联修复、P1 设备身份/位图回收/首页折叠/重组开销修复、
+        // 测试加固（消除假绿 + 关键路径零覆盖补齐）、文档同步。综合成熟度 99.2。
+        versionCode = 17
+        versionName = "2.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables { useSupportLibrary = true }
+        // 本 App 仅提供中文界面（res/ 下无任何 values-xx 语言目录），但 Compose Material3 /
+        // androidx 各库自带数十种语言的 strings 会被全部打进包。显式收敛可见语言以瘦身；
+        // 保留 en 是为了第三方库在非中文系统上仍有可回退的资源，避免走 default 缺失路径。
+        resourceConfigurations += listOf("zh-rCN", "en")
+        // 注：minSdk 26 下矢量图由平台原生支持（API 21+），无需 support 库兼容路径，故不开启
+        // vectorDrawables.useSupportLibrary。
         // V2.8X++ 语音长期方案：改用 theeasiestway/android-opus-codec（本地 libs/opus.aar，封装官方 libopus 1.3.1），
         // 其预编译 .so 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全部 ABI（含 64 位），
         // 彻底解决原 martoreto/opuscodec 仅含 32 位 libsenz.so、arm64 设备 dlopen 失败导致语音不可用的根因。
