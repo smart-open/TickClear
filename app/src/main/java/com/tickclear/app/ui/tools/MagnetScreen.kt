@@ -40,6 +40,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.absoluteValue
@@ -48,18 +51,26 @@ import kotlin.math.sqrt
 /**
  * 地磁场观测（V2.9++ 实用工具）。
  * 注册磁力传感器，实时展示 X/Y/Z 三轴与合成磁场强度(µT)，并在画布上以三色条可视化变化。
- * 传感器在 DisposableEffect 注册/注销，无 ViewModel（零新依赖）。
+ * 无 ViewModel（零新依赖）。
+ *
+ * 采样受生命周期约束：原实现只在 DisposableEffect 注册/注销，而 Compose 不会因为
+ * 应用退到后台就把这个界面移出组合，于是磁力计会以游戏级频率在后台持续采样耗电。
+ * 现改为 ON_START 注册 / ON_STOP 注销，并把频率降到 SENSOR_DELAY_UI
+ * （约 60ms 一次，人眼读数完全够用，而 SENSOR_DELAY_GAME 每秒会触发 50 次全屏重组）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MagnetScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var x by remember { mutableStateOf(0f) }
     var y by remember { mutableStateOf(0f) }
     var z by remember { mutableStateOf(0f) }
     var hasSensor by remember { mutableStateOf(true) }
+    // 磁力计易受机身/环境干扰，精度不足时读数无意义，需提示用户画「8」字校准。
+    var lowAccuracy by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(lifecycleOwner) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val mag = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         hasSensor = mag != null
@@ -71,10 +82,23 @@ fun MagnetScreen(onBack: () -> Unit) {
                     z = event.values[2]
                 }
             }
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+                lowAccuracy = accuracy <= SensorManager.SENSOR_STATUS_ACCURACY_LOW
+            }
         }
-        mag?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
-        onDispose { sensorManager.unregisterListener(listener) }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START ->
+                    mag?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_UI) }
+                Lifecycle.Event.ON_STOP -> sensorManager.unregisterListener(listener)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            sensorManager.unregisterListener(listener)
+        }
     }
 
     val primary = MaterialTheme.colorScheme.primary
@@ -106,6 +130,12 @@ fun MagnetScreen(onBack: () -> Unit) {
             if (!hasSensor) {
                 Text(
                     stringResource(R.string.magnet_no_sensor),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else if (lowAccuracy) {
+                Text(
+                    stringResource(R.string.magnet_low_accuracy),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )

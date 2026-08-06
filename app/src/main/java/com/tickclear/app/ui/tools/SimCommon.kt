@@ -81,5 +81,8 @@ fun burst(
 private const val PI_F = 3.1415927f
 
 /** 计算两点归一化距离。 */
-fun dist(ax: Float, ay: Float, bx: Float, by: Float): Float =
-    kotlin.math.sqrt((ax - bx).absoluteValue * (ax - bx) + (ay - by).absoluteValue * (ay - by))
+fun dist(ax: Float, ay: Float, bx: Float, by: Float): Float {
+    val dx = ax - bx
+    val dy = ay - by
+    return kotlin.math.sqrt(dx * dx + dy * dy)
+}

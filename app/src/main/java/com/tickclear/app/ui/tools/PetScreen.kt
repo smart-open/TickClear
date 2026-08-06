@@ -48,8 +48,13 @@ import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.abs
+import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.random.Random
+
+/** 饱食度 / 快乐值的自然衰减间隔（秒），每到点各减 1。 */
+private const val DECAY_INTERVAL_SEC = 6f
 
 /**
  * 养宠物（佛系解压小游戏，V2.9++ 模拟解压）。
@@ -141,6 +146,7 @@ fun PetScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         var last = 0L
+        var decayAcc = 0f
         while (true) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.05f)
@@ -150,19 +156,44 @@ fun PetScreen(onBack: () -> Unit) {
             if (blink < -3f) blink = 0.18f
             if (toyTimer > 0f) toyTimer = (toyTimer - dt).coerceAtLeast(0f)
 
+            // 饱食度/快乐值原先只增不减，几下就顶到 100 再也不动，喂食与互动随即失去意义。
+            // 这里按真实时间缓慢衰减，让照顾宠物变成持续行为。
+            decayAcc += dt
+            if (decayAcc >= DECAY_INTERVAL_SEC) {
+                decayAcc = 0f
+                stats = stats.mapValues { (_, s) ->
+                    PetState(
+                        fullness = (s.fullness - 1).coerceAtLeast(0),
+                        happiness = (s.happiness - 1).coerceAtLeast(0),
+                    )
+                }
+            }
+
             if (kind == PetKind.FISH) {
                 for (f in fishes) {
-                    var nx = f.x + f.dir * f.speed * dt
-                    if (nx < 0.08f) { nx = 0.08f; f.dir = 1 }
-                    if (nx > 0.92f) { nx = 0.92f; f.dir = -1 }
-                    f.x = nx
+                    // 追饵：原实现鱼只左右巡游，饲料垂直下沉，两者几乎撞不上，
+                    // 投喂基本看不到「被吃掉」，饱食度也就永远加不上。
+                    val target = food.minByOrNull { abs(it.x - f.x) + abs(it.y - f.y) }
+                    if (target != null) {
+                        val dx = target.x - f.x
+                        val dy = target.y - f.y
+                        val chase = f.speed * 2.2f * dt
+                        if (dx != 0f) f.dir = if (dx > 0f) 1 else -1
+                        f.x = (f.x + sign(dx) * chase).coerceIn(0.08f, 0.92f)
+                        f.y = (f.y + sign(dy) * chase).coerceIn(0.15f, 0.9f)
+                    } else {
+                        var nx = f.x + f.dir * f.speed * dt
+                        if (nx < 0.08f) { nx = 0.08f; f.dir = 1 }
+                        if (nx > 0.92f) { nx = 0.92f; f.dir = -1 }
+                        f.x = nx
+                    }
                     f.bob += dt * 3f
                 }
                 val stillFood = mutableListOf<FoodPellet>()
                 for (p in food) {
                     val py = p.y + p.vy * dt
-                    val eater = fishes.minByOrNull { kotlin.math.abs(it.x - p.x) + kotlin.math.abs(it.y - py) * 2 }
-                    if (eater != null && kotlin.math.abs(eater.x - p.x) < 0.08f && kotlin.math.abs(eater.y - py) < 0.08f) {
+                    val eater = fishes.minByOrNull { abs(it.x - p.x) + abs(it.y - py) * 2 }
+                    if (eater != null && abs(eater.x - p.x) < 0.08f && abs(eater.y - py) < 0.08f) {
                         update(PetKind.FISH, fullness = 8)
                         particles = particles + SimParticle(
                             x = p.x, y = py, vx = 0f, vy = -0.15f,
@@ -258,8 +289,15 @@ fun PetScreen(onBack: () -> Unit) {
                     .height(300.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .pointerInput(Unit) {
-                        detectTapGestures {
-                            if (kind != PetKind.FISH) pet()
+                        detectTapGestures { offset ->
+                            // 鱼缸此前点了完全没反应；改为在点击处投一粒饲料，和「喂食」按钮同一套逻辑。
+                            if (kind == PetKind.FISH) {
+                                val nx = (offset.x / size.width.toFloat()).coerceIn(0.06f, 0.94f)
+                                food = food + FoodPellet(nx, 0.05f, 0.25f + Random.nextFloat() * 0.1f)
+                                Haptic.vibrate(context, 14)
+                            } else {
+                                pet()
+                            }
                         }
                     },
                 contentAlignment = Alignment.Center,

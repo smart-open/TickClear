@@ -2,10 +2,10 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
@@ -493,84 +493,82 @@ fun ToolsScreen(
     val pinnedEntries: List<ToolEntry> = remember(favorites, entriesByRoute) {
         favorites.mapNotNull { entriesByRoute[it] }
     }
+    // favorites 是 List，56 张卡片各做一次 `in` 是 O(n²)；转 Set 后为 O(1)。
+    val favoriteSet: Set<String> = remember(favorites) { favorites.toSet() }
+    val pinnedRows: List<List<ToolEntry>> = remember(pinnedEntries) { pinnedEntries.chunked(3) }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.tools_title)) })
         },
     ) { innerPadding ->
-        Column(
+        // 全部 56 张工具卡此前放在 verticalScroll 里一次性全量组合，进入工具页时
+        // 首帧要测量/布局 28 行卡片，低端机可见明显卡顿。改为 LazyColumn 只组合可见行。
+        // 仍保持「chunked Row + weight」的两列布局（LazyVerticalGrid 与外层滚动嵌套曾导致闪退）。
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                .padding(innerPadding),
+            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             // 常用工具置顶：仅当列表非空时显示，水平 Row 紧凑卡片，可点 × 移除
-            if (pinnedEntries.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.tools_favorites_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
-                )
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
-                    pinnedEntries.chunked(3).forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                        ) {
-                            row.forEach { entry ->
-                                PinnedToolCard(
-                                    entry = entry,
-                                    onOpen = { onNavigate(entry.route) },
-                                    onUnpin = { vm.toggleFavorite(entry.route) },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            // 不足 3 个时用占位补齐，保持三列对齐
-                            repeat(3 - row.size) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
+            if (pinnedRows.isNotEmpty()) {
+                item(key = "favorites_header") {
+                    Text(
+                        text = stringResource(R.string.tools_favorites_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
+                    )
+                }
+                itemsIndexed(pinnedRows, key = { i, _ -> "fav_row_$i" }) { _, row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        row.forEach { entry ->
+                            PinnedToolCard(
+                                entry = entry,
+                                onOpen = { onNavigate(entry.route) },
+                                onUnpin = { vm.toggleFavorite(entry.route) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        // 不足 3 个时用占位补齐，保持三列对齐
+                        repeat(3 - row.size) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
 
             TOOL_CATEGORIES.forEach { category ->
-                Text(
-                    text = stringResource(category.titleRes),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.xs),
-                )
-                // V2.8X 修复：LazyVerticalGrid 放在 verticalScroll 的 Column 内会在测量时
-                // 因无限高度约束抛 IllegalStateException 闪退。改用非 Lazy 的 chunked Row。
-                // 同行内横向 spacedBy(Spacing.sm)；多行之间用内层 Column 纵向 spacedBy 避免上下贴边。
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
-                    category.entries.chunked(2).forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                        ) {
-                            row.forEach { entry ->
-                                ToolCard(
-                                    entry = entry,
-                                    isPinned = entry.route in favorites,
-                                    onClick = { onNavigate(entry.route) },
-                                    onTogglePin = { vm.toggleFavorite(entry.route) },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            if (row.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
+                item(key = "cat_${category.titleRes}") {
+                    Text(
+                        text = stringResource(category.titleRes),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.xs),
+                    )
+                }
+                val rows = category.entries.chunked(2)
+                itemsIndexed(rows, key = { i, _ -> "cat_${category.titleRes}_row_$i" }) { _, row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        row.forEach { entry ->
+                            ToolCard(
+                                entry = entry,
+                                isPinned = entry.route in favoriteSet,
+                                onClick = { onNavigate(entry.route) },
+                                onTogglePin = { vm.toggleFavorite(entry.route) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (row.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

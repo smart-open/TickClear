@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -73,30 +75,36 @@ private val REWARDS = listOf(
 
 private const val PREFS_NAME = "family_points"
 
-private fun loadScores(context: Context): MutableMap<String, Int> {
-    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    val map = mutableMapOf<String, Int>()
-    for (m in MEMBERS) map[m.id] = prefs.getInt("score_${m.id}", 0)
-    return map
+private fun loadScores(prefs: SharedPreferences): Map<String, Int> =
+    MEMBERS.associate { it.id to prefs.getInt("score_${it.id}", 0) }
+
+private fun saveScore(prefs: SharedPreferences, id: String, score: Int) {
+    prefs.edit().putInt("score_$id", score).apply()
 }
 
-private fun saveScore(context: Context, id: String, score: Int) {
-    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        .edit().putInt("score_$id", score).apply()
-}
+/** 上一步操作，用于撤销：给 [memberId] 加了 [delta] 分（兑换为负数）。 */
+private data class PointsAction(val memberId: String, val delta: Int)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FamilyPointsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    // 缓存 prefs 实例：每次加减分都 getSharedPreferences 会重复走一次 ContextImpl 查表。
+    val prefs = remember(context) { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     var selectedId by remember { mutableStateOf(MEMBERS.first().id) }
-    var scores by remember { mutableStateOf(loadScores(context)) }
+    var scores by remember { mutableStateOf(loadScores(prefs)) }
+    // 家长按错任务按钮（尤其是给错了孩子）此前只能反复点其它按钮硬凑回去，这里补一步撤销。
+    var lastAction by remember { mutableStateOf<PointsAction?>(null) }
+
+    fun applyDelta(memberId: String, delta: Int) {
+        val next = ((scores[memberId] ?: 0) + delta).coerceAtLeast(0)
+        scores = scores + (memberId to next)
+        saveScore(prefs, memberId, next)
+    }
 
     fun addPoints(memberId: String, pts: Int) {
-        val cur = scores[memberId] ?: 0
-        val next = (cur + pts).coerceAtLeast(0)
-        scores = scores.toMutableMap().apply { put(memberId, next) }
-        saveScore(context, memberId, next)
+        applyDelta(memberId, pts)
+        lastAction = PointsAction(memberId, pts)
         Haptic.vibrate(context, 18)
     }
 
@@ -106,11 +114,18 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
             Toast.makeText(context, R.string.points_not_enough, Toast.LENGTH_SHORT).show()
             return
         }
-        val next = cur - cost
-        scores = scores.toMutableMap().apply { put(memberId, next) }
-        saveScore(context, memberId, next)
+        applyDelta(memberId, -cost)
+        lastAction = PointsAction(memberId, -cost)
         Haptic.vibrate(context, 24)
         Toast.makeText(context, context.getString(R.string.points_redeemed, rewardName), Toast.LENGTH_SHORT).show()
+    }
+
+    fun undo() {
+        val action = lastAction ?: return
+        applyDelta(action.memberId, -action.delta)
+        lastAction = null
+        Haptic.vibrate(context, 12)
+        Toast.makeText(context, R.string.points_undone, Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -152,6 +167,19 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                             Text(stringResource(m.nameRes) + " · " + stringResource(R.string.points_score) + " " + score)
                         },
                         modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            lastAction?.let { action ->
+                val memberName = stringResource(MEMBERS.first { it.id == action.memberId }.nameRes)
+                OutlinedButton(
+                    onClick = { undo() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.points_undo) +
+                            " · " + memberName + " " + (if (action.delta > 0) "+" else "") + action.delta,
                     )
                 }
             }
