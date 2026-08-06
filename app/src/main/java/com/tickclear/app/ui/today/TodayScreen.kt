@@ -592,6 +592,15 @@ private fun DoneSectionHeader(
  * 已打卡时整行 alpha 0.6、勾选图标变实心，与未打卡态视觉区分。
  */
 @Composable
+/**
+ * 今日习惯行：与 [TaskItem] 内部 Column 嵌套结构完全对齐——
+ *   第一列：M3 Checkbox 复选框（任务用同样的 M3 Checkbox，起点位置完全对齐）
+ *   第二列：Column(weight=1) 内含
+ *     - 顶部 Row：类型图标 Repeat（任务对应 CheckBox）+ emoji（任务对应无）+ 标题
+ *     - 底部 Row：Schedule 图标 + HH:MM 提醒时间（任务额外带分组 chip / 冲突警告）
+ * 仅勾选控件旁的类型图标不同（任务=CheckBox，习惯=Repeat），其它布局框架一致，靠类型图标一眼区分。
+ * padding horizontal=Spacing.md / vertical=Spacing.xs 与 TaskItem 完全相同，确保两行起点位置对齐。
+ */
 private fun HabitRow(
     item: HabitItem,
     onCheck: () -> Unit,
@@ -601,54 +610,57 @@ private fun HabitRow(
     val habit = item.habit
     val timeText = if (habit.reminderMin >= 0) formatMinute(habit.reminderMin) else null
     val typeTint = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+    val contentAlpha = if (checked) 0.6f else 1f
+    // stringResource 必须在 composable 上下文预计算，不能在 .semantics {} 内调用。
+    val checkCd = stringResource(if (checked) R.string.habits_checked_desc else R.string.habits_unchecked_desc)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onCheck)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            .padding(horizontal = Spacing.md, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 类型图标：习惯用 Repeat，与计划 TabRow 一致用于一眼区分任务/习惯。
-        Icon(
-            imageVector = Icons.Filled.Repeat,
-            contentDescription = null,
-            tint = typeTint,
-            modifier = Modifier.size(18.dp),
+        // 第一列：M3 Checkbox 复选框，与任务 Checkbox 同款，水平起点与触控区大小一致。
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onCheck() },
+            modifier = Modifier.semantics { contentDescription = checkCd },
         )
-        Spacer(Modifier.width(Spacing.sm))
-        // 打卡勾选圆圈。
-        Icon(
-            imageVector = if (checked) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-            contentDescription = stringResource(if (checked) R.string.habits_checked_desc else R.string.habits_unchecked_desc),
-            tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.width(Spacing.sm))
-        if (habit.emoji.isNotEmpty()) {
-            Text(habit.emoji, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.width(Spacing.xs))
-        }
-        Text(
-            text = habit.title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-            modifier = if (checked) Modifier.alpha(0.6f) else Modifier,
-        )
-        if (timeText != null) {
-            Spacer(Modifier.weight(1f))
+        // 第二列：Column(weight=1) 内嵌标题行 + 时间行，与 TaskItem 内部结构对齐。
+        Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm).alpha(contentAlpha)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Filled.Schedule,
+                    imageVector = Icons.Filled.Repeat,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = typeTint,
+                    modifier = Modifier.size(16.dp),
                 )
-                Spacer(Modifier.width(2.dp))
+                if (habit.emoji.isNotEmpty()) {
+                    Spacer(Modifier.width(Spacing.xs))
+                    Text(habit.emoji, style = MaterialTheme.typography.bodyLarge)
+                }
+                Spacer(Modifier.width(Spacing.xs))
                 Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = habit.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 )
+            }
+            if (timeText != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
