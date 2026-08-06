@@ -61,7 +61,7 @@ android {
             signingConfig = if (hasReleaseKey) {
                 signingConfigs.getByName("release")
             } else {
-                logger.warn("⚠ [signing] release 包正在使用 debug 签名，禁止分发！请在 local.properties 配置 release.storeFile/release.storePassword/release.keyAlias/release.keyPassword")
+                logger.warn("[signing] Release build is signed with the DEBUG keystore - DO NOT distribute. Configure release.storeFile / release.storePassword / release.keyAlias / release.keyPassword in local.properties")
                 signingConfigs.getByName("debug")
             }
         }
