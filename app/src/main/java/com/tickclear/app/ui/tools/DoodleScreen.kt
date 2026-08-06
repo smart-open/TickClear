@@ -7,6 +7,7 @@ import android.graphics.Color as AndroidColor
 import android.graphics.Paint
 import android.graphics.Path as AndroidPath
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,7 +46,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +69,9 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.tools.QrGenerator
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
@@ -86,7 +89,9 @@ private data class DoodleStroke(
 @Composable
 fun DoodleScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val appContext = context.applicationContext
+    // 保存动作不能随页面销毁被取消，否则用户点完保存立刻返回会静默丢图
+    val saveScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
 
     var fullscreen by remember { mutableStateOf(false) }
     var strokes by remember { mutableStateOf(listOf<DoodleStroke>()) }
@@ -129,11 +134,25 @@ fun DoodleScreen(onBack: () -> Unit) {
                 ac.drawPath(path, paint)
             }
         }
-        scope.launch {
-            val ok = QrGenerator.saveToGallery(context, bmp, "TickClear_Doodle")
-            Toast.makeText(context, if (ok) R.string.doodle_saved else R.string.doodle_save_fail, Toast.LENGTH_SHORT).show()
+        saveScope.launch {
+            val ok = runCatching { QrGenerator.saveToGallery(appContext, bmp, "TickClear_Doodle") }.getOrDefault(false)
+            bmp.recycle()
+            Toast.makeText(appContext, if (ok) R.string.doodle_saved else R.string.doodle_save_fail, Toast.LENGTH_SHORT).show()
         }
     }
+
+    // 画布尺寸变化（全屏切换 / 旋转）时等比缩放已有笔迹，避免坐标错位
+    fun onCanvasSized(newSize: IntSize) {
+        val old = canvasSize
+        if (old.width > 0 && old.height > 0 && newSize.width > 0 && newSize.height > 0 && old != newSize) {
+            val sx = newSize.width.toFloat() / old.width
+            val sy = newSize.height.toFloat() / old.height
+            strokes = strokes.map { s -> s.copy(points = s.points.map { Offset(it.x * sx, it.y * sy) }) }
+        }
+        canvasSize = newSize
+    }
+
+    BackHandler(enabled = fullscreen) { fullscreen = false }
 
     DisposableEffect(fullscreen) {
         val activity = context as? Activity
@@ -181,13 +200,13 @@ fun DoodleScreen(onBack: () -> Unit) {
                             onDragStart = { offset -> current = DoodleStroke(listOf(offset), drawColor, brushSize) },
                             onDrag = { change, _ ->
                                 change.consume()
-                                current = current?.copy(points = current!!.points + change.position)
+                                current = appendPoint(current, change.position)
                             },
                             onDragEnd = { current?.let { strokes = strokes + it }; current = null },
                             onDragCancel = { current = null },
                         )
                     }
-                    .onSizeChanged { canvasSize = it },
+                    .onSizeChanged { onCanvasSized(it) },
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     for (s in strokes) drawDoodleStroke(s)
@@ -197,7 +216,12 @@ fun DoodleScreen(onBack: () -> Unit) {
                     onClick = { fullscreen = false },
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                 ) {
-                    Icon(Icons.Filled.FullscreenExit, contentDescription = stringResource(R.string.doodle_exit_fullscreen))
+                    // 画布固定白底，深色主题下默认 tint 为白色会导致按钮不可见
+                    Icon(
+                        Icons.Filled.FullscreenExit,
+                        contentDescription = stringResource(R.string.doodle_exit_fullscreen),
+                        tint = Color.Black,
+                    )
                 }
             }
         } else {
@@ -265,13 +289,13 @@ fun DoodleScreen(onBack: () -> Unit) {
                                 onDragStart = { offset -> current = DoodleStroke(listOf(offset), drawColor, brushSize) },
                                 onDrag = { change, _ ->
                                     change.consume()
-                                    current = current?.copy(points = current!!.points + change.position)
+                                    current = appendPoint(current, change.position)
                                 },
                                 onDragEnd = { current?.let { strokes = strokes + it }; current = null },
                                 onDragCancel = { current = null },
                             )
                         }
-                        .onSizeChanged { canvasSize = it },
+                        .onSizeChanged { onCanvasSized(it) },
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         for (s in strokes) drawDoodleStroke(s)
@@ -281,6 +305,19 @@ fun DoodleScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * 追加笔迹采样点：小于 [MIN_SAMPLE_PX] 的抖动直接丢弃。
+ * 高频 onDrag 每次都整表复制，过滤后可显著降低长笔迹的内存分配与重绘开销。
+ */
+private const val MIN_SAMPLE_PX = 2f
+
+private fun appendPoint(stroke: DoodleStroke?, point: Offset): DoodleStroke? {
+    if (stroke == null) return null
+    val last = stroke.points.lastOrNull() ?: return stroke.copy(points = listOf(point))
+    if (dist(last.x, last.y, point.x, point.y) < MIN_SAMPLE_PX) return stroke
+    return stroke.copy(points = stroke.points + point)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDoodleStroke(s: DoodleStroke) {

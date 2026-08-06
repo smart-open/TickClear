@@ -1,7 +1,9 @@
 package com.tickclear.app.ui.tools
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,8 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -65,6 +70,9 @@ fun DeadPixelScreen(onBack: () -> Unit) {
     )
     var selected by remember { mutableStateOf(0) }
     val currentColor = palette[selected].second
+
+    // 全屏时优先用返回键退出全屏，避免误退出整个页面
+    BackHandler(enabled = fullscreen) { fullscreen = false }
 
     // 沉浸式：进入全屏时隐藏状态栏/导航栏，退出恢复（runCatching 兜底非 Activity 场景）
     DisposableEffect(fullscreen) {
@@ -103,6 +111,8 @@ fun DeadPixelScreen(onBack: () -> Unit) {
         },
     ) { innerPadding ->
         if (fullscreen) {
+            // 按当前底色亮度取反色，保证退出按钮与色块描边在任意纯色上都可见
+            val onColor = if (currentColor.luminance() > 0.5f) Color.Black else Color.White
             Box(modifier = Modifier.fillMaxSize().background(currentColor)) {
                 IconButton(
                     onClick = { fullscreen = false },
@@ -111,7 +121,7 @@ fun DeadPixelScreen(onBack: () -> Unit) {
                     Icon(
                         Icons.Filled.FullscreenExit,
                         contentDescription = stringResource(R.string.deadpixel_exit_fullscreen),
-                        tint = if (selected >= 3) Color.Black else Color.White,
+                        tint = onColor,
                     )
                 }
                 Row(
@@ -122,7 +132,13 @@ fun DeadPixelScreen(onBack: () -> Unit) {
                         Box(
                             modifier = Modifier.size(28.dp)
                                 .background(color, CircleShape)
-                                .clickable { selected = idx },
+                                .border(
+                                    width = if (selected == idx) 3.dp else 1.dp,
+                                    color = onColor,
+                                    shape = CircleShape,
+                                )
+                                .clickable { selected = idx }
+                                .semantics { contentDescription = label },
                         )
                     }
                 }
