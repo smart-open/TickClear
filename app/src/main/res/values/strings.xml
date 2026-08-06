@@ -12,7 +12,6 @@
     <!-- 底部导航 -->
     <string name="tab_today">今日</string>
     <string name="tab_tasks">任务</string>
-    <string name="tab_stats">统计</string>
     <string name="tab_assistant">助手</string>
     <string name="tab_settings">设置</string>
 
@@ -251,7 +250,6 @@
     <string name="recycle_bin_export_empty">回收站暂无可导出的内容</string>
     <string name="recycle_bin_export_chooser">分享回收站清单</string>
     <string name="recycle_bin_batch_purge_confirm">确定彻底删除选中的 %1$d 项？此操作不可撤销。</string>
-    <string name="recycle_bin_select_mode">选择模式</string>
 
     <!-- Phase 4：统计 Tab -->
     <string name="stats_today_rate">今日完成率</string>
@@ -282,8 +280,6 @@
     <string name="stats_share">分享打卡卡</string>
     <string name="share_card_title">我的打卡成就</string>
     <string name="share_card_subtitle">%1$s 的坚持足迹</string>
-    <string name="share_card_medals">%1$d</string>
-    <string name="share_card_medals_label">已解锁勋章</string>
     <string name="share_card_footer">%1$s · 记录每一次坚持</string>
     <string name="share_card_chooser">分享打卡卡</string>
     <string name="medal_progress">进度 %1$d/%2$d</string>
@@ -301,8 +297,6 @@
     <string name="assistant_mic_opening">正在聆听…</string>
     <string name="assistant_voice_listening_hint">聆听中…再次点击话筒发送</string>
     <string name="assistant_mic_already_open">已在录音中</string>
-    <string name="assistant_mic_unavailable">当前无可用语音通道</string>
-    <string name="assistant_connection_banner_dismiss">关闭</string>
     <string name="assistant_config_title">助手配置</string>
     <string name="assistant_config_desc">助手配置</string>
     <string name="assistant_unconfigured_title">还没有配置助手</string>
@@ -406,13 +400,11 @@
     <string name="assistant_msg_deleted">已删除该消息</string>
     <string name="assistant_msg_delete">删除</string>
     <!-- V2.8X++：长按多选/单条菜单（参考微信） -->
-    <string name="assistant_msg_actions">消息操作</string>
     <string name="assistant_msg_select_more">多选</string>
     <string name="assistant_msg_delete_confirm_title">删除所选消息？</string>
     <string name="assistant_msg_delete_confirm_body">即将从助手 tab 与语音历史中移除共 %1$d 条消息，此操作不可撤销。</string>
     <string name="assistant_msg_deleted_count">已删除 %1$d 条消息</string>
     <string name="assistant_selected_count">已选 %1$d 项</string>
-    <string name="assistant_msg_long_press_hint">长按复制・左滑删除</string>
     <string name="assistant_draft_cancelled">已取消创建任务</string>
     <string name="assistant_draft_title">确认创建任务</string>
     <string name="assistant_draft_confirm">创建</string>
@@ -732,7 +724,6 @@
     <!-- 二维码 -->
     <string name="tools_qr_title">二维码</string>
     <string name="tools_qr_desc">生成文字/网址/联系人二维码</string>
-    <string name="qr_type_label">类型</string>
     <string name="qr_type_text">文字</string>
     <string name="qr_type_url">网址</string>
     <string name="qr_type_contact">联系人</string>
@@ -834,7 +825,6 @@
     <string name="tools_ruler_title">测距仪</string>
     <string name="tools_ruler_desc">屏幕刻度或拍照按参照物测量长度</string>
     <string name="ruler_hint">轻点物件两端即可测距（按屏幕实际尺寸校准，结果为约值）</string>
-    <string name="ruler_length">长度 %1$.1f 厘米</string>
     <string name="ruler_calibrated">已按设备屏幕密度校准</string>
     <string name="ruler_tap_second">再轻点物件另一端</string>
     <string name="ruler_mode_screen">屏幕刻度</string>
@@ -879,7 +869,7 @@
 
     <!-- 噪声评价报告（GB 3096-2008 声环境质量标准 / GBZ 2.2-2007 职业接触限值） -->
     <string name="noise_report_title">噪声评价报告</string>
-    <string name="noise_report_basis">依据 GB 3096-2008、GBZ 2.2-2007</string>
+    <string name="noise_report_basis">依据 GB 3096–2008、GBZ 2.2–2007</string>
     <string name="noise_report_leq">等效声级 Leq：%1$s dB(A)</string>
     <string name="noise_report_peak">峰值声级：%1$d dB(A)</string>
     <string name="noise_report_duration">测量时长：%1$d 秒</string>
@@ -910,9 +900,9 @@
     <string name="noise_zone_day_fail">昼间：超过全部功能区限值（最宽松为 4a 类 70 dB(A)）</string>
     <string name="noise_zone_night_pass">夜间：符合 %1$s 限值 %2$d dB(A)</string>
     <string name="noise_zone_night_fail">夜间：超过全部功能区限值（最宽松为 55 dB(A)）</string>
-    <string name="noise_exposure_free">低于 80 dB(A)，GBZ 2.2-2007 对每日接触时长不作限制。</string>
+    <string name="noise_exposure_free">低于 80 dB(A)，GBZ 2.2–2007 对每日接触时长不作限制。</string>
     <string name="noise_exposure_hours">按等能量原则（85 dB(A) 对应 8 小时，每增加 3 dB 允许时长减半），当前声级每日允许接触约 %1$s 小时。</string>
-    <string name="noise_exposure_forbidden">已超过 115 dB(A)，GBZ 2.2-2007 规定任何时长均不得接触。</string>
+    <string name="noise_exposure_forbidden">已超过 115 dB(A)，GBZ 2.2–2007 规定任何时长均不得接触。</string>
 
     <!-- 抽签器 -->
     <string name="tools_lottery_title">抽签器</string>
@@ -944,7 +934,6 @@
     <string name="tools_vision_title">视力自测</string>
     <string name="tools_vision_desc">色盲与视力快速筛查</string>
     <string name="vision_intro">本工具为简易自测，结果仅供参考，不能替代专业眼科检查。</string>
-    <string name="vision_start">开始测试</string>
     <string name="vision_hub_intro">请选择要测试的项目</string>
     <string name="vision_color_card_title">色盲色弱</string>
     <string name="vision_color_card_desc">判断左右色块是否相同，8 道题</string>
@@ -1026,7 +1015,6 @@
     <string name="water_title">喝水提醒</string>
     <string name="water_enable">开启喝水提醒</string>
     <string name="water_interval">提醒间隔</string>
-    <string name="water_interval_unit">分钟</string>
     <string name="interval_min_label">%1$d 分</string>
     <string name="water_next">下次提醒：%1$s</string>
     <string name="water_test">立即试提醒</string>
@@ -1062,7 +1050,6 @@
     <string name="voice_permission_required">需要麦克风权限才能录音</string>
     <string name="voice_title_hint">标题（可选）</string>
     <string name="voice_duration">时长 %1$s</string>
-    <string name="voice_save">保存录音</string>
     <string name="voice_discard">放弃</string>
 
     <!-- 密码保险箱 -->
@@ -1077,7 +1064,6 @@
     <string name="vault_weak">口令至少 6 位</string>
     <string name="vault_question_hint">设置一个问题（如：我母亲的生日？）</string>
     <string name="vault_answer">答案</string>
-    <string name="vault_recovery_hint">忘记口令时，回答安全问题可重置（会清空已有条目）</string>
     <string name="vault_set">设置</string>
     <string name="vault_setup_success">保险箱密码已设置成功，请保存你的密码信息</string>
     <string name="vault_wrong">口令错误</string>
@@ -1102,7 +1088,6 @@
     <string name="vault_recovery_required">请填写安全问题和答案</string>
     <string name="vault_copied">已复制</string>
     <string name="vault_lock">锁定</string>
-    <string name="vault_entry_saved">已保存</string>
 
     <!-- 工具通知渠道 -->
     <string name="channel_water_name">喝水提醒</string>
@@ -1167,7 +1152,6 @@
     <string name="countdown_today">就是今天</string>
     <string name="countdown_passed">已过去 %1$d 天</string>
     <string name="countdown_delete">删除</string>
-    <string name="countdown_pick_hint">请先选择日期</string>
 
     <!-- 条码识别（选图解码 + 商品查询，V2.9++） -->
     <string name="tools_barcode_title">条码识别</string>
@@ -1200,7 +1184,6 @@
     <string name="mosaic_undo">撤销</string>
     <string name="mosaic_clear">清空</string>
     <string name="mosaic_apply">应用并保存</string>
-    <string name="mosaic_no_image">请先选择图片</string>
     <string name="mosaic_saved">已保存到相册</string>
     <string name="mosaic_save_fail">保存失败</string>
     <string name="mosaic_hint_brush">在图片上拖动涂抹要遮挡的区域</string>
@@ -1212,7 +1195,6 @@
     <string name="tools_compass_title">指南针</string>
     <string name="tools_compass_desc">户外出行辨别方位</string>
     <string name="compass_degree">%1$d°</string>
-    <string name="compass_direction">方位：%1$s</string>
     <string name="compass_north">北</string>
     <string name="compass_northeast">东北</string>
     <string name="compass_east">东</string>
@@ -1503,7 +1485,6 @@
     <string name="tools_sim_wood_title">敲木鱼</string>
     <string name="tools_sim_wood_desc">点一下敲一下，静心解压</string>
     <string name="tools_sim_wood_hint">点击木鱼，敲一下静心一下</string>
-    <string name="tools_sim_wood_count">已敲 %1$d 下</string>
 
     <!-- 虚拟打火机 -->
     <string name="tools_sim_lighter_title">打火机</string>
@@ -1522,7 +1503,6 @@
     <string name="tools_sim_pinball_title">弹珠台</string>
     <string name="tools_sim_pinball_desc">拖拽瞄准，发射弹珠碰撞</string>
     <string name="tools_sim_pinball_hint">在底部拖拽瞄准，松手发射弹珠</string>
-    <string name="tools_sim_pinball_score">得分 %1$d</string>
     <string name="tools_sim_pinball_reset">重置</string>
 
     <!-- 拟声玻璃杯敲击 -->
