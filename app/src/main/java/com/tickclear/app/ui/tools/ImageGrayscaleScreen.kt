@@ -38,6 +38,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,7 +66,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
     var threshold by remember { mutableIntStateOf(128) }
 
     var panelExpanded by remember { mutableStateOf(true) }
-    var scale by remember { mutableStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(1f) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult

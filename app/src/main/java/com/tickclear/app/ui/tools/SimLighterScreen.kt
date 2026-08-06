@@ -32,6 +32,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,9 +61,9 @@ import androidx.compose.runtime.withFrameMillis
 @Composable
 fun SimLighterScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var lidProgress by remember { mutableStateOf(0f) } // 0 关盖 / 1 开盖
+    var lidProgress by remember { mutableFloatStateOf(0f) } // 0 关盖 / 1 开盖
     var lit by remember { mutableStateOf(false) }
-    var flicker by remember { mutableStateOf(1f) }
+    var flicker by remember { mutableFloatStateOf(1f) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
     DisposableEffect(Unit) {

@@ -73,6 +73,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -177,12 +180,12 @@ fun AssistantScreen(
         onDispose { viewModel.onScreenHidden() }
     }
     // V2.8X++：仅当「新消息到达（size 增大）」才平滑动画；切回 tab 时不触发动画（初始位置已到底）。
-    val prevMsgCount = remember { mutableStateOf(messages.size) }
+    val prevMsgCount = remember { mutableIntStateOf(messages.size) }
     LaunchedEffect(messages.size) {
-        if (messages.size > prevMsgCount.value) {
+        if (messages.size > prevMsgCount.intValue) {
             listState.animateScrollToItem(messages.lastIndex)
         }
-        prevMsgCount.value = messages.size
+        prevMsgCount.intValue = messages.size
     }
     // V2.8X++：麦克风按下即时反馈 → 短 toast。
     LaunchedEffect(micToast) {

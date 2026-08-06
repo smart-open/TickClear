@@ -41,6 +41,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -85,8 +88,8 @@ fun MosaicScreen(onBack: () -> Unit) {
     var shapes by remember { mutableStateOf<List<ImageMasker.MaskShape>>(emptyList()) }
     var drawMode by remember { mutableStateOf(DrawMode.BRUSH) }
     var maskMode by remember { mutableStateOf(ImageMasker.MaskMode.MOSAIC) }
-    var strength by remember { mutableStateOf(10) }
-    var brushWidthRatio by remember { mutableStateOf(0.04f) } // 笔刷宽度占短边比例
+    var strength by remember { mutableIntStateOf(10) }
+    var brushWidthRatio by remember { mutableFloatStateOf(0.04f) } // 笔刷宽度占短边比例
     var busy by remember { mutableStateOf(false) }
 
     // 实时拖拽状态：BRUSH 模式下累积点列，BOX 模式下记录矩形
@@ -94,7 +97,7 @@ fun MosaicScreen(onBack: () -> Unit) {
     var dragBox by remember { mutableStateOf<ImageMasker.MaskShape.Box?>(null) }
 
     var panelExpanded by remember { mutableStateOf(true) }
-    var scale by remember { mutableStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(1f) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult

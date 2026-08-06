@@ -34,6 +34,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,7 +66,7 @@ private val TINTS = listOf(
 fun ReflectorScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var brightness by remember { mutableFloatStateOf(1f) }
-    var tintRes by remember { mutableStateOf(TINTS[0].first) }
+    var tintRes by remember { mutableIntStateOf(TINTS[0].first) }
     val tintColor = TINTS.first { it.first == tintRes }.second
 
     // 进入即拉满亮度当补光；退出恢复原有亮度

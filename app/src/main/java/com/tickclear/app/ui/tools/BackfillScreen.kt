@@ -32,6 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -64,7 +67,7 @@ fun BackfillScreen(
     val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE) }
     val habits by vm.habits.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var tab by remember { mutableStateOf(0) }
+    var tab by remember { mutableIntStateOf(0) }
     var selectedHabitId by remember { mutableStateOf<String?>(null) }
     var habitDate by remember { mutableStateOf(today) }
     var dailyDate by remember { mutableStateOf(today) }

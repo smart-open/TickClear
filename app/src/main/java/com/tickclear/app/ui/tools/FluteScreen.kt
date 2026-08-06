@@ -38,6 +38,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,9 +83,9 @@ fun FluteScreen(onBack: () -> Unit) {
         523.25f, 587.33f, 659.25f, 698.46f, 783.99f, 880.00f, 987.77f, 1046.50f,
     )
     val solfege = stringResource(R.string.sim_flute_solfege).split('|')
-    var selected by remember { mutableStateOf(0) }
+    var selected by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) } // 麦克风吹奏会话进行中
-    var breath by remember { mutableStateOf(0f) } // 当前气息强度 0..1（仪表用）
+    var breath by remember { mutableFloatStateOf(0f) } // 当前气息强度 0..1（仪表用）
 
     val micGranted = micPermission.status is PermissionStatus.Granted
 

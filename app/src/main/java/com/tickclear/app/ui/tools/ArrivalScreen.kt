@@ -41,6 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -226,7 +229,7 @@ private fun AddStationDialog(
     var name by remember { mutableStateOf("") }
     var latText by remember { mutableStateOf(currentLocation?.first?.let { "%.5f".format(Locale.US, it) } ?: "") }
     var lngText by remember { mutableStateOf(currentLocation?.second?.let { "%.5f".format(Locale.US, it) } ?: "") }
-    var radius by remember { mutableStateOf(300) }
+    var radius by remember { mutableIntStateOf(300) }
     var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 

@@ -106,18 +106,13 @@ fun CookingTimerScreen(
 
     fun feedback() {
         vibrator?.let { v ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (v.hasVibrator()) {
-                    v.vibrate(
-                        VibrationEffect.createWaveform(
-                            longArrayOf(0, 400, 180, 400),
-                            -1,
-                        ),
-                    )
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                v.vibrate(500)
+            if (v.hasVibrator()) {
+                v.vibrate(
+                    VibrationEffect.createWaveform(
+                        longArrayOf(0, 400, 180, 400),
+                        -1,
+                    ),
+                )
             }
         }
         try {

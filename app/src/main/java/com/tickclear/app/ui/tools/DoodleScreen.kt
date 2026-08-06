@@ -45,6 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -97,7 +100,7 @@ fun DoodleScreen(onBack: () -> Unit) {
     var strokes by remember { mutableStateOf(listOf<DoodleStroke>()) }
     var current by remember { mutableStateOf<DoodleStroke?>(null) }
     var drawColor by remember { mutableStateOf(Color(0xFFE53935)) }
-    var brushSize by remember { mutableStateOf(8f) }
+    var brushSize by remember { mutableFloatStateOf(8f) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     val palette = listOf(

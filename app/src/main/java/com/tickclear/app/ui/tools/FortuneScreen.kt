@@ -33,6 +33,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,7 +78,7 @@ private val FORTUNE_COLOR_VALUES = listOf(
 @Composable
 fun FortuneScreen(onBack: () -> Unit) {
     val todayEpoch = remember { LocalDate.now().toEpochDay() }
-    var seed by remember { mutableStateOf(todayEpoch) }
+    var seed by remember { mutableLongStateOf(todayEpoch) }
 
     val keywords = stringArrayResource(R.array.fortune_keywords)
     val colorNames = stringArrayResource(R.array.fortune_color_names)

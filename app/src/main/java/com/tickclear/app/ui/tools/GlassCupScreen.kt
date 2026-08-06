@@ -25,6 +25,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,7 +59,7 @@ fun GlassCupScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
-    var note by remember { mutableStateOf(0) } // 0=未敲；1..7=当前音符
+    var note by remember { mutableIntStateOf(0) } // 0=未敲；1..7=当前音符
     val solfege = stringResource(R.string.sim_glass_solfege).split('|')
 
     DisposableEffect(Unit) {

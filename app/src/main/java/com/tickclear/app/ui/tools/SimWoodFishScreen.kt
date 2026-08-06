@@ -25,6 +25,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,9 +54,9 @@ import androidx.compose.runtime.withFrameMillis
 @Composable
 fun SimWoodFishScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var count by remember { mutableStateOf(0) }
+    var count by remember { mutableIntStateOf(0) }
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
-    var punch by remember { mutableStateOf(0f) }
+    var punch by remember { mutableFloatStateOf(0f) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
     DisposableEffect(Unit) {

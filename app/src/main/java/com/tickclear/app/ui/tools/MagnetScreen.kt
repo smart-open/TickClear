@@ -29,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,9 +66,9 @@ import kotlin.math.sqrt
 fun MagnetScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var x by remember { mutableStateOf(0f) }
-    var y by remember { mutableStateOf(0f) }
-    var z by remember { mutableStateOf(0f) }
+    var x by remember { mutableFloatStateOf(0f) }
+    var y by remember { mutableFloatStateOf(0f) }
+    var z by remember { mutableFloatStateOf(0f) }
     var hasSensor by remember { mutableStateOf(true) }
     // 磁力计易受机身/环境干扰，精度不足时读数无意义，需提示用户画「8」字校准。
     var lowAccuracy by remember { mutableStateOf(false) }

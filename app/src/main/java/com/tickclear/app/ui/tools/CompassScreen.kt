@@ -28,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,7 +82,7 @@ private fun directionRes(azimuth: Float): Int {
 @Composable
 fun CompassScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var azimuth by remember { mutableStateOf(0f) }
+    var azimuth by remember { mutableFloatStateOf(0f) }
     var hasSensor by remember { mutableStateOf(true) }
     var needCalibrate by remember { mutableStateOf(false) }
 

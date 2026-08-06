@@ -48,6 +48,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.DisposableEffect
@@ -183,8 +186,8 @@ private fun ScreenRuler() {
     val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     var useCm by remember { mutableStateOf(true) }
-    var startX by remember { mutableStateOf(0f) }
-    var endX by remember { mutableStateOf(0f) }
+    var startX by remember { mutableFloatStateOf(0f) }
+    var endX by remember { mutableFloatStateOf(0f) }
     var initialized by remember { mutableStateOf(false) }
     var endSet by remember { mutableStateOf(false) }
 

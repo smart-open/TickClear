@@ -29,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -81,9 +84,9 @@ fun PetScreen(onBack: () -> Unit) {
             ),
         )
     }
-    var phase by remember { mutableStateOf(0f) }
-    var blink by remember { mutableStateOf(0f) }
-    var toyTimer by remember { mutableStateOf(0f) }
+    var phase by remember { mutableFloatStateOf(0f) }
+    var blink by remember { mutableFloatStateOf(0f) }
+    var toyTimer by remember { mutableFloatStateOf(0f) }
 
     val fishes = remember {
         List(3) { i ->

@@ -34,6 +34,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,8 +74,8 @@ fun SimCandleScreen(onBack: () -> Unit) {
     val outline = MaterialTheme.colorScheme.outline
 
     var lit by remember { mutableStateOf(true) }
-    var blowProgress by remember { mutableStateOf(0f) }
-    var flicker by remember { mutableStateOf(1f) }
+    var blowProgress by remember { mutableFloatStateOf(0f) }
+    var flicker by remember { mutableFloatStateOf(1f) }
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var blowing by remember { mutableStateOf(false) } // 长按（无麦克风时）吹气中

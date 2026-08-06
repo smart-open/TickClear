@@ -34,6 +34,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -66,8 +69,8 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val primary = MaterialTheme.colorScheme.primary
 
-    var pressure by remember { mutableStateOf(0f) }   // 0..100
-    var shake by remember { mutableStateOf(0f) }      // 视觉抖动 0..1
+    var pressure by remember { mutableFloatStateOf(0f) }   // 0..100
+    var shake by remember { mutableFloatStateOf(0f) }      // 视觉抖动 0..1
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var message by remember { mutableStateOf<String?>(null) }

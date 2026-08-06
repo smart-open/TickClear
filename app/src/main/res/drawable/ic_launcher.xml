@@ -1,18 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 启动图标（API 24+ 矢量回退）：圆角蓝底 + 居中白色对勾，干净现代。 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#2F6BFF"
-        android:pathData="M26,4 h56 a22,22 0 0 1 22,22 v56 a22,22 0 0 1 -22,22 h-56 a22,22 0 0 1 -22,-22 v-56 a22,22 0 0 1 22,-22 z" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="9"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M38,54 L49,65 L70,42" />
-</vector>
+<!-- 启动图标（自适应图标，minSdk 26 全量生效）：蓝底 + 前景对勾，支持系统主题与圆角遮罩。 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

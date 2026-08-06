@@ -38,6 +38,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.setValue
@@ -165,7 +168,7 @@ private fun LaunchSplash(onDismiss: () -> Unit) {
         stringResource(R.string.splash_feature_habits),
         stringResource(R.string.splash_feature_assistant),
     )
-    var featureIdx by remember { mutableStateOf(0) }
+    var featureIdx by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000)

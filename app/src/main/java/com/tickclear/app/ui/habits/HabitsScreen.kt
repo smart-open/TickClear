@@ -50,6 +50,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -316,7 +318,7 @@ private fun HabitEditDialog(
         mutableStateListOf<Int>().apply { addAll(init ?: listOf(1, 2, 3, 4, 5, 6, 7)) }
     }
     var reminderOn by remember { mutableStateOf((initial?.reminderMin ?: -1) >= 0) }
-    var reminderMin by remember { mutableStateOf((initial?.reminderMin ?: -1).takeIf { it >= 0 } ?: 9 * 60) }
+    var reminderMin by remember { mutableIntStateOf((initial?.reminderMin ?: -1).takeIf { it >= 0 } ?: 9 * 60) }
     var showTimePicker by remember { mutableStateOf(false) }
     val timeState = rememberTimePickerState(initialHour = reminderMin / 60, initialMinute = reminderMin % 60)
 

@@ -47,6 +47,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -101,7 +104,7 @@ fun FlashlightScreen(onBack: () -> Unit) {
 
     var on by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf(FlashMode.STEADY) }
-    var freq by remember { mutableStateOf(8) } // 频闪频率（Hz）
+    var freq by remember { mutableIntStateOf(8) } // 频闪频率（Hz）
 
     // 控制手电筒：常亮或频闪。离开 Effect 时在 finally 中关灯。
     LaunchedEffect(on, mode, freq, permissionGranted, hasFlash) {

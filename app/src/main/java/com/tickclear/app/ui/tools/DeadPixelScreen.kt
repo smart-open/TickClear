@@ -32,6 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,7 +71,7 @@ fun DeadPixelScreen(onBack: () -> Unit) {
         stringResource(R.string.deadpixel_white) to Color(0xFFFFFFFF),
         stringResource(R.string.deadpixel_black) to Color(0xFF000000),
     )
-    var selected by remember { mutableStateOf(0) }
+    var selected by remember { mutableIntStateOf(0) }
     val currentColor = palette[selected].second
 
     // 全屏时优先用返回键退出全屏，避免误退出整个页面

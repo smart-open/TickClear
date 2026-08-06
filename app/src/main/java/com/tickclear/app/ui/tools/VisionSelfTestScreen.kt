@@ -34,6 +34,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -221,8 +224,8 @@ private fun HubCard(
 /** 色盲色弱测试：8 道题，答对 ≥ 7 道视为正常。 */
 @Composable
 private fun ColorBlindnessTest() {
-    var idx by remember { mutableStateOf(0) }
-    var errors by remember { mutableStateOf(0) }
+    var idx by remember { mutableIntStateOf(0) }
+    var errors by remember { mutableIntStateOf(0) }
     var finished by remember { mutableStateOf(false) }
 
     val sameLabel = stringResource(R.string.vision_same)
@@ -314,7 +317,7 @@ private fun ColorBlindnessTest() {
 /** 视力（近视/远视）测试：逐级减小字号，根据能看清的最小字号判断结果。 */
 @Composable
 private fun AcuityTest() {
-    var idx by remember { mutableStateOf(0) }
+    var idx by remember { mutableIntStateOf(0) }
     var finished by remember { mutableStateOf(false) }
     val clearLabel = stringResource(R.string.vision_clear)
     val blurLabel = stringResource(R.string.vision_blur)

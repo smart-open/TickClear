@@ -2,6 +2,9 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,12 +20,12 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PomodoroViewModel @Inject constructor() : ViewModel() {
-    var focusMin by mutableStateOf(25)
-    var breakMin by mutableStateOf(5)
-    var remainingSec by mutableStateOf(25 * 60)
+    var focusMin by mutableIntStateOf(25)
+    var breakMin by mutableIntStateOf(5)
+    var remainingSec by mutableIntStateOf(25 * 60)
     var isRunning by mutableStateOf(false)
     var phase by mutableStateOf("focus") // focus | break
-    var completed by mutableStateOf(0)
+    var completed by mutableIntStateOf(0)
     private var job: Job? = null
 
     fun start() {

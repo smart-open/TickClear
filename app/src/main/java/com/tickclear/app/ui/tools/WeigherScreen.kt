@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +48,7 @@ fun WeigherScreen(onBack: () -> Unit) {
     var pressure by remember { mutableStateOf<Float?>(null) }
     var hasBarometer by remember { mutableStateOf(false) }
     var demoOn by remember { mutableStateOf(false) }
-    var demoValue by remember { mutableStateOf(0) }
+    var demoValue by remember { mutableIntStateOf(0) }
 
     DisposableEffect(Unit) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager

@@ -39,6 +39,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,14 +77,14 @@ fun WatermarkScreen(onBack: () -> Unit) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     var rects by remember { mutableStateOf<List<RectF>>(emptyList()) }
     var mode by remember { mutableStateOf(ImageRepair.RepairMode.REPAIR) }
-    var strength by remember { mutableStateOf(10) }
+    var strength by remember { mutableIntStateOf(10) }
     var busy by remember { mutableStateOf(false) }
 
     var dragStart by remember { mutableStateOf<Offset?>(null) }
     var dragCurrent by remember { mutableStateOf<Offset?>(null) }
 
     var panelExpanded by remember { mutableStateOf(true) }
-    var scale by remember { mutableStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(1f) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult

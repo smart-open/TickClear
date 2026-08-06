@@ -35,6 +35,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -216,10 +219,10 @@ private fun ExpiryEditDialog(
     val context = LocalContext.current
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var category by remember { mutableStateOf(initial?.category ?: categories.first()) }
-    var expireEpochDay by remember { mutableStateOf(initial?.expireEpochDay ?: LocalDate.now().plusDays(30).toEpochDay()) }
+    var expireEpochDay by remember { mutableLongStateOf(initial?.expireEpochDay ?: LocalDate.now().plusDays(30).toEpochDay()) }
     var note by remember { mutableStateOf(initial?.note ?: "") }
     var reminderEnabled by remember { mutableStateOf(initial?.reminderEnabled ?: true) }
-    var reminderDaysBefore by remember { mutableStateOf(initial?.reminderDaysBefore ?: 1) }
+    var reminderDaysBefore by remember { mutableIntStateOf(initial?.reminderDaysBefore ?: 1) }
     var recurring by remember { mutableStateOf(initial?.recurring ?: false) }
 
     AlertDialog(

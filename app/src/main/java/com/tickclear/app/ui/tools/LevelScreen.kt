@@ -31,6 +31,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,9 +72,9 @@ private const val LEVEL_TOLERANCE_DEG = 1f
 @Composable
 fun LevelScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var gx by remember { mutableStateOf(0f) }
-    var gy by remember { mutableStateOf(0f) }
-    var gz by remember { mutableStateOf(0f) }
+    var gx by remember { mutableFloatStateOf(0f) }
+    var gy by remember { mutableFloatStateOf(0f) }
+    var gz by remember { mutableFloatStateOf(0f) }
     var hasSensor by remember { mutableStateOf(true) }
 
     DisposableEffect(Unit) {
