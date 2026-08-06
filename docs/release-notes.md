@@ -4,6 +4,58 @@
 
 ---
 
+## v2.9.0（2026-08-06 · 封板）· 五大 Tab 导航改版 + 工具箱 55 工具 + 全维度质量加固
+
+**平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
+**版本**：versionCode 17 / versionName 2.9.0 · DB schema v10（本次无 schema 变更）
+**相对 v2.8.0**：导航形态改版 + 工具箱扩充 + 一轮覆盖「产品设计 / 软件开发 / 质量测试 / 应用配置」四维的全量审查与修复。零新增远程依赖，DB 版本不变。
+
+### 🧭 导航改版：六大 Tab → 五大 Tab
+- 「任务」与「习惯」合并为**「计划」Tab 的两个子页**（新增 `ui/plan/PlanScreen.kt` 作容器，内部复用既有 `TasksContent` / `HabitsContent`，两者 ViewModel 与业务逻辑零改动）。
+- 一级导航由 6 收敛为 5：**今天 / 计划 / 助手 / 工具 / 设置**。统计详情不占一级位，仍由今日进度环进入 `Routes.STATS`。
+- 收益：底栏单项宽度增加，5 项在小屏不再挤压文字；「任务」与「习惯」同属"要坚持的事"，合并后信息架构更自洽。
+
+### 🧰 工具箱扩充至 7 大类 55 个工具
+- 分类：健康提醒 6 / 效率与安全 5 / 生活助手 5 / **模拟解压 14** / 实用工具 18 / 健康自查 2 / 效率工具 5。
+- 全部离线可用；模拟解压系列的音效由 `FoleySynth` 本地合成（`AudioTrack` MODE_STATIC + 振动反馈），不含任何音频资源文件。
+- 注册表（`TOOL_CATEGORIES`）/ 路由常量（`Routes.TOOLS_*`）/ 导航图（`TickClearNavGraph`）三方数量已对账一致（55/55/55）。
+
+### 🐛 P0 修复：应用内主题与系统状态栏/导航栏失联
+- **问题**：框架窗口主题走资源限定符跟随**系统**深色，而 Compose 主题跟随**应用内** `ThemeMode` 设置。二者无联动，当「应用内深色 + 系统浅色」时，状态栏/导航栏仍是浅色底 + 深色图标，与深色内容之间出现明显色带割裂；反向组合则出现浅底浅图标近乎不可见。
+- **修复**（`ui/theme/TickClearTheme.kt`）：新增 `Context.findActivity()` 递归解包，在 `SideEffect` 中按实际生效的 `dark` 值同步 `window.statusBarColor` / `navigationBarColor` 与 `WindowCompat.getInsetsController(...).isAppearanceLightStatusBars/NavigationBars`。不启用 edge-to-edge，对现有布局零影响。
+
+### 🔒 P1 修复：设备身份并发生成漂移
+- **问题**（`data/repositories/SettingsRepository.kt`）：`xzClientId` / `xzSerialNumber` 在 `Flow.map` 变换内做「读不到就生成并写回」，副作用写在流变换里 —— 多个 collector 并发订阅时会各自生成不同 UUID，先后写入互相覆盖，导致小智设备身份漂移、服务端侧被判为不同设备。
+- **修复**：抽出 `Mutex` 保护的 `suspend ensureIdentity(key)`，锁内先 `first()` 二次检查再生成写入；写失败经 `AppLogger.e` 记录而非静默。
+
+### 🧠 P1 修复：位图缩放未回收原图（Native 内存峰值翻倍）
+- `domain/tools/ImageProcessor.downscale` 与 `domain/tools/ImageMasker.downscaleIfNeeded` 在 `createScaledBitmap` 后未释放原图。大图（如 4000×3000）连开多个图片工具时 Native 堆峰值翻倍，低端机易 OOM。
+- 修复：返回前 `if (out !== src) src.recycle()`。
+
+### ⚡ P1 修复：首页折叠失效与列表重组开销
+- **今日页已完成区折叠失效**：`LaunchedEffect(Unit)` 只在首帧跑一次，而首帧数据为空 → 自动折叠判断恒不成立。改为以 `doneItems.size` 为 key，并引入 `userToggledDone` 标志，用户手动展开/折叠后不再被自动逻辑覆写（`rememberSaveable` 跨旋转保持）。
+- **任务列表重算**：原实现对每个任务组各跑一次 `filter`，复杂度 O(组数 × 任务数) 且每次重组重跑。改为 `remember(tasks, groups)` 内单次 `groupBy`。
+- **摄像头检测事件列表**：`SimpleDateFormat` 与 `reversed()` 从列表项内提到 `remember`，避免每项每帧新建 formatter 与整表复制。
+- **抽签器列表**：`itemsIndexed` 补稳定 `key`，避免增删项时整列重组。
+
+### 📦 应用配置与门禁
+- **包体瘦身**：`resourceConfigurations += ["zh-rCN", "en"]` 裁剪三方库多余语言资源；移除 `vectorDrawables.useSupportLibrary`（minSdk 26 原生支持矢量图，该开关只会让 AGP 额外生成 PNG 回退）。
+- **门禁脚本接入 CI**（`.github/workflows/ci.yml`）：`test/check_migrations.py`（Room 迁移与 schema 一致性）与 `test/scan_strings.mjs`（strings.xml 引用完整性）在 `assembleDebug` 之前执行；instrumented-test job 增加 `needs: unit-test`，避免单测未过就白跑仪器化。
+- **修复门禁哑弹**：`scan_strings.mjs` 判定动态引用时用 `DYNAMIC_PREFIXES.includes(n)` 做精确匹配（`DYNAMIC_PREFIXES` 存的是前缀），导致动态前缀白名单从未生效。改为 `some(p => n.startsWith(p))`。
+
+### 🧪 测试加固
+- **消除假绿测试**：`ReminderIdsTest` 用 Kotlin `assert()` 断言 —— JVM 默认 `-da`，整段断言被跳过，测试永远通过。改为 `assertTrue`。`ImageMaskerTest` 用 `runCatching{}.isFailure` 断言异常，任何异常（含 NPE）都算通过。改为 `assertThrows(IllegalArgumentException::class.java)`。
+- **补零覆盖的关键路径**：
+  - `VaultCryptoTest`（11 例）：密码保险箱 PBKDF2 + AES-256-GCM 的加解密往返、错误口令必须抛 `AEADBadTagException`（不得静默返回乱码）、密文篡改检测、IV 每次随机（GCM IV 复用可恢复明文）、salt 生效性、密钥长度、答案慢哈希确定性。
+  - `HabitDatesTest`（17 例）：`computeStreak` 的两个易错语义（今天未打但昨天打了 → streak 保留；今昨皆未打 → 归零）、中间断档只计最近段、乱序/重复/非法日期容错，以及 `isHabitDueOn` 的 ISO 星期口径（周日 = 7 而非 0）。
+
+### 📚 文档同步
+- `AGENT.md`：§1/§2/§5 由「六大 Tab」更正为「五大 Tab」并补 `plan/` `tools/` 包职责；§3 新增 6 条编码红线（主题系统栏联动 / Bitmap 回收 / Compose 重组 / LaunchedEffect key / DataStore 惰性生成 / 单测断言）；§6 补静态门禁命令。
+- `README.md`：Tab 表格化、工具数 29 → 55、项目结构补齐、Room 版本 1→8 更正为 1→10、快速开始补门禁脚本。
+- `docs/成熟度评估.md`：新增 v2.9.0 审查与修复记录章节。
+
+---
+
 ## v2.8.0（2026-08-02 · 封板）· 消息净化 + 语音 Opus 根因修复 + 协议实证补漏 + 工程严谨性收敛
 
 **平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板

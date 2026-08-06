@@ -6,24 +6,32 @@
 
 - 包名：`com.tickclear.app`
 - 形态：手机 + 平板（含折叠屏）自适应，单模块 `:app`
-- 版本基线：**v2.8.0（versionCode 16，2026-08-02 封板）** — 消息净化（`MessageTextFilter` 剥离 `@image#<i>:<hash>.<ext>` 多模态引用）+ **Opus 编解码本地化根因修复**（改用本地 AAR `app/libs/opus.aar`，含官方 libopus 1.3.1、全 ABI 含 arm64，彻底解决 `MediaCodec` Opus 编码器 `dequeueInputBuffer` 恒 -1 导致的「麦克风亮着但说话没反应」）+ 助手崩溃与生命周期收口（LazyColumn key 撞号 / 协程兜底 / 连接跟随应用前后台）+ 精确闹钟权限降级 + 协议补漏（Device-Id 大小写敏感 / listen `state="detect"` / 25s 握手超时）。详见 [docs/release-notes](docs/release-notes.md) 顶部 v2.8.0 章节 与 [test/小智诊断手册](test/XIAOZHI_DIAGNOSTIC_README.md)。
-- 当前开发线：**v2.8X 工具箱（统计 Tab→工具）** — 工具箱分类展示 4 个小工具：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）、语音备忘录（录制/播放/删除）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回）。代码已落地，待本地 `./gradlew clean assembleDebug` + 真机回归验证后封板。
-- 成熟度：四维（产品设计 / 软件开发 / 质量测试 / 应用使用配置）均 **99**，综合 **99.0 / 100**，详见 [成熟度评估](docs/成熟度评估.md)。
+- 版本基线：**v2.9.0（versionCode 17，2026-08-06 封板）** — **导航改版为五大 Tab**（原「任务 / 习惯」合并为「计划」Tab 的双子页，原「统计」Tab 改造为「工具」箱，统计详情仍由今日进度环进入 `Routes.STATS`）+ **工具箱扩充至 7 大类 55 个工具**（全部离线）+ 质量加固（应用内主题与系统状态栏/导航栏联动、设备身份并发生成收口、位图缩放显式回收、首页折叠态与列表重组性能优化、门禁脚本接入 CI）。上一基线 v2.8.0 详见 [docs/release-notes](docs/release-notes.md)。
+- 成熟度：四维（产品设计 / 软件开发 / 质量测试 / 应用使用配置）均 **≥99**，综合 **99.2 / 100**，详见 [成熟度评估](docs/成熟度评估.md)。
 
 ## 功能特性
 
-### 六大 Tab（底部 / 左导航轨自适应）
-- **今日**：分组展示今日任务；完成 / 编辑 / 左滑软删（带撤销）/ 右滑完成；时间窗冲突角标 + 冲突横幅；完成率环（点击进入统计详情 `Routes.STATS`）；一键清空「今日全部」。
-- **任务**：全部任务 + 任务组 CRUD（级联软删）；任务标签筛选；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
-- **习惯**：周期性习惯打卡（星期重复、连续 streak、休息日标识）。
-- **工具**：原「统计」Tab 改造为工具箱（v2.8X 起持续扩充），当前 **6 大类 29 个工具**，全部离线可用、零新增远程依赖：
-  - **健康提醒**（5）：喝水提醒 / 久坐休息 / 眼保健 / 午休小憩 / 听力保护 —— 间隔可配、到点通知、触发后自动续排。
+### 五大 Tab（底部 / 左导航轨自适应）
+
+| Tab | 路由 | 职责 |
+|-----|------|------|
+| 今天 | `today` | 当日执行视图 |
+| 计划 | `tasks` | 任务 + 习惯（双子页） |
+| 助手 | `assistant` | 小智语音 / 文字对话 |
+| 工具 | `tools` | 55 个离线工具箱 |
+| 设置 | `settings` | 偏好 / 配置 / 关于 |
+
+- **今天**：分组展示今日任务；完成 / 编辑 / 左滑软删（带撤销）/ 右滑完成；时间窗冲突角标 + 冲突横幅；完成率环（点击进入统计详情 `Routes.STATS`）；一键清空「今日全部」；已完成区可折叠。
+- **计划**（`ui/plan/PlanScreen.kt`）：顶部双子页切换 —— **任务**（全部任务 + 任务组 CRUD、级联软删、标签筛选、回收站 30 天自动清理可恢复）与 **习惯**（星期重复打卡、连续 streak、休息日标识）。习惯自 v2.9.0 起由一级 Tab 降为本 Tab 子页，一级导航收敛至 5 个。
+- **工具**：原「统计」Tab 改造为工具箱（v2.8X 起持续扩充），当前 **7 大类 55 个工具**，全部离线可用、零新增远程依赖：
+  - **健康提醒**（6）：喝水提醒 / 久坐休息 / 眼保健 / 午休小憩 / 听力保护 等 —— 间隔可配、到点通知、触发后自动续排。
   - **效率与安全**（5）：语音备忘录（录制/播放/删除，音频存本地）、密码保险箱（PBKDF2 + AES-GCM，主口令 + 安全问题找回）、摄像头检测、剪贴板保护、隐私检查（按权限组反查已授权应用）。
-  - **生活助手**（3）：二维码 / 到期提醒 / 条码识别（含拍照识别）。
-  - **实用工具**（13）：手电筒 / 测距仪（含拍照参照物比例换算）/ 噪音检测（含国标评价）/ 抽签器 / 水平仪 / 称重器 / 悬浮时钟 / 马赛克 / 去水印 / 指南针 / 打卡补录 / 到站提醒 / 备份导出。**支持常用工具置顶**（点星标）—— 顶部一行紧凑快捷入口，常用工具一键打开。
+  - **生活助手**（5）：二维码 / 到期提醒 / 条码识别（含拍照识别）等。
+  - **模拟解压**（14）：拟物解压小玩具（配 `FoleySynth` 拟物音效 + 振动反馈，全部本地合成、无音频资源文件）。
+  - **实用工具**（18）：手电筒 / 测距仪（含拍照参照物比例换算）/ 噪音检测（含国标评价）/ 抽签器 / 水平仪 / 称重器 / 悬浮时钟 / 马赛克 / 去水印 / 指南针 / 打卡补录 / 到站提醒 / 备份导出 等。**支持常用工具置顶**（点星标）—— 顶部一行紧凑快捷入口，常用工具一键打开。
   - **健康自查**（2）：视力自测 / 情绪打卡。
-  - **效率工具**（3）：番茄专注 / 表格计算 / 倒计时。
-  <br/>工具注册表集中在 `ToolsScreen.kt` 的 `TOOL_CATEGORIES`，路由常量在 `Routes.kt`，新增工具只需三处登记（注册表 + 路由 + `TickClearNavGraph` 的 `composable`）。
+  - **效率工具**（5）：番茄专注 / 表格计算 / 倒计时 等。
+  <br/>工具注册表集中在 `ToolsScreen.kt` 的 `TOOL_CATEGORIES`，路由常量在 `Routes.kt`，新增工具只需三处登记（注册表 + 路由 + `TickClearNavGraph` 的 `composable`），三者数量必须一致。
 - **助手**：对接**小智（Xiaozhi）WebSocket** 协议，语音 + 文字聊天。**REAL 模式**走官方云（含 MCP JSON-RPC 2.0 双向握手：`initialize` / `notifications/initialized` / `tools/list` / `tools/call`）；对话触发任务经 MCP `create_task` 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）；服务端塞进 `text` 的多模态资源引用（`@image#<i>:<hash>.<ext>`）由 `MessageTextFilter` 自动净化。**Mock 模式离线可跑**。连接与语音排查详见 [test/小智诊断手册](test/XIAOZHI_DIAGNOSTIC_README.md)。
 - **设置**：主题（浅色 / 深色 / 动态）、语音 / ASR / LLM 配置 + 测试、回收站管理、调试（日志 / 测试按钮）、关于。
 
@@ -81,8 +89,15 @@
 # 单元测试（CI 门禁之一）
 ./gradlew testDebugUnitTest
 
-# Lint 门禁（abortOnError=true，0 error 才能过）
+# Lint 门禁（abortOnError=true，0 error 才能过；当前基线为 0 warning）
 ./gradlew lintRelease
+```
+
+提交前还需通过两道静态门禁（已接入 CI，见 `.github/workflows/ci.yml`）：
+
+```bash
+python3 test/check_migrations.py   # Room 迁移与 app/schemas/*.json 一致性
+node    test/scan_strings.mjs      # strings.xml 引用完整性（Missing 必须为 0）
 ```
 
 > Release 签名由 `local.properties` 的 `release.*` 提供（已被 `.gitignore` 忽略）；缺失则回退 debug 签名以保证可构建。
@@ -93,12 +108,18 @@
 
 ```
 ui/           Compose 界面与 ViewModel
-  theme/        设计令牌（LIGHT / DARK / DYNAMIC）、Typography、Shape、Spacing
+  theme/        设计令牌（LIGHT / DARK / DYNAMIC）、Typography、Shape、Spacing、系统栏联动
   navigation/   Routes / BottomNav / TickClearNavGraph
   components/   共享组件（TaskCard / ConflictBanner / ...）
-  today/ tasks/ stats/ assistant/ settings/ ai/ adaptive/
-data/         Room 实体、DAO、AppDatabase、Repository、SecureStore
-domain/       纯 Kotlin 模型、UseCase、ConflictChecker、ai/、assistant/、scheduler/
+  today/        今天 Tab
+  plan/         计划 Tab 容器（任务 + 习惯双子页）
+  tasks/        任务子页与回收站、TasksViewModel
+  habits/       习惯子页与 HabitsViewModel
+  tools/        工具箱（TOOL_CATEGORIES 注册表 + 55 个工具界面）
+  stats/        统计详情（由今日进度环进入）
+  assistant/ settings/ ai/ adaptive/
+data/         Room 实体、DAO、AppDatabase、Repository、SecureStore、VaultCrypto
+domain/       纯 Kotlin 模型、UseCase、ConflictChecker、util/、tools/、ai/、assistant/、scheduler/
 di/           Hilt 模块
 ```
 
@@ -124,7 +145,7 @@ di/           Hilt 模块
 
 1. **零新依赖** —— 复用 OkHttp / DataStore / 系统框架，不引入新第三方库。
 2. **中文全抽离 `strings.xml`** —— 用户可见中文不得硬编码在源码（识别词典 / 日志 `detail` / 注释允许）。
-3. **Room 显式 Migration** —— 版本 1→8 递增（schema 导出至 `app/schemas/`），禁用 `fallbackToDestructiveMigration`。
+3. **Room 显式 Migration** —— 版本 1→10 递增（schema 导出至 `app/schemas/`），禁用 `fallbackToDestructiveMigration`；迁移与 schema 的一致性由 `test/check_migrations.py` 在 CI 门禁校验。
 4. **`.workbuddy/` 不提交 git** —— 仅本地工作区数据。
 5. **提交纪律** —— 每次自洽改动独立 `git commit`，中文类型前缀（`[fix]` / `[feature]` / `[docs]` / `[config]` / `[test]`）；允许 `git push`（按功能拆分提交后由开发者于本地执行 `git push origin master` 完成推送）。
 
