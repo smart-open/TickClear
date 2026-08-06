@@ -1,12 +1,19 @@
 package com.tickclear.app.ui.plan
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBox
@@ -21,8 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,6 +55,7 @@ import com.tickclear.app.ui.habits.HabitsViewModel
 import com.tickclear.app.ui.tasks.GroupEditDialog
 import com.tickclear.app.ui.tasks.TasksContent
 import com.tickclear.app.ui.tasks.TasksViewModel
+import com.tickclear.app.ui.theme.Spacing
 
 /**
  * 合并 tab「计划」：内部以二级分段（任务 | 习惯）承载原「任务」「习惯」两页的管理能力。
@@ -109,53 +117,32 @@ fun PlanScreen(
             },
         ) { innerPadding ->
             Column(Modifier.fillMaxSize().padding(innerPadding)) {
-                TabRow(
-                    selectedTabIndex = if (selectedTab == "habits") 1 else 0,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
+                // 自绘紧凑水平 Tab：M3 TabRow 的 Tab 内部硬编码"图标上 + 文字下"垂直布局，
+                // 且强制 48dp 最小高度；要同时满足"图标+文字同行"与"减高度"两点要求必须弃 M3。
+                // 此处用 M3 chip 风格的简化版：40dp 高、水平 Row、选中 primaryContainer 浅底色作锚点，
+                // 不带下划线、不带圆角 clip，保持视觉简洁。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .padding(horizontal = Spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Tab(
+                    PlanSegment(
+                        icon = Icons.Filled.CheckBox,
+                        label = stringResource(R.string.tab_tasks),
                         selected = selectedTab == "tasks",
                         onClick = { selectedTab = "tasks" },
-                        icon = {
-                            Icon(
-                                Icons.Filled.CheckBox,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.tab_tasks),
-                                fontWeight = if (selectedTab == "tasks") FontWeight.SemiBold else FontWeight.Normal,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Tab(
+                    PlanSegment(
+                        icon = Icons.Filled.Repeat,
+                        label = stringResource(R.string.tab_habits),
                         selected = selectedTab == "habits",
                         onClick = { selectedTab = "habits" },
-                        icon = {
-                            Icon(
-                                Icons.Filled.Repeat,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.tab_habits),
-                                fontWeight = if (selectedTab == "habits") FontWeight.SemiBold else FontWeight.Normal,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                // TabRow 与下方内容加一道细分割线，强化分段锚点（V2.8X 风格延续）。
+                // Tab 与下方内容加一道细分割线，强化分段锚点（V2.8X 风格延续）。
                 HorizontalDivider()
                 Box(Modifier.fillMaxSize().weight(1f)) {
                     when (selectedTab) {
@@ -204,6 +191,41 @@ fun PlanScreen(
             dismissButton = {
                 TextButton(onClick = { groupToDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
+        )
+    }
+}
+
+/**
+ * 计划 tab 紧凑水平分段：图标 + 文字同行，高度受外层 Row.height(40.dp) 约束。
+ * 选中态用 primaryContainer 浅底色 + 主色文字 + SemiBold 作视觉锚点（无须下划线）；
+ * 未选中态透明底 + onSurfaceVariant 文字 + Normal。比上一版自绘的"圆角 clip + 下划线 Box"
+ * 更简洁，视觉接近 M3 chip 风格，避免"改乱"。
+ */
+@Composable
+private fun PlanSegment(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .background(
+                if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                else Color.Transparent,
+            )
+            .padding(horizontal = Spacing.md, vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(Spacing.xs))
+        Text(
+            label,
+            color = tint,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            style = MaterialTheme.typography.labelMedium,
         )
     }
 }
