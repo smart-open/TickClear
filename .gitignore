@@ -19,6 +19,7 @@ local.properties
 /.gradle_*
 /init_cache.gradle
 /build_check.log
+/build_*.log
 /del_dirs.java
 /del_locks.java
 /.kill_result.txt
