@@ -123,8 +123,8 @@ fun StatsScreen(
  */
 @Composable
 fun StatsContent(
-    viewModel: StatsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
+    viewModel: StatsViewModel = hiltViewModel(),
     isWide: Boolean = false,
     onGoToday: (() -> Unit)? = null,
 ) {

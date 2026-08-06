@@ -750,8 +750,8 @@ private fun AssistantChatBody(
     selectedIds: Set<Long>,
     onToggleSelect: (Long) -> Unit,
     onLongPressMessage: (Long) -> Unit,
-    onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
+    onMeasureRect: (Long, Rect) -> Unit = { _, _ -> },
 ) {
     // V2.8X++ 闪退兜底：LazyColumn 的 item key 一旦重复会直接抛 IllegalArgumentException，
     // 且异常在 Compose 组合阶段抛出，ViewModel 侧的 runCatching 一概拦不住 → 整个 App 闪退。

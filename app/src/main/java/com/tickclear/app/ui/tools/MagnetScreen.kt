@@ -147,9 +147,9 @@ fun MagnetScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                SimStatCard("%.1f".format(x), stringResource(R.string.magnet_x), Modifier.weight(1f))
-                SimStatCard("%.1f".format(y), stringResource(R.string.magnet_y), Modifier.weight(1f))
-                SimStatCard("%.1f".format(z), stringResource(R.string.magnet_z), Modifier.weight(1f))
+                SimStatCard("%.1f".format(x), modifier = Modifier.weight(1f), label = stringResource(R.string.magnet_x))
+                SimStatCard("%.1f".format(y), modifier = Modifier.weight(1f), label = stringResource(R.string.magnet_y))
+                SimStatCard("%.1f".format(z), modifier = Modifier.weight(1f), label = stringResource(R.string.magnet_z))
             }
             Box(
                 modifier = Modifier

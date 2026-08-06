@@ -77,8 +77,8 @@ fun SimHintCard(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun SimStatCard(
     value: String,
-    label: String? = null,
     modifier: Modifier = Modifier,
+    label: String? = null,
 ) {
     Card(
         modifier = modifier,
