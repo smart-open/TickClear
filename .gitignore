@@ -33,3 +33,6 @@ local.properties
 
 # ===== WorkBuddy 工程数据（禁止入库）=====
 .workbuddy/
+
+# ===== 发布签名（严禁入库：keystore 与密码文件丢失即失去该身份发布权）=====
+keystore/
