@@ -46,7 +46,6 @@
     <string name="today_expand">展开</string>
 
     <!-- 任务 -->
-    <string name="tasks_title">任务</string>
     <string name="task_title_hint">任务标题</string>
     <string name="task_note_hint">备注（可选）</string>
     <string name="task_start_time">开始时间</string>
@@ -621,7 +620,6 @@
     <!-- V2.69 习惯养成 -->
     <string name="tab_habits">习惯</string>
     <string name="tab_tools">工具</string>
-    <string name="habits_title">习惯养成</string>
     <string name="habits_empty">还没有习惯，点右下角按钮添加第一个</string>
     <string name="habits_add">新建习惯</string>
     <string name="habits_edit">编辑习惯</string>

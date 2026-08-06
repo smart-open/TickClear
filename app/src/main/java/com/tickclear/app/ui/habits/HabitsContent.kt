@@ -37,12 +37,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,7 +59,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tickclear.app.domain.model.Habit
-import com.tickclear.app.ui.components.ConfettiOverlay
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
 import androidx.compose.ui.platform.LocalView
@@ -71,46 +68,28 @@ import com.tickclear.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitsScreen(
-    viewModel: HabitsViewModel = hiltViewModel(),
-    isWide: Boolean = false,
+fun HabitsContent(
+    viewModel: HabitsViewModel,
+    modifier: Modifier = Modifier,
+    onConfetti: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf<Habit?>(null) }
     var pendingDelete by remember { mutableStateOf<HabitItem?>(null) }
 
-    // 打卡庆祝：habit 打上时播放撒花+震动（无勋章评估）。
+    // 打卡庆祝：habit 打上时播放撒花+震动（无勋章评估）。撒花由 PlanScreen 的 ConfettiOverlay 承载，
+    // 此处仅负责触发（onConfetti）与震动；ConfettiOverlay 置于最外层 Box 避免被顶栏裁切。
     val celebration by viewModel.celebration.collectAsStateWithLifecycle()
-    var confettiTrigger by remember { mutableIntStateOf(0) }
     val ctx = LocalView.current.context
     LaunchedEffect(celebration) {
         val ev = celebration ?: return@LaunchedEffect
         Haptic.vibrate(ctx)
-        confettiTrigger++
+        onConfetti()
         viewModel.clearCelebration()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-    Scaffold(
-        topBar = {
-            // V2.8X 顶栏单行标题：用 Box 强制 48dp 高度下垂直居中显示，
-            // 避免「设置/习惯/统计/任务」等 Tab 标题贴顶。
-            TopAppBar(
-                modifier = Modifier.height(48.dp),
-                title = {
-                    Box(
-                        modifier = Modifier.fillMaxHeight(),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(stringResource(R.string.habits_title))
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        // V2.8X++：新增 FAB 改为内容盒内 align(BottomEnd)+padding，与「今日」页定位完全一致。
-        Box(Modifier.fillMaxSize().padding(padding)) {
+    Box(modifier) {
             if (uiState.isEmpty) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -144,10 +123,6 @@ fun HabitsScreen(
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.habits_add))
             }
         }
-    }
-
-    ConfettiOverlay(trigger = confettiTrigger)
-    }
 
     if (showAdd) {
         HabitEditDialog(
@@ -161,7 +136,7 @@ fun HabitsScreen(
     }
 
     if (showEdit != null) {
-        val habit = showEdit ?: return@HabitsScreen
+        val habit = showEdit ?: return@HabitsContent
         HabitEditDialog(
             initial = habit,
             onDismiss = { showEdit = null },

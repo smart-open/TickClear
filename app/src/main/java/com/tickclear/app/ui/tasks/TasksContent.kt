@@ -23,12 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -36,16 +34,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import com.tickclear.app.ui.components.showTimedSnackbar
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,15 +75,17 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksScreen(
-    viewModel: TasksViewModel = hiltViewModel(),
+fun TasksContent(
+    viewModel: TasksViewModel,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
     isWide: Boolean = false,
-    onNavigateToRecycleBin: () -> Unit = {},
     initialOpenEditor: Boolean = false,
     openEditorNonce: String = "",
+    onEditGroup: (TaskGroup) -> Unit = {},
+    onRequestDeleteGroup: (TaskGroup) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     // V2.9：由「新建任务」快捷方式进入时自动弹出新建编辑器。
@@ -103,13 +99,8 @@ fun TasksScreen(
             consumedEditorNonce = openEditorNonce
         }
     }
-    var showGroupEditor by rememberSaveable { mutableStateOf(false) }
-    var editingGroupId by rememberSaveable { mutableStateOf<String?>(null) }
-    var groupToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
-    // 旋转后保持编辑/删除目标：只存 id，实体按 id 从当前列表恢复（Task/TaskGroup 不便直接 saveable）
+    // 旋转后保持编辑目标：只存 id，实体按 id 从当前列表恢复（Task 不便直接 saveable）
     val editingTask = state.tasks.find { it.id == editingTaskId }
-    val editingGroup = state.groups.find { it.id == editingGroupId }
-    val groupToDelete = state.groups.find { it.id == groupToDeleteId }
     // 宽屏主从双栏：选中任务 id（"__new__" 表示新建）；rememberSaveable 使旋转后保持选中
     var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -137,34 +128,10 @@ fun TasksScreen(
         { editingTaskId = it.id; showEditor = true }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            // V2.8X 顶栏单行标题：Box 强制 48dp 高度下垂直居中。
-            TopAppBar(
-                modifier = Modifier.height(48.dp),
-                title = {
-                    Box(
-                        modifier = Modifier.fillMaxHeight(),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(stringResource(R.string.tasks_title), style = MaterialTheme.typography.titleLarge)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToRecycleBin) {
-                        Icon(Icons.Filled.DeleteSweep, contentDescription = stringResource(R.string.recycle_bin_title))
-                    }
-                    IconButton(onClick = { editingGroupId = null; showGroupEditor = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tasks_add_group))
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        // V2.8X++：新增 FAB 改为内容盒内 align(BottomEnd)+padding，与「今日」页定位完全一致
-        // （避免 Scaffold floatingActionButton 槽与内容区 innerPadding 计法不同导致离底高度不一致）。
-        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+    // 注：Scaffold / TopAppBar / 分组编辑对话框由 PlanScreen 统一持有（合并 tab 唯一顶栏），
+    // 此处仅渲染内容区（标签筛选条 + 任务列表 + 新建 FAB）。FAB 沿用内容盒内 align(BottomEnd)
+    // 定位，与「今日」页一致；modifier 由 PlanScreen 注入（含 Scaffold 内容区内边距）。
+    Box(modifier) {
         Column(Modifier.fillMaxSize()) {
             // V2.67 标签筛选条：仅在存在标签时显示
             if (state.allTags.isNotEmpty()) {
@@ -180,8 +147,8 @@ fun TasksScreen(
                     TasksList(
                         state = state,
                         onTaskClick = onTaskClick,
-                        onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
-                        onGroupDelete = { groupToDeleteId = it.id },
+                        onGroupEdit = onEditGroup,
+                        onGroupDelete = onRequestDeleteGroup,
                         onGroupPause = { viewModel.pauseGroup(it.id) },
                         onGroupResume = { viewModel.resumeGroup(it.id) },
                         onDeleteTask = { viewModel.deleteTask(it) },
@@ -225,8 +192,8 @@ fun TasksScreen(
                 TasksList(
                     state = state,
                     onTaskClick = onTaskClick,
-                    onGroupEdit = { editingGroupId = it.id; showGroupEditor = true },
-                    onGroupDelete = { groupToDeleteId = it.id },
+                    onGroupEdit = onEditGroup,
+                    onGroupDelete = onRequestDeleteGroup,
                     onGroupPause = { viewModel.pauseGroup(it.id) },
                     onGroupResume = { viewModel.resumeGroup(it.id) },
                     onDeleteTask = { viewModel.deleteTask(it) },
@@ -245,7 +212,6 @@ fun TasksScreen(
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
         }
     }
-}
 
     if (showEditor) {
         TaskEditSheet(
@@ -254,31 +220,6 @@ fun TasksScreen(
             onDismiss = { showEditor = false },
             onSave = { viewModel.saveTask(it) },
             knownTags = state.allTags,
-        )
-    }
-
-    if (showGroupEditor) {
-        GroupEditDialog(
-            initial = editingGroup,
-            onDismiss = { showGroupEditor = false },
-            onSave = { viewModel.saveGroup(it) },
-        )
-    }
-
-    groupToDelete?.let { g ->
-        AlertDialog(
-            onDismissRequest = { groupToDeleteId = null },
-            title = { Text(stringResource(R.string.tasks_delete_group_title)) },
-            text = { Text(stringResource(R.string.tasks_delete_group_confirm, g.name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteGroupCascade(g.id)
-                    groupToDeleteId = null
-                }) { Text(stringResource(R.string.action_delete)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { groupToDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
-            },
         )
     }
 }
