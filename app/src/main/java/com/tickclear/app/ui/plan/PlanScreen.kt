@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -104,16 +107,50 @@ fun PlanScreen(
             },
         ) { innerPadding ->
             Column(Modifier.fillMaxSize().padding(innerPadding)) {
-                TabRow(selectedTabIndex = if (selectedTab == "habits") 1 else 0) {
+                TabRow(
+                    selectedTabIndex = if (selectedTab == "habits") 1 else 0,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ) {
                     Tab(
                         selected = selectedTab == "tasks",
                         onClick = { selectedTab = "tasks" },
-                        text = { Text(stringResource(R.string.tab_tasks)) },
+                        icon = {
+                            Icon(
+                                Icons.Filled.CheckBox,
+                                contentDescription = null,
+                                modifier = Modifier.height(20.dp),
+                            )
+                        },
+                        text = {
+                            Text(
+                                stringResource(R.string.tab_tasks),
+                                fontWeight = if (selectedTab == "tasks") FontWeight.SemiBold else FontWeight.Normal,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Tab(
                         selected = selectedTab == "habits",
                         onClick = { selectedTab = "habits" },
-                        text = { Text(stringResource(R.string.tab_habits)) },
+                        icon = {
+                            Icon(
+                                Icons.Filled.Repeat,
+                                contentDescription = null,
+                                modifier = Modifier.height(20.dp),
+                            )
+                        },
+                        text = {
+                            Text(
+                                stringResource(R.string.tab_habits),
+                                fontWeight = if (selectedTab == "habits") FontWeight.SemiBold else FontWeight.Normal,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Box(Modifier.fillMaxSize().weight(1f)) {
