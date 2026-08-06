@@ -28,6 +28,12 @@ class TaskInstanceRepository @Inject constructor(
     /** 写入/更新单个实例（幂等，依赖唯一主键）。 */
     suspend fun upsert(instance: TaskInstanceEntity) = dao.upsert(instance)
 
+    /** 备份导出：带用户状态（已完成 / 已跳过）的实例，status=0 的可懒生成故不导出。 */
+    suspend fun allWithState(): List<TaskInstanceEntity> = dao.getAllWithState()
+
+    /** 备份恢复：整行覆盖，避免本地懒生成的空实例吞掉备份里的完成态。 */
+    suspend fun restore(instance: TaskInstanceEntity) = dao.replace(instance)
+
     /**
      * 懒生成：为指定日期补上所有「启用且应发生」任务的实例（基于传入任务列表，避免重复全量查询）。
      * 子日级重复（每 N 小时）会在当天生成多个实例（各自不同 minute）。视图打开时调用即可。
@@ -92,8 +98,14 @@ class TaskInstanceRepository @Inject constructor(
     suspend fun deletePendingFrom(taskId: String, from: LocalDate = LocalDate.now()) =
         dao.deletePendingFrom(taskId, from.format(DateTimeFormatter.ISO_LOCAL_DATE))
 
-    /** 回收站清理后调用：清除已软删任务遗留的实例。 */
+    /** 清除所有已软删任务遗留的实例（不区分保留期，仅用于「清空回收站」等全量场景）。 */
     suspend fun purgeDeleted() = dao.deleteForDeletedTasks()
+
+    /**
+     * 回收站定期清理调用：只清除已过保留期（deletedAt < [cutoff]）任务的实例。
+     * 仍在回收站保留期内的任务实例必须保留，否则还原后完成记录丢失。
+     */
+    suspend fun purgeExpired(cutoff: Long) = dao.deleteForExpiredTasks(cutoff)
 
     /**
      * 跳过某次实例（重复任务）：实例已存在则直接置 skipped；不存在则写入 skipped 实例。

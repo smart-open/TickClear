@@ -13,6 +13,24 @@ interface TaskInstanceDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun upsert(instance: TaskInstanceEntity)
 
+    /**
+     * 整行覆盖写入（备份恢复专用）。
+     *
+     * [upsert] 是 IGNORE 语义，恢复备份时若本地已被懒生成出一条同 id 的空实例，
+     * 备份里的「已完成/已跳过」状态会被静默丢弃。恢复路径必须用 REPLACE。
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun replace(instance: TaskInstanceEntity)
+
+    /**
+     * 备份导出专用：只取带用户状态（已完成 / 已跳过）的实例。
+     *
+     * status=0 的实例可由 [TaskInstanceRepository.ensureInstancesForDate] 按任务规则重建，
+     * 不入备份可避免「每日重复任务 × 一年」把备份体积撑大一个数量级。
+     */
+    @Query("SELECT * FROM task_instance WHERE status != 0 ORDER BY dueDateLocal ASC")
+    suspend fun getAllWithState(): List<TaskInstanceEntity>
+
     /** 当日全部实例（含已完成），按开始分钟排序。 */
     @Query("SELECT * FROM task_instance WHERE dueDateLocal = :date ORDER BY dueMinute ASC")
     fun observeOn(date: String): Flow<List<TaskInstanceEntity>>
@@ -50,4 +68,16 @@ interface TaskInstanceDao {
     /** 清理软删任务遗留的实例。 */
     @Query("DELETE FROM task_instance WHERE taskId IN (SELECT id FROM task WHERE deletedAt IS NOT NULL)")
     suspend fun deleteForDeletedTasks()
+
+    /**
+     * 清理「已过保留期、即将被物理删除」的软删任务的实例。
+     *
+     * 与 [deleteForDeletedTasks] 的区别：后者不看保留期，会把仍躺在回收站里
+     * （随时可还原）的任务实例一并清掉，还原后完成记录全丢。回收站定期清理必须用本方法。
+     */
+    @Query(
+        "DELETE FROM task_instance WHERE taskId IN " +
+            "(SELECT id FROM task WHERE deletedAt IS NOT NULL AND deletedAt < :cutoff)",
+    )
+    suspend fun deleteForExpiredTasks(cutoff: Long)
 }
