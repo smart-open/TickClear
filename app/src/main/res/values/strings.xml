@@ -624,6 +624,9 @@
     <string name="habits_empty">还没有习惯，点右下角按钮添加第一个</string>
     <string name="habits_quick_checkin">今日打卡</string>
     <string name="habits_quick_checkin_desc">今日待打卡习惯</string>
+    <string name="habits_section_title">今日习惯 %1$d 项</string>
+    <string name="habits_checked_desc">已打卡</string>
+    <string name="habits_unchecked_desc">点击打卡</string>
     <string name="habits_add">新建习惯</string>
     <string name="habits_edit">编辑习惯</string>
     <string name="habits_reminder">每日提醒</string>

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -62,9 +63,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -103,7 +105,8 @@ fun TodayScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 方案 C：今日页顶部习惯打卡横条所需数据（仅展示「今日应打卡且未打卡」的习惯）。
     val habitsState by habitsViewModel.uiState.collectAsStateWithLifecycle()
-    val dueHabits = habitsState.items.filter { it.dueToday && !it.todayChecked }
+    val todayHabits = habitsState.items.filter { it.dueToday }      // 今日所有应打卡（含已打卡）
+    val dueHabits = todayHabits.filter { !it.todayChecked }         // 今日未打卡（顶部横条用）
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editingTaskId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -256,6 +259,7 @@ fun TodayScreen(
                     onAdd = { editingTaskId = null; showEditor = true },
                     shortcutsEnabled = !showEditor && !showClearConfirm,
                     habitChips = dueHabits,
+                    todayHabits = todayHabits,
                     onHabitCheck = { habitsViewModel.toggleToday(it) },
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
@@ -279,6 +283,7 @@ fun TodayScreen(
                 onAdd = { editingTaskId = null; showEditor = true },
                     shortcutsEnabled = !showEditor && !showClearConfirm,
                     habitChips = dueHabits,
+                    todayHabits = todayHabits,
                     onHabitCheck = { habitsViewModel.toggleToday(it) },
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
                 )
@@ -354,6 +359,7 @@ private fun TodayMainContent(
     modifier: Modifier = Modifier,
     shortcutsEnabled: Boolean = true,
     habitChips: List<HabitItem> = emptyList(),
+    todayHabits: List<HabitItem> = emptyList(),
     onHabitCheck: (String) -> Unit = {},
 ) {
     // V2.10 键盘快捷键：在 Compose 宿主 View 上挂 OnKeyListener 捕获 ↑↓ 选择 / 空格·回车完成 / N 新建。
@@ -459,6 +465,27 @@ private fun TodayMainContent(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                         )
+                    }
+
+                    // 横条 + 列表都展示：今日所有应打卡习惯（含已打卡，含未打卡）；
+                    // 顶部横条只渲染未打卡的快速入口；这里在主列表里也呈现一份供勾选/回顾。
+                    if (todayHabits.isNotEmpty()) {
+                        item(key = "habits_section_header") {
+                            Text(
+                                text = stringResource(R.string.habits_section_title, todayHabits.size),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                            )
+                        }
+                        items(todayHabits, key = { "habit_" + it.habit.id }) { item ->
+                            Box(modifier = Modifier.animateItem()) {
+                                HabitRow(
+                                    item = item,
+                                    onCheck = { onHabitCheck(item.habit.id) },
+                                )
+                            }
+                        }
                     }
 
                     // V2.54：以 active 段本地序号 index 判断高亮，与键盘焦点一致；done 段不可键盘聚焦。
@@ -570,6 +597,44 @@ private fun DoneSectionHeader(
         )
     }
     HorizontalDivider()
+}
+
+/**
+ * 今日习惯行：圆形勾选按钮 + emoji + 标题。点击即打卡/取消打卡；已打卡时图标变实心、文字半透明。
+ * 与顶部 HabitQuickStrip 共用 onHabitCheck 回调（同一 HabitsViewModel.toggleToday），数据天然一致。
+ */
+@Composable
+private fun HabitRow(
+    item: HabitItem,
+    onCheck: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val checked = item.todayChecked
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onCheck)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (checked) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+            contentDescription = stringResource(if (checked) R.string.habits_checked_desc else R.string.habits_unchecked_desc),
+            tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(24.dp),
+        )
+        Spacer(Modifier.width(Spacing.md))
+        if (item.habit.emoji.isNotEmpty()) {
+            Text(item.habit.emoji, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(Spacing.sm))
+        }
+        Text(
+            text = item.habit.title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            modifier = if (checked) Modifier.alpha(0.6f) else Modifier,
+        )
+    }
 }
 
 /**
