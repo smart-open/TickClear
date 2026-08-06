@@ -20,6 +20,10 @@ import com.tickclear.app.domain.model.ErrorCode
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.model.TaskGroup
 import com.tickclear.app.domain.repository.GroupRepository
+import com.tickclear.app.domain.scheduler.ExpiryScheduler
+import com.tickclear.app.domain.scheduler.GeofenceScheduler
+import com.tickclear.app.domain.scheduler.HabitReminderScheduler
+import com.tickclear.app.domain.scheduler.ReminderScheduler
 import com.tickclear.app.ui.theme.ThemeMode
 import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,12 +79,33 @@ class SettingsViewModel @Inject constructor(
             // 同时支持自动备份的加密信封（.tcbackup）与手动明文 JSON：
             // importEncrypted 内部按格式自动解密 / 透传，避免「自动备份不可恢复」。
             val r = backupManager.importEncrypted(bytes)
+            // 导入只把数据写回了库，AlarmManager 里还是导入前那批闹钟：
+            // 恢复出来的任务/习惯/到期提醒会全部静默不响，直到下次重启或改设置才自愈。
+            // 沿用 BootReceiver 的逐项 runCatching 兜底，单项失败不影响其余重排。
+            rescheduleAfterImport()
             backupToasts.tryEmit(
                 BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups, r.habits)),
             )
         } catch (e: Exception) {
             backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
         }
+    }
+
+    /**
+     * 备份恢复后全量重排闹钟。
+     *
+     * 与 BootReceiver 的重排口径保持一致：任务提醒 / 习惯提醒 / 到期提醒 / 位置提醒。
+     * 间隔提醒（喝水、护眼）只依赖设置项、不随备份变化，故不在此重排。
+     */
+    private suspend fun rescheduleAfterImport() {
+        runCatching { ReminderScheduler.rescheduleAll(appContext) }
+            .onFailure { AppLogger.e("SettingsVM", "导入后任务提醒重排失败：${it.message}") }
+        runCatching { HabitReminderScheduler.rescheduleAll(appContext) }
+            .onFailure { AppLogger.e("SettingsVM", "导入后习惯提醒重排失败：${it.message}") }
+        runCatching { ExpiryScheduler.rescheduleAll(appContext) }
+            .onFailure { AppLogger.e("SettingsVM", "导入后到期提醒重排失败：${it.message}") }
+        runCatching { GeofenceScheduler.sync(appContext) }
+            .onFailure { AppLogger.e("SettingsVM", "导入后位置提醒同步失败：${it.message}") }
     }
 
     /** 导出为 ICS 日历文件（V2.7）。 */
