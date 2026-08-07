@@ -52,6 +52,10 @@ class VoiceMemoViewModel @Inject constructor(
     private val _recordElapsedMs = MutableStateFlow(0L)
     val recordElapsedMs: StateFlow<Long> = _recordElapsedMs.asStateFlow()
 
+    /** 录制时的实时振幅包络（归一化 0..1，保留最近 64 帧），供 UI 绘制波形。 */
+    private val _recordLevels = MutableStateFlow<List<Float>>(emptyList())
+    val recordLevels: StateFlow<List<Float>> = _recordLevels.asStateFlow()
+
     private val _recordTitle = MutableStateFlow("")
     val recordTitle: StateFlow<String> = _recordTitle.asStateFlow()
 
@@ -136,6 +140,7 @@ class VoiceMemoViewModel @Inject constructor(
                 currentFile = file
                 recordStartMs = System.currentTimeMillis()
                 _recordElapsedMs.value = 0
+                _recordLevels.value = emptyList()
                 _isRecording.value = true
                 startRecordTicker()
             } catch (e: Exception) {
@@ -158,6 +163,7 @@ class VoiceMemoViewModel @Inject constructor(
         if (r == null || file == null) {
             _isRecording.value = false
             _recordElapsedMs.value = 0
+            _recordLevels.value = emptyList()
             _recordTitle.value = ""
             isRecordingGuard.set(false)
             return
@@ -172,6 +178,7 @@ class VoiceMemoViewModel @Inject constructor(
             currentFile = null
             _isRecording.value = false
             _recordElapsedMs.value = 0
+            _recordLevels.value = emptyList()
 
             if (save && file.exists() && file.length() > 0) {
                 val entity = VoiceMemoEntity(
@@ -200,6 +207,12 @@ class VoiceMemoViewModel @Inject constructor(
             while (true) {
                 delay(500)
                 _recordElapsedMs.value = System.currentTimeMillis() - recordStartMs
+                val amp = runCatching { recorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+                val norm = (amp / 32767f).coerceIn(0f, 1f)
+                val buf = _recordLevels.value.toMutableList()
+                buf.add(norm)
+                while (buf.size > 64) buf.removeAt(0)
+                _recordLevels.value = buf
             }
         }
     }

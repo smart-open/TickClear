@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import android.Manifest
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,6 +82,7 @@ fun VoiceMemoScreen(
     val playPositionMs by viewModel.playPositionMs.collectAsStateWithLifecycle()
     val playDurationMs by viewModel.playDurationMs.collectAsStateWithLifecycle()
     val noiseReduction by viewModel.noiseReduction.collectAsStateWithLifecycle()
+    val recordLevels by viewModel.recordLevels.collectAsStateWithLifecycle()
 
     val permissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -123,6 +127,7 @@ fun VoiceMemoScreen(
             RecordBar(
                 isRecording = isRecording,
                 elapsedMs = recordElapsedMs,
+                levels = recordLevels,
                 onToggle = { if (isRecording) viewModel.stopRecording(save = true) else handleRecordClick() },
                 onDiscard = { viewModel.stopRecording(save = false) },
             )
@@ -218,6 +223,7 @@ fun VoiceMemoScreen(
 private fun RecordBar(
     isRecording: Boolean,
     elapsedMs: Long,
+    levels: List<Float> = emptyList(),
     onToggle: () -> Unit,
     onDiscard: () -> Unit,
 ) {
@@ -228,6 +234,12 @@ private fun RecordBar(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (isRecording) {
+            RecordingWaveform(
+                levels = levels,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = Spacing.xs),
+            )
             Text(
                 text = stringResource(R.string.voice_recording) + "  " + formatDuration(elapsedMs),
                 style = MaterialTheme.typography.labelLarge,
@@ -335,4 +347,46 @@ private fun formatDuration(ms: Long): String {
 
 private fun formatDateTime(ts: Long): String {
     return SimpleDateFormat("M-d HH:mm", Locale.getDefault()).format(Date(ts))
+}
+
+/**
+ * 录制中的实时振幅波形：把最近最多 64 帧归一化振幅画成居中对称的竖条包络。
+ * levels 为空时画一条基线，避免录制刚开始无采样时空白。纯 Canvas 静态绘制。
+ */
+@Composable
+private fun RecordingWaveform(
+    levels: List<Float>,
+    modifier: Modifier = Modifier,
+) {
+    val color = MaterialTheme.colorScheme.error
+    Canvas(modifier = modifier.height(56.dp)) {
+        val w = size.width
+        val h = size.height
+        val mid = h / 2f
+        val n = levels.size
+        if (n == 0) {
+            drawLine(
+                color = color.copy(alpha = 0.5f),
+                start = Offset(0f, mid),
+                end = Offset(w, mid),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            return@Canvas
+        }
+        val barW = w / 64f
+        val gap = barW * 0.35f
+        for (i in 0 until 64) {
+            val v = levels[if (i < n) i else n - 1]
+            val bh = (h * 0.45f) * v.coerceAtLeast(0.04f)
+            val x = i * barW + gap / 2f
+            drawLine(
+                color = color,
+                start = Offset(x, mid - bh),
+                end = Offset(x, mid + bh),
+                strokeWidth = barW - gap,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
 }
