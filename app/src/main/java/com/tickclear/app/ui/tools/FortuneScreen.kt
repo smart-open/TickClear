@@ -30,17 +30,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -88,6 +91,12 @@ fun FortuneScreen(onBack: () -> Unit) {
         computeFortune(seed, keywords, colorNames, blessings)
     }
 
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(seed) {
+        pop.snapTo(0.88f)
+        pop.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 360f))
+    }
+
     val keywordLabel = stringResource(R.string.fortune_keyword_label)
     val luckyNumLabel = stringResource(R.string.fortune_lucky_num_label)
     val luckyColorLabel = stringResource(R.string.fortune_lucky_color_label)
@@ -122,7 +131,7 @@ fun FortuneScreen(onBack: () -> Unit) {
 
             // 运势主卡：以幸运色做底色，关键词 / 幸运数 / 幸运色 / 星级 / 寄语集中呈现
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().scale(pop.value),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = fortune.color.copy(alpha = 0.14f)),
             ) {
@@ -145,13 +154,18 @@ fun FortuneScreen(onBack: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .size(64.dp)
-                            .clip(CircleShape)
-                            .background(fortune.color)
                             .semantics {
                                 contentDescription = "$luckyNumLabel ${fortune.luckyNum}"
                             },
                         contentAlignment = Alignment.Center,
                     ) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            fillSphere(
+                                center = Offset(size.width / 2f, size.height / 2f),
+                                radius = size.width / 2f,
+                                base = fortune.color,
+                            )
+                        }
                         Text(
                             fortune.luckyNum.toString(),
                             style = MaterialTheme.typography.headlineSmall,

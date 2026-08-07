@@ -29,8 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -198,11 +196,9 @@ private fun DrawScope.drawMagBars(x: Float, y: Float, z: Float, primary: Color, 
         val len = (vals[i].absoluteValue / max).coerceAtMost(1f) * barW / 2
         val col = colors[i]
         if (len > 0f) {
-            if (vals[i] >= 0f) {
-                drawRect(col, topLeft = Offset(cx, cy - 4.dp.toPx()), size = Size(len, 8.dp.toPx()))
-            } else {
-                drawRect(col, topLeft = Offset(cx - len, cy - 4.dp.toPx()), size = Size(len, 8.dp.toPx()))
-            }
+            val h = 10.dp.toPx()
+            val topLeft = if (vals[i] >= 0f) Offset(cx, cy - h / 2) else Offset(cx - len, cy - h / 2)
+            fillRoundRect3D(topLeft = topLeft, size = Size(len, h), cornerRadius = h / 2, base = col)
         }
     }
 }

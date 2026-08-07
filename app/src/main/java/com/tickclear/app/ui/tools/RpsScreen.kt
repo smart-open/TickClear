@@ -36,9 +36,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -279,14 +285,25 @@ private fun ScoreCard(label: String, value: Int, color: Color, modifier: Modifie
 
 @Composable
 private fun ChoiceBadge(who: String, choice: Int?) {
+    val badgeColor = MaterialTheme.colorScheme.primaryContainer
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(choice) {
+        if (choice != null) {
+            pop.snapTo(0.86f)
+            pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 600f))
+        }
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .scale(pop.value)
+                .clip(RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center,
         ) {
+            Canvas(Modifier.fillMaxSize()) {
+                fillSphere(center = Offset(size.width / 2f, size.height / 2f), radius = size.width / 2f, base = badgeColor)
+            }
             Text(
                 choice?.let { CHOICE_EMOJI[it] } ?: "—",
                 style = MaterialTheme.typography.headlineMedium,
