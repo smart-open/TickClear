@@ -190,9 +190,6 @@ dependencies {
     implementation(libs.zxing)
     // 生物识别解锁（用户明确批准破例引入，密码保险箱指纹/面容快速解锁）。
     implementation(libs.androidx.biometric)
-    // AppCompatActivity：主 Activity 改为其子类以承载 BiometricPrompt(FragmentActivity)；
-    // 显式 pin 版本，避免被 androidx.biometric 传递的旧 appcompat 拉低导致兼容问题。
-    implementation(libs.androidx.appcompat)
 
     // Opus 编解码（theeasiestway/android-opus-codec，本地 libs/opus.aar，封装官方 libopus 1.3.1）。
     // 覆盖 armeabi-v7a / arm64-v8a / x86 / x86_64 全 ABI 的 libopus.so，arm64 设备原生 64 位可用，
