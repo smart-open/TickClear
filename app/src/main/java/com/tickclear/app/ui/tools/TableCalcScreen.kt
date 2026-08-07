@@ -106,6 +106,11 @@ fun TableCalcScreen(onBack: () -> Unit) {
                     .fillMaxWidth()
                     .height(140.dp),
             )
+            Text(
+                stringResource(R.string.calc_formula_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Button(onClick = { compute() }, modifier = Modifier.fillMaxWidth()) {
                 Text(computeLabel)
             }

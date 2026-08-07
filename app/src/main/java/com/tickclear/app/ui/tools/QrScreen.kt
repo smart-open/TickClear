@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -49,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -63,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -187,6 +190,7 @@ private fun GenerateSection(
     var cPhone by remember { mutableStateOf("") }
     var cEmail by remember { mutableStateOf("") }
     var ecLevel by remember { mutableStateOf(ErrorCorrectionLevel.M) }
+    var logoCenter by remember { mutableStateOf(false) } // V2.9++ 二巡：居中 Logo 覆盖开关
 
     val content: String = remember(type, text, url, cName, cPhone, cEmail) {
         when (type) {
@@ -203,7 +207,9 @@ private fun GenerateSection(
         }
     }
 
-    val bitmap = remember(content, ecLevel) { QrGenerator.generate(content, QR_SIZE_PX, ecLevel) }
+    // 开启居中 Logo 时强制 H 级纠错，否则遮挡后无法识别。
+    val effectiveEc = if (logoCenter) ErrorCorrectionLevel.H else ecLevel
+    val bitmap = remember(content, effectiveEc) { QrGenerator.generate(content, QR_SIZE_PX, effectiveEc) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -249,19 +255,38 @@ private fun GenerateSection(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                listOf(
-                    ErrorCorrectionLevel.L to R.string.qr_ec_l,
-                    ErrorCorrectionLevel.M to R.string.qr_ec_m,
-                    ErrorCorrectionLevel.Q to R.string.qr_ec_q,
-                    ErrorCorrectionLevel.H to R.string.qr_ec_h,
-                ).forEach { (lvl, labelRes) ->
-                    FilterChip(
-                        selected = ecLevel == lvl,
-                        onClick = { ecLevel = lvl },
-                        label = { Text(stringResource(labelRes)) },
-                    )
-                }
+listOf(
+                ErrorCorrectionLevel.L to R.string.qr_ec_l,
+                ErrorCorrectionLevel.M to R.string.qr_ec_m,
+                ErrorCorrectionLevel.Q to R.string.qr_ec_q,
+                ErrorCorrectionLevel.H to R.string.qr_ec_h,
+            ).forEach { (lvl, labelRes) ->
+                FilterChip(
+                    selected = !logoCenter && ecLevel == lvl,
+                    onClick = { ecLevel = lvl },
+                    enabled = !logoCenter,
+                    label = { Text(stringResource(labelRes)) },
+                )
             }
+        }
+
+        // 居中 Logo 开关（V2.9++ 二巡）：开启后在二维码中央叠加应用图标，提升品牌辨识。
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.qr_logo_center),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(checked = logoCenter, onCheckedChange = { logoCenter = it })
+        }
+        Text(
+            stringResource(R.string.qr_logo_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
             when (type) {
                 QrType.TEXT -> OutlinedTextField(
@@ -345,6 +370,22 @@ private fun GenerateSection(
                                     ),
                                 tint = Color.Unspecified,
                             )
+                            if (logoCenter) {
+                                // 居中 Logo（V2.9++ 二巡）：白底圆角 + 应用图标，靠 H 级纠错保证可扫。
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(56.dp)
+                                        .background(Color.White, RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_launcher),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(44.dp),
+                                    )
+                                }
+                            }
                         }
                         Text(
                             stringResource(R.string.qr_long_press_save),

@@ -737,6 +737,8 @@
     <string name="qr_long_press_save">长按二维码保存图片</string>
     <string name="qr_empty_hint">输入内容后自动生成二维码</string>
     <string name="qr_ec_level_label">纠错级别</string>
+    <string name="qr_logo_center">居中 Logo</string>
+    <string name="qr_logo_hint">开启后强制使用 H 级纠错，确保 Logo 遮挡部分仍可识别</string>
     <string name="qr_ec_l">L</string>
     <string name="qr_ec_m">M</string>
     <string name="qr_ec_q">Q</string>
@@ -831,6 +833,7 @@
     <string name="flashlight_turn_off">关闭</string>
     <string name="flashlight_mode_steady">常亮</string>
     <string name="flashlight_mode_strobe">频闪</string>
+    <string name="flashlight_mode_sos">SOS 摩斯</string>
     <string name="flashlight_strobe_freq">频闪频率</string>
     <string name="flashlight_strobe_hz">约 %1$d 次/秒</string>
     <string name="flashlight_permission_hint">手电筒需要相机权限</string>
@@ -1008,6 +1011,7 @@
     <string name="tools_calc_title">表格计算</string>
     <string name="tools_calc_desc">粘贴数字快速统计</string>
     <string name="calc_input_hint">每行一组数字，同行用空格或逗号分隔多列</string>
+    <string name="calc_formula_hint">支持空格、逗号、分号、Tab 分隔多列；每行一条记录</string>
     <string name="calc_compute">计算</string>
     <string name="calc_empty">暂无数据，请先粘贴数字</string>
     <string name="calc_summary">共 %1$d 行 %2$d 列</string>

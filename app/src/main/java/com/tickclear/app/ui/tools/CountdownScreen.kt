@@ -1,6 +1,13 @@
 package com.tickclear.app.ui.tools
 
 import android.app.DatePickerDialog
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -178,11 +185,21 @@ private fun CountdownItem(event: CountdownEvent, onDelete: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(event.name, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                // 翻页动画（V2.9++ 二巡）：天数变化时新文字从底部滑入、旧文字向顶部滑出。
+                AnimatedContent(
+                    targetState = label,
+                    transitionSpec = {
+                        (slideInVertically(animationSpec = tween(durationMillis = 420)) { it } + fadeIn()) togetherWith
+                            (slideOutVertically(animationSpec = tween(durationMillis = 420)) { -it } + fadeOut())
+                    },
+                    label = "countdown-flip",
+                ) { text ->
+                    Text(
+                        text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Icon(
                 Icons.Filled.Delete,

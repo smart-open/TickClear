@@ -23,10 +23,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +66,13 @@ fun ClipboardGuardScreen(
 
     var safeText by remember { mutableStateOf("") }
 
+    // 自动清除反馈（V2.9++ 二巡）：当 lastEvent 变化时弹一条 Snackbar，避免错过「已自动清除」。
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(lastEvent) {
+        val msg = lastEvent
+        if (msg.isNotEmpty()) snackbarHostState.showSnackbar(msg)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,6 +84,7 @@ fun ClipboardGuardScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
             modifier = Modifier

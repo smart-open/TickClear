@@ -67,7 +67,37 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-private enum class FlashMode { STEADY, STROBE }
+private enum class FlashMode { STEADY, STROBE, SOS }
+
+/**
+ * SOS 摩斯编码（一个完整 S-O-S 循环）：
+ *  - 亮段时长 = on 时长（dit=1 单位，dah=3 单位）；
+ *  - 暗段时长 = 关断间隔（字符内 1 单位、字符间 3 单位、词尾 7 单位）；
+ *  - 单位长度 [SOS_DIT_UNIT_MS]=200ms，整体循环时长约 4.8s。
+ */
+private data class SosSegment(val on: Boolean, val units: Int)
+
+private val SOS_PATTERN = listOf(
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 3),  // S → O 间隔
+    SosSegment(on = true, units = 3),   // dah
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 3),   // dah
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 3),   // dah
+    SosSegment(on = false, units = 3),  // O → S 间隔
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 1),  // intra
+    SosSegment(on = true, units = 1),   // dit
+    SosSegment(on = false, units = 7),  // 词尾：留足暗段再循环
+)
+private const val SOS_DIT_UNIT_MS = 200L
 
 /** 返回带闪光灯的相机 id（优先后置），无闪光灯返回 null。 */
 private fun findFlashCameraId(cm: CameraManager): String? = try {
@@ -120,7 +150,7 @@ fun FlashlightScreen(onBack: () -> Unit) {
             } finally {
                 runCatching { cameraManager.setTorchMode(cameraId, false) }
             }
-        } else {
+        } else if (mode == FlashMode.STROBE) {
             val half = (1000L / (freq * 2)).coerceAtLeast(20L)
             try {
                 while (true) {
@@ -128,6 +158,19 @@ fun FlashlightScreen(onBack: () -> Unit) {
                     delay(half)
                     runCatching { cameraManager.setTorchMode(cameraId, false) }
                     delay(half)
+                }
+            } finally {
+                runCatching { cameraManager.setTorchMode(cameraId, false) }
+            }
+        } else {
+            // SOS 摩斯：按 SOS_PATTERN 循环走（dit/dah + 间隔），离开 Effect 时 finally 关灯。
+            try {
+                while (true) {
+                    for (seg in SOS_PATTERN) {
+                        val ms = seg.units * SOS_DIT_UNIT_MS
+                        runCatching { cameraManager.setTorchMode(cameraId, seg.on) }
+                        delay(ms)
+                    }
                 }
             } finally {
                 runCatching { cameraManager.setTorchMode(cameraId, false) }
@@ -296,7 +339,7 @@ private fun FlashlightBody(
             color = if (on) primaryColor else onSurfaceVariant,
         )
 
-        // 模式切换：SaleSegmented 风格的双 Chip
+        // 模式切换：Segmented 风格的 FilterChip 组（V2.9++ 二巡新增 SOS 摩斯）
         Row(
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
@@ -326,9 +369,15 @@ private fun FlashlightBody(
                 label = { Text(stringResource(R.string.flashlight_mode_strobe)) },
                 shape = RoundedCornerShape(12.dp),
             )
+            FilterChip(
+                selected = mode == FlashMode.SOS,
+                onClick = { onModeChange(FlashMode.SOS) },
+                label = { Text(stringResource(R.string.flashlight_mode_sos)) },
+                shape = RoundedCornerShape(12.dp),
+            )
         }
 
-        // 频闪频率滑杆
+        // 频闪频率滑杆：仅在 STROBE 模式下显示（SOS 节奏固定）
         if (mode == FlashMode.STROBE) {
             androidx.compose.material3.Card(
                 modifier = Modifier.fillMaxWidth(),
