@@ -1,6 +1,8 @@
 package com.tickclear.app.ui.tools
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VolumeUp
@@ -25,12 +28,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.cos
+import kotlin.math.sin
 
 private val WEAR_OPTIONS = listOf(15, 30, 45, 60, 90, 120)
 
@@ -83,6 +92,12 @@ fun HearingScreen(
             )
 
             if (enabled) {
+                DbGauge(
+                    value = volume,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally),
+                )
                 Text(stringResource(R.string.hearing_volume_label), style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = stringResource(R.string.hearing_volume_current, volume),
@@ -111,6 +126,69 @@ fun HearingScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * 听力保护音量安全表盘：270° 弧形，三段分区（安全 / 警戒 / 危险），指针指向当前阈值。
+ * 纯 Canvas 静态绘制（仅在阈值变化时重绘），无需常驻帧循环。
+ */
+@Composable
+private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
+    val safeColor = Color(0xFF43A047)
+    val cautionColor = Color(0xFFF9A825)
+    val dangerColor = Color(0xFFE53935)
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val needleColor = MaterialTheme.colorScheme.onSurface
+
+    val startAngle = 135f
+    val sweep = 270f
+    val v = value.coerceIn(0, 100)
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier.size(180.dp),
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+
+            drawArc(trackColor, startAngle, sweep, false, style = stroke)
+            val safeEnd = 60f / 100f * sweep
+            val cautionEnd = 85f / 100f * sweep
+            drawArc(safeColor, startAngle, safeEnd, false, style = stroke)
+            drawArc(cautionColor, startAngle + safeEnd, cautionEnd - safeEnd, false, style = stroke)
+            drawArc(dangerColor, startAngle + cautionEnd, sweep - cautionEnd, false, style = stroke)
+
+            val ang = Math.toRadians((startAngle + v / 100f * sweep).toDouble())
+            val rOuter = size.minDimension / 2f - stroke.width / 2f - 6.dp.toPx()
+            val rInner = size.minDimension / 2f * 0.30f
+            val nx = cx + (rOuter * cos(ang)).toFloat()
+            val ny = cy + (rOuter * sin(ang)).toFloat()
+            val ix = cx + (rInner * cos(ang)).toFloat()
+            val iy = cy + (rInner * sin(ang)).toFloat()
+            drawLine(
+                color = needleColor,
+                start = Offset(ix, iy),
+                end = Offset(nx, ny),
+                strokeWidth = 3.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawCircle(color = needleColor, radius = 4.dp.toPx(), center = Offset(cx, cy))
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$value",
+                style = MaterialTheme.typography.headlineMedium,
+                color = needleColor,
+            )
+            Text(
+                text = "dB",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
