@@ -1584,8 +1584,8 @@
 
     <!-- 模拟烟花 -->
     <string name="tools_sim_fireworks_title">烟花特效</string>
-    <string name="tools_sim_fireworks_desc">点哪炸哪，氛围拉满</string>
-    <string name="tools_sim_fireworks_hint">点击屏幕任意位置放烟花</string>
+    <string name="tools_sim_fireworks_desc">底部窜起，到点开花</string>
+    <string name="tools_sim_fireworks_hint">点击屏幕，火箭飞向指尖炸开；双击连发</string>
 
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>
@@ -1783,6 +1783,8 @@
     <string name="vibe_start">开始</string>
     <string name="vibe_running">按摩中…</string>
     <string name="vibe_stop">停止</string>
+    <string name="vibe_test">试一下</string>
+    <string name="vibe_no_motor">未检测到振动器，请检查系统触感设置或权限</string>
     <string name="vibe_mode_label">按摩模式</string>
     <string name="vibe_mode_gentle">轻柔</string>
     <string name="vibe_mode_strong">强劲</string>

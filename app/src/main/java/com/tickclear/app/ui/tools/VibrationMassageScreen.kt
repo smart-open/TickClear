@@ -1,5 +1,6 @@
 package com.tickclear.app.ui.tools
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -58,6 +60,11 @@ import com.tickclear.app.ui.theme.Spacing
 /**
  * 振动按摩（休闲解压）：选择模式后调用系统振动循环播放，离开页面自动停止。
  * 纯本地、零新依赖；振动仅作体感反馈，不涉及任何健康疗效宣称。
+ *
+ * V2.9++ Bug 排查补丁：
+ *  - 进入页面立刻做一次 25ms 强触感诊断（testPulse），让用户明确感知到硬件通断；
+ *  - 行内展示硬件信息（是否有振动器 / API 级别），便于「没震动」类问题定位；
+ *  - 「试一下」次级按钮：随时单次 25ms 触感，免开/停循环就能验证电机。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -72,6 +79,8 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
     )
     var selected by remember { mutableStateOf("gentle") }
     var running by remember { mutableStateOf(false) }
+    // 一次性诊断：进入页面立刻给一下 + 取得状态字符串。
+    var diagnose by remember { mutableStateOf<String?>(null) }
 
     fun toggle() {
         if (running) {
@@ -86,6 +95,14 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
     // 切换模式时若正在运行，立即以新模式重启
     LaunchedEffect(selected) {
         if (running) MassageVibrator.start(context, selected)
+    }
+    // 进入页面一次性诊断：硬件空闲时弹一下，便于用户感知电机是否可用。
+    LaunchedEffect(Unit) {
+        diagnose = MassageVibrator.describe(context)
+        val felt = MassageVibrator.testPulse(context)
+        if (!felt) {
+            Toast.makeText(context, R.string.vibe_no_motor, Toast.LENGTH_LONG).show()
+        }
     }
     // 离开页面保险：停止振动
     DisposableEffect(Unit) {
@@ -117,6 +134,15 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SimHintCard(stringResource(R.string.tools_vibe_hint))
+
+            // 诊断信息行：把硬件状态直接显示给用户，「没震动」类问题不再静默。
+            if (diagnose != null) {
+                Text(
+                    text = diagnose!!,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Text(
                 stringResource(R.string.vibe_mode_label),
@@ -197,16 +223,27 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(Spacing.sm))
-            Button(
-                onClick = ::toggle,
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                Icon(
-                    imageVector = if (running) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = Spacing.xs),
-                )
-                Text(if (running) stringResource(R.string.vibe_stop) else stringResource(R.string.vibe_start))
+                OutlinedButton(
+                    onClick = { MassageVibrator.testPulse(context) },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                ) {
+                    Text(stringResource(R.string.vibe_test))
+                }
+                Button(
+                    onClick = ::toggle,
+                    modifier = Modifier.weight(2f).height(64.dp),
+                ) {
+                    Icon(
+                        imageVector = if (running) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = Spacing.xs),
+                    )
+                    Text(if (running) stringResource(R.string.vibe_stop) else stringResource(R.string.vibe_start))
+                }
             }
         }
     }

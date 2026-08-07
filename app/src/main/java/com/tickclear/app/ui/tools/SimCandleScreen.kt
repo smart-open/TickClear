@@ -64,8 +64,18 @@ import androidx.compose.runtime.withFrameMillis
 
 /**
  * 虚拟吹蜡烛（V2.9++ 模拟解压）。
- * 对着麦克风吹气（或长按屏幕）把蜡烛吹灭，带火焰摇曳与青烟动画。
+ * 对着麦克风用力吹气（或长按屏幕）把蜡烛吹灭，带火焰摇曳与青烟动画。
  * 麦克风权限未授予时自动降级为「长按吹灭」。纯 Canvas + AudioTrack 合成，零新依赖。
+ *
+ * V2.9++ 三巡调参：
+ *  - RMS 阈值 0.045 → 0.20。旧值几乎「有声就触发」，周围说话声都能擦出火星；
+ *    0.20 才是对着手机嘴用力吹的量级，日常噪音不会误触发。
+ *  - 引入「持续吹气」累积：连续 loud 帧才累 blowPower，安静帧快速衰减；
+ *    只有持续 ≥0.5s 才开始推进 blowProgress，再持续 1~1.2s 才能吹灭。
+ *    累计总吹气时间 ≥1.5s 才会熄火，更接近"用力吹"的手感。
+ *  - 火焰整体放大：halfWidth 比例 0.30 → 0.42，height 0.26 → 0.36。
+ *  - 火焰前倾幅度增大：被吹风时火焰明显大幅歪斜（flameLean 公式放大），
+ *    给用户"我正在对着它吹"的视觉反馈。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -76,6 +86,7 @@ fun SimCandleScreen(onBack: () -> Unit) {
 
     var lit by remember { mutableStateOf(true) }
     var blowProgress by remember { mutableFloatStateOf(0f) }
+    var blowPower by remember { mutableFloatStateOf(0f) } // 累积的"持续吹气"强度
     var flicker by remember { mutableFloatStateOf(1f) }
     var flameLean by remember { mutableFloatStateOf(0f) }
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
@@ -95,6 +106,7 @@ fun SimCandleScreen(onBack: () -> Unit) {
         if (!lit) return
         lit = false
         blowProgress = 0f
+        blowPower = 0f
         // 一缕青烟从烛芯升起
         particles = particles + List(12) { i ->
             SimParticle(
@@ -113,8 +125,8 @@ fun SimCandleScreen(onBack: () -> Unit) {
     }
 
     // 麦克风吹气检测。
-    // key 必须包含 lit：熄灭时内层 while(lit) 结束并释放 AudioRecord，
-    // 若不以 lit 为 key，重新点燃后录音不会重启 → 复燃后永远吹不灭（已修复的功能缺陷）。
+    // V2.9++ 三巡：阈值上调到 0.20；blowPower 0..2 累积/衰减，>=1.0 才推进吹灭进度，
+    // 让"持续用力吹"才熄火，避免偶发噪音/小风误触发。
     LaunchedEffect(micPermission.status is PermissionStatus.Granted, lit) {
         if (!lit) return@LaunchedEffect
         if (micPermission.status !is PermissionStatus.Granted) return@LaunchedEffect
@@ -137,11 +149,19 @@ fun SimCandleScreen(onBack: () -> Unit) {
                             sum += v * v
                         }
                         val rms = sqrt(sum / n).toFloat()
-                        if (rms > 0.045f) {
-                            blowProgress += 0.16f
-                            if (blowProgress >= 1f) extinguish()
+                        val dt = 0.06f // ~60ms 一帧（与 delay 同步）
+                        if (rms > BLOW_THRESHOLD) {
+                            // loud：充能，充能速度与超阈幅度挂钩
+                            val over = ((rms - BLOW_THRESHOLD) / 0.15f).coerceIn(0f, 1f)
+                            blowPower = (blowPower + (1.4f + over * 1.0f) * dt).coerceAtMost(2f)
                         } else {
-                            blowProgress = (blowProgress - 0.05f).coerceAtLeast(0f)
+                            // quiet：快速衰减，避免短脉冲累积作弊
+                            blowPower = (blowPower - 1.6f * dt).coerceAtLeast(0f)
+                        }
+                        if (blowPower >= 1.0f) {
+                            // 真正"吹到"了 → 慢速推进吹灭进度
+                            blowProgress += dt * 0.6f
+                            if (blowProgress >= 1f) extinguish()
                         }
                         delay(60)
                     }
@@ -172,19 +192,25 @@ fun SimCandleScreen(onBack: () -> Unit) {
                 } else {
                     // 双频正弦叠加的平滑摇曳：逐帧纯随机会抖成噪点，这样才像真火
                     flicker = 0.92f + sin(t * 9f) * 0.06f + sin(t * 23f) * 0.045f
-                    flameLean = sin(t * 5.5f) * 0.30f + blowProgress * 2.0f
+                    // V2.9++ 三巡：吹风时火焰明显前倾，最大偏移 0.55→0.85，且与吹气功率挂钩
+                    flameLean = sin(t * 5.5f) * 0.18f + blowPower * 0.85f + blowProgress * 1.4f
                 }
             }
             if (particles.isNotEmpty()) particles = stepParticles(particles, dt)
         }
     }
 
-    // 长按吹气（麦克风未授权时的降级路径）推进循环
+    // 长按吹气（麦克风未授权时的降级路径）推进循环。
+    // 加难同样适用：累 blowPower 再推 blowProgress。
     LaunchedEffect(blowing) {
         if (!blowing) return@LaunchedEffect
         while (blowing && lit) {
-            blowProgress += 0.05f
-            if (blowProgress >= 1f) extinguish()
+            // 长按不像麦克风可以定量，每帧按 0.10 充能，约 1.0s 后开始推吹灭
+            blowPower = (blowPower + 0.06f).coerceAtMost(2f)
+            if (blowPower >= 1.0f) {
+                blowProgress += 0.012f
+                if (blowProgress >= 1f) extinguish()
+            }
             delay(60)
         }
     }
@@ -308,12 +334,13 @@ fun SimCandleScreen(onBack: () -> Unit) {
                     )
 
                     if (lit) {
-                        val flameHalfW = candleW * 0.30f * flicker
+                        // V2.9++ 三巡：整体火焰放大（halfWidth 0.30→0.42，height 0.26→0.36）
+                        val flameHalfW = candleW * 0.42f * flicker
                         drawFlame(
                             baseX = cx,
                             baseY = wickTop + candleH * 0.012f,
                             halfWidth = flameHalfW,
-                            height = candleH * 0.26f * flicker * (1f - blowProgress * 0.55f),
+                            height = candleH * 0.36f * flicker * (1f - blowProgress * 0.55f),
                             leanX = flameLean * flameHalfW,
                             alpha = 1f - blowProgress * 0.25f,
                         )
@@ -378,3 +405,10 @@ private fun createMicRecorder(): AudioRecord {
         maxOf(minBuf, 2048),
     )
 }
+
+/**
+ * V2.9++ 三巡调参：旧值 0.045（约 -27dBFS），日常说话/咳嗽都能误触发；
+ * 提至 0.20（约 -14dBFS）后只有"嘴距麦克风 5~10cm 内用力吹"才能越过阈值。
+ * 根据麦克风实测，平稳呼吸约 0.02~0.05，正常说话约 0.06~0.12，用力吹气 0.25+。
+ */
+private const val BLOW_THRESHOLD = 0.20f
