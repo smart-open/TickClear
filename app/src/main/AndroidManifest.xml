@@ -28,6 +28,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- V2.9++ 悬浮时钟：specialUse 前台服务类型（targetSdk 34+ 强制要求配套权限，否则 startForeground 抛 SecurityException）。 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -156,6 +157,12 @@
             android:name=".domain.scheduler.NapReceiver"
             android:exported="false"
             android:enabled="true" />
+
+        <!-- V2.9++ 午休小憩白噪音播放前台服务：mediaPlayback 类型，跨熄屏稳定播放，支持渐隐自停。 -->
+        <service
+            android:name=".domain.tools.NapPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- V2.9++ 到期提醒：一次性精确闹钟触发 -->
         <receiver

@@ -41,6 +41,7 @@ object NotificationHelper {
     const val CHANNEL_REST = "tickclear.tools.rest.$CHANNEL_VERSION"
     const val CHANNEL_EYECARE = "tickclear.tools.eyecare.$CHANNEL_VERSION"
     const val CHANNEL_NAP = "tickclear.tools.nap.$CHANNEL_VERSION"
+    const val CHANNEL_NAP_PLAYBACK = "tickclear.tools.nap.playback.$CHANNEL_VERSION"
     const val CHANNEL_EXPIRY = "tickclear.tools.expiry.$CHANNEL_VERSION"
     const val CHANNEL_HEARING = "tickclear.tools.hearing.$CHANNEL_VERSION"
     const val CHANNEL_CLOCK = "tickclear.tools.clock.$CHANNEL_VERSION"
@@ -174,6 +175,15 @@ object NotificationHelper {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 200, 250)
         }
+        // 小憩白噪音播放前台渠道：低重要性、无声无震、常驻，仅作播放状态指示。
+        val napPlayback = NotificationChannel(
+            CHANNEL_NAP_PLAYBACK,
+            context.getString(R.string.channel_nap_playback_name),
+            android.app.NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = context.getString(R.string.channel_nap_playback_desc)
+            setShowBadge(false)
+        }
         val expiry = NotificationChannel(
             CHANNEL_EXPIRY,
             context.getString(R.string.channel_expiry_name),
@@ -214,7 +224,7 @@ object NotificationHelper {
         enableVibration(true)
         vibrationPattern = longArrayOf(0, 400, 200, 400)
     }
-    manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, expiry, hearing, clock, arrival))
+    manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, napPlayback, expiry, hearing, clock, arrival))
     }
 
     /**

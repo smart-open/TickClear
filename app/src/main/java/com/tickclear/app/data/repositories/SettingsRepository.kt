@@ -133,6 +133,9 @@ class SettingsRepositoryImpl @Inject constructor(
     override val eyecareEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_EYECARE_ENABLED] ?: false }
     override val eyecareIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_EYECARE_INTERVAL] ?: SettingsRepository.DEFAULT_EYECARE_INTERVAL_MIN }
     override val napLastDurationMin: Flow<Int> = dataStore.data.map { it[KEY_NAP_DURATION] ?: SettingsRepository.DEFAULT_NAP_DURATION_MIN }
+    override val napNoiseEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_NAP_NOISE_ENABLED] ?: SettingsRepository.DEFAULT_NAP_NOISE_ENABLED }
+    override val napNoiseScene: Flow<String> = dataStore.data.map { it[KEY_NAP_NOISE_SCENE] ?: SettingsRepository.DEFAULT_NAP_NOISE_SCENE }
+    override val napFadeMin: Flow<Int> = dataStore.data.map { it[KEY_NAP_FADE_MIN] ?: SettingsRepository.DEFAULT_NAP_FADE_MIN }
 
     // ── 工具箱：听力保护（V2.9++）──
     override val hearingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_HEARING_ENABLED] ?: false }
@@ -217,6 +220,9 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setEyecareEnabled(enabled: Boolean) { dataStore.edit { it[KEY_EYECARE_ENABLED] = enabled } }
     override suspend fun setEyecareIntervalMin(min: Int) { dataStore.edit { it[KEY_EYECARE_INTERVAL] = min.coerceAtLeast(5) } }
     override suspend fun setNapLastDurationMin(min: Int) { dataStore.edit { it[KEY_NAP_DURATION] = min.coerceAtLeast(5) } }
+    override suspend fun setNapNoiseEnabled(enabled: Boolean) { dataStore.edit { it[KEY_NAP_NOISE_ENABLED] = enabled } }
+    override suspend fun setNapNoiseScene(scene: String) { dataStore.edit { it[KEY_NAP_NOISE_SCENE] = scene } }
+    override suspend fun setNapFadeMin(min: Int) { dataStore.edit { it[KEY_NAP_FADE_MIN] = min.coerceAtLeast(0) } }
 
     // ── 工具箱：听力保护（V2.9++）──
     override suspend fun setHearingEnabled(enabled: Boolean) { dataStore.edit { it[KEY_HEARING_ENABLED] = enabled } }
@@ -388,6 +394,9 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_EYECARE_ENABLED = booleanPreferencesKey("eyecare_reminder_enabled")
         private val KEY_EYECARE_INTERVAL = intPreferencesKey("eyecare_reminder_interval_min")
         private val KEY_NAP_DURATION = intPreferencesKey("nap_last_duration_min")
+        private val KEY_NAP_NOISE_ENABLED = booleanPreferencesKey("nap_noise_enabled")
+        private val KEY_NAP_NOISE_SCENE = stringPreferencesKey("nap_noise_scene")
+        private val KEY_NAP_FADE_MIN = intPreferencesKey("nap_fade_min")
         private val KEY_HEARING_ENABLED = booleanPreferencesKey("hearing_protection_enabled")
         private val KEY_HEARING_VOLUME = intPreferencesKey("hearing_volume_threshold")
         private val KEY_HEARING_WEAR = intPreferencesKey("hearing_max_wear_min")

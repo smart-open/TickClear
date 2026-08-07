@@ -88,6 +88,15 @@ interface SettingsRepository {
     /** 午休小憩上次选择的时长（分钟，V2.9++），用于记忆偏好。 */
     val napLastDurationMin: Flow<Int>
 
+    /** 午休小憩：白噪音助眠开关（默认关）。 */
+    val napNoiseEnabled: Flow<Boolean>
+
+    /** 午休小憩：白噪音场景（rain/cafe/stream，默认 rain）。 */
+    val napNoiseScene: Flow<String>
+
+    /** 午休小憩：白噪音渐隐时长（分钟，0=不渐隐，默认 0）。 */
+    val napFadeMin: Flow<Int>
+
     // ── 工具箱：听力保护（V2.9++）──
     /** 听力保护总开关（监测耳机音量/佩戴时长）。 */
     val hearingEnabled: Flow<Boolean>
@@ -194,6 +203,15 @@ interface SettingsRepository {
 
     /** 午休小憩：保存上次选择的时长（分钟，V2.9++）。 */
     suspend fun setNapLastDurationMin(min: Int)
+
+    /** 午休小憩：保存白噪音助眠开关。 */
+    suspend fun setNapNoiseEnabled(enabled: Boolean)
+
+    /** 午休小憩：保存白噪音场景。 */
+    suspend fun setNapNoiseScene(scene: String)
+
+    /** 午休小憩：保存白噪音渐隐时长（分钟）。 */
+    suspend fun setNapFadeMin(min: Int)
 
     // ── 工具箱：听力保护（V2.9++）──
     suspend fun setHearingEnabled(enabled: Boolean)
@@ -307,6 +325,9 @@ interface SettingsRepository {
 
     /** 午休小憩默认时长（分钟，V2.9++）：30 分钟落在浅睡窗口，醒后不易昏沉。 */
     const val DEFAULT_NAP_DURATION_MIN = 30
+    const val DEFAULT_NAP_NOISE_ENABLED = false
+    const val DEFAULT_NAP_NOISE_SCENE = "rain"
+    const val DEFAULT_NAP_FADE_MIN = 0
 
     /** 听力保护默认音量阈值（媒体音量占比 %）。 */
     const val DEFAULT_HEARING_VOLUME_THRESHOLD = 80
