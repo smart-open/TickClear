@@ -190,6 +190,134 @@ fun DrawScope.drawGloss(
 }
 
 /**
+ * 圆柱受光（横向渐变：暗边→高光带→基色→暗侧），适合蜡体/易拉罐/打火机机身等柱状物。
+ * 比 [fillRoundRect3D] 的径向渐变更贴合"圆柱"的受光规律。
+ */
+fun DrawScope.fillCylinder(
+    topLeft: Offset,
+    size: Size,
+    base: Color,
+    cornerRadius: Float = 0f,
+) {
+    if (size.width <= 0f || size.height <= 0f) return
+    val brush = Brush.horizontalGradient(
+        0f to base.darken(0.34f),
+        0.16f to base.lighten(0.40f),
+        0.34f to base,
+        0.62f to base.darken(0.20f),
+        0.88f to base.darken(0.40f),
+        1f to base.darken(0.16f),
+        startX = topLeft.x,
+        endX = topLeft.x + size.width,
+    )
+    drawRoundRect(
+        brush = brush,
+        topLeft = topLeft,
+        size = size,
+        cornerRadius = CornerRadius(cornerRadius, cornerRadius),
+    )
+}
+
+/** 火焰水滴形轮廓：底部两侧收拢、顶端拉尖，[leanX] 让尖端随风偏移。 */
+private fun flamePath(baseX: Float, baseY: Float, halfWidth: Float, height: Float, leanX: Float): Path {
+    val tipX = baseX + leanX
+    return Path().apply {
+        moveTo(baseX, baseY)
+        cubicTo(
+            baseX - halfWidth, baseY - height * 0.32f,
+            tipX - halfWidth * 0.62f, baseY - height * 0.74f,
+            tipX, baseY - height,
+        )
+        cubicTo(
+            tipX + halfWidth * 0.62f, baseY - height * 0.74f,
+            baseX + halfWidth, baseY - height * 0.32f,
+            baseX, baseY,
+        )
+        close()
+    }
+}
+
+/**
+ * 拟真火焰：暖色光晕 + 外焰（深橙→橙渐变）+ 内焰（黄）+ 焰心白热点 + 根部蓝焰。
+ * [baseX]/[baseY] 为焰底（烛芯/出气口）坐标，[leanX] 为风吹偏移，[alpha] 控整体淡出。
+ */
+fun DrawScope.drawFlame(
+    baseX: Float,
+    baseY: Float,
+    halfWidth: Float,
+    height: Float,
+    leanX: Float = 0f,
+    alpha: Float = 1f,
+) {
+    if (halfWidth <= 0f || height <= 0f) return
+    val a = alpha.coerceIn(0f, 1f)
+    if (a <= 0.01f) return
+
+    // 光晕：让火焰"照亮"周围物体
+    val haloCenter = Offset(baseX + leanX * 0.4f, baseY - height * 0.45f)
+    val haloR = height * 1.5f
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFFFCC80).copy(alpha = 0.34f * a),
+                Color(0xFFFF9800).copy(alpha = 0.12f * a),
+                Color(0xFFFF9800).copy(alpha = 0f),
+            ),
+            center = haloCenter,
+            radius = haloR,
+        ),
+        radius = haloR,
+        center = haloCenter,
+    )
+    // 外焰
+    drawPath(
+        path = flamePath(baseX, baseY, halfWidth, height, leanX),
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFFFD54F).copy(alpha = a),
+                Color(0xFFFF7043).copy(alpha = a),
+                Color(0xFFE64A19).copy(alpha = a * 0.9f),
+            ),
+            center = Offset(baseX, baseY - height * 0.26f),
+            radius = height * 0.92f,
+        ),
+    )
+    // 内焰
+    drawPath(
+        path = flamePath(baseX, baseY - height * 0.02f, halfWidth * 0.56f, height * 0.64f, leanX * 0.7f),
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFFFFDE7).copy(alpha = a),
+                Color(0xFFFFEB3B).copy(alpha = a),
+                Color(0xFFFFA726).copy(alpha = a * 0.6f),
+            ),
+            center = Offset(baseX, baseY - height * 0.20f),
+            radius = height * 0.6f,
+        ),
+    )
+    // 焰心白热点
+    drawGloss(
+        center = Offset(baseX + leanX * 0.2f, baseY - height * 0.26f),
+        radiusX = halfWidth * 0.34f,
+        radiusY = height * 0.20f,
+        alpha = 0.72f * a,
+    )
+    // 根部蓝焰（真实蜡烛/打火机的低温区）
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFF64B5F6).copy(alpha = 0.55f * a),
+                Color(0xFF2196F3).copy(alpha = 0f),
+            ),
+            center = Offset(baseX, baseY - height * 0.05f),
+            radius = halfWidth * 1.1f,
+        ),
+        topLeft = Offset(baseX - halfWidth * 0.9f, baseY - height * 0.20f),
+        size = Size(halfWidth * 1.8f, height * 0.26f),
+    )
+}
+
+/**
  * 是否应减少动态效果（无障碍）。
  * 读系统 `ANIMATOR_DURATION_SCALE`：用户开启"移除动画"时返回 true，
  * 调用方据此冻结 idle 动画、只保留必要反馈（遵循 reduced-motion 原则）。

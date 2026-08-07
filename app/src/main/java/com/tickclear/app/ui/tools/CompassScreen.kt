@@ -28,8 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -219,7 +217,7 @@ fun CompassScreen(onBack: () -> Unit) {
     }
 }
 
-/** 绘制指南针表盘：底盘渐变 + 分级刻度 + 方位标签 + 双色指针 + 顶部固定指示。 */
+/** 绘制指南针表盘：金属外圈 + 底盘渐变 + 分级刻度 + 方位标签 + 3D 双色指针 + 顶部固定指示。 */
 private fun DrawScope.drawCompassDial(
     azimuth: Float,
     northColor: Color,
@@ -231,27 +229,46 @@ private fun DrawScope.drawCompassDial(
     val cx = size.width / 2f
     val cy = size.height / 2f
     val center = Offset(cx, cy)
-    val radius = min(size.width, size.height) / 2f * 0.90f
+    val R = min(size.width, size.height) / 2f * 0.94f
 
-    // 底盘：中心稍亮的径向渐变，营造凹陷金属盘质感
+    // 投影：让仪表盘略微"浮"在背景之上
+    drawContactShadow(center, R * 0.98f, R * 0.98f, maxAlpha = 0.16f)
+
+    // 金属外圈（固定表圈，不随表盘旋转）：横向渐变模拟圆柱受光
+    val bezelR = R * 0.93f
+    val bezelW = R * 0.11f
+    drawCircle(
+        brush = Brush.horizontalGradient(
+            0f to onSurface.copy(alpha = 0.40f),
+            0.18f to onSurface.copy(alpha = 0.82f),
+            0.5f to onSurface.copy(alpha = 1f),
+            0.82f to onSurface.copy(alpha = 0.55f),
+            1f to onSurface.copy(alpha = 0.30f),
+            startX = cx - bezelR,
+            endX = cx + bezelR,
+        ),
+        radius = bezelR,
+        center = center,
+        style = Stroke(width = bezelW),
+    )
+    // 表圈顶部高光：模拟来自上方的环境光
+    drawGloss(Offset(cx, cy - bezelR), radiusX = bezelR * 0.55f, radiusY = bezelW * 0.7f, alpha = 0.22f)
+
+    val faceR = R * 0.85f
+    // 底盘：中心稍亮径向渐变，营造凹陷金属盘质感
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(surfaceVariant.copy(alpha = 0.55f), surfaceColor),
             center = center,
-            radius = radius,
+            radius = faceR,
         ),
-        radius = radius,
+        radius = faceR,
         center = center,
     )
+    // 底盘内圈细描边，增加层次
     drawCircle(
-        color = onSurface.copy(alpha = 0.14f),
-        radius = radius,
-        center = center,
-        style = Stroke(width = 1.5.dp.toPx()),
-    )
-    drawCircle(
-        color = onSurface.copy(alpha = 0.08f),
-        radius = radius * 0.70f,
+        color = onSurface.copy(alpha = 0.10f),
+        radius = faceR * 0.82f,
         center = center,
         style = Stroke(width = 1.dp.toPx()),
     )
@@ -264,24 +281,24 @@ private fun DrawScope.drawCompassDial(
     // 表盘整体按 -azimuth 旋转，使 N 始终指向真实北方
     rotate(degrees = -azimuth, pivot = center) {
         // 分级刻度：2° 细刻度 / 10° 中刻度 / 30° 主刻度
+        val outer = faceR * 0.98f
         for (deg in 0 until 360 step 2) {
             val isMajor = deg % 30 == 0
             val isMedium = deg % 10 == 0
             val len = when {
-                isMajor -> radius * 0.11f
-                isMedium -> radius * 0.07f
-                else -> radius * 0.035f
+                isMajor -> faceR * 0.11f
+                isMedium -> faceR * 0.07f
+                else -> faceR * 0.035f
             }
             val alpha = when {
-                isMajor -> 0.75f
-                isMedium -> 0.42f
-                else -> 0.20f
+                isMajor -> 0.78f
+                isMedium -> 0.45f
+                else -> 0.22f
             }
             val width = if (isMajor) 2.dp.toPx() else 1.dp.toPx()
             val rad = Math.toRadians(deg.toDouble())
             val sinV = sin(rad).toFloat()
             val cosV = cos(rad).toFloat()
-            val outer = radius * 0.96f
             drawLine(
                 color = if (deg == 0) northColor else onSurface.copy(alpha = alpha),
                 start = Offset(cx + (outer - len) * sinV, cy - (outer - len) * cosV),
@@ -291,13 +308,13 @@ private fun DrawScope.drawCompassDial(
         }
 
         // 30° 数字刻度（避开四正方位，那里放 N/E/S/W 字母）
-        labelPaint.textSize = radius * 0.10f
+        labelPaint.textSize = faceR * 0.10f
         labelPaint.color = onSurface.copy(alpha = 0.55f).toArgb()
         labelPaint.typeface = android.graphics.Typeface.DEFAULT
         for (deg in 0 until 360 step 30) {
             if (deg % 90 == 0) continue
             val rad = Math.toRadians(deg.toDouble())
-            val r = radius * 0.77f
+            val r = faceR * 0.74f
             val x = cx + r * sin(rad).toFloat()
             val y = cy - r * cos(rad).toFloat()
             drawContext.canvas.nativeCanvas.drawText(
@@ -309,7 +326,7 @@ private fun DrawScope.drawCompassDial(
         }
 
         // 四正方位字母
-        labelPaint.textSize = radius * 0.17f
+        labelPaint.textSize = faceR * 0.17f
         labelPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
         val cardinals = listOf(
             Triple("N", 0f, northColor),
@@ -319,17 +336,17 @@ private fun DrawScope.drawCompassDial(
         )
         for ((label, deg, col) in cardinals) {
             val rad = Math.toRadians(deg.toDouble())
-            val r = radius * 0.77f
+            val r = faceR * 0.74f
             val x = cx + r * sin(rad).toFloat()
             val y = cy - r * cos(rad).toFloat()
             labelPaint.color = col.toArgb()
             drawContext.canvas.nativeCanvas.drawText(label, x, y + labelPaint.textSize / 3f, labelPaint)
         }
 
-        // 双色指针：北红南灰。中段留空给中央读数盘，只画两片箭头
-        val tip = radius * 0.66f
-        val tail = radius * 0.40f
-        val half = radius * 0.07f
+        // 3D 双色指针：北红南灰，使用 fillPath3D 增加体积感
+        val tip = faceR * 0.66f
+        val tail = faceR * 0.40f
+        val half = faceR * 0.07f
         val north = Path().apply {
             moveTo(cx, cy - tip)
             lineTo(cx - half, cy - tail)
@@ -342,12 +359,14 @@ private fun DrawScope.drawCompassDial(
             lineTo(cx + half, cy + tail)
             close()
         }
-        drawPath(north, northColor)
-        drawPath(south, onSurface.copy(alpha = 0.30f))
+        fillPath3D(north, northColor)
+        fillPath3D(south, onSurface.copy(alpha = 0.50f))
+        // 北针尖端高光，增强金属反光
+        drawGloss(Offset(cx, cy - tip * 0.72f), radiusX = half * 0.7f, radiusY = tip * 0.28f, alpha = 0.45f)
     }
 
     // 顶部固定指示（机头方向），不随表盘旋转
-    val markerTop = cy - radius * 1.0f
+    val markerTop = cy - R
     val marker = Path().apply {
         moveTo(cx, markerTop + 14.dp.toPx())
         lineTo(cx - 9.dp.toPx(), markerTop - 2.dp.toPx())
@@ -357,10 +376,10 @@ private fun DrawScope.drawCompassDial(
     drawPath(marker, accentColor)
 
     // 中央读数盘：不透明底 + 细描边，压住指针尾部，给度数文字留出干净背景
-    drawCircle(color = surfaceColor, radius = radius * 0.38f, center = center)
+    drawCircle(color = surfaceColor, radius = faceR * 0.38f, center = center)
     drawCircle(
         color = onSurface.copy(alpha = 0.12f),
-        radius = radius * 0.38f,
+        radius = faceR * 0.38f,
         center = center,
         style = Stroke(width = 1.dp.toPx()),
     )

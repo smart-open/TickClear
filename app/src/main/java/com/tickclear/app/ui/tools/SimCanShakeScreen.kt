@@ -34,17 +34,15 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -66,13 +64,11 @@ private val CAN_HUES = listOf(195f, 205f, 215f)
 @Composable
 fun SimCanShakeScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val primary = MaterialTheme.colorScheme.primary
 
     var pressure by remember { mutableFloatStateOf(0f) }   // 0..100
     var shake by remember { mutableFloatStateOf(0f) }      // 视觉抖动 0..1
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
-    var canvasSize by remember { mutableStateOf(Size.Zero) }
     var message by remember { mutableStateOf<String?>(null) }
     var canMouth by remember { mutableStateOf(Offset(0.5f, 0.25f)) }
 
@@ -109,8 +105,10 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
         }
     }
 
-    // 粒子与抖动衰减的帧循环
-    LaunchedEffect(Unit) {
+    // 粒子与抖动衰减的帧循环：只在「有喷溅粒子 或 仍在抖」时运行，静止后自动挂起省电
+    val animating = particles.isNotEmpty() || shake > 0f
+    LaunchedEffect(animating) {
+        if (!animating) return@LaunchedEffect
         var last = 0L
         while (true) {
             val now = withFrameMillis { it }
@@ -169,46 +167,115 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    canvasSize = size
                     val w = size.width
                     val h = size.height
                     val jx = (kotlin.random.Random.nextFloat() - 0.5f) * shake * 14f
                     val jy = (kotlin.random.Random.nextFloat() - 0.5f) * shake * 14f
-                    val canW = w * 0.34f
+                    // 压力越高罐身越鼓：给"要炸了"一个视觉预告
+                    val canW = w * 0.34f * (1f + pressure / 100f * 0.05f)
                     val canH = h * 0.52f
                     val canX = (w - canW) / 2f + jx
                     val canY = h * 0.30f + jy
-                    canMouth = Offset((canX + canW / 2f) / w, canY / h)
+                    val cx = canX + canW / 2f
+                    val rimH = canW * 0.20f
+                    val silver = Color(0xFFD3D9DF)
+                    canMouth = Offset(cx / w, canY / h)
 
-                    drawRoundRect(
-                        color = Color(0xFFBFC6CE),
+                    drawContactShadow(
+                        center = Offset(cx, canY + canH + rimH * 0.45f),
+                        radiusX = canW * 0.75f,
+                        radiusY = canH * 0.055f,
+                        maxAlpha = 0.28f,
+                    )
+                    // 罐身：金属圆柱受光
+                    fillCylinder(
                         topLeft = Offset(canX, canY),
                         size = Size(canW, canH),
+                        base = silver,
+                        cornerRadius = canW * 0.06f,
                     )
-                    drawRoundRect(
-                        color = Color(0xFF9AA1A9),
-                        topLeft = Offset(canX, canY - canH * 0.04f),
-                        size = Size(canW, canH * 0.06f),
+                    // 底部收口
+                    fillOvoid(
+                        topLeft = Offset(canX, canY + canH - rimH * 0.5f),
+                        size = Size(canW, rimH),
+                        base = silver.darken(0.30f),
                     )
-                    drawRoundRect(
-                        color = Color(0xFF6E747B),
-                        topLeft = Offset(canX + canW * 0.38f, canY - canH * 0.06f),
-                        size = Size(canW * 0.24f, canH * 0.03f),
+                    // 彩色标签带（同样圆柱受光，才会"贴"在罐身上）
+                    fillCylinder(
+                        topLeft = Offset(canX, canY + canH * 0.32f),
+                        size = Size(canW, canH * 0.28f),
+                        base = primary,
                     )
-                    drawRoundRect(
-                        color = primary,
-                        topLeft = Offset(canX, canY + canH * 0.34f),
-                        size = Size(canW, canH * 0.22f),
+                    drawLine(
+                        color = silver.darken(0.35f),
+                        start = Offset(canX, canY + canH * 0.32f),
+                        end = Offset(canX + canW, canY + canH * 0.32f),
+                        strokeWidth = canH * 0.008f,
+                    )
+                    drawLine(
+                        color = silver.darken(0.35f),
+                        start = Offset(canX, canY + canH * 0.60f),
+                        end = Offset(canX + canW, canY + canH * 0.60f),
+                        strokeWidth = canH * 0.008f,
+                    )
+                    // 冷凝水珠：确定性分布（逐帧随机会闪烁），用纯色圆保证低开销
+                    for (i in 0 until 14) {
+                        val fx = ((i * 37) % 100) / 100f
+                        val fy = ((i * 53) % 100) / 100f
+                        val r = canW * (0.011f + (i % 3) * 0.005f)
+                        val dc = Offset(canX + canW * (0.12f + fx * 0.76f), canY + canH * (0.05f + fy * 0.88f))
+                        drawCircle(color = Color.White.copy(alpha = 0.30f), radius = r, center = dc)
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.55f),
+                            radius = r * 0.42f,
+                            center = Offset(dc.x - r * 0.28f, dc.y - r * 0.3f),
+                        )
+                    }
+                    // 罐顶：外沿 + 内凹罐面 + 拉环
+                    fillOvoid(
+                        topLeft = Offset(canX, canY - rimH * 0.5f),
+                        size = Size(canW, rimH),
+                        base = silver.darken(0.18f),
+                    )
+                    drawOval(
+                        color = silver.darken(0.42f),
+                        topLeft = Offset(canX + canW * 0.09f, canY - rimH * 0.32f),
+                        size = Size(canW * 0.82f, rimH * 0.64f),
+                    )
+                    drawOval(
+                        color = silver.lighten(0.25f),
+                        topLeft = Offset(cx - canW * 0.22f, canY - rimH * 0.26f),
+                        size = Size(canW * 0.30f, rimH * 0.42f),
+                        style = Stroke(width = canW * 0.026f),
+                    )
+                    drawLine(
+                        color = silver.darken(0.5f),
+                        start = Offset(cx + canW * 0.09f, canY - rimH * 0.05f),
+                        end = Offset(cx + canW * 0.24f, canY - rimH * 0.05f),
+                        strokeWidth = canW * 0.02f,
+                    )
+                    // 罐身竖直高光
+                    drawGloss(
+                        center = Offset(canX + canW * 0.24f, canY + canH * 0.48f),
+                        radiusX = canW * 0.07f,
+                        radiusY = canH * 0.36f,
+                        alpha = 0.38f,
                     )
 
+                    // 喷溅液滴：带高光的球体，比原来的方块自然得多
                     for (pt in particles) {
                         val alpha = (pt.life / pt.maxLife).coerceIn(0f, 1f)
-                        val cx = pt.x * w
-                        val cy = pt.y * h
-                        drawRoundRect(
-                            color = simColor(pt.hue, alpha),
-                            topLeft = Offset(cx - pt.radius, cy - pt.radius),
-                            size = Size(pt.radius * 2, pt.radius * 2),
+                        val px = pt.x * w
+                        val py = pt.y * h
+                        drawCircle(
+                            color = simColor(pt.hue, alpha * 0.92f),
+                            radius = pt.radius,
+                            center = Offset(px, py),
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.5f * alpha),
+                            radius = pt.radius * 0.34f,
+                            center = Offset(px - pt.radius * 0.3f, py - pt.radius * 0.34f),
                         )
                     }
                 }
