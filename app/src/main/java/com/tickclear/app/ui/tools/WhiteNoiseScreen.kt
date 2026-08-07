@@ -1,12 +1,10 @@
 package com.tickclear.app.ui.tools
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -48,12 +45,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.NoiseSynth
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.PI
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sin
 
 /**
  * 睡眠白噪音合集（雨声 / 咖啡馆 / 溪流）：本地程序化循环音效，无需联网。
@@ -151,7 +154,10 @@ fun WhiteNoiseScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    MiniEqualizer(color = MaterialTheme.colorScheme.primary)
+                    MiniWaveform(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
                     Text(
                         stringResource(R.string.white_noise_playing),
                         style = MaterialTheme.typography.bodyMedium,
@@ -201,35 +207,38 @@ fun WhiteNoiseScreen(onBack: () -> Unit) {
     }
 }
 
-/** 三个跳动的小竖条，播放时表示“正在出声”。 */
+/** 播放时的动态声波：用无限过渡驱动的相位沿正弦路径绘制平滑波形，仅 playing 时运行。 */
 @Composable
-private fun MiniEqualizer(color: Color, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "eq")
-    val h1 by transition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(460), RepeatMode.Reverse), label = "eq1",
+private fun MiniWaveform(color: Color, modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "wave")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
+        label = "wavePhase",
     )
-    val h2 by transition.animateFloat(
-        initialValue = 0.6f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(620), RepeatMode.Reverse), label = "eq2",
+    val amp by transition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "waveAmp",
     )
-    val h3 by transition.animateFloat(
-        initialValue = 0.2f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(380), RepeatMode.Reverse), label = "eq3",
-    )
-    Row(
-        modifier = modifier.height(24.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        listOf(h1, h2, h3).forEach { h ->
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxHeight(h)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(color),
-            )
+    Canvas(modifier = modifier.height(36.dp)) {
+        val w = size.width
+        val h = size.height
+        val mid = h / 2f
+        val a = (h / 2.4f) * amp
+        val path = Path()
+        val steps = 48
+        for (i in 0..steps) {
+            val x = w * i / steps
+            val y = mid + a * sin(x / w * 6f * PI.toFloat() + phase)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+        )
     }
 }
