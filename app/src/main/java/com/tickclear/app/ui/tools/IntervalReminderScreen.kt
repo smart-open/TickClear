@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -59,6 +62,8 @@ fun IntervalReminderScreen(
 ) {
     val enabled by vm.enabled.collectAsStateWithLifecycle()
     val intervalMin by vm.intervalMin.collectAsStateWithLifecycle()
+    val waterMl by vm.waterMl.collectAsStateWithLifecycle()
+    val waterGoalMl by vm.waterGoalMl.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -185,6 +190,16 @@ fun IntervalReminderScreen(
                 )
             }
 
+            if (vm.type == IntervalType.WATER) {
+                WaterIntakeCard(
+                    ml = waterMl,
+                    goal = waterGoalMl,
+                    onAdd = vm::addWater,
+                    onSetGoal = vm::setWaterGoal,
+                    onReset = { vm.addWater(-waterMl) },
+                )
+            }
+
             // stringResource 必须在组合上下文取值，onClick 内是普通 lambda。
             val testToast = stringResource(testToastRes)
             Button(
@@ -195,6 +210,114 @@ fun IntervalReminderScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(testRes))
+            }
+        }
+    }
+}
+
+/**
+ * 饮水记录卡（仅喝水提醒页）：进度环展示「今日已喝 / 目标」，
+ * 提供快速加量按钮与每日目标预设。数据由 [IntervalReminderViewModel] 持久化（跨天归零）。
+ */
+@Composable
+private fun WaterIntakeCard(
+    ml: Int,
+    goal: Int,
+    onAdd: (Int) -> Unit,
+    onSetGoal: (Int) -> Unit,
+    onReset: () -> Unit,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val fraction = (ml.toFloat() / goal.coerceAtLeast(1)).coerceIn(0f, 1f)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            Text(
+                stringResource(R.string.water_intake_title),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(150.dp),
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val stroke = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
+                    drawArc(
+                        color = trackColor,
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = stroke,
+                    )
+                    if (fraction > 0f) {
+                        drawArc(
+                            color = accent,
+                            startAngle = -90f,
+                            sweepAngle = 360f * fraction,
+                            useCenter = false,
+                            style = stroke,
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "$ml",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.water_intake_goal_format, goal),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Button(onClick = { onAdd(250) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.water_add_cup))
+                }
+                Button(onClick = { onAdd(500) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.water_add_bottle))
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                Text(
+                    stringResource(R.string.water_goal),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                listOf(1500, 2000, 2500, 3000).forEach { g ->
+                    FilterChip(
+                        selected = goal == g,
+                        onClick = { onSetGoal(g) },
+                        label = { Text("$g") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Button(onClick = onReset) {
+                    Text(stringResource(R.string.water_reset))
+                }
             }
         }
     }

@@ -128,6 +128,9 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：间隔提醒（V2.9）：默认关闭，需用户在工具页主动开启。──
     override val waterEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_WATER_ENABLED] ?: false }
     override val waterIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_WATER_INTERVAL] ?: SettingsRepository.DEFAULT_WATER_INTERVAL_MIN }
+    override val waterIntakeMl: Flow<Int> = dataStore.data.map { it[KEY_WATER_INTAKE_ML] ?: 0 }
+    override val waterIntakeDate: Flow<String> = dataStore.data.map { it[KEY_WATER_INTAKE_DATE] ?: "" }
+    override val waterGoalMl: Flow<Int> = dataStore.data.map { it[KEY_WATER_GOAL_ML] ?: SettingsRepository.DEFAULT_WATER_GOAL_ML }
     override val restEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_REST_ENABLED] ?: false }
     override val restIntervalMin: Flow<Int> = dataStore.data.map { it[KEY_REST_INTERVAL] ?: SettingsRepository.DEFAULT_REST_INTERVAL_MIN }
     override val eyecareEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_EYECARE_ENABLED] ?: false }
@@ -215,6 +218,9 @@ class SettingsRepositoryImpl @Inject constructor(
     // ── 工具箱：间隔提醒（V2.9）──
     override suspend fun setWaterEnabled(enabled: Boolean) { dataStore.edit { it[KEY_WATER_ENABLED] = enabled } }
     override suspend fun setWaterIntervalMin(min: Int) { dataStore.edit { it[KEY_WATER_INTERVAL] = min.coerceAtLeast(5) } }
+    override suspend fun setWaterIntakeMl(ml: Int) { dataStore.edit { it[KEY_WATER_INTAKE_ML] = ml.coerceAtLeast(0) } }
+    override suspend fun setWaterIntakeDate(date: String) { dataStore.edit { it[KEY_WATER_INTAKE_DATE] = date } }
+    override suspend fun setWaterGoalMl(ml: Int) { dataStore.edit { it[KEY_WATER_GOAL_ML] = ml.coerceAtLeast(200) } }
     override suspend fun setRestEnabled(enabled: Boolean) { dataStore.edit { it[KEY_REST_ENABLED] = enabled } }
     override suspend fun setRestIntervalMin(min: Int) { dataStore.edit { it[KEY_REST_INTERVAL] = min.coerceAtLeast(5) } }
     override suspend fun setEyecareEnabled(enabled: Boolean) { dataStore.edit { it[KEY_EYECARE_ENABLED] = enabled } }
@@ -389,6 +395,9 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_DEBUG_LOG = booleanPreferencesKey("debug_log_enabled")
         private val KEY_WATER_ENABLED = booleanPreferencesKey("water_reminder_enabled")
         private val KEY_WATER_INTERVAL = intPreferencesKey("water_reminder_interval_min")
+        private val KEY_WATER_INTAKE_ML = intPreferencesKey("water_intake_ml")
+        private val KEY_WATER_INTAKE_DATE = stringPreferencesKey("water_intake_date")
+        private val KEY_WATER_GOAL_ML = intPreferencesKey("water_goal_ml")
         private val KEY_REST_ENABLED = booleanPreferencesKey("rest_reminder_enabled")
         private val KEY_REST_INTERVAL = intPreferencesKey("rest_reminder_interval_min")
         private val KEY_EYECARE_ENABLED = booleanPreferencesKey("eyecare_reminder_enabled")

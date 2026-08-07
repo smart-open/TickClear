@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * 工具箱间隔提醒共享 ViewModel（V2.9）。
@@ -36,12 +38,33 @@ open class IntervalReminderViewModel(
     private val _nextTriggerMs = MutableStateFlow(0L)
     val nextTriggerMs: StateFlow<Long> = _nextTriggerMs.asStateFlow()
 
+    // ── 喝水记录（仅 WATER 类型使用）──
+    private val _waterMl = MutableStateFlow(0)
+    val waterMl: StateFlow<Int> = _waterMl.asStateFlow()
+    private val _waterGoalMl = MutableStateFlow(2000)
+    val waterGoalMl: StateFlow<Int> = _waterGoalMl.asStateFlow()
+
+    private fun todayStr(): String =
+        LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
     init {
         viewModelScope.launch {
             val (e, i) = readSettings()
             _enabled.value = e
             _intervalMin.value = i
             if (e) _nextTriggerMs.value = System.currentTimeMillis() + i * 60_000L
+            if (type == IntervalType.WATER) {
+                val today = todayStr()
+                if (settings.waterIntakeDate.first() == today) {
+                    _waterMl.value = settings.waterIntakeMl.first()
+                } else {
+                    // 跨天：归零旧记录并写入今日日期
+                    settings.setWaterIntakeDate(today)
+                    settings.setWaterIntakeMl(0)
+                    _waterMl.value = 0
+                }
+                _waterGoalMl.value = settings.waterGoalMl.first()
+            }
         }
     }
 
@@ -93,6 +116,31 @@ open class IntervalReminderViewModel(
     /** 立即发一条测试通知（不续排闹钟）。 */
     fun testNotify() {
         NotificationHelper.showIntervalReminder(appContext, type)
+    }
+
+    /** 记录一次饮水（ml）；跨天自动先归零再累加。仅 WATER 类型有效。 */
+    fun addWater(ml: Int) {
+        if (type != IntervalType.WATER) return
+        viewModelScope.launch {
+            val today = todayStr()
+            if (settings.waterIntakeDate.first() != today) {
+                settings.setWaterIntakeDate(today)
+                settings.setWaterIntakeMl(0)
+                _waterMl.value = 0
+            }
+            val next = (_waterMl.value + ml).coerceAtLeast(0)
+            _waterMl.value = next
+            settings.setWaterIntakeMl(next)
+        }
+    }
+
+    /** 设定每日饮水目标（毫升）。仅 WATER 类型有效。 */
+    fun setWaterGoal(ml: Int) {
+        if (type != IntervalType.WATER) return
+        viewModelScope.launch {
+            _waterGoalMl.value = ml
+            settings.setWaterGoalMl(ml)
+        }
     }
 }
 

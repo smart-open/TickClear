@@ -73,6 +73,15 @@ interface SettingsRepository {
     /** 喝水提醒间隔（分钟），默认 60。 */
     val waterIntervalMin: Flow<Int>
 
+    /** 喝水记录：今日已喝毫升（按日期键跨天归零）。 */
+    val waterIntakeMl: Flow<Int>
+
+    /** 喝水记录：记录所属日期（yyyy-MM-dd），用于跨天归零。 */
+    val waterIntakeDate: Flow<String>
+
+    /** 喝水目标（毫升/天），默认 2000。 */
+    val waterGoalMl: Flow<Int>
+
     /** 久坐 / 眨眼休息提醒开关。 */
     val restEnabled: Flow<Boolean>
 
@@ -196,6 +205,9 @@ interface SettingsRepository {
     // ── 工具箱：间隔提醒（V2.9）──
     suspend fun setWaterEnabled(enabled: Boolean)
     suspend fun setWaterIntervalMin(min: Int)
+    suspend fun setWaterIntakeMl(ml: Int)
+    suspend fun setWaterIntakeDate(date: String)
+    suspend fun setWaterGoalMl(ml: Int)
     suspend fun setRestEnabled(enabled: Boolean)
     suspend fun setRestIntervalMin(min: Int)
     suspend fun setEyecareEnabled(enabled: Boolean)
@@ -316,6 +328,9 @@ interface SettingsRepository {
 
         /** 喝水提醒默认间隔（分钟，V2.9）。 */
         const val DEFAULT_WATER_INTERVAL_MIN = 60
+
+        /** 喝水目标（毫升/天，V2.9++）。 */
+        const val DEFAULT_WATER_GOAL_ML = 2000
 
     /** 休息提醒默认间隔（分钟，V2.9）。 */
     const val DEFAULT_REST_INTERVAL_MIN = 45
