@@ -184,11 +184,11 @@ fun SimLighterScreen(onBack: () -> Unit) {
                     val bodyX = cx - bodyW / 2f
                     val chrome = Color(0xFFCBD2D9)
 
-                    drawContactShadow(
+                    drawSoftShadow(
                         center = Offset(cx, bodyBottom + bodyH * 0.05f),
                         radiusX = bodyW * 0.95f,
                         radiusY = bodyH * 0.05f,
-                        maxAlpha = 0.30f,
+                        maxAlpha = 0.32f,
                     )
                     // 机身：金属圆柱受光
                     fillCylinder(
@@ -196,6 +196,13 @@ fun SimLighterScreen(onBack: () -> Unit) {
                         size = Size(bodyW, bodyH),
                         base = chrome,
                         cornerRadius = bodyW * 0.14f,
+                    )
+                    // 二巡：机身一道锐利金属反光条
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.40f),
+                        start = Offset(bodyX + bodyW * 0.18f, bodyTop + bodyH * 0.05f),
+                        end = Offset(bodyX + bodyW * 0.18f, bodyTop + bodyH * 0.92f),
+                        strokeWidth = bodyW * 0.02f,
                     )
                     // 底部包边
                     fillCylinder(
@@ -229,6 +236,8 @@ fun SimLighterScreen(onBack: () -> Unit) {
                     val wheelC = Offset(cx + bodyW * 0.26f, bodyTop + bodyH * 0.06f)
                     val wheelR = bodyW * 0.15f
                     fillSphere(center = wheelC, radius = wheelR, base = Color(0xFF8D9298), rimLight = false)
+                    // 二巡：火石轮辉光边
+                    drawRimLight(wheelC, wheelR, Color(0xFFBFC4CA), alpha = 0.40f)
                     val spin = lidProgress * 220f
                     for (i in 0 until 14) {
                         val ang = Math.toRadians((spin + i * (360f / 14)).toDouble())

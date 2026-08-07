@@ -302,7 +302,17 @@ private fun ChoiceBadge(who: String, choice: Int?) {
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.fillMaxSize()) {
-                fillSphere(center = Offset(size.width / 2f, size.height / 2f), radius = size.width / 2f, base = badgeColor)
+                val badgeCenter = Offset(size.width / 2f, size.height / 2f)
+                val badgeR = size.width / 2f
+                // 接地软阴影 + 基色辉光边，让手势球更立体（二巡精修）
+                drawSoftShadow(
+                    center = Offset(badgeCenter.x, badgeCenter.y + badgeR * 0.55f),
+                    radiusX = badgeR * 0.9f,
+                    radiusY = badgeR * 0.34f,
+                    maxAlpha = 0.14f,
+                )
+                fillSphere(center = badgeCenter, radius = badgeR, base = badgeColor, rimLight = false)
+                drawRimLight(center = badgeCenter, radius = badgeR, tint = badgeColor.lighten(0.4f), alpha = 0.30f)
             }
             Text(
                 choice?.let { CHOICE_EMOJI[it] } ?: "—",

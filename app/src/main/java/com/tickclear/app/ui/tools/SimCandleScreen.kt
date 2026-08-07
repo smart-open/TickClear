@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -247,17 +248,24 @@ fun SimCandleScreen(onBack: () -> Unit) {
                     val wax = Color(0xFFF2E2B8)
 
                     // 桌面接触投影（点燃时光更强，影子更实）
-                    drawContactShadow(
+                    drawSoftShadow(
                         center = Offset(cx, candleBottom + candleH * 0.055f),
                         radiusX = candleW * 1.55f,
                         radiusY = candleH * 0.075f,
-                        maxAlpha = if (lit) 0.30f else 0.20f,
+                        maxAlpha = if (lit) 0.32f else 0.22f,
                     )
                     // 烛台底盘
                     fillOvoid(
                         topLeft = Offset(cx - candleW * 0.95f, candleBottom - candleH * 0.03f),
                         size = Size(candleW * 1.9f, candleH * 0.11f),
                         base = outline,
+                    )
+                    // 二巡：底盘边缘辉光
+                    drawOval(
+                        color = outline.lighten(0.30f).copy(alpha = 0.22f),
+                        topLeft = Offset(cx - candleW * 0.95f, candleBottom - candleH * 0.03f),
+                        size = Size(candleW * 1.9f, candleH * 0.11f),
+                        style = Stroke(width = candleW * 0.03f),
                     )
                     // 蜡体：圆柱受光（横向渐变比平涂立体得多）
                     fillCylinder(

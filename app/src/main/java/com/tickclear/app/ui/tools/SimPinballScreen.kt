@@ -211,9 +211,17 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     val w = size.width
                     val h = size.height
 
-                    // 钉子：3D 受光金属球
+                    // 钉子：3D 受光金属球 + 接地软阴影（二巡精修）
                     for (peg in pegs) {
-                        fillSphere(Offset(peg.x * w, peg.y * h), PEG_R * w, primary)
+                        val px = peg.x * w
+                        val py = peg.y * h
+                        drawSoftShadow(
+                            center = Offset(px, py + PEG_R * w * 0.95f),
+                            radiusX = PEG_R * w * 0.95f,
+                            radiusY = PEG_R * w * 0.38f,
+                            maxAlpha = 0.16f,
+                        )
+                        fillSphere(Offset(px, py), PEG_R * w, primary)
                     }
                     // 发射点
                     drawCircle(
@@ -229,8 +237,17 @@ fun SimPinballScreen(onBack: () -> Unit) {
                             strokeWidth = 3f,
                         )
                     }
-                    // 弹珠：3D 球体（高光 + 暗部）
-                    fillSphere(Offset(ball.x * w, ball.y * h), BALL_R * w, Color(0xFFFF5252))
+                    // 弹珠：3D 球体 + 接地软阴影 + 材质辉光边（二巡精修）
+                    val bx = ball.x * w
+                    val by = ball.y * h
+                    drawSoftShadow(
+                        center = Offset(bx, by + BALL_R * w * 0.95f),
+                        radiusX = BALL_R * w * 0.95f,
+                        radiusY = BALL_R * w * 0.4f,
+                        maxAlpha = 0.18f,
+                    )
+                    fillSphere(Offset(bx, by), BALL_R * w, Color(0xFFFF5252), rimLight = false)
+                    drawRimLight(center = Offset(bx, by), radius = BALL_R * w, tint = Color(0xFFFF8A80), alpha = 0.40f)
                 }
             }
 

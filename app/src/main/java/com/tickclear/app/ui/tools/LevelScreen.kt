@@ -281,6 +281,14 @@ private fun DrawScope.drawBubbleDial(
     val bubbleR = radius * 0.16f
     val bubbleColor = if (isLevel) okColor else accentColor
 
+    // 接地软阴影：让仪表盘"放置"在卡片上而非悬浮（二巡精修）
+    drawSoftShadow(
+        center = Offset(cx, cy + radius * 0.06f),
+        radiusX = radius * 1.06f,
+        radiusY = radius * 1.02f,
+        maxAlpha = 0.16f,
+    )
+
     // 底盘渐变，中心略暗形成凹槽感
     drawCircle(
         brush = Brush.radialGradient(
@@ -374,6 +382,14 @@ private fun DrawScope.drawTubeLevel(
     val corner = tubeH / 2f
     val color = if (isLevel) okColor else accentColor
     val tubeSize = Size(w, tubeH)
+
+    // 接地软阴影：让气泡管"放置"在画布上而非悬浮（二巡精修）
+    drawSoftShadow(
+        center = Offset(w / 2f, top + tubeH * 1.5f),
+        radiusX = w * 0.48f,
+        radiusY = tubeH * 0.5f,
+        maxAlpha = 0.16f,
+    )
 
     // 管体受光（圆角矩形圆柱感）
     fillRoundRect3D(topLeft = Offset(0f, top), size = tubeSize, cornerRadius = corner, base = surfaceVariant)

@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
+import kotlin.math.max
 import com.tickclear.app.domain.tools.FoleySynth
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
@@ -143,8 +144,8 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
                     val bodyX = cx - bodyW / 2f
                     val bodyY = cy - bodyH / 2f + punch * bodyH * 0.04f
 
-                    // 接触投影
-                    drawContactShadow(Offset(cx, cy + bodyH * 0.62f), bodyW * 0.5f, bodyH * 0.22f)
+                    // 接触投影（二巡：软阴影，半影更自然）
+                    drawSoftShadow(Offset(cx, cy + bodyH * 0.62f), bodyW * 0.5f, bodyH * 0.22f, maxAlpha = 0.32f)
 
                     // 木鱼主体：受光圆角矩形（木质暖棕渐变）
                     fillRoundRect3D(
@@ -153,12 +154,36 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
                         cornerRadius = bodyH * 0.5f,
                         base = Color(0xFFB5835A),
                     )
-                    // 左侧圆头鼓包
-                    fillSphere(
-                        Offset(bodyX - bodyW * 0.10f, bodyY + bodyH * 0.5f),
-                        bodyH * 0.42f,
-                        Color(0xFFA9744C),
+                    // 木纹层次：两道内嵌暗木色描边，模拟雕刻木纹环
+                    val grainColor = Color(0xFF8A5A36)
+                    drawRoundRect(
+                        color = grainColor.copy(alpha = 0.14f),
+                        topLeft = Offset(bodyX + bodyW * 0.06f, bodyY + bodyH * 0.14f),
+                        size = Size(bodyW * 0.88f, bodyH * 0.72f),
+                        cornerRadius = CornerRadius(bodyH * 0.42f, bodyH * 0.42f),
+                        style = Stroke(width = max(1f, bodyH * 0.025f)),
                     )
+                    drawRoundRect(
+                        color = grainColor.copy(alpha = 0.10f),
+                        topLeft = Offset(bodyX + bodyW * 0.14f, bodyY + bodyH * 0.30f),
+                        size = Size(bodyW * 0.72f, bodyH * 0.40f),
+                        cornerRadius = CornerRadius(bodyH * 0.30f, bodyH * 0.30f),
+                        style = Stroke(width = max(1f, bodyH * 0.02f)),
+                    )
+                    // 边缘辉光：浅木色描边，强化受光轮廓
+                    drawRoundRect(
+                        color = Color(0xFFE0B483).copy(alpha = 0.28f),
+                        topLeft = Offset(bodyX, bodyY),
+                        size = Size(bodyW, bodyH),
+                        cornerRadius = CornerRadius(bodyH * 0.5f, bodyH * 0.5f),
+                        style = Stroke(width = max(1f, bodyH * 0.03f)),
+                    )
+                    // 左侧圆头鼓包（关掉纯白 rim，改用木色辉光边）
+                    val headCx = bodyX - bodyW * 0.10f
+                    val headCy = bodyY + bodyH * 0.5f
+                    val headR = bodyH * 0.42f
+                    fillSphere(Offset(headCx, headCy), headR, Color(0xFFA9744C), rimLight = false)
+                    drawRimLight(Offset(headCx, headCy), headR, Color(0xFFC89070), alpha = 0.32f)
                     // 顶部高光带
                     drawGloss(
                         Offset(bodyX + bodyW * 0.30f, bodyY + bodyH * 0.20f),

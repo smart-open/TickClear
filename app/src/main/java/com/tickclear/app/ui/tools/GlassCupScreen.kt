@@ -148,6 +148,14 @@ fun GlassCupScreen(onBack: () -> Unit) {
                     val topW = w * 0.52f
                     val botW = w * 0.36f
 
+                    // 接地软阴影：让玻璃杯"落地"而非悬浮（二巡精修）
+                    drawSoftShadow(
+                        center = Offset(cx, botY + 12f),
+                        radiusX = botW * 0.62f,
+                        radiusY = 13f,
+                        maxAlpha = 0.20f,
+                    )
+
                     // ===== 3D 玻璃杯体（横向渐变模拟圆柱受光） =====
                     val body = Path().apply {
                         moveTo(cx - topW / 2f, topY)
@@ -170,6 +178,14 @@ fun GlassCupScreen(onBack: () -> Unit) {
                         ),
                     )
                     drawPath(path = body, color = outlineColor, style = Stroke(width = 3f))
+
+                    // 杯口高光：强化玻璃反光的"湿润感"（二巡精修）
+                    drawGloss(
+                        center = Offset(cx - topW * 0.12f, topY + 30f),
+                        radiusX = topW * 0.14f,
+                        radiusY = (botY - topY) * 0.16f,
+                        alpha = 0.45f,
+                    )
 
                     // 液面高度随当前音符（note 1..7 → 由下至上）；未敲时半杯
                     val liquidFrac = if (note == 0) 0.5f else (note - 1) / 6f

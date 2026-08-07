@@ -185,6 +185,15 @@ private fun DrawScope.drawMagBars(x: Float, y: Float, z: Float, primary: Color, 
     val colors = listOf(Color(0xFFE53935), Color(0xFF43A047), Color(0xFF1E88E5))
     val vals = listOf(x, y, z)
     val gap = size.height / 4f
+    val h = 10.dp.toPx()
+    // 接地软阴影：让三色条"贴"在面板上而非悬浮（二巡精修）
+    val trackCenterY = gap * 2f
+    drawSoftShadow(
+        center = Offset(cx, trackCenterY + h * 0.9f),
+        radiusX = barW * 0.5f,
+        radiusY = h * 0.8f,
+        maxAlpha = 0.12f,
+    )
     for (i in 0..2) {
         val cy = gap * (i + 1)
         drawLine(
@@ -196,7 +205,6 @@ private fun DrawScope.drawMagBars(x: Float, y: Float, z: Float, primary: Color, 
         val len = (vals[i].absoluteValue / max).coerceAtMost(1f) * barW / 2
         val col = colors[i]
         if (len > 0f) {
-            val h = 10.dp.toPx()
             val topLeft = if (vals[i] >= 0f) Offset(cx, cy - h / 2) else Offset(cx - len, cy - h / 2)
             fillRoundRect3D(topLeft = topLeft, size = Size(len, h), cornerRadius = h / 2, base = col)
         }

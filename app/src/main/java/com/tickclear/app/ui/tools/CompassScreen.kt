@@ -231,8 +231,8 @@ private fun DrawScope.drawCompassDial(
     val center = Offset(cx, cy)
     val R = min(size.width, size.height) / 2f * 0.94f
 
-    // 投影：让仪表盘略微"浮"在背景之上
-    drawContactShadow(center, R * 0.98f, R * 0.98f, maxAlpha = 0.16f)
+    // 投影：让仪表盘略微"浮"在背景之上（二巡：软阴影，半影更自然）
+    drawSoftShadow(center, R * 0.98f, R * 0.98f, maxAlpha = 0.20f)
 
     // 金属外圈（固定表圈，不随表盘旋转）：横向渐变模拟圆柱受光
     val bezelR = R * 0.93f

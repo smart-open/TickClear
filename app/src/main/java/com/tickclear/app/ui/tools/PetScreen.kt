@@ -425,7 +425,7 @@ private fun DrawScope.drawDog(phase: Float, particles: List<SimParticle>, primar
     val cy = h * 0.55f
     val bodyR = w * 0.16f
     val wag = sin(phase * 6f) * 0.35f
-    drawContactShadow(Offset(cx, cy + bodyR * 1.25f), bodyR * 1.1f, bodyR * 0.35f)
+    drawSoftShadow(Offset(cx, cy + bodyR * 1.25f), bodyR * 1.1f, bodyR * 0.35f)
     // 尾巴（先画，根部被身体压住）
     val tail = Path().apply {
         moveTo(cx + bodyR * 0.9f, cy + bodyR * 0.4f)
@@ -434,9 +434,15 @@ private fun DrawScope.drawDog(phase: Float, particles: List<SimParticle>, primar
         close()
     }
     fillPath3D(tail, primary)
-    // 身体 + 头：受光球面
-    fillSphere(Offset(cx, cy + bodyR * 0.4f), bodyR, primary)
-    fillSphere(Offset(cx, cy - bodyR * 0.55f), bodyR * 0.8f, primary)
+    // 身体 + 头：受光球面（关掉纯白 rim，改用基色派生辉光边）
+    val bodyCx = cx
+    val bodyCy = cy + bodyR * 0.4f
+    fillSphere(Offset(bodyCx, bodyCy), bodyR, primary, rimLight = false)
+    drawRimLight(Offset(bodyCx, bodyCy), bodyR, primary.lighten(0.4f), alpha = 0.30f)
+    val headCx = cx
+    val headCy = cy - bodyR * 0.55f
+    fillSphere(Offset(headCx, headCy), bodyR * 0.8f, primary, rimLight = false)
+    drawRimLight(Offset(headCx, headCy), bodyR * 0.8f, primary.lighten(0.4f), alpha = 0.30f)
     // 耳朵
     fillSphere(Offset(cx - bodyR * 0.7f, cy - bodyR * 1.0f), bodyR * 0.32f, primary.darken(0.15f))
     fillSphere(Offset(cx + bodyR * 0.7f, cy - bodyR * 1.0f), bodyR * 0.32f, primary.darken(0.15f))
@@ -459,7 +465,7 @@ private fun DrawScope.drawPig(phase: Float, particles: List<SimParticle>, primar
     val r = w * 0.17f
     val sway = sin(phase * 4f) * (w * 0.01f)
     val base = Color(0xFFF48FB1)
-    drawContactShadow(Offset(cx + sway, cy + r * 1.15f), r * 1.1f, r * 0.32f)
+    drawSoftShadow(Offset(cx + sway, cy + r * 1.15f), r * 1.1f, r * 0.32f)
     // 耳朵
     val earL = Path().apply {
         moveTo(cx - r * 0.7f + sway, cy - r * 0.7f)
@@ -475,8 +481,11 @@ private fun DrawScope.drawPig(phase: Float, particles: List<SimParticle>, primar
     }
     fillPath3D(earL, base.darken(0.1f))
     fillPath3D(earR, base.darken(0.1f))
-    // 头：受光球面
-    fillSphere(Offset(cx + sway, cy), r, base)
+    // 头：受光球面（基色派生辉光边）
+    val headCx = cx + sway
+    val headCy = cy
+    fillSphere(Offset(headCx, headCy), r, base, rimLight = false)
+    drawRimLight(Offset(headCx, headCy), r, base.lighten(0.4f), alpha = 0.30f)
     // 口鼻
     fillOvoid(Offset(cx - r * 0.4f + sway, cy - r * 0.05f), Size(r * 0.8f, r * 0.5f), Color(0xFFEC407A))
     drawCircle(color = Color(0xFFAD1457), radius = r * 0.07f, center = Offset(cx - r * 0.18f + sway, cy + r * 0.15f))
@@ -495,7 +504,7 @@ private fun DrawScope.drawCat(phase: Float, blink: Float, toyTimer: Float, parti
     val r = w * 0.16f
     val pounce = if (toyTimer > 0f) sin(phase * 12f) * (w * 0.02f) else 0f
     val base = Color(0xFFBDBDBD)
-    drawContactShadow(Offset(cx, cy + r * 1.15f), r * 1.1f, r * 0.32f)
+    drawSoftShadow(Offset(cx, cy + r * 1.15f), r * 1.1f, r * 0.32f)
     // 耳朵
     val earL = Path().apply {
         moveTo(cx - r * 0.7f, cy - r * 0.7f + pounce)
@@ -511,9 +520,15 @@ private fun DrawScope.drawCat(phase: Float, blink: Float, toyTimer: Float, parti
     }
     fillPath3D(earL, base.darken(0.05f))
     fillPath3D(earR, base.darken(0.05f))
-    // 身体 + 头：受光球面
-    fillSphere(Offset(cx, cy + r * 0.55f), r * 0.95f, Color(0xFF9E9E9E))
-    fillSphere(Offset(cx, cy - r * 0.4f + pounce), r * 0.8f, base)
+    // 身体 + 头：受光球面（基色派生辉光边）
+    val bodyCx = cx
+    val bodyCy = cy + r * 0.55f
+    fillSphere(Offset(bodyCx, bodyCy), r * 0.95f, Color(0xFF9E9E9E), rimLight = false)
+    drawRimLight(Offset(bodyCx, bodyCy), r * 0.95f, Color(0xFFBDBDBD), alpha = 0.28f)
+    val headCx = cx
+    val headCy = cy - r * 0.4f + pounce
+    fillSphere(Offset(headCx, headCy), r * 0.8f, base, rimLight = false)
+    drawRimLight(Offset(headCx, headCy), r * 0.8f, base.lighten(0.4f), alpha = 0.30f)
     // 眼睛（眨眼）
     val eyeH = if (blink > 0f) r * 0.04f else r * 0.16f
     drawOval(color = Color(0xFF2E7D32), topLeft = Offset(cx - r * 0.46f, cy - r * 0.5f + pounce - eyeH / 2), size = Size(r * 0.18f, eyeH))

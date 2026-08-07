@@ -160,10 +160,20 @@ fun FortuneScreen(onBack: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) {
                         Canvas(Modifier.fillMaxSize()) {
+                            val luckyCenter = Offset(size.width / 2f, size.height / 2f)
+                            val luckyR = size.width / 2f
+                            // 关掉默认纯白描边，改用基色派生辉光边，更显材质感（二巡精修）
                             fillSphere(
-                                center = Offset(size.width / 2f, size.height / 2f),
-                                radius = size.width / 2f,
+                                center = luckyCenter,
+                                radius = luckyR,
                                 base = fortune.color,
+                                rimLight = false,
+                            )
+                            drawRimLight(
+                                center = luckyCenter,
+                                radius = luckyR,
+                                tint = fortune.color,
+                                alpha = 0.30f,
                             )
                         }
                         Text(

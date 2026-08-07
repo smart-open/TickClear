@@ -181,11 +181,11 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
                     val silver = Color(0xFFD3D9DF)
                     canMouth = Offset(cx / w, canY / h)
 
-                    drawContactShadow(
+                    drawSoftShadow(
                         center = Offset(cx, canY + canH + rimH * 0.45f),
                         radiusX = canW * 0.75f,
                         radiusY = canH * 0.055f,
-                        maxAlpha = 0.28f,
+                        maxAlpha = 0.30f,
                     )
                     // 罐身：金属圆柱受光
                     fillCylinder(
@@ -193,6 +193,13 @@ fun SimCanShakeScreen(onBack: () -> Unit) {
                         size = Size(canW, canH),
                         base = silver,
                         cornerRadius = canW * 0.06f,
+                    )
+                    // 二巡：罐身一道锐利金属反光条
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.45f),
+                        start = Offset(canX + canW * 0.17f, canY + canH * 0.05f),
+                        end = Offset(canX + canW * 0.17f, canY + canH * 0.95f),
+                        strokeWidth = canW * 0.02f,
                     )
                     // 底部收口
                     fillOvoid(

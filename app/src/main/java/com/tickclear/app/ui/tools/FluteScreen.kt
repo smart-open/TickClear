@@ -201,6 +201,14 @@ fun FluteScreen(onBack: () -> Unit) {
                     val fluteH = h * 0.22f
                     val left = w * 0.08f
                     val right = w * 0.92f
+                    // 接地软阴影：让长笛"放置"在画布上而非悬浮（二巡精修）
+                    drawSoftShadow(
+                        center = Offset((left + right) / 2f, cy + fluteH * 0.78f),
+                        radiusX = (right - left) * 0.46f,
+                        radiusY = fluteH * 0.5f,
+                        maxAlpha = 0.16f,
+                    )
+
                     // 管身：横向渐变受光（金属/木质圆柱感）
                     fillCylinder(
                         topLeft = Offset(left, cy - fluteH / 2f),

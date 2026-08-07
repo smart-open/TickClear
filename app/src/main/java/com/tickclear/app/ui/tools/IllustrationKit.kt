@@ -49,6 +49,9 @@ fun Color.darken(t: Float): Color {
     )
 }
 
+/** 全局统一光源方向（度）：所有受光绘制默认从此角度打光，保证整套工具光影一致。 */
+const val LIGHT_ANGLE_DEG: Float = -50f
+
 /** 柔和接触投影：在 [center] 处画一团黑→透明的径向渐变，模拟物体落地的软阴影。 */
 fun DrawScope.drawContactShadow(
     center: Offset,
@@ -70,6 +73,39 @@ fun DrawScope.drawContactShadow(
 }
 
 /**
+ * 柔和接地阴影（二巡升级）：多层径向渐变叠加，模拟真实软阴影的半影（penumbra），
+ * 比 [drawContactShadow] 单层更自然、更有"落地感"。物体投影默认用它。
+ */
+fun DrawScope.drawSoftShadow(
+    center: Offset,
+    radiusX: Float,
+    radiusY: Float,
+    maxAlpha: Float = 0.30f,
+) {
+    if (radiusX <= 0f || radiusY <= 0f) return
+    // 外层：大而淡，模拟半影扩散
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.Black.copy(alpha = maxAlpha * 0.45f), Color.Black.copy(alpha = 0f)),
+            center = center,
+            radius = max(radiusX, radiusY) * 1.45f,
+        ),
+        topLeft = Offset(center.x - radiusX * 1.45f, center.y - radiusY * 1.45f),
+        size = Size(radiusX * 2.9f, radiusY * 2.9f),
+    )
+    // 内层：小而深，模拟接触核心暗部
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.Black.copy(alpha = maxAlpha), Color.Black.copy(alpha = 0f)),
+            center = center,
+            radius = max(radiusX, radiusY),
+        ),
+        topLeft = Offset(center.x - radiusX, center.y - radiusY),
+        size = Size(radiusX * 2f, radiusY * 2f),
+    )
+}
+
+/**
  * 受光球面：径向渐变（高光→基色→暗部）由 [lightAngleDeg] 方向打光，
  * 并在背光侧描一圈低透明度边缘光，制造立体轮廓。
  */
@@ -77,7 +113,7 @@ fun DrawScope.fillSphere(
     center: Offset,
     radius: Float,
     base: Color,
-    lightAngleDeg: Float = -50f,
+    lightAngleDeg: Float = LIGHT_ANGLE_DEG,
     rimLight: Boolean = true,
 ) {
     if (radius <= 0f) return
@@ -105,7 +141,7 @@ fun DrawScope.fillOvoid(
     topLeft: Offset,
     size: Size,
     base: Color,
-    lightAngleDeg: Float = -50f,
+    lightAngleDeg: Float = LIGHT_ANGLE_DEG,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     val cx = topLeft.x + size.width / 2f
@@ -127,7 +163,7 @@ fun DrawScope.fillRoundRect3D(
     size: Size,
     cornerRadius: Float,
     base: Color,
-    lightAngleDeg: Float = -50f,
+    lightAngleDeg: Float = LIGHT_ANGLE_DEG,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     val cx = topLeft.x + size.width / 2f
@@ -152,7 +188,7 @@ fun DrawScope.fillRoundRect3D(
 fun DrawScope.fillPath3D(
     path: Path,
     base: Color,
-    lightAngleDeg: Float = -50f,
+    lightAngleDeg: Float = LIGHT_ANGLE_DEG,
 ) {
     val b = path.getBounds()
     if (b.width <= 0f || b.height <= 0f) return
@@ -186,6 +222,28 @@ fun DrawScope.drawGloss(
         brush = brush,
         topLeft = Offset(center.x - radiusX, center.y - radiusY),
         size = Size(radiusX * 2f, radiusY * 2f),
+    )
+}
+
+/**
+ * 边缘辉光（二巡升级）：沿圆形轮廓描一圈基于材质色的低透明度光晕，
+ * 比纯白描边更有"材质感"，让球面/物件边缘透出柔和辉光，提升精致度。
+ * 典型用法：把 [fillSphere] 的纯白 rim 关掉（rimLight=false），改用本函数以基色派生色描边。
+ */
+fun DrawScope.drawRimLight(
+    center: Offset,
+    radius: Float,
+    tint: Color,
+    alpha: Float = 0.35f,
+    width: Float? = null,
+) {
+    if (radius <= 0f) return
+    val w = width ?: max(1.5f, radius * 0.06f)
+    drawCircle(
+        color = tint.copy(alpha = alpha.coerceIn(0f, 1f)),
+        radius = radius * 0.98f,
+        center = center,
+        style = Stroke(width = w),
     )
 }
 
