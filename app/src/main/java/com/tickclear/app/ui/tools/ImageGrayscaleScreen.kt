@@ -64,6 +64,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     var mode by remember { mutableIntStateOf(0) } // 0 灰度, 1 黑白
     var threshold by remember { mutableIntStateOf(128) }
+    var contrast by remember { mutableFloatStateOf(1f) } // 1f = 不变，>1 拉对比 <1 压平
 
     var panelExpanded by remember { mutableStateOf(true) }
     var scale by remember { mutableFloatStateOf(1f) }
@@ -80,10 +81,10 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
         }
     }
 
-    val processed = remember(bitmap, mode, threshold) {
+    val processed = remember(bitmap, mode, threshold, contrast) {
         bitmap?.let {
-            if (mode == 0) ImageProcessor.toGrayscale(it)
-            else ImageProcessor.toBlackWhite(it, threshold)
+            if (mode == 0) ImageProcessor.toGrayscale(it, contrast)
+            else ImageProcessor.toBlackWhite(it, threshold, contrast)
         }
     }
 
@@ -193,6 +194,18 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                         )
                         Text("$threshold", fontSize = 14.sp)
                     }
+                }
+
+                Text(stringResource(R.string.tools_img_gray_contrast), style = MaterialTheme.typography.labelMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Slider(
+                        value = contrast,
+                        onValueChange = { contrast = it.coerceIn(0.5f, 2.5f) },
+                        valueRange = 0.5f..2.5f,
+                        steps = 20,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("${(contrast * 100).toInt()}%", fontSize = 14.sp)
                 }
 
                 Button(

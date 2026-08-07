@@ -74,35 +74,50 @@ object ImageProcessor {
         )
     }
 
-    /** 灰度（去饱和）。 */
-    fun toGrayscale(src: Bitmap): Bitmap {
+    /** 灰度（去饱和）+ 可选对比度（围绕 128 拉伸/压缩，1f 为不变）。 */
+    fun toGrayscale(src: Bitmap, contrast: Float = 1f): Bitmap {
         val out = Bitmap.createBitmap(
             src.width,
             src.height,
             src.config ?: Bitmap.Config.ARGB_8888,
         )
         val canvas = Canvas(out)
+        val cm = ColorMatrix().apply { setSaturation(0f) }
+        val c = contrast.coerceIn(0.1f, 3f)
+        val t = 128f * (1f - c)
+        val contrastMatrix = ColorMatrix(
+            floatArrayOf(
+                c, 0f, 0f, 0f, t,
+                0f, c, 0f, 0f, t,
+                0f, 0f, c, 0f, t,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        cm.postConcat(contrastMatrix)
         val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+            colorFilter = ColorMatrixColorFilter(cm)
         }
         canvas.drawBitmap(src, 0f, 0f, paint)
         return out
     }
 
-    /** 黑白（二值化）：luminance >= threshold 判白，否则黑。 */
-    fun toBlackWhite(src: Bitmap, threshold: Int): Bitmap {
+    /** 黑白（二值化）：luminance（经对比度调整） >= threshold 判白，否则黑。 */
+    fun toBlackWhite(src: Bitmap, threshold: Int, contrast: Float = 1f): Bitmap {
         val w = src.width
         val h = src.height
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val px = IntArray(w * h)
         src.getPixels(px, 0, w, 0, 0, w, h)
+        val c = contrast.coerceIn(0.1f, 3f)
         for (i in px.indices) {
-            val c = px[i]
-            val r = (c shr 16) and 0xFF
-            val g = (c shr 8) and 0xFF
-            val b = c and 0xFF
-            val lum = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
-            px[i] = if (lum >= threshold) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+            val col = px[i]
+            val r = (col shr 16) and 0xFF
+            val g = (col shr 8) and 0xFF
+            val b = col and 0xFF
+            val lum = (0.299f * r + 0.587f * g + 0.114f * b)
+            val adj = (lum - 128f) * c + 128f
+            val cl = adj.coerceIn(0f, 255f)
+            px[i] = if (cl >= threshold) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
         }
         out.setPixels(px, 0, w, 0, 0, w, h)
         return out
