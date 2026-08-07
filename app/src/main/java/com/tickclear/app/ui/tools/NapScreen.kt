@@ -53,7 +53,17 @@ import java.time.format.DateTimeFormatter
 import androidx.hilt.navigation.compose.hiltViewModel
 
 private val NAP_OPTIONS = listOf(20, 30, 45, 60, 90)
-private val NAP_SCENES = listOf("rain" to R.string.white_noise_rain, "cafe" to R.string.white_noise_cafe, "stream" to R.string.white_noise_stream)
+private val NAP_SCENES = listOf(
+    "rain" to R.string.white_noise_rain,
+    "stream" to R.string.white_noise_stream,
+    "cafe" to R.string.white_noise_cafe,
+    "waves" to R.string.white_noise_waves,
+    "wind" to R.string.white_noise_wind,
+    "fire" to R.string.white_noise_fire,
+    "white" to R.string.white_noise_white,
+    "pink" to R.string.white_noise_pink,
+    "fan" to R.string.white_noise_fan,
+)
 private val FADE_OPTIONS = listOf(0, 5, 10, 15)
 
 /**
