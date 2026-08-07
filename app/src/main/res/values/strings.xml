@@ -810,6 +810,13 @@
     <string name="nap_smart_hint">20–30 分钟落在浅睡窗口，醒后不易昏沉；超过 60 分钟易进入深睡，醒来反而昏沉。</string>
     <string name="nap_start">开始小憩</string>
     <string name="nap_start_toast">已设置 %1$s 唤醒，安心睡吧</string>
+    <string name="nap_noise_enable">白噪音助眠</string>
+    <string name="nap_fade_label">渐隐</string>
+    <string name="nap_fade_off">不渐隐</string>
+    <string name="nap_fade_min">渐隐 %1$d 分钟</string>
+    <string name="nap_sleeping">小憩中</string>
+    <string name="nap_end">结束小憩</string>
+    <string name="nap_sleeping_noise">%1$s · %2$s</string>
 
     <!-- 工具箱：实用工具（V2.9++） -->
     <string name="tools_cat_utility">实用工具</string>
@@ -1010,12 +1017,17 @@
     <string name="nap_wake_at">预计 %1$s 唤醒</string>
     <string name="channel_nap_name">午休小憩</string>
     <string name="channel_nap_desc">短午休闹钟唤醒提醒</string>
+    <string name="channel_nap_playback_name">小憩白噪音播放</string>
+    <string name="channel_nap_playback_desc">小憩白噪音播放状态指示</string>
     <string name="channel_expiry_name">到期提醒</string>
     <string name="channel_expiry_desc">会员/账号/续费到期提醒</string>
     <string name="channel_hearing_name">听力保护</string>
     <string name="channel_hearing_desc">耳机音量/佩戴时长超标提醒</string>
     <string name="nap_notification_title">该醒啦</string>
     <string name="nap_notification_text">午休结束，精神饱满地起来吧～</string>
+    <string name="nap_playback_title">小憩白噪音</string>
+    <string name="nap_playback_text">%1$s · 小憩中</string>
+    <string name="nap_playback_stop">停止</string>
 
     <!-- 喝水提醒 -->
     <string name="water_title">喝水提醒</string>
@@ -1633,6 +1645,8 @@
     <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
     <string name="tools_tax_hint">填写月薪与扣除项，估算本月个税与税后到手</string>
     <string name="tools_cook_timer_hint">可同时运行多组计时，到点震动并响铃提醒</string>
+    <string name="tools_cook_timer_remaining">剩余</string>
+    <string name="tools_cook_timer_progress">进度 %1$d%%</string>
     <string name="tools_mood_hint">记录今日心情，查看本月分布与最近打卡</string>
 
     <!-- 今日运势（纯娱乐） -->

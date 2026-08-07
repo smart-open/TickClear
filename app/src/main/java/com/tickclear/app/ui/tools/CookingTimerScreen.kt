@@ -7,7 +7,9 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import java.util.Locale
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,7 +35,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,6 +52,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -272,16 +278,52 @@ private fun TimerCard(
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Text(
-                if (finished) stringResource(R.string.tools_cook_timer_done) else fmtTime(remainSec),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Spacer(Modifier.height(Spacing.xs))
-            if (!finished && totalSec > 0) {
-                LinearProgressIndicator(
-                    progress = { remainSec.toFloat() / totalSec },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Box(
+                    modifier = Modifier.size(64.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    TimerRing(
+                        remainSec = remainSec,
+                        totalSec = totalSec,
+                        finished = finished,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Text(
+                        text = if (finished) "✓" else fmtTime(remainSec),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (finished) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (finished) {
+                            stringResource(R.string.tools_cook_timer_done)
+                        } else {
+                            stringResource(R.string.tools_cook_timer_remaining)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val pct = if (finished) 100 else if (totalSec > 0) (100 * remainSec / totalSec) else 0
+                    Text(
+                        stringResource(R.string.tools_cook_timer_progress, pct),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (finished) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
             }
             Spacer(Modifier.height(Spacing.sm))
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -314,6 +356,52 @@ private fun TimerCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/** 环形进度：底色整圈 + 进度弧（从 12 点顺时针扫过）。剩余比例为 0 时不画进度弧。 */
+@Composable
+private fun TimerRing(
+    remainSec: Int,
+    totalSec: Int,
+    finished: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val frac = when {
+        finished -> 1f
+        totalSec <= 0 -> 0f
+        else -> (remainSec.toFloat() / totalSec).coerceIn(0f, 1f)
+    }
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
+    val progressColor = if (finished) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.tertiary
+    }
+    Canvas(modifier = modifier) {
+        val strokeW = 6.dp.toPx()
+        val inset = strokeW / 2f
+        val arc = size.width - strokeW
+        drawArc(
+            color = trackColor,
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            style = Stroke(width = strokeW),
+            topLeft = Offset(inset, inset),
+            size = Size(arc, arc),
+        )
+        if (frac > 0f) {
+            drawArc(
+                color = progressColor,
+                startAngle = -90f,
+                sweepAngle = 360f * frac,
+                useCenter = false,
+                style = Stroke(width = strokeW, cap = StrokeCap.Round),
+                topLeft = Offset(inset, inset),
+                size = Size(arc, arc),
+            )
         }
     }
 }
