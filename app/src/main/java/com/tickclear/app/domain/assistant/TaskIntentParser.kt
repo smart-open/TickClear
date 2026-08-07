@@ -212,7 +212,108 @@ object TaskIntentParser {
         return if (lower > 23) 23 else lower
     }
 
-    // ══════════ V2.18 多轮任务编辑：对「刚创建的任务」的后续指令解析 ══════════
+    // ══════════ V2.9++ 助手 CRUD：查询 / 完成 / 删除 / 今日 ══════════
+
+    /**
+     * 对「任务/习惯」的 CRUD 操作意图（V2.9++）。文本路径本地闭环，
+     * 不依赖服务端 MCP 工具声明——命中即本地匹配 + 落库 + 回执，
+     * 与语音离线指令同款本地优先策略。
+     */
+    sealed interface ParsedOp {
+        /** 查询任务：keyword 为 null 表示列出全部。 */
+        data class QueryTask(val keyword: String?) : ParsedOp
+        /** 完成（勾选）任务：keyword 为可选标题关键词；null 表示最近的待办。 */
+        data class CompleteTask(val keyword: String?) : ParsedOp
+        /** 删除任务。 */
+        data class DeleteTask(val keyword: String?) : ParsedOp
+        /** 今日待办（任务 + 今日应打卡习惯）。 */
+        data object QueryToday : ParsedOp
+        /** 查询习惯。 */
+        data class QueryHabit(val keyword: String?) : ParsedOp
+        /** 打卡习惯。 */
+        data class CheckinHabit(val keyword: String?) : ParsedOp
+        /** 删除习惯。 */
+        data class DeleteHabit(val keyword: String?) : ParsedOp
+    }
+
+    // 查询任务：宽松匹配，覆盖「我的任务/有哪些任务/任务列表/查任务/看一下任务」等口语。
+    private val QUERY_TASK_TRIGGERS = listOf(
+        "我的任务", "有哪些任务", "任务列表", "查询任务", "查任务",
+        "看一下任务", "看下任务", "看看任务", "任务有", "当前任务", "所有任务",
+    )
+    // 完成（勾选）任务：含「完成/做完/勾了/搞定了」+ 「任务/它/这个」等目标词。
+    private val COMPLETE_TASK_TRIGGERS = listOf("完成任务", "做完任务", "任务完成", "任务做完", "勾掉任务", "勾了任务")
+    private val COMPLETE_HABIT_TRIGGERS = listOf("完成习惯", "做完习惯", "习惯完成")
+    // 删除任务。
+    private val DELETE_TASK_TRIGGERS = listOf("删除任务", "删掉任务", "去掉任务", "移除任务", "清除任务")
+    private val DELETE_HABIT_TRIGGERS = listOf("删除习惯", "删掉习惯", "去掉习惯", "移除习惯", "清除习惯")
+    // 今日待办。
+    private val QUERY_TODAY_TRIGGERS = listOf("今日事情", "今日任务", "今天要做", "今天有什么", "今天的任务", "今天的事", "今日要做", "今日待办")
+    // 查询习惯。
+    private val QUERY_HABIT_TRIGGERS = listOf("我的习惯", "有哪些习惯", "习惯列表", "查询习惯", "查习惯", "看一下习惯")
+    // 打卡习惯：含「打卡/签到」+ 「习惯/它」或带具体名称。
+    private val CHECKIN_HABIT_TRIGGERS = listOf("打卡", "签到", "打了卡", "已打卡", "记录一下")
+
+    /**
+     * 解析任务/习惯 CRUD 操作意图；无法识别返回 null（回落到 LLM）。
+     * 优先级（避免一句口语被判成两个意图）：
+     *  - 今日类 > 删除 > 完成 > 查询（更激进的动词胜出）。
+     *  - 任务与习惯通过触发词表里的「任务」/「习惯」字面区分；
+     *    仅「打卡/签到」无主体时按习惯处理。
+     */
+    fun parseOperation(input: String): ParsedOp? {
+        val text = input.trim()
+        if (text.isEmpty() || text.length > 80) return null
+
+        val keyword = extractKeyword(text)
+
+        // 1) 今日类（最强信号，不依赖后续动词）
+        if (QUERY_TODAY_TRIGGERS.any { text.contains(it) }) return ParsedOp.QueryToday
+
+        // 2) 删除（覆盖习惯 + 任务）
+        if (DELETE_TASK_TRIGGERS.any { text.contains(it) }) return ParsedOp.DeleteTask(keyword)
+        if (DELETE_HABIT_TRIGGERS.any { text.contains(it) }) return ParsedOp.DeleteHabit(keyword)
+
+        // 3) 完成（任务 / 习惯二选一靠触发词字面区分；纯「完成X」模糊时按任务处理）
+        if (COMPLETE_HABIT_TRIGGERS.any { text.contains(it) }) return ParsedOp.CheckinHabit(keyword)
+        if (COMPLETE_TASK_TRIGGERS.any { text.contains(it) }) return ParsedOp.CompleteTask(keyword)
+        // 口语「把 X 任务完成」「X 做完」——无明确触发词但含「任务」字面
+        if (text.contains("任务") && (text.contains("完成") || text.contains("做完") || text.contains("勾了"))) {
+            return ParsedOp.CompleteTask(keyword)
+        }
+        if (text.contains("习惯") && (text.contains("完成") || text.contains("做完"))) {
+            return ParsedOp.CheckinHabit(keyword)
+        }
+
+        // 4) 查询
+        if (QUERY_TASK_TRIGGERS.any { text.contains(it) }) return ParsedOp.QueryTask(keyword)
+        if (QUERY_HABIT_TRIGGERS.any { text.contains(it) }) return ParsedOp.QueryHabit(keyword)
+
+        // 5) 打卡（无「任务」字面时按习惯）
+        if (CHECKIN_HABIT_TRIGGERS.any { text.contains(it) }) return ParsedOp.CheckinHabit(keyword)
+
+        return null
+    }
+
+    /**
+     * 从原句里剥离触发词与时间词，剩余视为目标关键词。
+     * 失败兜底返回 null（调用方按"列出全部"处理）。
+     */
+    private fun extractKeyword(text: String): String? {
+        var k = text
+        val triggers = (QUERY_TASK_TRIGGERS + QUERY_HABIT_TRIGGERS +
+            QUERY_TODAY_TRIGGERS + DELETE_TASK_TRIGGERS + DELETE_HABIT_TRIGGERS +
+            COMPLETE_TASK_TRIGGERS + COMPLETE_HABIT_TRIGGERS + CHECKIN_HABIT_TRIGGERS)
+            .sortedByDescending { it.length }
+        for (t in triggers) k = k.replace(t, " ")
+        // 去掉动作词
+        k = k.replace("帮我", " ").replace("请", " ").replace("把", " ")
+            .replace("一下", " ").replace("那个", " ").replace("这个", " ").replace("刚才", " ")
+            .replace("今天", " ").replace("明天", " ").replace("后天", " ")
+            .replace("任务", " ").replace("习惯", " ").replace("打卡", " ").replace("签到", " ")
+        k = k.replace(RE_WS, " ").trim()
+        return k.ifBlank { null }
+    }
 
     /** 编辑意图（对最近一次创建的任务）。 */
     sealed interface ParsedEdit {

@@ -28,6 +28,8 @@ import com.tickclear.app.domain.model.AppException
 import com.tickclear.app.domain.model.ErrorCode
 import com.tickclear.app.data.local.entities.VoiceHistoryEntity
 import com.tickclear.app.domain.model.Task
+import com.tickclear.app.domain.model.TaskStatus
+import com.tickclear.app.domain.repository.HabitRepository
 import com.tickclear.app.domain.repository.TaskRepository
 import com.tickclear.app.domain.repository.VoiceHistoryRepository
 import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
@@ -39,6 +41,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
 import com.tickclear.app.domain.log.AppLogger
 import java.io.File
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -67,6 +70,7 @@ class AssistantViewModel @Inject constructor(
     private val llmResolver: LlmProviderResolver,
     private val asrResolver: AsrProviderResolver,
     private val taskRepository: TaskRepository,
+    private val habitRepository: HabitRepository,
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val softDeleteTaskUseCase: SoftDeleteTaskUseCase,
     private val applyOfflineCommand: ApplyOfflineCommandUseCase,
@@ -658,6 +662,8 @@ class AssistantViewModel @Inject constructor(
             }
             // V2.18 多轮编辑：若存在「刚创建的任务」且本句是编辑指令，则本地闭环处理，不再送 LLM。
             if (lastCreatedTaskId != null && tryHandleEdit(t)) return@launch
+            // V2.9++ 助手 CRUD：查询/完成/删除/今日——文本路径本地闭环，不依赖服务端 MCP 工具声明。
+            if (TaskIntentParser.parseOperation(t)?.let { handleOperation(it) } == true) return@launch
             val llm = settingsRepository.llmProvider.first()
             if (llm == LlmProviderCatalog.XIAOZHI) {
                 transport.sendText(t)
@@ -863,6 +869,291 @@ class AssistantViewModel @Inject constructor(
                 val conflicts = updateTaskUseCase(updated)
                 val note = if (conflicts.isNotEmpty()) appContext.getString(R.string.assistant_edit_conflict_note) else ""
                 append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_edit_repeat_ok, task.title) + note))
+            }
+        }
+        return true
+    }
+
+    /**
+     * V2.9++ 助手 CRUD 派发（文本路径本地闭环）：
+     * 命中即本地匹配 + 落库 + 回执，不再送 LLM。返回 true 表示已处理。
+     */
+    private suspend fun handleOperation(op: TaskIntentParser.ParsedOp): Boolean {
+        when (op) {
+            is TaskIntentParser.ParsedOp.QueryTask -> return queryTasks(op.keyword)
+            is TaskIntentParser.ParsedOp.CompleteTask -> return completeTaskByKeyword(op.keyword)
+            is TaskIntentParser.ParsedOp.DeleteTask -> return deleteTaskByKeyword(op.keyword)
+            TaskIntentParser.ParsedOp.QueryToday -> return queryToday()
+            is TaskIntentParser.ParsedOp.QueryHabit -> return queryHabits(op.keyword)
+            is TaskIntentParser.ParsedOp.CheckinHabit -> return checkinHabitByKeyword(op.keyword)
+            is TaskIntentParser.ParsedOp.DeleteHabit -> return deleteHabitByKeyword(op.keyword)
+        }
+    }
+
+    // ── 任务 CRUD ──
+
+    /**
+     * 按 [keyword]（null = 全部）模糊匹配活跃任务，列名到聊天。
+     * 返回 true 表示「已本地处理」（含空列表），调用方不应再回 LLM。
+     */
+    private suspend fun queryTasks(keyword: String?): Boolean {
+        val all = taskRepository.observeAll().first().filter { it.deletedAt == null }
+        val matched = matchTasks(all, keyword)
+        val header = appContext.getString(R.string.assistant_op_query_tasks_header)
+        val body = if (matched.isEmpty()) {
+            appContext.getString(R.string.assistant_op_query_tasks_empty)
+        } else {
+            matched.forEachIndexed { i, t ->
+                append(
+                    ChatMessage(
+                        nextId(),
+                        "system",
+                        appContext.getString(
+                            R.string.assistant_op_query_tasks_line,
+                            i + 1,
+                            t.title,
+                        ),
+                    ),
+                )
+            }
+            ""
+        }
+        append(ChatMessage(nextId(), "system", header + body))
+        return true
+    }
+
+    /** 完成（勾选）匹配 [keyword] 的任务；null 时自动选最近一条 PENDING。 */
+    private suspend fun completeTaskByKeyword(keyword: String?): Boolean {
+        val all = taskRepository.observeAll().first().filter { it.deletedAt == null }
+        val candidates = matchTasks(all, keyword)
+            .filter { it.status != TaskStatus.COMPLETED.code }
+            // keyword 为 null 时按时间排序取最近一条 PENDING；显式关键词时按匹配度优先（已由 matchTasks 排序）。
+            .let { if (keyword == null) it.sortedByDescending { it.updatedAt ?: 0L }.take(1) else it }
+        when (candidates.size) {
+            0 -> {
+                val msg = if (keyword == null) appContext.getString(R.string.assistant_op_query_tasks_empty)
+                else appContext.getString(R.string.assistant_op_complete_task_not_found, keyword)
+                append(ChatMessage(nextId(), "system", msg))
+            }
+            1 -> {
+                val t = candidates.first()
+                taskRepository.setStatus(t.id, TaskStatus.COMPLETED, System.currentTimeMillis())
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_complete_task_ok, t.title)))
+            }
+            else -> {
+                // 多匹配：把候选列给用户挑，避免误勾。
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_complete_task_ambiguous, keyword.orEmpty())))
+                candidates.take(5).forEachIndexed { i, t ->
+                    append(
+                        ChatMessage(
+                            nextId(),
+                            "system",
+                            appContext.getString(R.string.assistant_op_query_tasks_line, i + 1, t.title),
+                        ),
+                    )
+                }
+            }
+        }
+        return true
+    }
+
+    /** 软删除匹配 [keyword] 的任务；keyword 为 null 时拒绝（避免误删全部）。 */
+    private suspend fun deleteTaskByKeyword(keyword: String?): Boolean {
+        if (keyword.isNullOrBlank()) {
+            append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_task_not_found, "")))
+            return true
+        }
+        val all = taskRepository.observeAll().first().filter { it.deletedAt == null }
+        val candidates = matchTasks(all, keyword)
+        when (candidates.size) {
+            0 -> append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_task_not_found, keyword)))
+            1 -> {
+                val t = candidates.first()
+                softDeleteTaskUseCase(t.id)
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_task_ok, t.title)))
+            }
+            else -> {
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_task_ambiguous, keyword)))
+                candidates.take(5).forEachIndexed { i, t ->
+                    append(
+                        ChatMessage(
+                            nextId(),
+                            "system",
+                            appContext.getString(R.string.assistant_op_query_tasks_line, i + 1, t.title),
+                        ),
+                    )
+                }
+            }
+        }
+        return true
+    }
+
+    /**
+     * 今日待办：scheduledDate=今日的任务 + 重复任务（DAILY/WEEKLY 且今日应发生）。
+     * 同时列出今日应打卡的习惯（DAILY 全打；WEEKLY 看今日星期是否在 repeatDays）。
+     */
+    private suspend fun queryToday(): Boolean {
+        val today = LocalDate.now()
+        val todayStr = today.toString()
+        val dow = today.dayOfWeek.value // 1..7 (Mon..Sun)
+        val allTasks = taskRepository.observeAll().first().filter { it.deletedAt == null }
+        val todayTasks = allTasks.filter { t ->
+            when {
+                t.scheduledDate == todayStr -> true
+                t.repeatType == "DAILY" -> true
+                t.repeatType == "WEEKLY" -> t.repeatWeekdays?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.contains(dow) == true
+                else -> false
+            }
+        }
+        val allHabits = habitRepository.observeHabits().first()
+        val todayHabits = allHabits.filter { h ->
+            val ds = h.repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() }
+            ds.contains(dow)
+        }
+        val habitCheckedToday = todayHabits.mapNotNull { h ->
+            if (habitRepository.isChecked(h.id, todayStr)) null else h
+        }
+
+        val header = appContext.getString(R.string.assistant_op_today_header)
+        if (todayTasks.isEmpty() && habitCheckedToday.isEmpty()) {
+            append(ChatMessage(nextId(), "system", header + appContext.getString(R.string.assistant_op_today_empty)))
+            return true
+        }
+        append(ChatMessage(nextId(), "system", header))
+        var idx = 0
+        todayTasks.forEach { t ->
+            idx += 1
+            append(
+                ChatMessage(
+                    nextId(),
+                    "system",
+                    appContext.getString(R.string.assistant_op_query_tasks_line, idx, t.title),
+                ),
+            )
+        }
+        habitCheckedToday.forEach { h ->
+            idx += 1
+            append(
+                ChatMessage(
+                    nextId(),
+                    "system",
+                    appContext.getString(R.string.assistant_op_query_tasks_line, idx, h.title),
+                ),
+            )
+        }
+        return true
+    }
+
+    /** 按 [keyword] 子串匹配（大小写不敏感）；keyword 为 null 时按创建/更新时间倒序返回活跃任务。 */
+    private fun matchTasks(all: List<Task>, keyword: String?): List<Task> {
+        val active = all.filter { it.deletedAt == null }
+        return if (keyword.isNullOrBlank()) {
+            active.sortedByDescending { it.updatedAt ?: 0L }
+        } else {
+            active.filter { t -> t.title.contains(keyword, ignoreCase = true) }
+                .sortedBy { t ->
+                    // 标题完全相等最优先；起始位置越靠前越优先；次之标题长度更短。
+                    val exact = t.title.equals(keyword, ignoreCase = true)
+                    when {
+                        exact -> 0
+                        else -> t.title.indexOf(keyword, ignoreCase = true).coerceAtLeast(0) * 100 + t.title.length
+                    }
+                }
+        }
+    }
+
+    // ── 习惯 CRUD ──
+
+    private suspend fun queryHabits(keyword: String?): Boolean {
+        val all = habitRepository.observeHabits().first()
+        val matched = if (keyword.isNullOrBlank()) {
+            all
+        } else {
+            all.filter { it.title.contains(keyword, ignoreCase = true) }
+        }
+        val header = appContext.getString(R.string.assistant_op_query_habits_header)
+        if (matched.isEmpty()) {
+            append(ChatMessage(nextId(), "system", header + appContext.getString(R.string.assistant_op_query_habits_empty)))
+            return true
+        }
+        append(ChatMessage(nextId(), "system", header))
+        matched.forEachIndexed { i, h ->
+            append(
+                ChatMessage(
+                    nextId(),
+                    "system",
+                    appContext.getString(R.string.assistant_op_query_habits_line, i + 1, h.title),
+                ),
+            )
+        }
+        return true
+    }
+
+    private suspend fun checkinHabitByKeyword(keyword: String?): Boolean {
+        val all = habitRepository.observeHabits().first()
+        val today = LocalDate.now().toString()
+        val candidates = if (keyword.isNullOrBlank()) {
+            // 无关键词：自动打卡今日「应打但未打」的第一个习惯（DAILY 全部 + WEEKLY 命中今日）。
+            val dow = LocalDate.now().dayOfWeek.value
+            all.filter { h ->
+                val ds = h.repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() }
+                ds.contains(dow) && !habitRepository.isChecked(h.id, today)
+            }
+        } else {
+            all.filter { it.title.contains(keyword, ignoreCase = true) }
+        }
+        when (candidates.size) {
+            0 -> {
+                val msg = if (keyword.isNullOrBlank()) appContext.getString(R.string.assistant_op_query_habits_empty)
+                else appContext.getString(R.string.assistant_op_checkin_habit_not_found, keyword)
+                append(ChatMessage(nextId(), "system", msg))
+            }
+            1 -> {
+                val h = candidates.first()
+                habitRepository.checkIn(h.id, today)
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_checkin_habit_ok, h.title)))
+            }
+            else -> {
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_checkin_habit_ambiguous, keyword.orEmpty())))
+                candidates.take(5).forEachIndexed { i, h ->
+                    append(
+                        ChatMessage(
+                            nextId(),
+                            "system",
+                            appContext.getString(R.string.assistant_op_query_habits_line, i + 1, h.title),
+                        ),
+                    )
+                }
+            }
+        }
+        return true
+    }
+
+    private suspend fun deleteHabitByKeyword(keyword: String?): Boolean {
+        if (keyword.isNullOrBlank()) {
+            append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_habit_not_found, "")))
+            return true
+        }
+        val all = habitRepository.observeHabits().first()
+        val candidates = all.filter { it.title.contains(keyword, ignoreCase = true) }
+        when (candidates.size) {
+            0 -> append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_habit_not_found, keyword)))
+            1 -> {
+                val h = candidates.first()
+                habitRepository.deleteHabit(h.id)
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_habit_ok, h.title)))
+            }
+            else -> {
+                append(ChatMessage(nextId(), "system", appContext.getString(R.string.assistant_op_delete_habit_ambiguous, keyword)))
+                candidates.take(5).forEachIndexed { i, h ->
+                    append(
+                        ChatMessage(
+                            nextId(),
+                            "system",
+                            appContext.getString(R.string.assistant_op_query_habits_line, i + 1, h.title),
+                        ),
+                    )
+                }
             }
         }
         return true

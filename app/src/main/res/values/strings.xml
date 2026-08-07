@@ -479,6 +479,28 @@
     <string name="xiaozhi_habit_created">已创建习惯：%1$s</string>
     <string name="xiaozhi_habit_desc">创建一个习惯（如每天喝水、读书），支持重复与每日提醒</string>
 
+    <!-- V2.9++ 助手 CRUD：查询/完成/删除/今日（文本路径本地闭环，不依赖服务端 MCP 工具声明） -->
+    <string name="assistant_op_query_tasks_header">你当前的任务：</string>
+    <string name="assistant_op_query_tasks_empty">当前没有任务</string>
+    <string name="assistant_op_query_tasks_line">%1$d. %2$s</string>
+    <string name="assistant_op_complete_task_ok">已完成：%1$s</string>
+    <string name="assistant_op_complete_task_not_found">没找到包含「%1$s」的任务</string>
+    <string name="assistant_op_complete_task_ambiguous">「%1$s」匹配到多个任务，请说更精确的标题</string>
+    <string name="assistant_op_delete_task_ok">已删除任务：%1$s</string>
+    <string name="assistant_op_delete_task_not_found">没找到包含「%1$s」的任务</string>
+    <string name="assistant_op_delete_task_ambiguous">「%1$s」匹配到多个任务，请说更精确的标题</string>
+    <string name="assistant_op_today_header">今天要做：</string>
+    <string name="assistant_op_today_empty">今天没有待办任务</string>
+    <string name="assistant_op_query_habits_header">你的习惯：</string>
+    <string name="assistant_op_query_habits_empty">还没有创建习惯</string>
+    <string name="assistant_op_query_habits_line">%1$d. %2$s</string>
+    <string name="assistant_op_checkin_habit_ok">已打卡：%1$s</string>
+    <string name="assistant_op_checkin_habit_not_found">没找到包含「%1$s」的习惯</string>
+    <string name="assistant_op_checkin_habit_ambiguous">「%1$s」匹配到多个习惯，请说更精确的标题</string>
+    <string name="assistant_op_delete_habit_ok">已删除习惯：%1$s</string>
+    <string name="assistant_op_delete_habit_not_found">没找到包含「%1$s」的习惯</string>
+    <string name="assistant_op_delete_habit_ambiguous">「%1$s」匹配到多个习惯，请说更精确的标题</string>
+
     <!-- 习惯默认标题（语音/助手建习惯缺标题时兜底） -->
     <string name="habit_default_title">新习惯</string>
 
