@@ -27,12 +27,12 @@ object QrGenerator {
      * 将文本编码为二维码 Bitmap（黑模块 / 白底）。内容为空返回 null。
      * [sizePx] 为目标像素边长；建议 ≥ 512 以保证扫码识别率。
      */
-    fun generate(content: String, sizePx: Int): Bitmap? {
+    fun generate(content: String, sizePx: Int, ecLevel: ErrorCorrectionLevel = ErrorCorrectionLevel.M): Bitmap? {
         if (content.isBlank()) return null
         return try {
             val hints = mapOf<EncodeHintType, Any>(
                 EncodeHintType.CHARACTER_SET to "UTF-8",
-                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
+                EncodeHintType.ERROR_CORRECTION to ecLevel,
                 EncodeHintType.MARGIN to 2,
             )
             val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)

@@ -736,6 +736,11 @@
     <string name="qr_image_desc">二维码图片</string>
     <string name="qr_long_press_save">长按二维码保存图片</string>
     <string name="qr_empty_hint">输入内容后自动生成二维码</string>
+    <string name="qr_ec_level_label">纠错级别</string>
+    <string name="qr_ec_l">L</string>
+    <string name="qr_ec_m">M</string>
+    <string name="qr_ec_q">Q</string>
+    <string name="qr_ec_h">H</string>
     <string name="qr_save_success">已保存到相册</string>
     <string name="qr_save_fail">保存失败，请重试</string>
     <string name="qr_scan_pick">选择图片</string>

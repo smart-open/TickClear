@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.BarcodeTool
 import com.tickclear.app.domain.tools.ImageMasker
@@ -185,6 +186,7 @@ private fun GenerateSection(
     var cName by remember { mutableStateOf("") }
     var cPhone by remember { mutableStateOf("") }
     var cEmail by remember { mutableStateOf("") }
+    var ecLevel by remember { mutableStateOf(ErrorCorrectionLevel.M) }
 
     val content: String = remember(type, text, url, cName, cPhone, cEmail) {
         when (type) {
@@ -201,7 +203,7 @@ private fun GenerateSection(
         }
     }
 
-    val bitmap = remember(content) { QrGenerator.generate(content, QR_SIZE_PX) }
+    val bitmap = remember(content, ecLevel) { QrGenerator.generate(content, QR_SIZE_PX, ecLevel) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -235,6 +237,30 @@ private fun GenerateSection(
                     onClick = { type = QrType.CONTACT },
                     label = { Text(stringResource(R.string.qr_type_contact)) },
                 )
+            }
+
+            Text(
+                stringResource(R.string.qr_ec_level_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                listOf(
+                    ErrorCorrectionLevel.L to R.string.qr_ec_l,
+                    ErrorCorrectionLevel.M to R.string.qr_ec_m,
+                    ErrorCorrectionLevel.Q to R.string.qr_ec_q,
+                    ErrorCorrectionLevel.H to R.string.qr_ec_h,
+                ).forEach { (lvl, labelRes) ->
+                    FilterChip(
+                        selected = ecLevel == lvl,
+                        onClick = { ecLevel = lvl },
+                        label = { Text(stringResource(labelRes)) },
+                    )
+                }
             }
 
             when (type) {
