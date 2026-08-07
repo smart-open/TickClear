@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -72,6 +73,7 @@ private const val DECAY_INTERVAL_SEC = 6f
 @Composable
 fun PetScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val reduceMotion = remember { isMotionReduced(context) }
 
     var kind by remember { mutableStateOf(PetKind.FISH) }
     var stats by remember {
@@ -154,10 +156,12 @@ fun PetScreen(onBack: () -> Unit) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.05f)
             last = now
-            phase += dt
-            blink -= dt
-            if (blink < -3f) blink = 0.18f
-            if (toyTimer > 0f) toyTimer = (toyTimer - dt).coerceAtLeast(0f)
+            if (!reduceMotion) {
+                phase += dt
+                blink -= dt
+                if (blink < -3f) blink = 0.18f
+                if (toyTimer > 0f) toyTimer = (toyTimer - dt).coerceAtLeast(0f)
+            }
 
             // 饱食度/快乐值原先只增不减，几下就顶到 100 再也不动，喂食与互动随即失去意义。
             // 这里按真实时间缓慢衰减，让照顾宠物变成持续行为。
@@ -373,22 +377,40 @@ private fun DrawScope.drawFishTank(
 ) {
     val w = size.width
     val h = size.height
-    drawRect(color = Color(0xFF1E88E5).copy(alpha = 0.18f), topLeft = Offset(0f, 0f), size = Size(w, h))
-    drawRect(color = Color(0xFF1E88E5).copy(alpha = 0.10f), topLeft = Offset(0f, h * 0.7f), size = Size(w, h * 0.3f))
+    // 水体：竖直渐变（上浅下深）替代平涂，立刻有空间纵深
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF4FC3F7).copy(alpha = 0.20f), Color(0xFF1565C0).copy(alpha = 0.30f)),
+        ),
+        topLeft = Offset(0f, 0f),
+        size = Size(w, h),
+    )
+    // 底部沙床柔光带
+    drawOval(
+        color = Color(0xFFFBC02D).copy(alpha = 0.16f),
+        topLeft = Offset(w * 0.2f, h * 0.86f),
+        size = Size(w * 0.6f, h * 0.12f),
+    )
     for (f in fishes) {
         val cx = f.x * w
         val cy = f.y * h + sin(f.bob) * 6f
         val len = w * 0.10f
-        val col = simColor(f.hue, 0.9f)
-        drawOval(color = col, topLeft = Offset(cx - len / 2, cy - len * 0.35f), size = Size(len, len * 0.7f))
+        val col = simColor(f.hue, 1f)
+        // 尾鳍（先画，根部被身体压住）
         val tail = Path().apply {
-            moveTo(cx - len / 2, cy)
-            lineTo(cx - len / 2 - len * 0.35f, cy - len * 0.28f)
-            lineTo(cx - len / 2 - len * 0.35f, cy + len * 0.28f)
+            moveTo(cx - len * 0.5f, cy)
+            lineTo(cx - len * 0.95f, cy - len * 0.32f)
+            lineTo(cx - len * 0.95f, cy + len * 0.32f)
             close()
         }
-        drawPath(tail, col)
-        drawCircle(color = onSurface, radius = len * 0.06f, center = Offset(cx + len * 0.28f, cy - len * 0.05f))
+        fillPath3D(tail, col)
+        // 身体：受光椭球
+        fillOvoid(Offset(cx - len / 2f, cy - len * 0.35f), Size(len, len * 0.7f), col)
+        // 表面光泽
+        drawGloss(Offset(cx - len * 0.12f, cy - len * 0.18f), len * 0.18f, len * 0.10f, 0.55f)
+        // 眼睛（白底 + 黑瞳）
+        drawCircle(color = Color.White, radius = len * 0.10f, center = Offset(cx + len * 0.28f, cy - len * 0.06f))
+        drawCircle(color = Color(0xFF212121), radius = len * 0.05f, center = Offset(cx + len * 0.30f, cy - len * 0.06f))
     }
     for (p in food) {
         drawCircle(color = Color(0xFFFBC02D), radius = 5f, center = Offset(p.x * w, p.y * h))
@@ -402,21 +424,30 @@ private fun DrawScope.drawDog(phase: Float, particles: List<SimParticle>, primar
     val cx = w / 2f
     val cy = h * 0.55f
     val bodyR = w * 0.16f
-    val wag = sin(phase * 6f) * 0.3f
-    drawCircle(color = primary.copy(alpha = 0.85f), radius = bodyR, center = Offset(cx, cy + bodyR * 0.4f))
-    drawCircle(color = primary.copy(alpha = 0.95f), radius = bodyR * 0.8f, center = Offset(cx, cy - bodyR * 0.5f))
-    drawCircle(color = primary, radius = bodyR * 0.3f, center = Offset(cx - bodyR * 0.7f, cy - bodyR * 0.95f))
-    drawCircle(color = primary, radius = bodyR * 0.3f, center = Offset(cx + bodyR * 0.7f, cy - bodyR * 0.95f))
-    drawCircle(color = onSurface, radius = bodyR * 0.09f, center = Offset(cx - bodyR * 0.28f, cy - bodyR * 0.55f))
-    drawCircle(color = onSurface, radius = bodyR * 0.09f, center = Offset(cx + bodyR * 0.28f, cy - bodyR * 0.55f))
-    drawCircle(color = Color(0xFF3E2723), radius = bodyR * 0.12f, center = Offset(cx, cy - bodyR * 0.35f))
+    val wag = sin(phase * 6f) * 0.35f
+    drawContactShadow(Offset(cx, cy + bodyR * 1.25f), bodyR * 1.1f, bodyR * 0.35f)
+    // 尾巴（先画，根部被身体压住）
     val tail = Path().apply {
         moveTo(cx + bodyR * 0.9f, cy + bodyR * 0.4f)
-        lineTo(cx + bodyR * 1.5f, cy + bodyR * 0.4f + wag * bodyR)
-        lineTo(cx + bodyR * 0.9f, cy + bodyR * 0.7f)
+        lineTo(cx + bodyR * 1.6f, cy + bodyR * 0.4f + wag * bodyR)
+        lineTo(cx + bodyR * 0.9f, cy + bodyR * 0.75f)
         close()
     }
-    drawPath(tail, primary.copy(alpha = 0.85f))
+    fillPath3D(tail, primary)
+    // 身体 + 头：受光球面
+    fillSphere(Offset(cx, cy + bodyR * 0.4f), bodyR, primary)
+    fillSphere(Offset(cx, cy - bodyR * 0.55f), bodyR * 0.8f, primary)
+    // 耳朵
+    fillSphere(Offset(cx - bodyR * 0.7f, cy - bodyR * 1.0f), bodyR * 0.32f, primary.darken(0.15f))
+    fillSphere(Offset(cx + bodyR * 0.7f, cy - bodyR * 1.0f), bodyR * 0.32f, primary.darken(0.15f))
+    // 口鼻
+    fillOvoid(Offset(cx - bodyR * 0.05f, cy - bodyR * 0.35f), Size(bodyR * 0.6f, bodyR * 0.45f), primary.lighten(0.25f))
+    // 眼睛
+    drawCircle(color = onSurface, radius = bodyR * 0.10f, center = Offset(cx - bodyR * 0.28f, cy - bodyR * 0.55f))
+    drawCircle(color = onSurface, radius = bodyR * 0.10f, center = Offset(cx + bodyR * 0.28f, cy - bodyR * 0.55f))
+    // 鼻子 + 高光
+    drawCircle(color = Color(0xFF3E2723), radius = bodyR * 0.13f, center = Offset(cx, cy - bodyR * 0.33f))
+    drawGloss(Offset(cx - bodyR * 0.04f, cy - bodyR * 0.38f), bodyR * 0.05f, bodyR * 0.03f, 0.7f)
     drawParticles(particles, w, h)
 }
 
@@ -427,12 +458,30 @@ private fun DrawScope.drawPig(phase: Float, particles: List<SimParticle>, primar
     val cy = h * 0.52f
     val r = w * 0.17f
     val sway = sin(phase * 4f) * (w * 0.01f)
-    drawCircle(color = Color(0xFFF48FB1), radius = r, center = Offset(cx + sway, cy))
-    drawCircle(color = Color(0xFFF06292), radius = r * 0.3f, center = Offset(cx - r * 0.6f + sway, cy - r * 0.8f))
-    drawCircle(color = Color(0xFFF06292), radius = r * 0.3f, center = Offset(cx + r * 0.6f + sway, cy - r * 0.8f))
-    drawOval(color = Color(0xFFEC407A), topLeft = Offset(cx - r * 0.4f + sway, cy - r * 0.05f), size = Size(r * 0.8f, r * 0.5f))
+    val base = Color(0xFFF48FB1)
+    drawContactShadow(Offset(cx + sway, cy + r * 1.15f), r * 1.1f, r * 0.32f)
+    // 耳朵
+    val earL = Path().apply {
+        moveTo(cx - r * 0.7f + sway, cy - r * 0.7f)
+        lineTo(cx - r * 0.3f + sway, cy - r * 1.15f)
+        lineTo(cx - r * 0.1f + sway, cy - r * 0.7f)
+        close()
+    }
+    val earR = Path().apply {
+        moveTo(cx + r * 0.7f + sway, cy - r * 0.7f)
+        lineTo(cx + r * 0.3f + sway, cy - r * 1.15f)
+        lineTo(cx + r * 0.1f + sway, cy - r * 0.7f)
+        close()
+    }
+    fillPath3D(earL, base.darken(0.1f))
+    fillPath3D(earR, base.darken(0.1f))
+    // 头：受光球面
+    fillSphere(Offset(cx + sway, cy), r, base)
+    // 口鼻
+    fillOvoid(Offset(cx - r * 0.4f + sway, cy - r * 0.05f), Size(r * 0.8f, r * 0.5f), Color(0xFFEC407A))
     drawCircle(color = Color(0xFFAD1457), radius = r * 0.07f, center = Offset(cx - r * 0.18f + sway, cy + r * 0.15f))
     drawCircle(color = Color(0xFFAD1457), radius = r * 0.07f, center = Offset(cx + r * 0.18f + sway, cy + r * 0.15f))
+    // 眼睛
     drawCircle(color = onSurface, radius = r * 0.08f, center = Offset(cx - r * 0.32f + sway, cy - r * 0.35f))
     drawCircle(color = onSurface, radius = r * 0.08f, center = Offset(cx + r * 0.32f + sway, cy - r * 0.35f))
     drawParticles(particles, w, h)
@@ -445,33 +494,41 @@ private fun DrawScope.drawCat(phase: Float, blink: Float, toyTimer: Float, parti
     val cy = h * 0.52f
     val r = w * 0.16f
     val pounce = if (toyTimer > 0f) sin(phase * 12f) * (w * 0.02f) else 0f
-    drawCircle(color = Color(0xFFBDBDBD), radius = r * 0.95f, center = Offset(cx, cy + r * 0.55f))
-    drawCircle(color = Color(0xFFE0E0E0), radius = r * 0.8f, center = Offset(cx, cy - r * 0.4f + pounce))
+    val base = Color(0xFFBDBDBD)
+    drawContactShadow(Offset(cx, cy + r * 1.15f), r * 1.1f, r * 0.32f)
+    // 耳朵
     val earL = Path().apply {
         moveTo(cx - r * 0.7f, cy - r * 0.7f + pounce)
-        lineTo(cx - r * 0.3f, cy - r * 1.1f + pounce)
+        lineTo(cx - r * 0.3f, cy - r * 1.15f + pounce)
         lineTo(cx - r * 0.1f, cy - r * 0.7f + pounce)
         close()
     }
     val earR = Path().apply {
         moveTo(cx + r * 0.7f, cy - r * 0.7f + pounce)
-        lineTo(cx + r * 0.3f, cy - r * 1.1f + pounce)
+        lineTo(cx + r * 0.3f, cy - r * 1.15f + pounce)
         lineTo(cx + r * 0.1f, cy - r * 0.7f + pounce)
         close()
     }
-    drawPath(earL, Color(0xFFBDBDBD))
-    drawPath(earR, Color(0xFFBDBDBD))
+    fillPath3D(earL, base.darken(0.05f))
+    fillPath3D(earR, base.darken(0.05f))
+    // 身体 + 头：受光球面
+    fillSphere(Offset(cx, cy + r * 0.55f), r * 0.95f, Color(0xFF9E9E9E))
+    fillSphere(Offset(cx, cy - r * 0.4f + pounce), r * 0.8f, base)
+    // 眼睛（眨眼）
     val eyeH = if (blink > 0f) r * 0.04f else r * 0.16f
-    drawOval(color = onSurface, topLeft = Offset(cx - r * 0.42f, cy - r * 0.5f + pounce - eyeH / 2), size = Size(r * 0.16f, eyeH))
-    drawOval(color = onSurface, topLeft = Offset(cx + r * 0.26f, cy - r * 0.5f + pounce - eyeH / 2), size = Size(r * 0.16f, eyeH))
+    drawOval(color = Color(0xFF2E7D32), topLeft = Offset(cx - r * 0.46f, cy - r * 0.5f + pounce - eyeH / 2), size = Size(r * 0.18f, eyeH))
+    drawOval(color = Color(0xFF2E7D32), topLeft = Offset(cx + r * 0.28f, cy - r * 0.5f + pounce - eyeH / 2), size = Size(r * 0.18f, eyeH))
+    // 鼻子
     drawCircle(color = Color(0xFFF06292), radius = r * 0.1f, center = Offset(cx, cy - r * 0.28f + pounce))
-    drawLine(color = onSurface.copy(alpha = 0.5f), start = Offset(cx - r * 0.15f, cy - r * 0.25f + pounce), end = Offset(cx - r * 0.7f, cy - r * 0.2f + pounce), strokeWidth = 1.5f)
-    drawLine(color = onSurface.copy(alpha = 0.5f), start = Offset(cx + r * 0.15f, cy - r * 0.25f + pounce), end = Offset(cx + r * 0.7f, cy - r * 0.2f + pounce), strokeWidth = 1.5f)
+    // 胡须
+    drawLine(color = onSurface.copy(alpha = 0.5f), start = Offset(cx - r * 0.15f, cy - r * 0.25f + pounce), end = Offset(cx - r * 0.75f, cy - r * 0.2f + pounce), strokeWidth = 1.5f)
+    drawLine(color = onSurface.copy(alpha = 0.5f), start = Offset(cx + r * 0.15f, cy - r * 0.25f + pounce), end = Offset(cx + r * 0.75f, cy - r * 0.2f + pounce), strokeWidth = 1.5f)
+    // 逗猫棒
     if (toyTimer > 0f) {
         val tx = cx + r * 1.4f
         val ty = cy - r * 0.9f + sin(phase * 8f) * r * 0.2f
         drawLine(color = primary, start = Offset(cx + r * 0.8f, cy - r * 0.4f), end = Offset(tx, ty), strokeWidth = 2f)
-        drawCircle(color = simColor(50f, 0.9f), radius = r * 0.14f, center = Offset(tx, ty))
+        fillSphere(Offset(tx, ty), r * 0.14f, simColor(50f, 1f))
     }
     drawParticles(particles, w, h)
 }

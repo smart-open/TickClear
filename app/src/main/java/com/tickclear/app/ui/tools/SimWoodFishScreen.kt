@@ -32,9 +32,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -133,44 +135,67 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
                     val h = size.height
                     val cx = w / 2f
                     val cy = h / 2f
-                    val s = 1f - punch * 0.05f
-                    val bodyW = w * 0.56f * s
-                    val bodyH = h * 0.34f * s
+                    // 敲击挤压：横向压扁 + 轻微下沉，弹簧回弹由 punch 衰减驱动
+                    val sx = 1f - punch * 0.06f
+                    val sy = 1f + punch * 0.05f
+                    val bodyW = w * 0.56f * sx
+                    val bodyH = h * 0.34f * sy
+                    val bodyX = cx - bodyW / 2f
+                    val bodyY = cy - bodyH / 2f + punch * bodyH * 0.04f
 
-                    drawOval(
-                        color = Color(0xFFB5835A),
-                        topLeft = Offset(cx - bodyW / 2f, cy - bodyH / 2f),
+                    // 接触投影
+                    drawContactShadow(Offset(cx, cy + bodyH * 0.62f), bodyW * 0.5f, bodyH * 0.22f)
+
+                    // 木鱼主体：受光圆角矩形（木质暖棕渐变）
+                    fillRoundRect3D(
+                        topLeft = Offset(bodyX, bodyY),
                         size = Size(bodyW, bodyH),
+                        cornerRadius = bodyH * 0.5f,
+                        base = Color(0xFFB5835A),
                     )
-                    drawOval(
-                        color = Color(0xFFA9744C),
-                        topLeft = Offset(cx - bodyW / 2f - bodyW * 0.12f, cy - bodyH * 0.32f),
-                        size = Size(bodyW * 0.34f, bodyH * 0.64f),
+                    // 左侧圆头鼓包
+                    fillSphere(
+                        Offset(bodyX - bodyW * 0.10f, bodyY + bodyH * 0.5f),
+                        bodyH * 0.42f,
+                        Color(0xFFA9744C),
                     )
-                    drawOval(
-                        color = Color(0xFFD8B48C),
-                        topLeft = Offset(cx - bodyW * 0.18f, cy - bodyH * 0.30f),
-                        size = Size(bodyW * 0.36f, bodyH * 0.18f),
+                    // 顶部高光带
+                    drawGloss(
+                        Offset(bodyX + bodyW * 0.30f, bodyY + bodyH * 0.20f),
+                        bodyW * 0.22f, bodyH * 0.10f, 0.45f,
                     )
-                    drawLine(
-                        color = Color(0xFF5A3A22),
-                        start = Offset(cx - bodyW * 0.30f, cy + bodyH * 0.10f),
-                        end = Offset(cx + bodyW * 0.10f, cy + bodyH * 0.14f),
-                        strokeWidth = 4f,
-                    )
-                    drawOval(
+                    // 雕刻开口（鱼嘴槽）：深色圆角矩形 + 内壁暗影
+                    val slotW = bodyW * 0.34f
+                    val slotH = bodyH * 0.16f
+                    val slotX = bodyX + bodyW * 0.04f
+                    val slotY = bodyY + bodyH * 0.40f
+                    drawRoundRect(
                         color = Color(0xFF3A2414),
-                        topLeft = Offset(cx - bodyW * 0.26f, cy - bodyH * 0.18f),
-                        size = Size(bodyH * 0.10f, bodyH * 0.10f),
+                        topLeft = Offset(slotX, slotY),
+                        size = Size(slotW, slotH),
+                        cornerRadius = CornerRadius(slotH / 2f, slotH / 2f),
+                    )
+                    drawRoundRect(
+                        color = Color(0xFF5A3A22).copy(alpha = 0.6f),
+                        topLeft = Offset(slotX, slotY + slotH * 0.5f),
+                        size = Size(slotW, slotH * 0.5f),
+                        cornerRadius = CornerRadius(slotH / 2f, slotH / 2f),
+                    )
+                    // 小眼点
+                    drawCircle(
+                        color = Color(0xFF3A2414),
+                        radius = bodyH * 0.05f,
+                        center = Offset(bodyX + bodyW * 0.20f, bodyY + bodyH * 0.30f),
                     )
 
+                    // 敲击涟漪（复用 SimParticle ring）
                     for (pt in particles) {
                         val a = (pt.life / pt.maxLife).coerceIn(0f, 1f)
                         drawOval(
                             color = simColor(pt.hue, a * 0.8f),
                             topLeft = Offset(pt.x * w - pt.radius, pt.y * h - pt.radius),
                             size = Size(pt.radius * 2, pt.radius * 2),
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f * a + 1f),
+                            style = Stroke(width = 3f * a + 1f),
                         )
                     }
                 }
