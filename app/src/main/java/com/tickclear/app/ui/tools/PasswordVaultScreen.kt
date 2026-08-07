@@ -55,7 +55,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -197,6 +202,16 @@ private fun SetupForm(viewModel: VaultViewModel, error: String?) {
     var confirm by remember { mutableStateOf("") }
     var question by remember { mutableStateOf("") }
     var answer by remember { mutableStateOf("") }
+    val shake = remember { Animatable(0f) }
+    LaunchedEffect(error) {
+        if (error != null) {
+            repeat(3) {
+                shake.animateTo(10f, tween(45))
+                shake.animateTo(-10f, tween(45))
+            }
+            shake.animateTo(0f, tween(45))
+        }
+    }
 
     FormContainer {
         Text(stringResource(R.string.vault_setup_title), style = MaterialTheme.typography.titleLarge)
@@ -209,14 +224,27 @@ private fun SetupForm(viewModel: VaultViewModel, error: String?) {
         if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         Button(
             onClick = { viewModel.setup(pass, confirm, question, answer) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.vault_set)) }
+            modifier = Modifier.fillMaxWidth().offset { IntOffset(shake.value.roundToInt(), 0) },
+        ) {
+            Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+            Text(stringResource(R.string.vault_set))
+        }
     }
 }
 
 @Composable
 private fun UnlockForm(viewModel: VaultViewModel, error: String?, onForgot: () -> Unit) {
     var pass by remember { mutableStateOf("") }
+    val shake = remember { Animatable(0f) }
+    LaunchedEffect(error) {
+        if (error != null) {
+            repeat(3) {
+                shake.animateTo(10f, tween(45))
+                shake.animateTo(-10f, tween(45))
+            }
+            shake.animateTo(0f, tween(45))
+        }
+    }
     FormContainer {
         Text(stringResource(R.string.vault_locked), style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(Spacing.xs))
@@ -224,8 +252,11 @@ private fun UnlockForm(viewModel: VaultViewModel, error: String?, onForgot: () -
         if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         Button(
             onClick = { viewModel.unlock(pass) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.vault_unlock)) }
+            modifier = Modifier.fillMaxWidth().offset { IntOffset(shake.value.roundToInt(), 0) },
+        ) {
+            Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+            Text(stringResource(R.string.vault_unlock))
+        }
         TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text(stringResource(R.string.vault_forgot))
         }
@@ -263,7 +294,10 @@ private fun RecoveryNewPassForm(viewModel: VaultViewModel, error: String?) {
         Button(
             onClick = { showConfirm = true },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.vault_set)) }
+        ) {
+            Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+            Text(stringResource(R.string.vault_set))
+        }
     }
     if (showConfirm) {
         AlertDialog(

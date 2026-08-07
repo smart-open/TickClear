@@ -31,8 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -265,7 +263,7 @@ private fun AngleCard(
     }
 }
 
-/** 圆形气泡盘：渐变底 + 刻度环 + 十字虚线 + 带高光的气泡。 */
+/** 圆形气泡盘：3D 金属外圈 + 渐变底盘 + 刻度环 + 十字虚线 + 受光气泡。 */
 private fun DrawScope.drawBubbleDial(
     gx: Float,
     gy: Float,
@@ -293,11 +291,18 @@ private fun DrawScope.drawBubbleDial(
         radius = radius,
         center = center,
     )
+    // 金属外圈环带：高光边 + 暗色内环，模拟仪表盘圆柱受光
     drawCircle(
-        color = onSurface.copy(alpha = 0.14f),
-        radius = radius,
+        color = onSurface.copy(alpha = 0.22f),
+        radius = radius * 0.985f,
         center = center,
         style = Stroke(width = 1.5.dp.toPx()),
+    )
+    drawCircle(
+        color = onSurface.copy(alpha = 0.10f),
+        radius = radius * 0.93f,
+        center = center,
+        style = Stroke(width = radius * 0.05f),
     )
 
     // 30° 一根的边缘刻度
@@ -332,7 +337,10 @@ private fun DrawScope.drawBubbleDial(
         pathEffect = dash,
     )
 
-    // 中央容差环：气泡完全落入即视为水平
+    // 中央容差环：气泡完全落入即视为水平；达标时加外发光
+    if (isLevel) {
+        drawCircle(color = okColor.copy(alpha = 0.16f), radius = bubbleR * 2.1f, center = center)
+    }
     drawCircle(
         color = if (isLevel) okColor else onSurface.copy(alpha = 0.28f),
         radius = bubbleR * 1.45f,
@@ -340,23 +348,17 @@ private fun DrawScope.drawBubbleDial(
         style = Stroke(width = if (isLevel) 2.5.dp.toPx() else 1.5.dp.toPx()),
     )
 
-    // 气泡：偏移与重力分量反向（倾斜时气泡浮向高处）
+    // 气泡：偏移与重力分量反向（倾斜时气泡浮向高处）；用受光球体提升体积感
     val travel = radius - bubbleR * 1.2f
     val k = travel / 6f
     val offX = (gx * -k).coerceIn(-travel, travel)
     val offY = (gy * -k).coerceIn(-travel, travel)
     val bubbleCenter = Offset(cx + offX, cy + offY)
     drawCircle(color = bubbleColor.copy(alpha = 0.18f), radius = bubbleR * 1.6f, center = bubbleCenter)
-    drawCircle(color = bubbleColor, radius = bubbleR, center = bubbleCenter)
-    // 左上角高光，让气泡像有体积的液滴
-    drawCircle(
-        color = Color.White.copy(alpha = 0.45f),
-        radius = bubbleR * 0.3f,
-        center = Offset(bubbleCenter.x - bubbleR * 0.35f, bubbleCenter.y - bubbleR * 0.35f),
-    )
+    fillSphere(center = bubbleCenter, radius = bubbleR, base = bubbleColor)
 }
 
-/** 横向气泡管：贴墙找水平用，气泡按左右倾角在管内移动。 */
+/** 横向气泡管：贴墙找水平用，管体受光 + 气泡按左右倾角在管内移动。 */
 private fun DrawScope.drawTubeLevel(
     angleDeg: Float,
     isLevel: Boolean,
@@ -371,17 +373,14 @@ private fun DrawScope.drawTubeLevel(
     val top = (h - tubeH) / 2f
     val corner = tubeH / 2f
     val color = if (isLevel) okColor else accentColor
+    val tubeSize = Size(w, tubeH)
 
-    drawRoundRect(
-        color = surfaceVariant.copy(alpha = 0.75f),
-        topLeft = Offset(0f, top),
-        size = Size(w, tubeH),
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
-    )
+    // 管体受光（圆角矩形圆柱感）
+    fillRoundRect3D(topLeft = Offset(0f, top), size = tubeSize, cornerRadius = corner, base = surfaceVariant)
     drawRoundRect(
         color = onSurface.copy(alpha = 0.14f),
         topLeft = Offset(0f, top),
-        size = Size(w, tubeH),
+        size = tubeSize,
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
         style = Stroke(width = 1.dp.toPx()),
     )
@@ -403,10 +402,5 @@ private fun DrawScope.drawTubeLevel(
     val offX = (angleDeg / 15f * travel).coerceIn(-travel, travel)
     val center = Offset(w / 2f + offX, top + tubeH / 2f)
     drawCircle(color = color.copy(alpha = 0.18f), radius = bubbleR * 1.4f, center = center)
-    drawCircle(color = color, radius = bubbleR, center = center)
-    drawCircle(
-        color = Color.White.copy(alpha = 0.45f),
-        radius = bubbleR * 0.3f,
-        center = Offset(center.x - bubbleR * 0.33f, center.y - bubbleR * 0.33f),
-    )
+    fillSphere(center = center, radius = bubbleR, base = color)
 }

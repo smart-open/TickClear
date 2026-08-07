@@ -38,9 +38,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -311,6 +318,17 @@ private fun StatusCard(
     label: String,
     inUse: Boolean,
 ) {
+    val context = LocalContext.current
+    val motionReduced = remember { isMotionReduced(context) }
+    val infinite = rememberInfiniteTransition(label = "camStatusPulse")
+    val pulse by infinite.animateFloat(
+        0.35f, 1f,
+        infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "pulse",
+    )
+    // 被调用时红色脉冲（呼吸光圈）；减少动态下冻结为常亮，避免晕动
+    val glow = if (inUse) (if (motionReduced) 0.6f else pulse) else 0f
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -327,6 +345,31 @@ private fun StatusCard(
                 .padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // 状态指示灯：inUse 时红色呼吸脉冲，强化"正在被访问"的警觉反馈
+            Box(
+                modifier = Modifier.size(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (glow > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(
+                                MaterialTheme.colorScheme.error.copy(alpha = glow * 0.45f),
+                                CircleShape,
+                            ),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            if (inUse) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            CircleShape,
+                        ),
+                )
+            }
+            Spacer(Modifier.size(Spacing.sm))
             Icon(
                 icon,
                 contentDescription = null,
