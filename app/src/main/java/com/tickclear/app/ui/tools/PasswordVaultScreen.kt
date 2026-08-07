@@ -76,6 +76,13 @@ import com.tickclear.app.domain.model.VaultEntry
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.biometric.BiometricPrompt
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.OutlinedButton
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import com.tickclear.app.data.VaultBioCrypto
+import com.tickclear.app.domain.log.AppLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +99,8 @@ fun PasswordVaultScreen(
     val recoveryError by viewModel.recoveryError.collectAsStateWithLifecycle()
     val recoveryQuestion by viewModel.recoveryQuestion.collectAsStateWithLifecycle()
     val justSetup by viewModel.justSetup.collectAsStateWithLifecycle()
+    val bioHardware by viewModel.bioHardware.collectAsStateWithLifecycle()
+    val bioBound by viewModel.bioBound.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -119,6 +128,76 @@ fun PasswordVaultScreen(
         }
         cm.setPrimaryClip(clip)
         scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.vault_copied)) }
+    }
+
+    // ---------------- 生物识别快速解锁 ----------------
+    // BiometricPrompt 需要 FragmentActivity 承载；MainActivity 已改为 AppCompatActivity（FragmentActivity 子类）。
+    val activity = context as? FragmentActivity
+    val executor = ContextCompat.getMainExecutor(context)
+    var bioOp by remember { mutableStateOf(BioOp.NONE) }
+    val bioPrompt = remember(activity) {
+        activity?.let {
+            BiometricPrompt(
+                it,
+                executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        val cipher = result.cryptoObject?.cipher ?: return
+                        when (bioOp) {
+                            BioOp.UNLOCK -> {
+                                val key = VaultBioCrypto.unwrap(context, cipher)
+                                viewModel.unlockWithBio(key)
+                            }
+                            BioOp.BIND -> viewModel.bindBio(context, cipher)
+                            BioOp.NONE -> {}
+                        }
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        // 用户取消或负按钮：停留在当前页，无需处理。
+                    }
+
+                    override fun onAuthenticationFailed() {
+                        // 指纹/面容不匹配：系统弹窗会自动重试，无需处理。
+                    }
+                },
+            )
+        }
+    }
+    val bioSupported = bioPrompt != null
+
+    fun launchBioUnlock() {
+        val prompt = bioPrompt ?: return
+        bioOp = BioOp.UNLOCK
+        try {
+            val cipher = VaultBioCrypto.prepareDecryptCipher(context)
+            prompt.authenticate(
+                BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(context.getString(R.string.vault_bio_unlock_title))
+                    .setSubtitle(context.getString(R.string.vault_bio_unlock_subtitle))
+                    .setNegativeButtonText(context.getString(R.string.vault_bio_neg))
+                    .build(),
+                BiometricPrompt.CryptoObject(cipher),
+            )
+        } catch (e: Exception) {
+            // 密钥失效（生物识别登记变更等）：清理封装并提示重新绑定。
+            AppLogger.e("Vault", "bio prepare decrypt failed", e)
+            viewModel.unbindBio(context)
+        }
+    }
+
+    fun launchBioBind() {
+        val prompt = bioPrompt ?: return
+        bioOp = BioOp.BIND
+        val cipher = VaultBioCrypto.prepareEncryptCipher()
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(context.getString(R.string.vault_bio_bind_title))
+                .setSubtitle(context.getString(R.string.vault_bio_bind_subtitle))
+                .setNegativeButtonText(context.getString(R.string.vault_bio_neg))
+                .build(),
+            BiometricPrompt.CryptoObject(cipher),
+        )
     }
 
     Scaffold(
@@ -149,7 +228,13 @@ fun PasswordVaultScreen(
         ) {
             when (mode) {
                 VaultMode.SETUP -> SetupForm(viewModel, setupError)
-                VaultMode.UNLOCK -> UnlockForm(viewModel, unlockError, onForgot = { viewModel.startRecovery() })
+                VaultMode.UNLOCK -> UnlockForm(
+                    viewModel,
+                    unlockError,
+                    onForgot = { viewModel.startRecovery() },
+                    bioEnabled = bioBound && bioSupported,
+                    onBioUnlock = ::launchBioUnlock,
+                )
                 VaultMode.RECOVERY -> RecoveryForm(viewModel, recoveryQuestion, recoveryError)
                 VaultMode.RECOVERY_NEWPASS -> RecoveryNewPassForm(viewModel, recoveryError)
                 VaultMode.LIST -> VaultList(
@@ -166,6 +251,10 @@ fun PasswordVaultScreen(
                     onDelete = { viewModel.deleteEntry(it) },
                     onToggleReveal = { viewModel.toggleReveal(it) },
                     onCopy = ::copy,
+                    bioHardware = bioHardware && bioSupported,
+                    bioBound = bioBound,
+                    onBioBind = ::launchBioBind,
+                    onBioUnbind = { viewModel.unbindBio(context) },
                 )
             }
         }
@@ -233,7 +322,13 @@ private fun SetupForm(viewModel: VaultViewModel, error: String?) {
 }
 
 @Composable
-private fun UnlockForm(viewModel: VaultViewModel, error: String?, onForgot: () -> Unit) {
+private fun UnlockForm(
+    viewModel: VaultViewModel,
+    error: String?,
+    onForgot: () -> Unit,
+    bioEnabled: Boolean,
+    onBioUnlock: () -> Unit,
+) {
     var pass by remember { mutableStateOf("") }
     val shake = remember { Animatable(0f) }
     LaunchedEffect(error) {
@@ -256,6 +351,16 @@ private fun UnlockForm(viewModel: VaultViewModel, error: String?, onForgot: () -
         ) {
             Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
             Text(stringResource(R.string.vault_unlock))
+        }
+        if (bioEnabled) {
+            Spacer(Modifier.height(Spacing.xs))
+            OutlinedButton(
+                onClick = onBioUnlock,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Fingerprint, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+                Text(stringResource(R.string.vault_bio_unlock))
+            }
         }
         TextButton(onClick = onForgot, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text(stringResource(R.string.vault_forgot))
@@ -326,6 +431,10 @@ private fun VaultList(
     onDelete: (Long) -> Unit,
     onToggleReveal: (Long) -> Unit,
     onCopy: (String) -> Unit,
+    bioHardware: Boolean,
+    bioBound: Boolean,
+    onBioBind: () -> Unit,
+    onBioUnbind: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         Box(
@@ -352,6 +461,13 @@ private fun VaultList(
                     }
                 }
             }
+        }
+        if (bioHardware) {
+            BioUnlockCard(
+                bound = bioBound,
+                onBind = onBioBind,
+                onUnbind = onBioUnbind,
+            )
         }
         Button(
             onClick = onAddClick,
@@ -459,4 +575,42 @@ private fun EntryEditorDialog(
             }
         },
     )
+}
+
+/** 生物识别操作类型，供 BiometricPrompt 认证成功回调区分本次意图。 */
+private enum class BioOp { NONE, UNLOCK, BIND }
+
+@Composable
+private fun BioUnlockCard(
+    bound: Boolean,
+    onBind: () -> Unit,
+    onUnbind: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Fingerprint,
+                contentDescription = null,
+                tint = if (bound) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = Spacing.sm),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(if (bound) R.string.vault_bio_on else R.string.vault_bio_off_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (bound) {
+                TextButton(onClick = onUnbind) { Text(stringResource(R.string.vault_bio_disable)) }
+            } else {
+                Button(onClick = onBind) { Text(stringResource(R.string.vault_bio_enable)) }
+            }
+        }
+    }
 }

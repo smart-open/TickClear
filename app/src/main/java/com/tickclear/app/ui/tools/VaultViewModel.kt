@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
+import com.tickclear.app.data.VaultBioCrypto
 import com.tickclear.app.data.VaultCrypto
 import com.tickclear.app.data.VaultMeta
 import com.tickclear.app.data.VaultStore
@@ -19,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.inject.Inject
 
@@ -66,6 +68,24 @@ class VaultViewModel @Inject constructor(
     val justSetup: StateFlow<Boolean> = _justSetup.asStateFlow()
 
     fun consumeSetupCompleted() { _justSetup.value = false }
+
+    // ---------------- 生物识别快速解锁状态 ----------------
+    /** 设备是否具备强生物识别硬件且已设系统锁屏。 */
+    private val _bioHardware = MutableStateFlow(false)
+    val bioHardware: StateFlow<Boolean> = _bioHardware.asStateFlow()
+
+    /** 是否已封装主密钥（即用户曾绑定指纹/面容解锁）。 */
+    private val _bioBound = MutableStateFlow(false)
+    val bioBound: StateFlow<Boolean> = _bioBound.asStateFlow()
+
+    init {
+        refreshBioState()
+    }
+
+    private fun refreshBioState() {
+        _bioHardware.value = VaultBioCrypto.isHardwareReady(appContext)
+        _bioBound.value = VaultBioCrypto.hasWrappedKey(appContext)
+    }
 
     // ---------------- 设置 ----------------
 
@@ -141,6 +161,60 @@ class VaultViewModel @Inject constructor(
         _revealedIds.value = emptySet()
         _justSetup.value = false
         _mode.value = if (VaultStore.exists(appContext)) VaultMode.UNLOCK else VaultMode.SETUP
+    }
+
+    // ---------------- 生物识别快速解锁 ----------------
+
+    /** 暴露当前会话主密钥（仅供生物识别绑定时使用，需已解锁态）。 */
+    fun snapshotMasterKey(): SecretKey? = sessionKey
+
+    /** 生物识别解锁：UI 已解封出主密钥后调用，校验 verifier 并进入列表。 */
+    fun unlockWithBio(key: SecretKey) {
+        _unlockError.value = null
+        val meta = VaultStore.loadMeta(appContext) ?: run {
+            _unlockError.value = appContext.getString(R.string.vault_wrong)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val plain = withContext(Dispatchers.Default) {
+                    VaultCrypto.decrypt(key, meta.verifier)
+                }
+                if (plain != VAULT_VERIFIER_PLAIN) {
+                    onBioInvalidated()
+                    return@launch
+                }
+                val entries = withContext(Dispatchers.Default) {
+                    meta.entriesBlob?.let { decryptEntries(key, it) } ?: emptyList()
+                }
+                sessionKey = key
+                _entries.value = entries
+                _mode.value = VaultMode.LIST
+            } catch (e: Exception) {
+                // 密钥失效（生物识别登记变更）或 GCM 校验失败，均清理封装并提示重新绑定。
+                AppLogger.e("VaultVM", "bio unlock failed", e)
+                onBioInvalidated()
+            }
+        }
+    }
+
+    private fun onBioInvalidated() {
+        VaultBioCrypto.clear(appContext)
+        refreshBioState()
+        _unlockError.value = appContext.getString(R.string.vault_bio_invalidated)
+    }
+
+    /** 绑定生物识别：UI 认证成功后调用，用已认证 cipher 加密并落盘当前会话主密钥。 */
+    fun bindBio(context: Context, cipher: Cipher) {
+        val k = sessionKey ?: return
+        VaultBioCrypto.wrap(context, cipher, k)
+        refreshBioState()
+    }
+
+    /** 关闭生物识别：删除封装文件（无需生物认证）。 */
+    fun unbindBio(context: Context) {
+        VaultBioCrypto.clear(context)
+        refreshBioState()
     }
 
     // ---------------- 找回口令 ----------------

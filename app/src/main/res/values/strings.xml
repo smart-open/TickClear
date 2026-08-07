@@ -1089,6 +1089,17 @@
     <string name="vault_recovery_required">请填写安全问题和答案</string>
     <string name="vault_copied">已复制</string>
     <string name="vault_lock">锁定</string>
+    <string name="vault_bio_unlock">使用指纹 / 面容解锁</string>
+    <string name="vault_bio_enable">开启指纹 / 面容解锁</string>
+    <string name="vault_bio_disable">关闭指纹 / 面容解锁</string>
+    <string name="vault_bio_on">已开启生物识别解锁，下次可免输口令</string>
+    <string name="vault_bio_off_hint">开启后可用指纹或面容免输口令解锁</string>
+    <string name="vault_bio_bind_title">开启生物识别解锁</string>
+    <string name="vault_bio_bind_subtitle">验证指纹或面容以完成绑定</string>
+    <string name="vault_bio_unlock_title">指纹 / 面容解锁</string>
+    <string name="vault_bio_unlock_subtitle">验证指纹或面容以解锁保险箱</string>
+    <string name="vault_bio_neg">取消</string>
+    <string name="vault_bio_invalidated">生物识别信息已变更，请用主口令重新开启</string>
 
     <!-- 工具通知渠道 -->
     <string name="channel_water_name">喝水提醒</string>

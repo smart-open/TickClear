@@ -25,6 +25,12 @@ turbine = "1.1.0"
 mockk = "1.13.11"
 desugarJdkLibs = "2.0.4"
 zxing = "3.5.3"
+# 生物识别解锁（密码保险箱指纹/面容快速解锁）：用户 2026-08-07 明确批准破例引入，
+# 属「零新依赖」红线的显式例外（同 zxing 破例处理）。
+biometric = "1.1.0"
+# AppCompatActivity：BiometricPrompt 需 FragmentActivity 承载（主 Activity 改其子类）；
+# 显式 pin 版本，避免被 biometric 传递的旧 appcompat 拉低导致兼容问题。
+appcompat = "1.7.0"
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -73,3 +79,7 @@ coreDesugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "de
 orgJson = { module = "org.json:json", version = "20231013" }
 # 二维码生成（工具箱「二维码」工具）：用户明确批准破例引入，仅引入 core（不含 android 封装，自绘 BitMatrix→Bitmap）。
 zxing = { module = "com.google.zxing:core", version.ref = "zxing" }
+# 生物识别（红线下用户显式批准例外）：指纹/面容快速解锁。
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+# AppCompatActivity：提供 FragmentActivity 承载 BiometricPrompt。
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
