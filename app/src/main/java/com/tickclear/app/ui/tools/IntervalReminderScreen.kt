@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -200,6 +202,10 @@ fun IntervalReminderScreen(
                 )
             }
 
+            if (vm.type == IntervalType.REST) {
+                StretchRoutineCard()
+            }
+
             // stringResource 必须在组合上下文取值，onClick 内是普通 lambda。
             val testToast = stringResource(testToastRes)
             Button(
@@ -317,6 +323,133 @@ private fun WaterIntakeCard(
                 }
                 Button(onClick = onReset) {
                     Text(stringResource(R.string.water_reset))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 起身拉伸引导（仅久坐休息提醒页）：依次展示若干拉伸动作，每项带 20 秒保持计时。
+ * 纯静态绘制 + 1Hz 计时（非帧循环），守电池红线；引导结束给出完成提示。
+ */
+private val STRETCHES = listOf(
+    R.string.stretch_neck_name to R.string.stretch_neck_desc,
+    R.string.stretch_shoulder_name to R.string.stretch_shoulder_desc,
+    R.string.stretch_chest_name to R.string.stretch_chest_desc,
+    R.string.stretch_twist_name to R.string.stretch_twist_desc,
+    R.string.stretch_wrist_name to R.string.stretch_wrist_desc,
+)
+
+@Composable
+private fun StretchRoutineCard() {
+    var index by remember { mutableStateOf(-1) } // -1 未开始；==size 已完成
+    val total = 20
+    var holdLeft by remember { mutableStateOf(total) }
+
+    LaunchedEffect(index) {
+        if (index in 0 until STRETCHES.size) {
+            holdLeft = total
+            while (holdLeft > 0) {
+                delay(1000)
+                holdLeft -= 1
+            }
+        }
+    }
+
+    val accent = MaterialTheme.colorScheme.secondary
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            Text(
+                stringResource(R.string.rest_stretch_title),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            when {
+                index < 0 -> {
+                    Button(
+                        onClick = { index = 0 },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.rest_stretch_start)) }
+                }
+                index < STRETCHES.size -> {
+                    val (nameRes, descRes) = STRETCHES[index]
+                    val frac = holdLeft.toFloat() / total
+                    val trackColor = MaterialTheme.colorScheme.outlineVariant
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(116.dp)) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            val stroke = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+                            drawArc(color = trackColor, startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
+                            if (frac > 0f) {
+                                drawArc(color = accent, startAngle = -90f, sweepAngle = 360f * frac, useCenter = false, style = stroke)
+                            }
+                        }
+                        Text("$holdLeft", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Text(stringResource(nameRes), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(descRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        stringResource(R.string.rest_stretch_hold, holdLeft),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        Button(
+                            onClick = { index = -1 },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.rest_stretch_end)) }
+                        Button(
+                            onClick = { index += 1 },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                if (index + 1 < STRETCHES.size) {
+                                    stringResource(R.string.rest_stretch_next)
+                                } else {
+                                    stringResource(R.string.rest_stretch_finish)
+                                },
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    Text(
+                        stringResource(R.string.rest_stretch_done),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        Button(
+                            onClick = { index = -1 },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.rest_stretch_end)) }
+                        Button(
+                            onClick = { index = 0 },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.rest_stretch_again)) }
+                    }
                 }
             }
         }
