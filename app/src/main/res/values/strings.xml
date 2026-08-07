@@ -1278,6 +1278,10 @@
     <string name="cam_detect_scan_fail">应用扫描失败</string>
     <string name="cam_detect_section_system">系统应用</string>
     <string name="cam_detect_section_installed">已安装应用</string>
+    <string name="cam_detect_alert_heading">检测到异常占用</string>
+    <string name="cam_detect_alert_camera">摄像头正在被使用</string>
+    <string name="cam_detect_alert_mic">麦克风正在被使用</string>
+    <string name="cam_detect_alert_both">摄像头与麦克风正在被使用</string>
 
     <!-- 剪贴板防窃取（V2.9++） -->
     <string name="tools_clipboard_guard_title">剪贴板保护</string>

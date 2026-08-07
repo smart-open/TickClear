@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -127,6 +128,11 @@ fun CameraDetectScreen(
                 )
             }
 
+            val alertActive = cameraInUse || micInUse
+            if (alertActive) {
+                AlertBanner(cameraInUse = cameraInUse, micInUse = micInUse)
+            }
+
             StatusCard(
                 icon = Icons.Filled.CameraAlt,
                 label = stringResource(R.string.cam_detect_camera),
@@ -174,17 +180,28 @@ fun CameraDetectScreen(
                 ) {
                     // SimpleDateFormat 构造需解析 locale 数据，属重量级对象，不可每项每次重组新建；
                     // asReversed 返回视图不复制列表（reversed() 每次组合都会整表拷贝）。
-                    items(reversedEvents, key = { it.id }) { ev ->
+                    itemsIndexed(reversedEvents, key = { _, ev -> ev.id }) { index, ev ->
                         val time = timeFormatter.format(Date(ev.time))
-                        Text(
-                            "$time  ${ev.text}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (ev.kind == "mic") {
-                                MaterialTheme.colorScheme.error
+                        val isNewest = index == 0 && alertActive
+                        Surface(
+                            color = if (isNewest) {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.28f)
                             } else {
-                                MaterialTheme.colorScheme.onSurface
+                                Color.Transparent
                             },
-                        )
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
+                            Text(
+                                text = (if (isNewest) "● " else "") + "$time  ${ev.text}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (ev.kind == "mic" || isNewest) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.padding(horizontal = Spacing.xs, vertical = 2.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -382,6 +399,77 @@ private fun StatusCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (inUse) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * 异常占用告警横幅：摄像头/麦克风被占用时置顶显示，呼吸光晕吸引注意。
+ * 减少动态（isMotionReduced）下冻结为常亮半透，避免晕动并省电。
+ */
+@Composable
+private fun AlertBanner(
+    cameraInUse: Boolean,
+    micInUse: Boolean,
+) {
+    val context = LocalContext.current
+    val motionReduced = remember { isMotionReduced(context) }
+    val infinite = rememberInfiniteTransition(label = "camAlertPulse")
+    val pulse by infinite.animateFloat(
+        0.35f, 1f,
+        infiniteRepeatable(tween(1100), RepeatMode.Reverse),
+        label = "camAlertAlpha",
+    )
+    val t = if (motionReduced) 0.6f else pulse
+    val glow = MaterialTheme.colorScheme.error
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f + 0.5f * t),
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(36.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(glow.copy(alpha = 0.16f + 0.34f * t), CircleShape),
+                )
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = glow,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(Modifier.size(Spacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.cam_detect_alert_heading),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(
+                    text = when {
+                        cameraInUse && micInUse -> stringResource(R.string.cam_detect_alert_both)
+                        cameraInUse -> stringResource(R.string.cam_detect_alert_camera)
+                        else -> stringResource(R.string.cam_detect_alert_mic)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
         }
     }
 }
