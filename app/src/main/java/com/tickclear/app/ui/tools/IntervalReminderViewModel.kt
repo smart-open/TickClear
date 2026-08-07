@@ -32,11 +32,23 @@ open class IntervalReminderViewModel(
     private val _intervalMin = MutableStateFlow(60)
     val intervalMin: StateFlow<Int> = _intervalMin.asStateFlow()
 
+    /** 下一次提醒的触发时刻（epoch millis）。仅在 enabled 时有效，供 UI 倒计时环使用。 */
+    private val _nextTriggerMs = MutableStateFlow(0L)
+    val nextTriggerMs: StateFlow<Long> = _nextTriggerMs.asStateFlow()
+
     init {
         viewModelScope.launch {
             val (e, i) = readSettings()
             _enabled.value = e
             _intervalMin.value = i
+            if (e) _nextTriggerMs.value = System.currentTimeMillis() + i * 60_000L
+        }
+    }
+
+    /** 页面打开时锚定倒计时起点为「现在 + 间隔」，使环从满周期开始平滑递减。 */
+    fun refreshCountdown() {
+        if (_enabled.value) {
+            _nextTriggerMs.value = System.currentTimeMillis() + _intervalMin.value * 60_000L
         }
     }
 
@@ -54,6 +66,11 @@ open class IntervalReminderViewModel(
                 IntervalType.EYECARE -> settings.setEyecareEnabled(value)
             }
             _enabled.value = value
+            _nextTriggerMs.value = if (value) {
+                System.currentTimeMillis() + _intervalMin.value * 60_000L
+            } else {
+                0L
+            }
             IntervalReminderScheduler.schedule(appContext, type)
         }
     }
@@ -66,6 +83,9 @@ open class IntervalReminderViewModel(
                 IntervalType.EYECARE -> settings.setEyecareIntervalMin(min)
             }
             _intervalMin.value = min
+            if (_enabled.value) {
+                _nextTriggerMs.value = System.currentTimeMillis() + min * 60_000L
+            }
             IntervalReminderScheduler.schedule(appContext, type)
         }
     }

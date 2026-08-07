@@ -1022,6 +1022,7 @@
     <string name="water_enable">开启喝水提醒</string>
     <string name="water_interval">提醒间隔</string>
     <string name="interval_min_label">%1$d 分</string>
+    <string name="interval_countdown_caption">距下次提醒</string>
     <string name="water_next">下次提醒：%1$s</string>
     <string name="water_test">立即试提醒</string>
     <string name="water_test_toast">已发送一条测试提醒</string>
