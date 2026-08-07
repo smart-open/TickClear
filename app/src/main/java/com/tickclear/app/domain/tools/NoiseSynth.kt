@@ -12,29 +12,39 @@ import kotlin.random.Random
  *  - rain   雨声：低通滤白噪声形成柔和水声 + 偶发水滴；
  *  - stream 溪流：带通感的潺潺声 + 缓慢起伏；
  *  - cafe   咖啡馆：棕噪声低频隆隆 + 极淡中频人声感。
+ *
+ * 多音轨混音（V2.9++）：每个场景是一条独立的循环 AudioTrack，由系统混音器叠加，
+ * 互不干扰；每条轨道各自保存音量，开关/调音即时生效，无需手工样本混叠。
  * 使用 AudioTrack MODE_STATIC 整段循环；全程 runCatching 包裹，
  * 并显式 setBufferSizeInBytes 避免 MODE_STATIC 下 write() 抛 IllegalStateException。
  */
 object NoiseSynth {
     private const val SR = 22050
-    private var current: AudioTrack? = null
-    private var currentKey: String? = null
+    private val cache = mutableMapOf<String, ShortArray>()
+    private val active = LinkedHashMap<String, AudioTrack>()
 
-    fun isPlaying(key: String): Boolean =
-        currentKey == key && current?.playState == AudioTrack.PLAYSTATE_PLAYING
-
-    fun play(key: String, volume: Float) {
-        if (currentKey == key && current?.playState == AudioTrack.PLAYSTATE_PLAYING) {
-            current?.setVolume(volume.coerceIn(0f, 1f))
-            return
-        }
-        stop()
-        val samples = when (key) {
+    /** 取某场景的整段 16bit 样本（首次生成后缓存，保证同一场景音色稳定不抖动）。 */
+    private fun baseSamples(key: String): ShortArray = cache.getOrPut(key) {
+        when (key) {
             "rain" -> rain()
             "stream" -> stream()
             "cafe" -> cafe()
             else -> rain()
         }
+    }
+
+    fun isLayerActive(key: String): Boolean =
+        active[key]?.playState == AudioTrack.PLAYSTATE_PLAYING
+
+    fun activeLayerCount(): Int = active.size
+
+    /** 加入/恢复某场景轨道并以 [volume] 播放；已存在则仅更新音量。 */
+    fun playLayer(key: String, volume: Float) {
+        if (isLayerActive(key)) {
+            active[key]?.setVolume(volume.coerceIn(0f, 1f))
+            return
+        }
+        val samples = baseSamples(key)
         val fmt = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
             .setSampleRate(SR)
@@ -50,26 +60,33 @@ object NoiseSynth {
             // 整段无缝循环（帧索引 = 单声道样本数）
             if (track.setLoopPoints(0, samples.size, -1) == 0) {
                 track.setVolume(volume.coerceIn(0f, 1f))
-                current = track
-                currentKey = key
                 track.play()
+                active[key] = track
             } else {
                 track.release()
             }
         }
     }
 
-    fun setVolume(volume: Float) {
-        runCatching { current?.setVolume(volume.coerceIn(0f, 1f)) }
+    /** 实时调整某场景轨道音量（不影响其它轨道）。 */
+    fun setLayerVolume(key: String, volume: Float) {
+        runCatching { active[key]?.setVolume(volume.coerceIn(0f, 1f)) }
     }
 
-    fun stop() {
+    /** 移除并停止某场景轨道。 */
+    fun stopLayer(key: String) {
         runCatching {
-            current?.stop()
-            current?.release()
+            active[key]?.apply {
+                stop()
+                release()
+            }
         }
-        current = null
-        currentKey = null
+        active.remove(key)
+    }
+
+    /** 停止并释放全部轨道。 */
+    fun stopAll() {
+        active.keys.toList().forEach { stopLayer(it) }
     }
 
     // ---------- 噪声合成基元 ----------

@@ -1740,11 +1740,13 @@
     <string name="white_noise_rain">雨声</string>
     <string name="white_noise_cafe">咖啡馆</string>
     <string name="white_noise_stream">溪流</string>
-    <string name="white_noise_play">播放</string>
-    <string name="white_noise_stop">停止</string>
     <string name="white_noise_volume">音量</string>
     <string name="white_noise_scene">场景</string>
     <string name="white_noise_playing">播放中…</string>
+    <string name="white_noise_mix_tip">可同时叠加多条音轨混音，每条独立调节音量</string>
+    <string name="white_noise_add_track">加入混音</string>
+    <string name="white_noise_remove_track">移除</string>
+    <string name="white_noise_stop_all">停止全部</string>
 
     <!-- 反光板 -->
     <string name="tools_reflector_title">补光反光板</string>

@@ -64,7 +64,7 @@ class NapPlaybackService : Service() {
             startForeground(NOTIF_ID, buildNotification(scene))
         }
 
-        NoiseSynth.play(scene, 1f)
+        NoiseSynth.playLayer(scene, 1f)
         scope.launch { runPlayback(scene, durationMin, fadeMin, endAt) }
         // 非 sticky：被系统回收后不自动重启（小憩是临时行为，闹钟仍会按时唤醒）。
         return START_NOT_STICKY
@@ -89,7 +89,7 @@ class NapPlaybackService : Service() {
         val rampMs = (noiseEndAt - rampStart).coerceAtLeast(1L)
         while (true) {
             val t = ((System.currentTimeMillis() - rampStart).toFloat() / rampMs).coerceIn(0f, 1f)
-            NoiseSynth.setVolume(1f - t)
+            NoiseSynth.setLayerVolume(scene, 1f - t)
             if (t >= 1f) break
             delay(1000)
         }
@@ -109,7 +109,7 @@ class NapPlaybackService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
-        runCatching { NoiseSynth.stop() }
+        runCatching { NoiseSynth.stopAll() }
         super.onDestroy()
     }
 

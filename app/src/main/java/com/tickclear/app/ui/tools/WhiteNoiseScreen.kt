@@ -21,7 +21,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,11 +56,11 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import kotlin.math.sin
 
 /**
  * 睡眠白噪音合集（雨声 / 咖啡馆 / 溪流）：本地程序化循环音效，无需联网。
- * 支持场景切换、播放/停止与音量调节；离开页面自动停止。
+ * 支持多音轨混音——每条音轨独立开关、独立音量，由系统混音器叠加（V2.9++）。
+ * 离开页面自动停止全部轨道。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,22 +70,26 @@ fun WhiteNoiseScreen(onBack: () -> Unit) {
         "cafe" to R.string.white_noise_cafe,
         "stream" to R.string.white_noise_stream,
     )
-    var selected by remember { mutableStateOf("rain") }
-    var playing by remember { mutableStateOf(false) }
-    var volume by remember { mutableFloatStateOf(0.7f) }
+    // 已加入混音的轨道：key -> 音量（0..1）；空 Map 表示全部停止。
+    val mix = remember { mutableStateMapOf<String, Float>() }
 
-    fun ensurePlaying() {
-        NoiseSynth.play(selected, volume)
-        playing = true
+    fun addLayer(key: String, volume: Float = 0.7f) {
+        mix[key] = volume
+        NoiseSynth.playLayer(key, volume)
     }
 
-    fun stop() {
-        NoiseSynth.stop()
-        playing = false
+    fun removeLayer(key: String) {
+        mix.remove(key)
+        NoiseSynth.stopLayer(key)
+    }
+
+    fun stopAll() {
+        NoiseSynth.stopAll()
+        mix.clear()
     }
 
     DisposableEffect(Unit) {
-        onDispose { NoiseSynth.stop() }
+        onDispose { NoiseSynth.stopAll() }
     }
 
     Scaffold(
@@ -115,92 +119,118 @@ fun WhiteNoiseScreen(onBack: () -> Unit) {
             SimHintCard(stringResource(R.string.tools_white_noise_hint))
 
             Text(
-                stringResource(R.string.white_noise_scene),
-                style = MaterialTheme.typography.titleMedium,
+                stringResource(R.string.white_noise_mix_tip),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                scenes.forEach { (key, labelRes) ->
-                    FilterChip(
-                        selected = selected == key,
-                        onClick = {
-                            selected = key
-                            if (playing) NoiseSynth.play(key, volume)
-                        },
-                        label = { Text(stringResource(labelRes)) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
 
-            Button(
-                onClick = { if (playing) stop() else ensurePlaying() },
-                modifier = Modifier.fillMaxWidth().height(64.dp),
-            ) {
-                Icon(
-                    imageVector = if (playing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = Spacing.xs),
-                )
-                Text(if (playing) stringResource(R.string.white_noise_stop) else stringResource(R.string.white_noise_play))
-            }
-
-            if (playing) {
-                Row(
+            scenes.forEach { (key, labelRes) ->
+                val active = mix.containsKey(key)
+                val vol = mix[key] ?: 0.7f
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (active) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    ),
                 ) {
-                    MiniWaveform(
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        stringResource(R.string.white_noise_playing),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                stringResource(labelRes),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Button(
+                                onClick = {
+                                    if (active) removeLayer(key) else addLayer(key)
+                                },
+                                modifier = Modifier.height(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (active) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = Spacing.xs),
+                                )
+                                Text(
+                                    if (active) {
+                                        stringResource(R.string.white_noise_remove_track)
+                                    } else {
+                                        stringResource(R.string.white_noise_add_track)
+                                    },
+                                )
+                            }
+                        }
+
+                        if (active) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            ) {
+                                MiniWaveform(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    stringResource(R.string.white_noise_playing),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            val pct = (vol * 100).roundToInt()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(stringResource(R.string.white_noise_volume))
+                                Text(
+                                    "$pct%",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                            Slider(
+                                value = vol,
+                                onValueChange = {
+                                    mix[key] = it
+                                    NoiseSynth.setLayerVolume(key, it)
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                ),
+                            )
+                        }
+                    }
                 }
             }
 
-            val pct = (volume * 100).roundToInt()
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            if (mix.isNotEmpty()) {
+                Button(
+                    onClick = { stopAll() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(stringResource(R.string.white_noise_volume))
-                        Text(
-                            "$pct%",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                    Slider(
-                        value = volume,
-                        onValueChange = {
-                            volume = it
-                            if (playing) NoiseSynth.setVolume(it)
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                        ),
+                    Icon(
+                        imageVector = Icons.Filled.Stop,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = Spacing.xs),
                     )
+                    Text(stringResource(R.string.white_noise_stop_all))
                 }
             }
         }
