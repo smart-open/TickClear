@@ -1,5 +1,6 @@
 package com.tickclear.app.ui.tools
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -41,14 +47,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** 单组色觉题：左右色块 + 是否真「不同」。 */
 private data class ColorTrial(val left: Color, val right: Color, val different: Boolean)
@@ -423,8 +435,15 @@ private fun ResultCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
+            Box(
+                modifier = Modifier.size(132.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (passed) PassBadge() else FailBadge()
+            }
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(
                 if (passed) passText else failText,
@@ -439,5 +458,91 @@ private fun ResultCard(
                 Text(retestLabel)
             }
         }
+    }
+}
+
+/**
+ * 「过关」动效（V2.9++ 二巡）：受光球+勾+8 道辐射光芒，
+ * 一次性入场动画（弹缩 + 光芒淡入），纯 Canvas 零新依赖。
+ */
+@Composable
+private fun PassBadge() {
+    val scale = remember { Animatable(0.55f) }
+    val shine = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)) }
+        launch { shine.animateTo(1f, tween(durationMillis = 520, delayMillis = 160)) }
+    }
+    val accent = MaterialTheme.colorScheme.primary
+    Canvas(Modifier.fillMaxSize()) {
+        val s = size.minDimension
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val r = s * 0.32f * scale.value
+
+        // 8 道辐射光芒：沿圆周向外扩散，随 shine 淡入（一次动画，零常驻帧循环）。
+        val shineV = shine.value
+        if (shineV > 0.01f) {
+            for (i in 0 until 8) {
+                val ang = i * (2.0 * PI / 8.0)
+                val cosA = cos(ang).toFloat()
+                val sinA = sin(ang).toFloat()
+                val inner = r * 1.55f
+                val outer = r * (2.05f + 0.18f * shineV)
+                drawLine(
+                    color = accent.copy(alpha = shineV * 0.78f),
+                    start = Offset(cx + cosA * inner, cy + sinA * inner),
+                    end = Offset(cx + cosA * outer, cy + sinA * outer),
+                    strokeWidth = 4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+
+        // 球体：接地阴影 → 受光球 → 边缘光 → 左上光泽。
+        drawSoftShadow(Offset(cx, cy + r * 1.02f), r * 0.82f, r * 0.20f, 0.22f)
+        fillSphere(Offset(cx, cy), r, accent, rimLight = false)
+        drawRimLight(Offset(cx, cy), r, accent.lighten(0.6f), 0.40f)
+        drawGloss(Offset(cx - r * 0.34f, cy - r * 0.40f), r * 0.28f, r * 0.18f, 0.42f)
+
+        // 白色勾：左下 → 中心折点 → 右上。
+        val p1 = Offset(cx - r * 0.42f, cy + r * 0.04f)
+        val p2 = Offset(cx - r * 0.08f, cy + r * 0.36f)
+        val p3 = Offset(cx + r * 0.46f, cy - r * 0.30f)
+        drawLine(Color.White, p1, p2, strokeWidth = 6.dp.toPx(), cap = StrokeCap.Round)
+        drawLine(Color.White, p2, p3, strokeWidth = 6.dp.toPx(), cap = StrokeCap.Round)
+    }
+}
+
+/**
+ * 未过关徽章：纯静态（无动效，避免在不达标时给出积极反馈）。
+ */
+@Composable
+private fun FailBadge() {
+    val accent = MaterialTheme.colorScheme.error
+    Canvas(Modifier.fillMaxSize()) {
+        val s = size.minDimension
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val r = s * 0.32f
+        drawSoftShadow(Offset(cx, cy + r * 1.02f), r * 0.82f, r * 0.20f, 0.22f)
+        fillSphere(Offset(cx, cy), r, accent, rimLight = false)
+        drawRimLight(Offset(cx, cy), r, accent.lighten(0.6f), 0.40f)
+        drawGloss(Offset(cx - r * 0.34f, cy - r * 0.40f), r * 0.28f, r * 0.18f, 0.42f)
+        // 白色叉：左上-右下 + 右上-左下。
+        drawLine(
+            Color.White,
+            Offset(cx - r * 0.36f, cy - r * 0.36f),
+            Offset(cx + r * 0.36f, cy + r * 0.36f),
+            strokeWidth = 6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            Color.White,
+            Offset(cx + r * 0.36f, cy - r * 0.36f),
+            Offset(cx - r * 0.36f, cy + r * 0.36f),
+            strokeWidth = 6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
     }
 }

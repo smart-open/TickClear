@@ -3,7 +3,9 @@ package com.tickclear.app.ui.tools
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,12 +41,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * 家庭成员积分仪（V2.9++ 生活助手）。
@@ -72,6 +83,32 @@ private val REWARDS = listOf(
     RewardItem("park", R.string.points_reward_park, 8),
     RewardItem("movie", R.string.points_reward_movie, 30),
 )
+
+/** 成就徽章（V2.9++）：累计分数达到阈值后解锁为彩色球；未解锁时灰化半透明。 */
+private data class Badge(val id: String, val threshold: Int, val nameRes: Int, val color: Color)
+
+private val BADGES = listOf(
+    Badge("novice", 10, R.string.badge_novice_name, Color(0xFF66BB6A)),
+    Badge("progress", 30, R.string.badge_progress_name, Color(0xFF42A5F5)),
+    Badge("excellent", 60, R.string.badge_excellent_name, Color(0xFFFFA726)),
+    Badge("outstanding", 100, R.string.badge_outstanding_name, Color(0xFFAB47BC)),
+    Badge("role_model", 150, R.string.badge_role_model_name, Color(0xFFFFCA28)),
+)
+
+/** 五角星路径（10 点交替）：中心 (cx,cy)，外半径 [outer]，内半径 [inner]。 */
+private fun starPath(cx: Float, cy: Float, outer: Float, inner: Float): Path {
+    val path = Path()
+    val points = 5
+    for (i in 0 until points * 2) {
+        val r = if (i % 2 == 0) outer else inner
+        val ang = -PI.toFloat() / 2f + i * (PI.toFloat() / points)
+        val x = cx + r * cos(ang)
+        val y = cy + r * sin(ang)
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    return path
+}
 
 private const val PREFS_NAME = "family_points"
 
@@ -244,7 +281,86 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                     }
                 }
             }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    Text(
+                        stringResource(R.string.points_achievements_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    val totalScore = scores[selectedId] ?: 0
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        BADGES.forEach { b ->
+                            AchievementBadge(
+                                unlocked = totalScore >= b.threshold,
+                                color = b.color,
+                                name = stringResource(b.nameRes),
+                                thresholdLabel = "≥${b.threshold}",
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(Spacing.xs))
         }
+    }
+}
+
+/**
+ * 单个成就徽章（V2.9++ 二巡）：受光球体 + 五角星。未解锁时整体灰化半透明，
+ * 静态绘制（零常驻帧循环），守电池红线。
+ */
+@Composable
+private fun AchievementBadge(
+    unlocked: Boolean,
+    color: Color,
+    name: String,
+    thresholdLabel: String,
+) {
+    val sphere = if (unlocked) color else Color(0xFF9E9E9E).copy(alpha = 0.40f)
+    val labelColor = if (unlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    val starFill = if (unlocked) Color.White else Color(0xFFBDBDBD)
+    Column(
+        modifier = Modifier.width(64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val s = size.minDimension
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val r = s * 0.34f
+                drawSoftShadow(Offset(cx, cy + r * 1.02f), r * 0.78f, r * 0.18f, 0.22f)
+                fillSphere(Offset(cx, cy), r, sphere, rimLight = false)
+                drawRimLight(Offset(cx, cy), r, sphere.lighten(0.6f), 0.38f)
+                drawGloss(Offset(cx - r * 0.34f, cy - r * 0.40f), r * 0.26f, r * 0.16f, 0.40f)
+                val star = starPath(cx, cy, r * 0.52f, r * 0.22f)
+                drawPath(path = star, color = starFill)
+            }
+        }
+        Text(
+            text = if (unlocked) name else stringResource(R.string.points_locked),
+            style = MaterialTheme.typography.labelSmall,
+            color = labelColor,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = thresholdLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }

@@ -1656,6 +1656,13 @@
     <string name="points_reward_movie">看电影</string>
     <string name="points_undo">撤销上一步</string>
     <string name="points_undone">已撤销</string>
+    <string name="points_achievements_title">成就徽章</string>
+    <string name="points_locked">未解锁</string>
+    <string name="badge_novice_name">新手</string>
+    <string name="badge_progress_name">进步</string>
+    <string name="badge_excellent_name">优秀</string>
+    <string name="badge_outstanding_name">卓越</string>
+    <string name="badge_role_model_name">榜样</string>
 
     <!-- 地磁场观测（实用工具） -->
     <string name="magnet_title">地磁场观测</string>
