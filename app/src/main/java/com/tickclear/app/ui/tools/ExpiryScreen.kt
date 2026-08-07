@@ -2,6 +2,7 @@ package com.tickclear.app.ui.tools
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -45,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +65,19 @@ private fun formatDate(epochDay: Long): String =
 
 private fun daysLeft(epochDay: Long): Int =
     (epochDay - LocalDate.now().toEpochDay()).toInt()
+
+/**
+ * 临近过期色温告警：剩余天数越少越偏红、越多越偏绿（红→琥珀→绿平滑过渡）。
+ * 深色主题下使用更亮的同色系，保证文字可读性。
+ */
+private fun expiryStatusColor(left: Int, dark: Boolean): Color {
+    // t: 0 = 已过期(最红), 1 = ≥30 天(绿)
+    val t = (left.coerceAtMost(30) / 30f).coerceAtLeast(0f)
+    val red = if (dark) Color(0xFFEF5350) else Color(0xFFD32F2F)
+    val amber = if (dark) Color(0xFFFFB300) else Color(0xFFF9A825)
+    val green = if (dark) Color(0xFF66BB6A) else Color(0xFF2E7D32)
+    return if (t < 0.5f) lerp(red, amber, t / 0.5f) else lerp(amber, green, (t - 0.5f) / 0.5f)
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -198,7 +214,7 @@ private fun ExpiryItemCard(
                 Text(
                     text = leftText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (left <= 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = expiryStatusColor(left, isSystemInDarkTheme()),
                 )
             }
             IconButton(onClick = onDelete) {
