@@ -18,6 +18,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
+ * 小憩会话中的白噪音阶段。用于睡眠页如实反映「还在响 / 正在渐隐 / 已进入纯静默」。
+ * 与 [com.tickclear.app.domain.tools.NapPlaybackService] 的时间线一致，由同一组时间戳推导，
+ * 无需跨进程回调（服务自停后 UI 依旧能正确显示静默态）。
+ */
+enum class NapPhase { NONE, PLAYING, FADING, SILENT }
+
+/**
  * 午休小憩 ViewModel（V2.9++）：维护上次选择的时长 / 白噪音偏好（DataStore 记忆），
  * 并管理一次小憩会话（调度唤醒闹钟 + 按需启动白噪音前台服务 + 1Hz 倒计时）。
  * 闹钟为临时一次性，不在此持久化开关；会话状态为内存态（进程重建即视为未开始）。
@@ -48,6 +55,15 @@ class NapViewModel @Inject constructor(
     private val _remainingSec = MutableStateFlow(0)
     val remainingSec: StateFlow<Int> = _remainingSec.asStateFlow()
 
+    private val _phase = MutableStateFlow(NapPhase.NONE)
+    val phase: StateFlow<NapPhase> = _phase.asStateFlow()
+
+    /** 白噪音（含渐隐）彻底结束的时刻；0 表示本次未开启白噪音。 */
+    private var noiseEndAtMs = 0L
+
+    /** 渐隐起点；0 表示本次不渐隐。 */
+    private var fadeStartAtMs = 0L
+
     init {
         viewModelScope.launch {
             _durationMin.value = settings.napLastDurationMin.first()
@@ -59,11 +75,21 @@ class NapViewModel @Inject constructor(
             while (true) {
                 delay(1000)
                 if (_active.value && _endAtMs.value > 0) {
-                    val rem = ((_endAtMs.value - System.currentTimeMillis()) / 1000)
-                        .toInt().coerceAtLeast(0)
-                    _remainingSec.value = rem
+                    val now = System.currentTimeMillis()
+                    _remainingSec.value = ((_endAtMs.value - now) / 1000).toInt().coerceAtLeast(0)
+                    _phase.value = computePhase(now)
                 }
             }
+        }
+    }
+
+    /** 由时间戳推导当前白噪音阶段（与前台服务时间线一致）。 */
+    private fun computePhase(now: Long): NapPhase {
+        if (!_noiseEnabled.value || noiseEndAtMs <= 0L) return NapPhase.NONE
+        return when {
+            now >= noiseEndAtMs -> NapPhase.SILENT
+            fadeStartAtMs in 1..now -> NapPhase.FADING
+            else -> NapPhase.PLAYING
         }
     }
 
@@ -110,22 +136,54 @@ class NapViewModel @Inject constructor(
                 }
                 runCatching { ContextCompat.startForegroundService(context, intent) }
             }
+            computeNoiseTimeline(dur, endAt)
             _endAtMs.value = endAt
             _remainingSec.value = dur * 60
             _active.value = true
+            _phase.value = computePhase(System.currentTimeMillis())
         }
+    }
+
+    /**
+     * 复刻前台服务的三段式时间线：满音量 → 渐隐 → 纯静默。
+     * 渐隐在唤醒前 fadeMs 结束，之后仅保留唤醒闹钟；钳位保证渐隐段不会越过会话起点。
+     */
+    private fun computeNoiseTimeline(durationMin: Int, endAt: Long) {
+        if (!_noiseEnabled.value) {
+            noiseEndAtMs = 0L
+            fadeStartAtMs = 0L
+            return
+        }
+        val fadeMinRaw = _fadeMin.value
+        val fadeMin = if (fadeMinRaw < durationMin) fadeMinRaw else durationMin
+        val fadeMs = fadeMin.coerceAtLeast(0) * 60_000L
+        if (fadeMs <= 0L) {
+            noiseEndAtMs = endAt
+            fadeStartAtMs = 0L
+            return
+        }
+        val now = System.currentTimeMillis()
+        noiseEndAtMs = (endAt - fadeMs).coerceAtLeast(now)
+        fadeStartAtMs = (noiseEndAtMs - fadeMs).coerceAtLeast(now)
     }
 
     /** 结束小憩：取消闹钟并停止白噪音服务，退出会话态。 */
     fun cancel(context: Context) {
         viewModelScope.launch {
             NapScheduler.cancel(context)
-            if (_noiseEnabled.value) {
+            // 已进入纯静默段时服务早已自停，再发 stopIntent 只会把它拉起来再关一次——白白闪一下通知。
+            val noisePlaying = _noiseEnabled.value &&
+                noiseEndAtMs > 0L &&
+                System.currentTimeMillis() < noiseEndAtMs
+            if (noisePlaying) {
                 runCatching { context.startService(NapPlaybackService.stopIntent(context)) }
             }
             _active.value = false
             _endAtMs.value = 0
             _remainingSec.value = 0
+            noiseEndAtMs = 0L
+            fadeStartAtMs = 0L
+            _phase.value = NapPhase.NONE
         }
     }
 }

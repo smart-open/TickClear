@@ -27,8 +27,10 @@ import kotlin.math.min
  * 若仅在 Activity 内播放，进程被回收后声音即中断。改用 [ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK]
  * 前台服务，系统不会将其纳入 Doze 限制，可稳定跨熄屏循环播放本地白噪音（NoiseSynth 为 AudioTrack 静态循环，CPU 占用极低）。
  *
- * 渐隐（fade）：用户可选的「最后 N 分钟渐隐」——前段满音量助眠，临近结束时把音量从 1 平滑降到 0 后自停，
- * 避免声音整夜空放、也更省电。fadeMin=0 表示全程播放，至唤醒时刻自动停止。
+ * 渐隐（fade）：用户可选 N 分钟渐隐，播放被切成三段——满音量助眠 → N 分钟渐隐至 0 → **纯静默**。
+ * 渐隐刻意在唤醒前 N 分钟就收尾，之后服务自停（释放 AudioTrack、撤下前台通知），
+ * 只留 NapScheduler 的一次性唤醒闹钟，既不掩盖唤醒音，也省掉最后一段无谓的音频功耗。
+ * fadeMin=0 表示不渐隐，全程满音量播放至唤醒时刻自动停止。
  */
 class NapPlaybackService : Service() {
 
@@ -71,29 +73,37 @@ class NapPlaybackService : Service() {
     private suspend fun runPlayback(scene: String, durationMin: Int, fadeMin: Int, endAt: Long) {
         val fadeMs = min(fadeMin, durationMin).coerceAtLeast(0) * 60_000L
         if (fadeMs <= 0L) {
-            // 全程满音量，至唤醒时刻自动停止。
-            val waitMs = (endAt - System.currentTimeMillis()).coerceAtLeast(0L)
-            delay(waitMs)
+            // 不渐隐：全程满音量，至唤醒时刻自动停止。
+            delayUntil(endAt)
             stopSelf()
             return
         }
-        // 前段满音量，最后 fadeMs 渐隐至 0。
-        val fadeStart = endAt - fadeMs
-        var wait = (fadeStart - System.currentTimeMillis()).coerceAtLeast(0L)
-        while (wait > 0) {
-            delay(min(wait, 1000L))
-            wait -= 1000L
-        }
+        // 三段式：满音量 → 渐隐 → 纯静默。
+        // 渐隐刻意在唤醒前 fadeMs 就结束，留出等长的纯静默段——白噪音一路响到闹钟会掩盖唤醒音、
+        // 也让浅睡段被持续声压打扰；提前静音后仅剩唤醒闹钟，睡得更沉、醒得更干净。
+        val noiseEndAt = (endAt - fadeMs).coerceAtLeast(System.currentTimeMillis())
+        val fadeStart = (noiseEndAt - fadeMs).coerceAtLeast(System.currentTimeMillis())
+        delayUntil(fadeStart)
+        // 线性渐隐 fadeStart → noiseEndAt（按真实时钟推进，避免累计漂移）。
         val rampStart = System.currentTimeMillis()
+        val rampMs = (noiseEndAt - rampStart).coerceAtLeast(1L)
         while (true) {
-            val t = ((System.currentTimeMillis() - rampStart).toFloat() / fadeMs).coerceIn(0f, 1f)
+            val t = ((System.currentTimeMillis() - rampStart).toFloat() / rampMs).coerceIn(0f, 1f)
             NoiseSynth.setVolume(1f - t)
-            if (t >= 1f) {
-                delay(200)
-                stopSelf()
-                return
-            }
+            if (t >= 1f) break
             delay(1000)
+        }
+        // 渐隐完成 → 立即自停：onDestroy 释放 AudioTrack 并撤下前台通知，
+        // 剩余时间进入纯静默，只保留 NapScheduler 的一次性唤醒闹钟。
+        stopSelf()
+    }
+
+    /** 等到指定时刻；每轮按真实时钟重算剩余，避免长时间等待的累计漂移。 */
+    private suspend fun delayUntil(target: Long) {
+        while (true) {
+            val wait = target - System.currentTimeMillis()
+            if (wait <= 0L) return
+            delay(min(wait, 1000L))
         }
     }
 

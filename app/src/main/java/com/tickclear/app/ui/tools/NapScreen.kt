@@ -70,6 +70,7 @@ fun NapScreen(
     val fadeMin by vm.fadeMin.collectAsStateWithLifecycle()
     val active by vm.active.collectAsStateWithLifecycle()
     val remainingSec by vm.remainingSec.collectAsStateWithLifecycle()
+    val phase by vm.phase.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -83,10 +84,11 @@ fun NapScreen(
         "stream" -> stringResource(R.string.white_noise_stream)
         else -> stringResource(R.string.white_noise_rain)
     }
-    val fadeLabel = if (fadeMin <= 0) {
-        stringResource(R.string.nap_fade_off)
-    } else {
-        stringResource(R.string.nap_fade_min, fadeMin)
+    val phaseText: String? = when (phase) {
+        NapPhase.PLAYING -> stringResource(R.string.nap_phase_playing, sceneLabel)
+        NapPhase.FADING -> stringResource(R.string.nap_phase_fading)
+        NapPhase.SILENT -> stringResource(R.string.nap_phase_silent)
+        NapPhase.NONE -> null
     }
 
     Scaffold(
@@ -182,6 +184,13 @@ fun NapScreen(
                                 )
                             }
                         }
+                        if (fadeMin > 0) {
+                            Text(
+                                text = stringResource(R.string.nap_fade_hint, fadeMin),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
 
                     val startToast = stringResource(R.string.nap_start_toast, wakeTime)
@@ -240,11 +249,15 @@ fun NapScreen(
                             textAlign = TextAlign.Center,
                         )
                     }
-                    if (noiseEnabled) {
+                    if (phaseText != null) {
                         Text(
-                            stringResource(R.string.nap_sleeping_noise, sceneLabel, fadeLabel),
+                            phaseText,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (phase == NapPhase.SILENT) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             textAlign = TextAlign.Center,
                         )
                     }

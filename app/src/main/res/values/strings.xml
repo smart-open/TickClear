@@ -816,7 +816,10 @@
     <string name="nap_fade_min">渐隐 %1$d 分钟</string>
     <string name="nap_sleeping">小憩中</string>
     <string name="nap_end">结束小憩</string>
-    <string name="nap_sleeping_noise">%1$s · %2$s</string>
+    <string name="nap_fade_hint">渐隐结束后提前 %1$d 分钟进入纯静默，只保留唤醒闹钟</string>
+    <string name="nap_phase_playing">🎧 %1$s 助眠中</string>
+    <string name="nap_phase_fading">🌙 渐隐中 · 即将静音</string>
+    <string name="nap_phase_silent">🌙 已静音 · 仅保留唤醒闹钟</string>
 
     <!-- 工具箱：实用工具（V2.9++） -->
     <string name="tools_cat_utility">实用工具</string>
