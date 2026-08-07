@@ -1,16 +1,20 @@
 package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VolumeUp
@@ -131,8 +135,8 @@ fun HearingScreen(
 }
 
 /**
- * 听力保护音量安全表盘：270° 弧形，三段分区（安全 / 警戒 / 危险），指针指向当前阈值。
- * 纯 Canvas 静态绘制（仅在阈值变化时重绘），无需常驻帧循环。
+ * 听力保护音量安全仪表盘：270° 弧形表盘，三段分区彩弧（安全 / 警戒 / 危险），
+ * 外圈刻度、指针与中心轴，下方附分区图例。纯 Canvas 静态绘制（阈值变化时重绘）。
  */
 @Composable
 private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
@@ -140,55 +144,123 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
     val cautionColor = Color(0xFFF9A825)
     val dangerColor = Color(0xFFE53935)
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
     val needleColor = MaterialTheme.colorScheme.onSurface
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     val startAngle = 135f
     val sweep = 270f
     val v = value.coerceIn(0, 100)
 
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier.size(180.dp),
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val stroke = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)
-            val cx = size.width / 2f
-            val cy = size.height / 2f
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(220.dp),
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val rTrack = size.minDimension / 2f - 22.dp.toPx()
+                val trackW = 18.dp.toPx()
+                val zoneW = 10.dp.toPx()
 
-            drawArc(trackColor, startAngle, sweep, false, style = stroke)
-            val safeEnd = 60f / 100f * sweep
-            val cautionEnd = 85f / 100f * sweep
-            drawArc(safeColor, startAngle, safeEnd, false, style = stroke)
-            drawArc(cautionColor, startAngle + safeEnd, cautionEnd - safeEnd, false, style = stroke)
-            drawArc(dangerColor, startAngle + cautionEnd, sweep - cautionEnd, false, style = stroke)
+                // 底环
+                drawArc(
+                    color = trackColor,
+                    startAngle = startAngle,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    style = Stroke(width = trackW, cap = StrokeCap.Round),
+                )
 
-            val ang = Math.toRadians((startAngle + v / 100f * sweep).toDouble())
-            val rOuter = size.minDimension / 2f - stroke.width / 2f - 6.dp.toPx()
-            val rInner = size.minDimension / 2f * 0.30f
-            val nx = cx + (rOuter * cos(ang)).toFloat()
-            val ny = cy + (rOuter * sin(ang)).toFloat()
-            val ix = cx + (rInner * cos(ang)).toFloat()
-            val iy = cy + (rInner * sin(ang)).toFloat()
-            drawLine(
-                color = needleColor,
-                start = Offset(ix, iy),
-                end = Offset(nx, ny),
-                strokeWidth = 3.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            drawCircle(color = needleColor, radius = 4.dp.toPx(), center = Offset(cx, cy))
+                // 分区彩弧（平头衔接，避免圆头叠盖）
+                val safeEnd = 60f / 100f * sweep
+                val cautionEnd = 85f / 100f * sweep
+                val zoneStroke = Stroke(width = zoneW, cap = StrokeCap.Butt)
+                drawArc(safeColor, startAngle, safeEnd, false, style = zoneStroke)
+                drawArc(cautionColor, startAngle + safeEnd, cautionEnd - safeEnd, false, style = zoneStroke)
+                drawArc(dangerColor, startAngle + cautionEnd, sweep - cautionEnd, false, style = zoneStroke)
+
+                // 外圈刻度：每 10 一段主刻度，其余次刻度
+                val rTickIn = rTrack + trackW / 2f + 2.dp.toPx()
+                val rTickOut = rTickIn + 10.dp.toPx()
+                for (i in 0..10) {
+                    val a = Math.toRadians((startAngle + i / 10f * sweep).toDouble())
+                    val ca = cos(a).toFloat()
+                    val sa = sin(a).toFloat()
+                    val isMajor = i % 5 == 0
+                    val col = when {
+                        i <= 6 -> safeColor
+                        i <= 8 -> cautionColor
+                        else -> dangerColor
+                    }
+                    val inner = if (isMajor) rTickIn else rTickIn + 4.dp.toPx()
+                    drawLine(
+                        color = if (isMajor) col else tickColor,
+                        start = Offset(cx + ca * inner, cy + sa * inner),
+                        end = Offset(cx + ca * rTickOut, cy + sa * rTickOut),
+                        strokeWidth = (if (isMajor) 2.5f else 1.5f).dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+
+                // 指针：从中心轴指向当前阈值，后端带配重
+                val ang = Math.toRadians((startAngle + v / 100f * sweep).toDouble())
+                val ca = cos(ang).toFloat()
+                val sa = sin(ang).toFloat()
+                val rNeedle = rTrack - 16.dp.toPx()
+                val rTail = 16.dp.toPx()
+                drawLine(
+                    color = needleColor,
+                    start = Offset(cx - ca * rTail, cy - sa * rTail),
+                    end = Offset(cx + ca * rNeedle, cy + sa * rNeedle),
+                    strokeWidth = 4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                drawCircle(color = needleColor, radius = 7.dp.toPx(), center = Offset(cx, cy))
+                drawCircle(color = surfaceColor, radius = 3.dp.toPx(), center = Offset(cx, cy))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "$value",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = needleColor,
+                )
+                Text(
+                    text = "dB",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "$value",
-                style = MaterialTheme.typography.headlineMedium,
-                color = needleColor,
-            )
-            Text(
-                text = "dB",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+        Spacer(Modifier.height(Spacing.xs))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            ZoneChip(safeColor, stringResource(R.string.hearing_zone_safe))
+            ZoneChip(cautionColor, stringResource(R.string.hearing_zone_caution))
+            ZoneChip(dangerColor, stringResource(R.string.hearing_zone_danger))
         }
+    }
+}
+
+@Composable
+private fun ZoneChip(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color, CircleShape),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

@@ -826,6 +826,9 @@
     <string name="hearing_volume_current">超过 %1$d%% 提醒</string>
     <string name="hearing_wear_label">建议最大佩戴时长</string>
     <string name="hearing_wear_min">%1$d 分钟</string>
+    <string name="hearing_zone_safe">安全</string>
+    <string name="hearing_zone_caution">警戒</string>
+    <string name="hearing_zone_danger">危险</string>
     <string name="hearing_notification_title">听力保护提醒</string>
     <string name="hearing_notify_volume">当前媒体音量约 %1$d%%，已超过安全阈值，建议调低</string>
     <string name="hearing_notify_wear">已连续佩戴约 %1$d 分钟，建议摘下休息一下</string>
@@ -1794,11 +1797,17 @@
 
     <!-- 睡眠白噪音 -->
     <string name="tools_white_noise_title">睡眠白噪音</string>
-    <string name="tools_white_noise_desc">雨声·咖啡馆·溪流，助眠</string>
+    <string name="tools_white_noise_desc">雨声·海浪·篝火等 9 种助眠白噪音，本地循环混音</string>
     <string name="tools_white_noise_hint">本地循环音效，无需联网，戴耳机更沉浸</string>
     <string name="white_noise_rain">雨声</string>
     <string name="white_noise_cafe">咖啡馆</string>
     <string name="white_noise_stream">溪流</string>
+    <string name="white_noise_waves">海浪</string>
+    <string name="white_noise_wind">风声</string>
+    <string name="white_noise_fire">篝火</string>
+    <string name="white_noise_white">白噪音</string>
+    <string name="white_noise_pink">粉红噪音</string>
+    <string name="white_noise_fan">风扇</string>
     <string name="white_noise_volume">音量</string>
     <string name="white_noise_scene">场景</string>
     <string name="white_noise_playing">播放中…</string>

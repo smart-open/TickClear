@@ -67,8 +67,14 @@ import kotlin.math.sin
 fun WhiteNoiseScreen(onBack: () -> Unit) {
     val scenes = listOf(
         "rain" to R.string.white_noise_rain,
-        "cafe" to R.string.white_noise_cafe,
         "stream" to R.string.white_noise_stream,
+        "cafe" to R.string.white_noise_cafe,
+        "waves" to R.string.white_noise_waves,
+        "wind" to R.string.white_noise_wind,
+        "fire" to R.string.white_noise_fire,
+        "white" to R.string.white_noise_white,
+        "pink" to R.string.white_noise_pink,
+        "fan" to R.string.white_noise_fan,
     )
     // 已加入混音的轨道：key -> 音量（0..1）；空 Map 表示全部停止。
     val mix = remember { mutableStateMapOf<String, Float>() }

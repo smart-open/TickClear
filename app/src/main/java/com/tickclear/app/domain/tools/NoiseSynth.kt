@@ -29,6 +29,12 @@ object NoiseSynth {
             "rain" -> rain()
             "stream" -> stream()
             "cafe" -> cafe()
+            "waves" -> waves()
+            "wind" -> wind()
+            "fire" -> fire()
+            "white" -> white()
+            "pink" -> pink()
+            "fan" -> fan()
             else -> rain()
         }
     }
@@ -128,6 +134,61 @@ object NoiseSynth {
             brown[0] = (brown[0] + 0.02 * w).coerceIn(-1.0, 1.0) * 0.995 // 棕噪声低频
             val mid = sin(2.0 * PI * 180.0 * t) * 0.04 * (0.5 + 0.5 * sin(2.0 * PI * 0.3 * t))
             brown[0] * 0.8 + mid
+        }
+    }
+
+    /** 海浪：柔和水声 + 缓慢涨落包络，模拟一波波涌动。 */
+    private fun waves(): ShortArray {
+        val lp = DoubleArray(1) { 0.0 }
+        return buffer(4.0) { _, t, w ->
+            lp[0] = lp[0] * 0.93 + w * 0.07
+            val env = sin(2.0 * PI * 0.12 * t) * 0.5 + 0.5 // 0..1 涨落
+            (lp[0] * 0.55 + w * 0.2) * (0.25 + 0.75 * env)
+        }
+    }
+
+    /** 风声：近似带通噪声 + 缓慢阵风调制，呼啸感。 */
+    private fun wind(): ShortArray {
+        val s = DoubleArray(2) { 0.0 }
+        return buffer(4.0) { _, t, w ->
+            s[0] = s[0] * 0.82 + w * 0.18
+            s[1] = s[1] * 0.5 + (w - s[0]) * 0.5 // 近似带通 → 呼啸
+            val gust = 0.35 + 0.65 * (sin(2.0 * PI * 0.07 * t) * 0.5 + 0.5)
+            s[1] * 0.95 * gust
+        }
+    }
+
+    /** 篝火：棕噪声底噪 + 偶发爆裂噼啪声。 */
+    private fun fire(): ShortArray {
+        val brown = DoubleArray(1) { 0.0 }
+        return buffer(3.0) { _, _, w ->
+            brown[0] = (brown[0] + 0.014 * w).coerceIn(-1.0, 1.0) * 0.997
+            val crackle = if (Random.nextDouble() < 0.007) Random.nextDouble() * 0.55 else 0.0
+            brown[0] * 0.72 + crackle
+        }
+    }
+
+    /** 纯白噪音。 */
+    private fun white(): ShortArray = buffer(2.0) { _, _, w -> w * 0.6 }
+
+    /** 粉红噪音：多级一阶低通叠加，近似 -3dB/倍频。 */
+    private fun pink(): ShortArray {
+        val b = DoubleArray(3) { 0.0 }
+        return buffer(3.0) { _, _, w ->
+            b[0] = 0.98 * b[0] + 0.02 * w
+            b[1] = 0.95 * b[1] + 0.05 * w
+            b[2] = 0.90 * b[2] + 0.10 * w
+            (b[0] * 0.5 + b[1] * 0.3 + b[2] * 0.2) * 0.85
+        }
+    }
+
+    /** 风扇/空调：气流底噪 + 极淡电机低频。 */
+    private fun fan(): ShortArray {
+        val hum = DoubleArray(1) { 0.0 }
+        return buffer(3.0) { _, t, w ->
+            hum[0] = hum[0] * 0.96 + w * 0.04
+            val motor = sin(2.0 * PI * 120.0 * t) * 0.04
+            (hum[0] * 0.6 + w * 0.22 + motor) * 0.8
         }
     }
 }
