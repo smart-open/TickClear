@@ -25,15 +25,15 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -66,13 +66,16 @@ fun GlassCupScreen(onBack: () -> Unit) {
         onDispose { GlassSynth.stop() }
     }
 
-    LaunchedEffect(Unit) {
+    // 仅在存在涟漪粒子时运行帧循环，静止即挂起（省电 + reduced-motion 基线）
+    val glassAnimating = particles.isNotEmpty()
+    LaunchedEffect(glassAnimating) {
+        if (!glassAnimating) return@LaunchedEffect
         var last = 0L
-        while (true) {
+        while (particles.isNotEmpty()) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.05f)
             last = now
-            if (particles.isNotEmpty()) particles = stepParticles(particles, dt)
+            particles = stepParticles(particles, dt)
         }
     }
 
@@ -145,7 +148,7 @@ fun GlassCupScreen(onBack: () -> Unit) {
                     val topW = w * 0.52f
                     val botW = w * 0.36f
 
-                    // 杯身（上宽下窄的玻璃杯）
+                    // ===== 3D 玻璃杯体（横向渐变模拟圆柱受光） =====
                     val body = Path().apply {
                         moveTo(cx - topW / 2f, topY)
                         lineTo(cx + topW / 2f, topY)
@@ -153,32 +156,78 @@ fun GlassCupScreen(onBack: () -> Unit) {
                         lineTo(cx - botW / 2f, botY)
                         close()
                     }
+                    // 玻璃杯壁：半透明横向渐变（左暗→高光带→右暗），保留通透感
                     drawPath(
                         path = body,
-                        color = Color(0x55FFFFFF),
+                        brush = Brush.horizontalGradient(
+                            0f to Color.White.copy(alpha = 0.10f),
+                            0.22f to Color.White.copy(alpha = 0.55f),
+                            0.5f to Color.White.copy(alpha = 0.18f),
+                            0.78f to Color.White.copy(alpha = 0.40f),
+                            1f to Color.White.copy(alpha = 0.08f),
+                            startX = cx - topW / 2f,
+                            endX = cx + topW / 2f,
+                        ),
                     )
+                    drawPath(path = body, color = outlineColor, style = Stroke(width = 3f))
+
+                    // 液面高度随当前音符（note 1..7 → 由下至上）；未敲时半杯
+                    val liquidFrac = if (note == 0) 0.5f else (note - 1) / 6f
+                    val liquidY = botY - (botY - topY) * liquidFrac
+                    val liqW = topW + (botW - topW) * ((liquidY - topY) / (botY - topY))
+                    // 水：液面以下淡蓝渐变
+                    val water = Path().apply {
+                        moveTo(cx - liqW / 2f, liquidY)
+                        lineTo(cx + liqW / 2f, liquidY)
+                        lineTo(cx + botW / 2f, botY)
+                        lineTo(cx - botW / 2f, botY)
+                        close()
+                    }
                     drawPath(
-                        path = body,
-                        color = outlineColor,
-                        style = Stroke(width = 3f),
+                        path = water,
+                        brush = Brush.verticalGradient(
+                            0f to simColor(195f, 0.22f),
+                            1f to simColor(205f, 0.42f),
+                            startY = liquidY,
+                            endY = botY,
+                        ),
                     )
-                    // 杯口椭圆
+                    // 水面椭圆（俯视）+ 水线高光
+                    drawOval(
+                        color = simColor(195f, 0.55f),
+                        topLeft = Offset(cx - liqW / 2f, liquidY - 7f),
+                        size = Size(liqW, 14f),
+                    )
+                    drawOval(
+                        color = Color.White.copy(alpha = 0.35f),
+                        topLeft = Offset(cx - liqW / 2f + 3f, liquidY - 5f),
+                        size = Size(liqW - 6f, 9f),
+                    )
+
+                    // 杯口椭圆（3D 口沿）
                     drawOval(
                         color = outlineColor,
                         topLeft = Offset(cx - topW / 2f, topY - 8f),
                         size = Size(topW, 16f),
                     )
                     drawOval(
-                        color = Color(0x55FFFFFF),
+                        color = Color.White.copy(alpha = 0.35f),
                         topLeft = Offset(cx - topW / 2f + 3f, topY - 6f),
                         size = Size(topW - 6f, 12f),
                     )
-                    // 玻璃高光
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.5f),
-                        start = Offset(cx - topW * 0.28f, topY + 14f),
-                        end = Offset(cx - botW * 0.28f, botY - 14f),
-                        strokeWidth = 6f,
+
+                    // 左侧竖直高光条（玻璃反光）
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.White.copy(alpha = 0.0f),
+                            0.5f to Color.White.copy(alpha = 0.5f),
+                            1f to Color.White.copy(alpha = 0.0f),
+                            startY = topY,
+                            endY = botY,
+                        ),
+                        topLeft = Offset(cx - topW * 0.30f, topY + 12f),
+                        size = Size(topW * 0.055f, botY - topY - 24f),
+                        cornerRadius = CornerRadius(topW * 0.03f),
                     )
 
                     // 7 个音符刻度：顶部=7(高)，底部=1(低)
@@ -193,14 +242,21 @@ fun GlassCupScreen(onBack: () -> Unit) {
                         )
                     }
 
-                    // 敲击涟漪
+                    // 敲击涟漪（立体环 + 内圈高光）
                     for (pt in particles) {
                         val a = (pt.life / pt.maxLife).coerceIn(0f, 1f)
+                        val rad = pt.radius
                         drawOval(
                             color = simColor(pt.hue, a * 0.8f),
-                            topLeft = Offset(pt.x * w - pt.radius, pt.y * h - pt.radius),
-                            size = Size(pt.radius * 2, pt.radius * 2),
+                            topLeft = Offset(pt.x * w - rad, pt.y * h - rad),
+                            size = Size(rad * 2, rad * 2),
                             style = Stroke(width = 3f * a + 1f),
+                        )
+                        drawOval(
+                            color = Color.White.copy(alpha = a * 0.4f),
+                            topLeft = Offset(pt.x * w - rad * 0.6f, pt.y * h - rad * 0.6f),
+                            size = Size(rad * 1.2f, rad * 1.2f),
+                            style = Stroke(width = 1f),
                         )
                     }
                 }

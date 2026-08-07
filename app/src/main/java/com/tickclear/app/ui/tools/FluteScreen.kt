@@ -38,7 +38,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -202,13 +201,21 @@ fun FluteScreen(onBack: () -> Unit) {
                     val fluteH = h * 0.22f
                     val left = w * 0.08f
                     val right = w * 0.92f
-                    drawRoundRect(
-                        color = fluteColor,
+                    // 管身：横向渐变受光（金属/木质圆柱感）
+                    fillCylinder(
                         topLeft = Offset(left, cy - fluteH / 2f),
                         size = Size(right - left, fluteH),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(fluteH / 2f),
+                        base = fluteColor,
+                        cornerRadius = fluteH / 2f,
                     )
-                    // 音孔
+                    // 吹口区顶部高光
+                    drawGloss(
+                        center = Offset((left + right) / 2f, cy - fluteH * 0.16f),
+                        radiusX = (right - left) * 0.42f,
+                        radiusY = fluteH * 0.16f,
+                        alpha = 0.4f,
+                    )
+                    // 音孔：暗孔 + 左上受光小高光
                     val holeCount = 6
                     for (k in 0 until holeCount) {
                         val x = left + (right - left) * (0.30f + 0.10f * k)
@@ -216,6 +223,11 @@ fun FluteScreen(onBack: () -> Unit) {
                             color = Color(0xFF1A1A1A),
                             radius = fluteH * 0.28f,
                             center = Offset(x, cy),
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.22f),
+                            radius = fluteH * 0.12f,
+                            center = Offset(x - fluteH * 0.08f, cy - fluteH * 0.08f),
                         )
                     }
                 }

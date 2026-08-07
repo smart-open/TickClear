@@ -30,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -93,49 +92,50 @@ fun SimPinballScreen(onBack: () -> Unit) {
         aiming = false
     }
 
-    LaunchedEffect(Unit) {
+    // 仅在弹珠运动时运行物理循环，静止即挂起（省电基线）
+    val pinAnimating = ballMoving
+    LaunchedEffect(pinAnimating) {
+        if (!pinAnimating) return@LaunchedEffect
         var last = 0L
-        while (true) {
+        while (ballMoving) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.04f)
             last = now
-            if (ballMoving) {
-                var b = ball
-                b = b.copy(vy = b.vy + SIM_GRAVITY * dt)
-                b = b.copy(x = b.x + b.vx * dt, y = b.y + b.vy * dt)
-                if (b.x < BALL_R) b = b.copy(x = BALL_R, vx = -b.vx * 0.8f)
-                if (b.x > 1 - BALL_R) b = b.copy(x = 1 - BALL_R, vx = -b.vx * 0.8f)
-                if (b.y < BALL_R) b = b.copy(y = BALL_R, vy = -b.vy * 0.8f)
-                if (b.y > 1.05f) { reset(); tick++; continue }
-                for (peg in pegs) {
-                    val dx = b.x - peg.x
-                    val dy = b.y - peg.y
-                    val d = sqrt(dx * dx + dy * dy)
-                    val minD = BALL_R + PEG_R
-                    if (d < minD && d > 1e-4f) {
-                        val nx = dx / d
-                        val ny = dy / d
-                        b = b.copy(x = peg.x + nx * minD, y = peg.y + ny * minD)
-                        val vDotN = b.vx * nx + b.vy * ny
-                        if (vDotN < 0) {
-                            b = b.copy(
-                                vx = (b.vx - 2 * vDotN * nx) * 0.9f,
-                                vy = (b.vy - 2 * vDotN * ny) * 0.9f,
-                            )
-                            score += 1
-                            FoleySynth.play("pop")
-                            Haptic.vibrate(context, 12)
-                        }
+            var b = ball
+            b = b.copy(vy = b.vy + SIM_GRAVITY * dt)
+            b = b.copy(x = b.x + b.vx * dt, y = b.y + b.vy * dt)
+            if (b.x < BALL_R) b = b.copy(x = BALL_R, vx = -b.vx * 0.8f)
+            if (b.x > 1 - BALL_R) b = b.copy(x = 1 - BALL_R, vx = -b.vx * 0.8f)
+            if (b.y < BALL_R) b = b.copy(y = BALL_R, vy = -b.vy * 0.8f)
+            if (b.y > 1.05f) { reset(); tick++; continue }
+            for (peg in pegs) {
+                val dx = b.x - peg.x
+                val dy = b.y - peg.y
+                val d = sqrt(dx * dx + dy * dy)
+                val minD = BALL_R + PEG_R
+                if (d < minD && d > 1e-4f) {
+                    val nx = dx / d
+                    val ny = dy / d
+                    b = b.copy(x = peg.x + nx * minD, y = peg.y + ny * minD)
+                    val vDotN = b.vx * nx + b.vy * ny
+                    if (vDotN < 0) {
+                        b = b.copy(
+                            vx = (b.vx - 2 * vDotN * nx) * 0.9f,
+                            vy = (b.vy - 2 * vDotN * ny) * 0.9f,
+                        )
+                        score += 1
+                        FoleySynth.play("pop")
+                        Haptic.vibrate(context, 12)
                     }
                 }
-                b = b.copy(vx = b.vx * 0.999f, vy = b.vy * 0.999f)
-                if (b.y > 0.88f && sqrt(b.vx * b.vx + b.vy * b.vy) < 0.02f) {
-                    reset()
-                    tick++
-                    continue
-                }
-                ball = b
             }
+            b = b.copy(vx = b.vx * 0.999f, vy = b.vy * 0.999f)
+            if (b.y > 0.88f && sqrt(b.vx * b.vx + b.vy * b.vy) < 0.02f) {
+                reset()
+                tick++
+                continue
+            }
+            ball = b
             tick++
         }
     }
@@ -208,21 +208,18 @@ fun SimPinballScreen(onBack: () -> Unit) {
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     canvasSize = size
-                    tick // 观察：每帧触发重绘
                     val w = size.width
                     val h = size.height
 
+                    // 钉子：3D 受光金属球
                     for (peg in pegs) {
-                        drawOval(
-                            color = primary,
-                            topLeft = Offset(peg.x * w - PEG_R * w, peg.y * h - PEG_R * h),
-                            size = Size(PEG_R * 2 * w, PEG_R * 2 * h),
-                        )
+                        fillSphere(Offset(peg.x * w, peg.y * h), PEG_R * w, primary)
                     }
-                    drawOval(
+                    // 发射点
+                    drawCircle(
                         color = outline,
-                        topLeft = Offset(LAUNCH.x * w - 4f, LAUNCH.y * h - 4f),
-                        size = Size(8f, 8f),
+                        radius = 4f,
+                        center = Offset(LAUNCH.x * w, LAUNCH.y * h),
                     )
                     if (aiming) {
                         drawLine(
@@ -232,11 +229,8 @@ fun SimPinballScreen(onBack: () -> Unit) {
                             strokeWidth = 3f,
                         )
                     }
-                    drawOval(
-                        color = Color(0xFFFF5252),
-                        topLeft = Offset(ball.x * w - BALL_R * w, ball.y * h - BALL_R * h),
-                        size = Size(BALL_R * 2 * w, BALL_R * 2 * h),
-                    )
+                    // 弹珠：3D 球体（高光 + 暗部）
+                    fillSphere(Offset(ball.x * w, ball.y * h), BALL_R * w, Color(0xFFFF5252))
                 }
             }
 
