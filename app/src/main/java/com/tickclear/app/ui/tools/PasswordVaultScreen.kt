@@ -148,7 +148,14 @@ fun PasswordVaultScreen(
                                 val key = VaultBioCrypto.unwrap(context, cipher)
                                 viewModel.unlockWithBio(key)
                             }
-                            BioOp.BIND -> viewModel.bindBio(context, cipher)
+                            BioOp.BIND -> {
+                                viewModel.bindBio(context, cipher)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.vault_bio_enabled_toast),
+                                    )
+                                }
+                            }
                             BioOp.NONE -> {}
                         }
                     }
@@ -211,6 +218,24 @@ fun PasswordVaultScreen(
                 },
                 actions = {
                     if (mode == VaultMode.LIST) {
+                        if (bioHardware) {
+                            val bound = bioBound
+                            TextButton(onClick = {
+                                if (bound) {
+                                    viewModel.unbindBio(context)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.vault_bio_disabled_toast),
+                                        )
+                                    }
+                                } else {
+                                    launchBioBind()
+                                }
+                            }) {
+                                Icon(Icons.Filled.Fingerprint, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+                                Text(stringResource(if (bound) R.string.vault_bio_disable else R.string.vault_bio_enable))
+                            }
+                        }
                         TextButton(onClick = { viewModel.lock() }) {
                             Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
                             Text(stringResource(R.string.vault_lock))
@@ -251,10 +276,6 @@ fun PasswordVaultScreen(
                     onDelete = { viewModel.deleteEntry(it) },
                     onToggleReveal = { viewModel.toggleReveal(it) },
                     onCopy = ::copy,
-                    bioHardware = bioHardware && bioSupported,
-                    bioBound = bioBound,
-                    onBioBind = ::launchBioBind,
-                    onBioUnbind = { viewModel.unbindBio(context) },
                 )
             }
         }
@@ -431,10 +452,6 @@ private fun VaultList(
     onDelete: (Long) -> Unit,
     onToggleReveal: (Long) -> Unit,
     onCopy: (String) -> Unit,
-    bioHardware: Boolean,
-    bioBound: Boolean,
-    onBioBind: () -> Unit,
-    onBioUnbind: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         Box(
@@ -461,13 +478,6 @@ private fun VaultList(
                     }
                 }
             }
-        }
-        if (bioHardware) {
-            BioUnlockCard(
-                bound = bioBound,
-                onBind = onBioBind,
-                onUnbind = onBioUnbind,
-            )
         }
         Button(
             onClick = onAddClick,
@@ -579,38 +589,3 @@ private fun EntryEditorDialog(
 
 /** 生物识别操作类型，供 BiometricPrompt 认证成功回调区分本次意图。 */
 private enum class BioOp { NONE, UNLOCK, BIND }
-
-@Composable
-private fun BioUnlockCard(
-    bound: Boolean,
-    onBind: () -> Unit,
-    onUnbind: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Filled.Fingerprint,
-                contentDescription = null,
-                tint = if (bound) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = Spacing.sm),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(if (bound) R.string.vault_bio_on else R.string.vault_bio_off_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            if (bound) {
-                TextButton(onClick = onUnbind) { Text(stringResource(R.string.vault_bio_disable)) }
-            } else {
-                Button(onClick = onBind) { Text(stringResource(R.string.vault_bio_enable)) }
-            }
-        }
-    }
-}

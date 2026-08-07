@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,15 +117,37 @@ fun ClipboardGuardScreen(
                         Spacer(Modifier.height(Spacing.xs))
                         Text(
                             stringResource(R.string.clip_guard_delay, delaySec),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
                         )
+                        Spacer(Modifier.height(Spacing.xs))
                         Slider(
                             value = delaySec.toFloat(),
                             onValueChange = { viewModel.setDelaySec(it.toInt()) },
                             valueRange = 5f..120f,
-                            steps = 115,
+                            steps = 22,
                             modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
                         )
+                        // 刻度标签：5/30/60/90/120 秒，当前档高亮
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            listOf(5, 30, 60, 90, 120).forEach { t ->
+                                val active = delaySec == t
+                                Text(
+                                    text = "${t}s",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }

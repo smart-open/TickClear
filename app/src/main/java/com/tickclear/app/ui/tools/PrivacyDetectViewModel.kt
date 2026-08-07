@@ -91,11 +91,19 @@ class PrivacyDetectViewModel @Inject constructor(
         if (_monitoring.value) return
         _monitoring.value = true
 
+        // 开始检测即明确记录两路初始状态：摄像头空闲 + 麦克风空闲。
+        // 麦克风无系统「空闲」回调，必须主动声明；否则事件区只见摄像头、不见麦克风。
+        _events.value = emptyList()
+        pushEvent(appContext.getString(R.string.cam_detect_idle), "camera")
+        pushEvent(appContext.getString(R.string.cam_detect_mic_idle), "mic")
+
         try {
             availCb = object : CameraManager.AvailabilityCallback() {
                 override fun onCameraAvailable(cameraId: String) {
+                    val wasInUse = _cameraInUse.value
                     _cameraInUse.value = false
-                    pushEvent(appContext.getString(R.string.cam_detect_idle), "camera")
+                    // 仅从「被占用」恢复空闲时才记录，避免多摄像头反复刷出「摄像头空闲」。
+                    if (wasInUse) pushEvent(appContext.getString(R.string.cam_detect_idle), "camera")
                 }
 
                 override fun onCameraUnavailable(cameraId: String) {
