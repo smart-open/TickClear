@@ -37,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -330,13 +329,13 @@ fun WatermarkScreen(onBack: () -> Unit) {
                     ) { Text(stringResource(R.string.watermark_clear)) }
                 }
 
-                Text(stringResource(R.string.watermark_strength), style = MaterialTheme.typography.labelMedium)
-                Slider(
+                ToolVerticalSlider(
+                    label = stringResource(R.string.watermark_strength),
                     value = strength.toFloat(),
                     onValueChange = { strength = it.toInt() },
                     valueRange = 4f..16f,
                     steps = 11,
-                    modifier = Modifier.fillMaxWidth(0.5f),
+                    displayValue = "$strength",
                 )
 
                 // 修复并保存已移至右上角图标按钮（见 TopAppBar actions）

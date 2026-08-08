@@ -214,14 +214,13 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                     enabled = processed != null,
                 )
 
-                ToolSlider(
+                ToolVerticalSlider(
                     label = stringResource(R.string.tools_img_compress_quality),
                     value = quality,
                     onValueChange = { quality = it },
                     valueRange = 10f..100f,
                     steps = 89,
                     displayValue = "${quality.toInt()}%",
-                    sliderModifier = Modifier.fillMaxWidth(0.5f),
                 )
 
                 // 最大边长

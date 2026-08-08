@@ -52,7 +52,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -419,6 +421,111 @@ fun ToolSlider(
                     activeTrackColor = accent,
                     inactiveTrackColor = accent.copy(alpha = 0.25f),
                 ),
+            )
+        }
+    }
+}
+
+/**
+ * 竖向滑块（竖条）：标签在上、竖向轨道居中、数值徽章在下。
+ * 用于图片编辑类工具的调节器（强度 / 对比度 / 质量 / 笔刷宽度等），比横向滑块更省横向空间。
+ * [barHeight] 默认 96dp —— 取侧栏展开宽度的约一半，即「竖条长度减半」。
+ */
+@Composable
+fun ToolVerticalSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    displayValue: String,
+    modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
+    barHeight: Dp = 96.dp,
+) {
+    val density = LocalDensity.current
+    val barHeightPx = with(density) { barHeight.toPx() }
+    val trackW = 8.dp
+    val thumbR = with(density) { 11.dp.toPx() }
+    val onValueChangeState = rememberUpdatedState(onValueChange)
+    // Canvas 绘制 lambda 非 @Composable 上下文，颜色需在此捕获
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    // 屏幕落点 y（相对竖条顶部，px）→ 归一化分数 → 实际值；steps>0 时吸附到离散档位
+    fun valueFromY(yPx: Float): Float {
+        val frac = (1f - (yPx / barHeightPx)).coerceIn(0f, 1f)
+        var v = valueRange.start + frac * (valueRange.endInclusive - valueRange.start)
+        if (steps > 0) {
+            val stepSize = (valueRange.endInclusive - valueRange.start) / (steps + 1)
+            v = (kotlin.math.round((v - valueRange.start) / stepSize) * stepSize + valueRange.start).toFloat()
+        }
+        return v
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Canvas(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(barHeight)
+                    .pointerInput(valueRange, steps) {
+                        detectDragGestures(
+                            onDragStart = { onValueChangeState.value(valueFromY(it.y)) },
+                            onDrag = { change, _ -> onValueChangeState.value(valueFromY(change.position.y)) },
+                        )
+                    },
+            ) {
+                val cx = size.width / 2f
+                val trackWpx = with(density) { trackW.toPx() }
+                val frac = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+                val fillH = size.height * frac
+                // 轨道
+                drawRoundRect(
+                    color = accent.copy(alpha = 0.25f),
+                    topLeft = Offset(cx - trackWpx / 2f, 0f),
+                    size = Size(trackWpx, size.height),
+                    cornerRadius = CornerRadius(trackWpx / 2f),
+                )
+                // 已填充
+                if (fillH > 1f) {
+                    drawRoundRect(
+                        color = accent,
+                        topLeft = Offset(cx - trackWpx / 2f, size.height - fillH),
+                        size = Size(trackWpx, fillH),
+                        cornerRadius = CornerRadius(trackWpx / 2f),
+                    )
+                }
+                // 滑块（带内圈，便于辨识）
+                val ty = size.height - fillH
+                drawCircle(color = accent, radius = thumbR, center = Offset(cx, ty))
+                drawCircle(
+                    color = surfaceColor,
+                    radius = thumbR * 0.42f,
+                    center = Offset(cx, ty),
+                )
+            }
+            Text(
+                displayValue,
+                style = MaterialTheme.typography.labelLarge,
+                color = accent,
+                modifier = Modifier
+                    .background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
             )
         }
     }

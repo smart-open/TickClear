@@ -38,7 +38,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -392,22 +391,23 @@ fun MosaicScreen(onBack: () -> Unit) {
                 }
 
                 if (drawMode == DrawMode.BRUSH) {
-                    Text(stringResource(R.string.mosaic_brush_width), style = MaterialTheme.typography.labelMedium)
-                    Slider(
+                    ToolVerticalSlider(
+                        label = stringResource(R.string.mosaic_brush_width),
                         value = brushWidthRatio,
                         onValueChange = { brushWidthRatio = it },
                         valueRange = 0.01f..0.15f,
-                        modifier = Modifier.fillMaxWidth(0.5f),
+                        steps = 0,
+                        displayValue = "${(brushWidthRatio * 100).toInt()}%",
                     )
                 }
                 if (maskMode == ImageMasker.MaskMode.MOSAIC) {
-                    Text(stringResource(R.string.mosaic_strength), style = MaterialTheme.typography.labelMedium)
-                    Slider(
+                    ToolVerticalSlider(
+                        label = stringResource(R.string.mosaic_strength),
                         value = strength.toFloat(),
                         onValueChange = { strength = it.toInt() },
                         valueRange = 4f..24f,
                         steps = 19,
-                        modifier = Modifier.fillMaxWidth(0.5f),
+                        displayValue = "$strength",
                     )
                 }
 
