@@ -61,9 +61,8 @@ object Routes {
     const val TOOLS_MOOD = "tools/mood"
     const val TOOLS_POMODORO = "tools/pomodoro"
     const val TOOLS_CALC = "tools/calc"
-    // V2.9++：工具箱新增（水平仪 / 称重器 / 悬浮时钟 / 倒计时）
+    // V2.9++：工具箱新增（水平仪 / 悬浮时钟 / 倒计时）
     const val TOOLS_LEVEL = "tools/level"
-    const val TOOLS_SCALE = "tools/scale"
     const val TOOLS_CLOCK_OVERLAY = "tools/clockOverlay"
     const val TOOLS_COUNTDOWN = "tools/countdown"
     // V2.9++：工具箱新增（条码识别 / 马赛克 / 指南针 / 打卡补录）

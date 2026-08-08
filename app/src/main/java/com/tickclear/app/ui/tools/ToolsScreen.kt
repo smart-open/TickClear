@@ -51,7 +51,6 @@ import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.CameraAlt
@@ -345,12 +344,6 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.tools_level_title,
                 descRes = R.string.tools_level_desc,
                 icon = Icons.Filled.ScreenRotation,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SCALE,
-                titleRes = R.string.tools_scale_title,
-                descRes = R.string.tools_scale_desc,
-                icon = Icons.Filled.Scale,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLOCK_OVERLAY,

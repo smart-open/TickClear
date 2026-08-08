@@ -21,6 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,6 +89,13 @@ fun WatermarkScreen(onBack: () -> Unit) {
 
     var panelExpanded by remember { mutableStateOf(true) }
     var scale by remember { mutableFloatStateOf(1f) }
+    // 归一化平移量（单位：图片宽/高比例），由方向键控制，缩放/平移时与选区坐标同步
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val panStep = 0.12f
+    fun clampPan(o: Offset, s: Float): Offset {
+        val m = (s - 1f) / 2f
+        return Offset(o.x.coerceIn(-m, m), o.y.coerceIn(-m, m))
+    }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -93,6 +104,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
             if (bmp != null) {
                 bitmap = bmp
                 rects = emptyList()
+                offset = Offset.Zero
             } else {
                 snackbarHostState.showSnackbar(context.getString(R.string.watermark_pick_hint))
             }
@@ -164,6 +176,8 @@ fun WatermarkScreen(onBack: () -> Unit) {
                         ZoomableDrawCanvas(
                             bitmap = bmp,
                             scale = scale,
+                            offset = offset,
+                            onOffsetChange = { offset = it },
                             onDrawStart = { nx, ny -> dragStart = Offset(nx, ny) },
                             onDrawMove = { nx, ny -> dragCurrent = Offset(nx, ny) },
                             onDrawEnd = {
@@ -177,7 +191,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
                             },
                             overlay = {
                                 Canvas(Modifier.fillMaxSize()) {
-                                    val strokeW = 2.dp.toPx()
+                                    val strokeW = 3.dp.toPx()
                                     for (r in rects) drawOverlayRect(r, size, primaryColor, strokeW)
                                     currentRect?.let { drawOverlayRect(it, size, primaryColor, strokeW) }
                                 }
@@ -202,18 +216,42 @@ fun WatermarkScreen(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { scale = (scale - 0.5f).coerceAtLeast(1f) }) {
+                    IconButton(onClick = { scale = (scale - 0.5f).coerceAtLeast(1f); offset = clampPan(offset, scale) }) {
                         Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out))
                     }
                     Text("${scale.toInt()}×", style = MaterialTheme.typography.labelMedium)
-                    IconButton(onClick = { scale = (scale + 0.5f).coerceAtMost(4f) }) {
+                    IconButton(onClick = { scale = (scale + 0.5f).coerceAtMost(4f); offset = clampPan(offset, scale) }) {
                         Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in))
                     }
                 }
                 OutlinedButton(
-                    onClick = { scale = 1f },
+                    onClick = { scale = 1f; offset = Offset.Zero },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.tools_zoom_reset)) }
+
+                Spacer(Modifier.height(Spacing.xs))
+                Text(stringResource(R.string.tools_pan_hint), style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(-panStep, 0f), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(0f, -panStep), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(0f, panStep), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(panStep, 0f), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
+                }
 
                 HorizontalDivider()
 

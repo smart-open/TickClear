@@ -1240,17 +1240,6 @@
     <string name="level_max_angle">%1$.1f°</string>
     <string name="level_no_sensor">未检测到方向传感器</string>
 
-    <!-- 称重器（诚实演示：手机无称重传感器） -->
-    <string name="tools_scale_title">称重器</string>
-    <string name="tools_scale_desc">趣味估算小件重量</string>
-    <string name="scale_disclaimer">手机没有称重传感器，本工具无法测量真实重量，仅作趣味演示。</string>
-    <string name="scale_barometer">环境气压 %1$.1f hPa</string>
-    <string name="scale_no_barometer">本设备无气压计</string>
-    <string name="scale_demo">趣味演示模式</string>
-    <string name="scale_demo_on">演示中：约 %1$d 克（非真实重量）</string>
-    <string name="scale_demo_off">点击开关开始趣味演示</string>
-    <string name="scale_demo_hint">数值为随机波动，仅用于娱乐，不代表任何真实质量。</string>
-
     <!-- 悬浮时钟 -->
     <string name="tools_clock_overlay_title">悬浮时钟</string>
     <string name="tools_clock_overlay_desc">桌面悬浮极简时钟</string>
@@ -1339,6 +1328,16 @@
     <string name="compass_no_sensor">未检测到方向传感器</string>
     <string name="compass_hint">将手机平放并远离磁铁等干扰源</string>
     <string name="compass_calibrate">磁场精度较低，请把手机在空中缓慢画「8」字校准</string>
+    <!-- 野外辨向常识（无设备/无信号时的备用手段） -->
+    <string name="compass_knowledge_title">野外辨向小常识</string>
+    <string name="compass_knowledge_subtitle">手机没电或没信号时，也能大致判断方向</string>
+    <string name="compass_knowledge_moss">树木朝北的一面阴湿少光，常长满苔藓；朝南的一面更干燥、苔藓少。</string>
+    <string name="compass_knowledge_ring">树木年轮疏密不均：北半球南侧光照足、长得快，年轮较宽；北侧较窄。</string>
+    <string name="compass_knowledge_sun">太阳：正午大致在南方（北半球），日影指向正北；清晨日出于东、傍晚落入西。</string>
+    <string name="compass_knowledge_star">夜间找北极星：沿北斗七星勺口两星连线向外延长约五倍即见，它永远指向正北。</string>
+    <string name="compass_knowledge_snow">山坡积雪：南坡向阳融化快、先露地；北坡背阴融化慢、存雪更久。</string>
+    <string name="compass_knowledge_ant">蚁穴洞口多朝南开口，以迎接更多阳光、保持巢内温暖干燥。</string>
+    <string name="compass_knowledge_watch">手表辨向（北半球）：时针对准太阳，时针与 12 点刻度夹角的平分线指向南方。</string>
 
     <!-- 打卡补录（V2.9++） -->
     <string name="tools_backfill_title">打卡补录</string>
@@ -1572,6 +1571,11 @@
     <string name="tools_zoom_in">放大</string>
     <string name="tools_zoom_out">缩小</string>
     <string name="tools_zoom_reset">复位</string>
+    <string name="tools_pan_hint">放大后可上下左右移动视图</string>
+    <string name="tools_pan_up">上移视图</string>
+    <string name="tools_pan_down">下移视图</string>
+    <string name="tools_pan_left">左移视图</string>
+    <string name="tools_pan_right">右移视图</string>
     <string name="tools_unit_times">下</string>
     <string name="tools_unit_points">分</string>
     <string name="tools_sim_can_pressure">压力</string>

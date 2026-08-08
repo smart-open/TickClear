@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,15 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -122,6 +132,7 @@ class ClockOverlayService : Service() {
             return
         }
         isRunning = true
+        isRunningFlow.value = true
     }
 
     // FOREGROUND_SERVICE_TYPE_SPECIAL_USE 是 API 34 引入的常量，但会在编译期内联为字面量 0x40000000，
@@ -143,6 +154,7 @@ class ClockOverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        isRunningFlow.value = false
         lifecycleOwner?.onStop()
         lifecycleOwner?.onDestroy()
         lifecycleOwner = null
@@ -176,9 +188,15 @@ class ClockOverlayService : Service() {
         /**
          * 悬浮时钟是否在显示。设置页离开再回来时按此还原按钮文案，
          * 避免「界面显示未开启、实际悬浮窗还挂着」的状态错位。
+         * 用 StateFlow 暴露，页面以 collectAsStateWithLifecycle 实时跟随，
+         * 即使悬浮窗在前台（本页仍 RESUMED）被用户点 ✕ 关闭，按钮也能立即同步。
          */
         @Volatile
         var isRunning: Boolean = false
+            private set
+
+        /** 与 [isRunning] 同源的响应式流，供 Compose 页面收集。 */
+        val isRunningFlow = MutableStateFlow(false)
 
         /** 当前时分秒字符串（HH:mm:ss）。 */
         fun currentTime(): String =
@@ -204,44 +222,82 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
         handler.post(ticker)
         onDispose { handler.removeCallbacks(ticker) }
     }
+
+    // 透明科技感配色：青蓝霓虹描边 + 发光数字 + 脉冲信号点
+    val cyan = Color(0xFF00E5FF)
+    val blue = Color(0xFF2979FF)
+    val glow = Color(0x8C00E5FF)
+    val pulse by rememberInfiniteTransition(label = "clockPulse").animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulse",
+    )
+
     Box(
         modifier = Modifier
-            // 半透明悬浮：30% 黑底 + 细描边，不挡内容又清晰可读
-            .background(
-                color = Color(0x4D000000),
-                shape = RoundedCornerShape(14.dp),
+            // 霓虹外发光：用 shadow 模拟青色光晕（背景透明，仅边缘辉光）
+            .shadow(
+                elevation = 14.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = glow,
+                spotColor = glow,
+                clip = false,
             )
+            // 玻璃质感：极淡竖向渐变 + 透明，不遮挡内容
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0x1F0A1B2B), Color(0x0D06121F)),
+                ),
+                shape = RoundedCornerShape(16.dp),
+            )
+            // 青→蓝霓虹描边
             .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(14.dp),
+                width = 1.2.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(cyan.copy(alpha = 0.85f), blue.copy(alpha = 0.85f)),
+                ),
+                shape = RoundedCornerShape(16.dp),
             )
             .pointerInput(Unit) {
                 detectDragGestures { _, dragAmount -> onDrag(dragAmount.x, dragAmount.y) }
             }
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            // 脉冲信号点：科技感"运行中"指示
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(
+                        color = cyan.copy(alpha = pulse),
+                        shape = CircleShape,
+                    ),
+            )
             Text(
                 text = timeText,
-                color = Color.White,
-                fontSize = 22.sp,
+                color = Color(0xFFE6FBFF),
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
                 style = LocalTextStyle.current.copy(
                     shadow = Shadow(
-                        color = Color.Black,
-                        offset = Offset(0f, 1f),
-                        blurRadius = 6f,
+                        color = cyan.copy(alpha = 0.9f),
+                        offset = Offset(0f, 0f),
+                        blurRadius = 12f,
                     ),
                 ),
             )
             Icon(
                 imageVector = Icons.Filled.Close,
                 contentDescription = stringResource(R.string.clock_overlay_close),
-                tint = Color.White.copy(alpha = 0.75f),
+                tint = cyan.copy(alpha = 0.85f),
                 modifier = Modifier
                     .size(18.dp)
                     .clickable(onClick = onClose),

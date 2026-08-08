@@ -6,17 +6,26 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -156,7 +165,8 @@ fun CompassScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(Spacing.md),
+                .padding(Spacing.md)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -213,6 +223,56 @@ fun CompassScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = onSurfaceVariant,
             )
+
+            // 野外辨向常识：无设备/无信号时的备用手段
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    Text(
+                        stringResource(R.string.compass_knowledge_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        stringResource(R.string.compass_knowledge_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val tips = listOf(
+                        R.string.compass_knowledge_moss,
+                        R.string.compass_knowledge_ring,
+                        R.string.compass_knowledge_sun,
+                        R.string.compass_knowledge_star,
+                        R.string.compass_knowledge_snow,
+                        R.string.compass_knowledge_ant,
+                        R.string.compass_knowledge_watch,
+                    )
+                    tips.forEach { res ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 6.dp)
+                                    .size(6.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                            )
+                            Text(
+                                stringResource(res),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

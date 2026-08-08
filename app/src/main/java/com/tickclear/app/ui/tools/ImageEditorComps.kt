@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -144,22 +146,26 @@ fun ToolSidePanel(
 }
 
 /**
- * 可缩放的「绘制画布」（马赛克 / 去水印）。
+ * 可缩放/平移的「绘制画布」（马赛克 / 去水印）。
  * - 图片按容器比例内接，避免竖图把控件挤出屏幕；
- * - scale 由父级按钮/双击控制（1..4），缩放作用于内层盒子，绘制坐标仍是归一化图片坐标，
- *   因此放大后落点依旧精准；
+ * - scale 由父级按钮控制（1..4），offset 为归一化平移量（单位：图片宽/高的比例，
+ *   由父级方向键控制），内层盒子先按中心缩放再平移，绘制坐标仍是归一化图片坐标，
+ *   因此放大/平移后落点依旧精准（见 [toNormCoord] 反解算）；
  * - 拖拽手势交给父级做涂抹/框选，overlay 由父级以 Canvas 形式叠加（clip 裁掉溢出部分）。
  */
 @Composable
 fun ZoomableDrawCanvas(
     bitmap: Bitmap,
     scale: Float,
+    offset: Offset,
+    onOffsetChange: (Offset) -> Unit,
     modifier: Modifier = Modifier,
     onDrawStart: (Float, Float) -> Unit,
     onDrawMove: (Float, Float) -> Unit,
     onDrawEnd: () -> Unit,
     overlay: @Composable BoxScope.() -> Unit,
 ) {
+    val density = LocalDensity.current
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
@@ -176,6 +182,12 @@ fun ZoomableDrawCanvas(
             fh = maxH
             fw = maxH * ratio
         }
+        val fwPx = with(density) { fw.toPx() }
+        val fhPx = with(density) { fh.toPx() }
+        // 最新 scale / offset，供手势回调实时读取，避免 pointerInput(Unit) 闭包捕获陈旧值
+        val scaleState = rememberUpdatedState(scale)
+        val offsetState = rememberUpdatedState(offset)
+
         Box(
             modifier = Modifier
                 .size(fw, fh)
@@ -187,15 +199,18 @@ fun ZoomableDrawCanvas(
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
+                        translationX = offset.x * fwPx
+                        translationY = offset.y * fhPx
                     }
                     .pointerInput(Unit) {
                         detectDragGestures(
-                            onDragStart = { onDrawStart(it.x / size.width, it.y / size.height) },
+                            onDragStart = { p ->
+                                val (nx, ny) = toNormCoord(p, scaleState.value, offsetState.value, fwPx, fhPx)
+                                onDrawStart(nx, ny)
+                            },
                             onDrag = { change, _ ->
-                                onDrawMove(
-                                    change.position.x / size.width,
-                                    change.position.y / size.height,
-                                )
+                                val (nx, ny) = toNormCoord(change.position, scaleState.value, offsetState.value, fwPx, fhPx)
+                                onDrawMove(nx, ny)
                             },
                             onDragEnd = onDrawEnd,
                         )
@@ -211,6 +226,27 @@ fun ZoomableDrawCanvas(
             }
         }
     }
+}
+
+/**
+ * 将指针落点（内层 Box 布局坐标，px）反解算为归一化图片坐标。
+ * 内层 Box 先按中心缩放 [scale]、再平移 (offset*fwPx, offset*fhPx)，故逆向：
+ * 先减平移、再按中心反缩放，最后除以图片布局尺寸得到归一化坐标。
+ */
+private fun toNormCoord(
+    p: Offset,
+    scale: Float,
+    offset: Offset,
+    fwPx: Float,
+    fhPx: Float,
+): Pair<Float, Float> {
+    val cx = fwPx / 2f
+    val cy = fhPx / 2f
+    val tx = offset.x * fwPx
+    val ty = offset.y * fhPx
+    val nx = (cx + (p.x - tx - cx) / scale) / fwPx
+    val ny = (cy + (p.y - ty - cy) / scale) / fhPx
+    return nx to ny
 }
 
 /**

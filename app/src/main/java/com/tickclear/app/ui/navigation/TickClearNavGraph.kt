@@ -54,7 +54,6 @@ import com.tickclear.app.ui.tools.PomodoroScreen
 import com.tickclear.app.ui.tools.PomodoroViewModel
 import com.tickclear.app.ui.tools.TableCalcScreen
 import com.tickclear.app.ui.tools.LevelScreen
-import com.tickclear.app.ui.tools.WeigherScreen
 import com.tickclear.app.ui.tools.ClockOverlayScreen
 import com.tickclear.app.ui.tools.CountdownScreen
 import com.tickclear.app.ui.tools.CountdownViewModel
@@ -380,9 +379,6 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_LEVEL) {
             LevelScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.TOOLS_SCALE) {
-            WeigherScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.TOOLS_CLOCK_OVERLAY) {
             ClockOverlayScreen(onBack = { navController.popBackStack() })

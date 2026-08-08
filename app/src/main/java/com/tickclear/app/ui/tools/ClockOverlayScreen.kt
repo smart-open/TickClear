@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tickclear.app.R
@@ -45,14 +46,14 @@ fun ClockOverlayScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var canOverlay by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
-    // 以服务真实状态为准：用户可能从悬浮窗上的 ✕ 关闭，或退出本页后再回来
-    var running by remember { mutableStateOf(ClockOverlayService.isRunning) }
+    // 以服务真实状态为准：collect StateFlow，即便悬浮窗在前台（本页仍 RESUMED）被点 ✕ 关闭，
+    // 按钮文案也能立即从"关闭悬浮时钟"切回"开启悬浮时钟"，不再状态错位。
+    val running by ClockOverlayService.isRunningFlow.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 canOverlay = Settings.canDrawOverlays(context)
-                running = ClockOverlayService.isRunning
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -115,11 +116,9 @@ fun ClockOverlayScreen(onBack: () -> Unit) {
                     onClick = {
                         if (running) {
                             context.stopService(Intent(context, ClockOverlayService::class.java))
-                            running = false
                         } else {
                             runCatching {
                                 ContextCompat.startForegroundService(context, Intent(context, ClockOverlayService::class.java))
-                                running = true
                             }
                         }
                     },
