@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -104,18 +105,23 @@ fun RulerScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(RulerMode.SCREEN) }
-    // 用 saveable 持久化：横竖屏切换会触发配置变更/重建，普通 remember 会重置回 false，
-    // 旧实例 onDispose 又设回 UNSPECIFIED —— 表现为"切过去瞬间被切回来"。saveable 跨重建保留。
+    // 横竖屏偏好用 saveable 持久化：若因配置变更重建，能保留用户选择。
     var landscape by rememberSaveable { mutableStateOf(false) }
 
-    // 以 landscape 为键：进入/重建后都会按当前状态重新锁定朝向；退出时恢复系统默认。
-    DisposableEffect(landscape) {
-        val act = context.findActivity()
-        act?.requestedOrientation =
+    // 方向 = 状态 → 朝向 的纯单向映射：切换时只在 LANDSCAPE / PORTRAIT 之间切换，
+    // 绝不经过 UNSPECIFIED。MainActivity 声明了 configChanges=orientation|screenSize，
+    // 旋转由系统在位处理、不重建 Activity；若切换瞬间落回 UNSPECIFIED，
+    // 设备被物理握持为竖屏时系统会立刻回退到竖屏 —— 即"切过去又切回来"的根因。
+    // 因此 onDispose 留空（切换不解锁），仅在真正离开本页时（下方 Unit 键 effect）交还系统默认。
+    LaunchedEffect(landscape) {
+        context.findActivity()?.requestedOrientation =
             if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
+    // 离开本页时恢复系统默认朝向（含重建场景：旧实例销毁会走这里复位）
+    DisposableEffect(Unit) {
         onDispose {
-            act?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
