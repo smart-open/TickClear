@@ -18,9 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -80,6 +81,7 @@ fun ImageCompressScreen(onBack: () -> Unit) {
     var panelExpanded by remember { mutableStateOf(true) }
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var busy by remember { mutableStateOf(false) }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -101,6 +103,26 @@ fun ImageCompressScreen(onBack: () -> Unit) {
         processed?.let { ImageProcessor.compress(it, format, quality.toInt()) }
     }
 
+    // 保存已移至右上角图标按钮（参考 MosaicScreen）：校验选图后压缩并写入相册
+    fun saveCompressed() {
+        val bmp = processed ?: return
+        scope.launch {
+            busy = true
+            val name = "tickclear_compress_${System.currentTimeMillis()}"
+            val saved = ImageProcessor.saveToGallery(context, bmp, format, quality.toInt(), name)
+            snackbarHostState.showSnackbar(
+                context.getString(
+                    if (saved != null) {
+                        R.string.tools_img_compress_saved
+                    } else {
+                        R.string.tools_img_compress_save_fail
+                    },
+                ),
+            )
+            busy = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -111,6 +133,27 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
+                    }
+                },
+                actions = {
+                    // 保存：右上角图标按钮（处理中显示进度圈），替代原侧边面板大按钮
+                    IconButton(
+                        onClick = { saveCompressed() },
+                        enabled = processed != null && !busy,
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.width(22.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.tools_img_compress_save),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 },
             )
@@ -178,6 +221,7 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                     valueRange = 10f..100f,
                     steps = 89,
                     displayValue = "${quality.toInt()}%",
+                    sliderModifier = Modifier.fillMaxWidth(0.5f),
                 )
 
                 // 最大边长
@@ -263,34 +307,6 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                             modifier = Modifier.weight(1f),
                         )
                     }
-                }
-
-                Button(
-                    onClick = {
-                        val bmp = processed ?: return@Button
-                        scope.launch {
-                            val name = "tickclear_compress_${System.currentTimeMillis()}"
-                            val saved = ImageProcessor.saveToGallery(
-                                context,
-                                bmp,
-                                format,
-                                quality.toInt(),
-                                name,
-                            )
-                            snackbarHostState.showSnackbar(
-                                context.getString(
-                                    if (saved != null) {
-                                        R.string.tools_img_compress_saved
-                                    } else {
-                                        R.string.tools_img_compress_save_fail
-                                    },
-                                ),
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.tools_img_compress_save))
                 }
             }
         }
