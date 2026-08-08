@@ -1363,7 +1363,9 @@
     <string name="tools_backfill_title">打卡补录</string>
     <string name="tools_backfill_desc">补打过往日期打卡</string>
     <string name="backfill_habit">习惯打卡</string>
-    <string name="backfill_daily">每日打卡</string>
+    <string name="backfill_daily">任务完成</string>
+    <string name="backfill_habit_summary">按“习惯”维度记录：选择一个习惯与日期，可补打或取消该习惯当天的打卡，用于追踪某个习惯的连续坚持天数。</string>
+    <string name="backfill_daily_summary">当你某天把所有任务都做完时，系统会自动记一笔“任务完成”。这里可手动补打或取消某天的记录，用于统计“完成天数 / 连续完成”。</string>
     <string name="backfill_select_habit">选择习惯</string>
     <string name="backfill_pick_date">选择日期</string>
     <string name="backfill_date">日期：%1$s</string>
@@ -1372,7 +1374,6 @@
     <string name="backfill_action_check">补卡</string>
     <string name="backfill_action_uncheck">取消打卡</string>
     <string name="backfill_no_habit">请先选择习惯</string>
-    <string name="backfill_hint">为习惯或每日记录手动补打过往日期的打卡</string>
 
     <!-- 语音备忘降噪（V2.9++） -->
     <string name="voice_noise_reduction">录音降噪</string>

@@ -8,9 +8,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -23,6 +28,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -119,12 +126,6 @@ fun BackfillScreen(
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            Text(
-                stringResource(R.string.backfill_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             TabRow(selectedTabIndex = tab) {
                 Tab(
                     selected = tab == 0,
@@ -138,104 +139,198 @@ fun BackfillScreen(
                 )
             }
 
+            // 概要说明：跟随当前 Tab 动态展示用途解释
+            when (tab) {
+                0 -> SummaryCard(
+                    title = stringResource(R.string.backfill_habit),
+                    text = stringResource(R.string.backfill_habit_summary),
+                    icon = {
+                        Icon(
+                            Icons.Filled.LocalFireDepartment,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    },
+                )
+                else -> SummaryCard(
+                    title = stringResource(R.string.backfill_daily),
+                    text = stringResource(R.string.backfill_daily_summary),
+                    icon = {
+                        Icon(
+                            Icons.Filled.Event,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    },
+                )
+            }
+
             if (tab == 0) {
                 // 习惯打卡补录
-                if (habits.isEmpty()) {
-                    Text(
-                        stringResource(R.string.backfill_no_habit),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = it },
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
-                        OutlinedTextField(
-                            value = selectedHabit?.let { "${it.emoji} ${it.title}" } ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.backfill_select_habit)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                        ) {
-                            habits.filter { !it.archived }.forEach { habit ->
-                                DropdownMenuItem(
-                                    text = { Text("${habit.emoji} ${habit.title}") },
-                                    onClick = {
-                                        selectedHabitId = habit.id
-                                        expanded = false
-                                    },
+                        if (habits.isEmpty()) {
+                            Text(
+                                stringResource(R.string.backfill_no_habit),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            var expanded by remember { mutableStateOf(false) }
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = it },
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedHabit?.let { "${it.emoji} ${it.title}" } ?: "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.backfill_select_habit)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth(),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                ) {
+                                    habits.filter { !it.archived }.forEach { habit ->
+                                        DropdownMenuItem(
+                                            text = { Text("${habit.emoji} ${habit.title}") },
+                                            onClick = {
+                                                selectedHabitId = habit.id
+                                                expanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedButton(onClick = { showDatePicker(habitDate) { habitDate = it } }) {
+                                Text(stringResource(R.string.backfill_pick_date))
+                            }
+                            Text(
+                                stringResource(R.string.backfill_date, habitDate),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                if (habitStatus == true) stringResource(R.string.backfill_checked)
+                                else stringResource(R.string.backfill_unchecked),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Button(
+                                onClick = {
+                                    val id = selectedHabitId ?: return@Button
+                                    val checked = habitStatus ?: false
+                                    scope.launch {
+                                        vm.setHabitChecked(id, habitDate, !checked)
+                                        habitStatus = vm.habitChecked(id, habitDate)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    if (habitStatus == true) stringResource(R.string.backfill_action_uncheck)
+                                    else stringResource(R.string.backfill_action_check),
                                 )
                             }
                         }
                     }
-
-                    OutlinedButton(onClick = { showDatePicker(habitDate) { habitDate = it } }) {
-                        Text(stringResource(R.string.backfill_pick_date))
-                    }
-                    Text(
-                        stringResource(R.string.backfill_date, habitDate),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        if (habitStatus == true) stringResource(R.string.backfill_checked)
-                        else stringResource(R.string.backfill_unchecked),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Button(
-                        onClick = {
-                            val id = selectedHabitId ?: return@Button
-                            val checked = habitStatus ?: false
-                            scope.launch {
-                                vm.setHabitChecked(id, habitDate, !checked)
-                                habitStatus = vm.habitChecked(id, habitDate)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            if (habitStatus == true) stringResource(R.string.backfill_action_uncheck)
-                            else stringResource(R.string.backfill_action_check),
-                        )
-                    }
                 }
             } else {
-                // 每日打卡补录
-                OutlinedButton(onClick = { showDatePicker(dailyDate) { dailyDate = it } }) {
-                    Text(stringResource(R.string.backfill_pick_date))
+                // 任务完成补录
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        OutlinedButton(onClick = { showDatePicker(dailyDate) { dailyDate = it } }) {
+                            Text(stringResource(R.string.backfill_pick_date))
+                        }
+                        Text(
+                            stringResource(R.string.backfill_date, dailyDate),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            if (dailyStatus == true) stringResource(R.string.backfill_checked)
+                            else stringResource(R.string.backfill_unchecked),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Button(
+                            onClick = {
+                                val checked = dailyStatus ?: false
+                                scope.launch {
+                                    vm.setDailyChecked(dailyDate, !checked)
+                                    dailyStatus = vm.dailyChecked(dailyDate)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (dailyStatus == true) stringResource(R.string.backfill_action_uncheck)
+                                else stringResource(R.string.backfill_action_check),
+                            )
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 概要说明卡片：在 Tab 切换下方展示当前补录类型的用途解释。
+ */
+@Composable
+private fun SummaryCard(
+    title: String,
+    text: String,
+    icon: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+        ),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(modifier = Modifier.size(22.dp)) { icon() }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
-                    stringResource(R.string.backfill_date, dailyDate),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    if (dailyStatus == true) stringResource(R.string.backfill_checked)
-                    else stringResource(R.string.backfill_unchecked),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Button(
-                    onClick = {
-                        val checked = dailyStatus ?: false
-                        scope.launch {
-                            vm.setDailyChecked(dailyDate, !checked)
-                            dailyStatus = vm.dailyChecked(dailyDate)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        if (dailyStatus == true) stringResource(R.string.backfill_action_uncheck)
-                        else stringResource(R.string.backfill_action_check),
-                    )
-                }
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
