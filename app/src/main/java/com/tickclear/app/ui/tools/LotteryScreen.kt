@@ -59,6 +59,7 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.cos
 import kotlin.random.Random
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -279,15 +280,19 @@ private fun DiceDisplay(face: Int, token: Int) {
     var shown by remember { mutableIntStateOf(face) }
     LaunchedEffect(token) {
         if (token == 0) return@LaunchedEffect
-        repeat(8) {
+        // 旋转与快速换面并行：多圈旋转的同时持续换面，落定更连贯、更带感
+        val spin = launch {
+            rotation.animateTo(
+                rotation.value + 360f * 6f,
+                animationSpec = tween(900, easing = FastOutSlowInEasing),
+            )
+        }
+        repeat(16) {
             shown = Random.nextInt(1, 7)
-            delay(45)
+            delay(50)
         }
         shown = face
-        rotation.animateTo(
-            rotation.value + 360f * 3f,
-            animationSpec = tween(520, easing = FastOutSlowInEasing),
-        )
+        spin.join()
     }
     Box(
         modifier = Modifier
@@ -310,8 +315,8 @@ private fun CoinDisplay(side: Boolean, token: Int) {
         val start = flip.value
         flip.snapTo(start)
         flip.animateTo(
-            start + 360f * 2f,
-            animationSpec = tween(620, easing = FastOutSlowInEasing),
+            start + 360f * 5f,
+            animationSpec = tween(1000, easing = FastOutSlowInEasing),
         )
     }
     Box(
