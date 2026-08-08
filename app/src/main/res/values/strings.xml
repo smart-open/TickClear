@@ -1468,9 +1468,9 @@
 
     <!-- 备份导出（V2.9++） -->
     <string name="tools_backup_title">备份导出</string>
-    <string name="tools_backup_desc">一键备份：任务/习惯/工具配置/系统设置等</string>
+    <string name="tools_backup_desc">一键备份：任务/习惯/各工具数据与配置/系统设置等</string>
     <string name="backup_title">备份导出</string>
-    <string name="backup_desc">一键导出全部数据：任务、习惯、各工具配置、助手配置、系统设置等（密码保险箱可选明文导出）</string>
+    <string name="backup_desc">一键导出全部数据：任务、习惯、各工具数据与配置、助手配置、系统设置等（密码保险箱可选明文导出）</string>
     <string name="backup_vault_pass">保险箱口令（留空则不导出明文）</string>
     <string name="backup_include_plain">同时导出保险箱明文</string>
     <string name="backup_plain_warn">明文包含账号密码，请妥善保管导出文件</string>

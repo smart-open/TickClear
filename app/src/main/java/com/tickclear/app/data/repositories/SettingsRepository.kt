@@ -259,7 +259,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun exportSettingsJson(): String {
         val prefs = dataStore.data.first()
         val obj = JSONObject()
-        for ((key, value) in prefs.asMap()) {
+        for ((key, value) in prefs.asMap().entries) {
             when (value) {
                 is Boolean -> obj.put(key.name, value)
                 is Int -> obj.put(key.name, value)
@@ -273,6 +273,96 @@ class SettingsRepositoryImpl @Inject constructor(
         }
         return obj.toString()
     }
+
+    /**
+     * 从 JSON 恢复全部偏好（覆盖式写入已知键，未知键跳过）。
+     * DataStore 的 Preferences.Key 是类型绑定的，JSON 丢失了原始类型，故按 key 名路由到正确的类型写入。
+     */
+    override suspend fun importSettingsJson(json: String) {
+        val obj = JSONObject(json)
+        val it = obj.keys()
+        dataStore.edit { prefs ->
+            while (it.hasNext()) {
+                val key = it.next()
+                when (key) {
+                    "theme_mode" -> prefs[KEY_THEME] = obj.optString(key, ThemeMode.LIGHT.name)
+                    "theme_skin" -> prefs[KEY_THEME_SKIN] = obj.optString(key, ThemeSkin.BLUE.name)
+                    "animation_enabled" -> prefs[KEY_ANIMATION] = obj.optBoolean(key, true)
+                    "quiet_enabled" -> prefs[KEY_QUIET_ENABLED] = obj.optBoolean(key, true)
+                    "quiet_start_min" -> prefs[KEY_QUIET_START] = numToInt(obj, key, SettingsRepository.DEFAULT_QUIET_START)
+                    "quiet_end_min" -> prefs[KEY_QUIET_END] = numToInt(obj, key, SettingsRepository.DEFAULT_QUIET_END)
+                    "first_run_done" -> prefs[KEY_FIRST_RUN] = obj.optBoolean(key, false)
+                    "ai_mode" -> prefs[KEY_AI_MODE] = obj.optString(key, "LOCAL_NLU")
+                    "assistant_mode" -> prefs[KEY_ASSISTANT_MODE] = obj.optString(key, "MOCK")
+                    "assistant_endpoint" -> prefs[KEY_ASSISTANT_ENDPOINT] = obj.optString(key, "wss://api.tenclass.net/xiaozhi/v1/")
+                    "assistant_prompt" -> prefs[KEY_ASSISTANT_PROMPT] = obj.optString(key, context.getString(R.string.assistant_prompt_default))
+                    "llm_provider" -> prefs[KEY_LLM_PROVIDER] = obj.optString(key, SettingsRepository.DEFAULT_LLM_PROVIDER)
+                    "llm_base_url" -> prefs[KEY_LLM_BASE_URL] = obj.optString(key, SettingsRepository.DEFAULT_LLM_BASE_URL)
+                    "llm_model" -> prefs[KEY_LLM_MODEL] = obj.optString(key, SettingsRepository.DEFAULT_LLM_MODEL)
+                    "asr_provider" -> prefs[KEY_ASR_PROVIDER] = obj.optString(key, SettingsRepository.DEFAULT_ASR_PROVIDER)
+                    "asr_base_url" -> prefs[KEY_ASR_BASE_URL] = obj.optString(key, SettingsRepository.DEFAULT_ASR_BASE_URL)
+                    "asr_model" -> prefs[KEY_ASR_MODEL] = obj.optString(key, SettingsRepository.DEFAULT_ASR_MODEL)
+                    "wake_word_enabled" -> prefs[KEY_WAKE_WORD_ENABLED] = obj.optBoolean(key, false)
+                    "wake_word" -> prefs[KEY_WAKE_WORD] = obj.optString(key, context.getString(R.string.wake_word_default))
+                    "trust_mode" -> prefs[KEY_TRUST_MODE] = obj.optBoolean(key, false)
+                    "auto_backup_enabled" -> prefs[KEY_AUTO_BACKUP] = obj.optBoolean(key, false)
+                    "last_auto_backup_at" -> prefs[KEY_LAST_BACKUP_AT] = numToLong(obj, key, 0L)
+                    "last_backup_health" -> prefs[KEY_LAST_BACKUP_HEALTH] = obj.optString(key, BackupHealth.NONE.name)
+                    "snooze_default_min" -> prefs[KEY_SNOOZE_MIN] = numToInt(obj, key, SettingsRepository.DEFAULT_SNOOZE_MIN)
+                    "sound_enabled" -> prefs[KEY_SOUND_ENABLED] = obj.optBoolean(key, true)
+                    "clear_confirm_enabled" -> prefs[KEY_CLEAR_CONFIRM] = obj.optBoolean(key, true)
+                    "offline_command_enabled" -> prefs[KEY_OFFLINE_CMD] = obj.optBoolean(key, true)
+                    "asr_language" -> prefs[KEY_ASR_LANGUAGE] = obj.optString(key, SettingsRepository.DEFAULT_ASR_LANGUAGE)
+                    "voice_history_enabled" -> prefs[KEY_VOICE_HISTORY] = obj.optBoolean(key, false)
+                    "debug_log_enabled" -> prefs[KEY_DEBUG_LOG] = obj.optBoolean(key, false)
+                    "water_reminder_enabled" -> prefs[KEY_WATER_ENABLED] = obj.optBoolean(key, false)
+                    "water_reminder_interval_min" -> prefs[KEY_WATER_INTERVAL] = numToInt(obj, key, SettingsRepository.DEFAULT_WATER_INTERVAL_MIN).coerceAtLeast(5)
+                    "water_intake_ml" -> prefs[KEY_WATER_INTAKE_ML] = numToInt(obj, key, 0).coerceAtLeast(0)
+                    "water_intake_date" -> prefs[KEY_WATER_INTAKE_DATE] = obj.optString(key, "")
+                    "water_goal_ml" -> prefs[KEY_WATER_GOAL_ML] = numToInt(obj, key, SettingsRepository.DEFAULT_WATER_GOAL_ML).coerceAtLeast(200)
+                    "rest_reminder_enabled" -> prefs[KEY_REST_ENABLED] = obj.optBoolean(key, false)
+                    "rest_reminder_interval_min" -> prefs[KEY_REST_INTERVAL] = numToInt(obj, key, SettingsRepository.DEFAULT_REST_INTERVAL_MIN).coerceAtLeast(5)
+                    "eyecare_reminder_enabled" -> prefs[KEY_EYECARE_ENABLED] = obj.optBoolean(key, false)
+                    "eyecare_reminder_interval_min" -> prefs[KEY_EYECARE_INTERVAL] = numToInt(obj, key, SettingsRepository.DEFAULT_EYECARE_INTERVAL_MIN).coerceAtLeast(5)
+                    "nap_last_duration_min" -> prefs[KEY_NAP_DURATION] = numToInt(obj, key, SettingsRepository.DEFAULT_NAP_DURATION_MIN).coerceAtLeast(5)
+                    "nap_noise_enabled" -> prefs[KEY_NAP_NOISE_ENABLED] = obj.optBoolean(key, SettingsRepository.DEFAULT_NAP_NOISE_ENABLED)
+                    "nap_noise_scene" -> prefs[KEY_NAP_NOISE_SCENE] = obj.optString(key, SettingsRepository.DEFAULT_NAP_NOISE_SCENE)
+                    "nap_fade_min" -> prefs[KEY_NAP_FADE_MIN] = numToInt(obj, key, SettingsRepository.DEFAULT_NAP_FADE_MIN).coerceAtLeast(0)
+                    "hearing_protection_enabled" -> prefs[KEY_HEARING_ENABLED] = obj.optBoolean(key, false)
+                    "hearing_volume_threshold" -> prefs[KEY_HEARING_VOLUME] = numToInt(obj, key, SettingsRepository.DEFAULT_HEARING_VOLUME_THRESHOLD).coerceIn(0, 100)
+                    "hearing_max_wear_min" -> prefs[KEY_HEARING_WEAR] = numToInt(obj, key, SettingsRepository.DEFAULT_HEARING_WEAR_MIN).coerceAtLeast(5)
+                    "lottery_options" -> prefs[KEY_LOTTERY_OPTIONS] = obj.optString(key, "")
+                    "mood_log" -> prefs[KEY_MOOD_LOG] = obj.optString(key, "")
+                    "countdown_events" -> prefs[KEY_COUNTDOWN_EVENTS] = obj.optString(key, "")
+                    "voice_noise_reduction" -> prefs[KEY_VOICE_NOISE] = obj.optBoolean(key, false)
+                    "clipboard_auto_clear" -> prefs[KEY_CLIP_AUTO_CLEAR] = obj.optBoolean(key, false)
+                    "clipboard_clear_delay_sec" -> prefs[KEY_CLIP_CLEAR_DELAY] = numToInt(obj, key, SettingsRepository.DEFAULT_CLIPBOARD_CLEAR_DELAY_SEC).coerceIn(5, 120)
+                    "arrival_stations" -> prefs[KEY_ARRIVAL_STATIONS] = obj.optString(key, "")
+                    "arrival_enabled" -> prefs[KEY_ARRIVAL_ENABLED] = obj.optBoolean(key, false)
+                    "favorite_tool_routes" -> {
+                        val arr = obj.optJSONArray(key)
+                        if (arr != null) {
+                            val set = LinkedHashSet<String>()
+                            for (i in 0 until arr.length()) arr.optString(i, null)?.takeIf { it.isNotBlank() }?.let { set.add(it) }
+                            prefs[KEY_FAVORITE_TOOLS] = set
+                        }
+                    }
+                    "xz_device_id" -> prefs[KEY_XZ_DEVICE_ID] = obj.optString(key, "")
+                    "xz_client_id" -> prefs[KEY_XZ_CLIENT_ID] = obj.optString(key, "")
+                    "xz_serial_number" -> prefs[KEY_XZ_SERIAL_NUMBER] = obj.optString(key, "")
+                    else -> { /* 未知键：跳过，避免写入无法识别的偏好 */ }
+                }
+            }
+        }
+    }
+
+    /** JSON 数字统一按 [Number] 取 int（容错 Integer/Long/Double）。 */
+    private fun numToInt(obj: JSONObject, key: String, fallback: Int): Int =
+        (obj.opt(key) as? Number)?.toInt() ?: fallback
+
+    /** JSON 数字统一按 [Number] 取 long。 */
+    private fun numToLong(obj: JSONObject, key: String, fallback: Long): Long =
+        (obj.opt(key) as? Number)?.toLong() ?: fallback
 
     // ── 小智设备模拟（V2.8X++）：Device-Id 必须由用户在设置页显式输入真实设备 MAC，
     // 不再自动生成虚拟 MAC（虚拟 MAC 在 xiaozhi.me 官方云无法完成绑定/握手）。

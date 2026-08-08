@@ -127,17 +127,20 @@ class BackupManager @Inject constructor(
         // 版本兼容迁移：旧备份按主键合并导入前，先将其结构升级到当前 schema。
         migrateIfNeeded(root, version)
 
-        val groupsArr = root.optJSONArray("groups") ?: JSONArray()
-        val tasksArr = root.optJSONArray("tasks") ?: JSONArray()
-        val completionsArr = root.optJSONArray("completionLogs") ?: JSONArray()
-        val checkInsArr = root.optJSONArray("checkIns") ?: JSONArray()
-        val medalsArr = root.optJSONArray("medals") ?: JSONArray()
+        // 兼容两种结构：全量备份把核心数据嵌在 "core" 下（嵌套），旧明文/自动备份直接平铺在根。
+        val src = if (root.has("core")) root.getJSONObject("core") else root
+
+        val groupsArr = src.optJSONArray("groups") ?: JSONArray()
+        val tasksArr = src.optJSONArray("tasks") ?: JSONArray()
+        val completionsArr = src.optJSONArray("completionLogs") ?: JSONArray()
+        val checkInsArr = src.optJSONArray("checkIns") ?: JSONArray()
+        val medalsArr = src.optJSONArray("medals") ?: JSONArray()
         // V2.70：习惯数组缺失时（旧备份）按空处理，向前兼容。
-        val habitsArr = root.optJSONArray("habits") ?: JSONArray()
-        val habitCheckInsArr = root.optJSONArray("habitCheckIns") ?: JSONArray()
+        val habitsArr = src.optJSONArray("habits") ?: JSONArray()
+        val habitCheckInsArr = src.optJSONArray("habitCheckIns") ?: JSONArray()
         // v2 新增；v1 旧备份缺失时按空处理，向前兼容。
-        val expiriesArr = root.optJSONArray("expiries") ?: JSONArray()
-        val instancesArr = root.optJSONArray("taskInstances") ?: JSONArray()
+        val expiriesArr = src.optJSONArray("expiries") ?: JSONArray()
+        val instancesArr = src.optJSONArray("taskInstances") ?: JSONArray()
 
         if (groupsArr.length() == 0 && tasksArr.length() == 0 &&
             completionsArr.length() == 0 && checkInsArr.length() == 0 &&
@@ -277,15 +280,17 @@ class BackupManager @Inject constructor(
         val version = root.optInt(KEY_VERSION, -1)
         if (version <= 0) return BackupHealth.CORRUPT
         if (version > SCHEMA_VERSION) return BackupHealth.CORRUPT
-        val total = (root.optJSONArray("groups")?.length() ?: 0) +
-            (root.optJSONArray("tasks")?.length() ?: 0) +
-            (root.optJSONArray("completionLogs")?.length() ?: 0) +
-            (root.optJSONArray("checkIns")?.length() ?: 0) +
-            (root.optJSONArray("medals")?.length() ?: 0) +
-            (root.optJSONArray("habits")?.length() ?: 0) +
-            (root.optJSONArray("habitCheckIns")?.length() ?: 0) +
-            (root.optJSONArray("expiries")?.length() ?: 0) +
-            (root.optJSONArray("taskInstances")?.length() ?: 0)
+        // 全量备份核心数据嵌在 "core" 下，旧明文/自动备份平铺在根。
+        val src = if (root.has("core")) root.getJSONObject("core") else root
+        val total = (src.optJSONArray("groups")?.length() ?: 0) +
+            (src.optJSONArray("tasks")?.length() ?: 0) +
+            (src.optJSONArray("completionLogs")?.length() ?: 0) +
+            (src.optJSONArray("checkIns")?.length() ?: 0) +
+            (src.optJSONArray("medals")?.length() ?: 0) +
+            (src.optJSONArray("habits")?.length() ?: 0) +
+            (src.optJSONArray("habitCheckIns")?.length() ?: 0) +
+            (src.optJSONArray("expiries")?.length() ?: 0) +
+            (src.optJSONArray("taskInstances")?.length() ?: 0)
         return if (total == 0) BackupHealth.EMPTY else BackupHealth.OK
     }
 

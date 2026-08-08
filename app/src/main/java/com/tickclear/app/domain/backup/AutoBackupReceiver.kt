@@ -28,6 +28,7 @@ class AutoBackupReceiver : BroadcastReceiver() {
             try {
                 val entry = EntryPointAccessors.fromApplication(ctx.applicationContext, AppEntryPoint::class.java)
                 AutoBackupRunner.run(
+                    appContext = ctx.applicationContext,
                     baseDir = ctx.filesDir,
                     backupManager = entry.backupManager(),
                     settingsRepository = entry.settingsRepository(),

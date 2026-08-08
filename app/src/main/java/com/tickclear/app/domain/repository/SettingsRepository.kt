@@ -142,6 +142,9 @@ interface SettingsRepository {
     /** 导出全部偏好设置（DataStore）为 JSON 字符串，供「备份导出」工具一键导出。 */
     suspend fun exportSettingsJson(): String
 
+    /** 从 JSON 恢复全部偏好设置（DataStore），供「备份导入」按主键还原（覆盖式写入已知键）。 */
+    suspend fun importSettingsJson(json: String)
+
     // ── 工具箱：剪贴板防窃取（V2.9++）──
     /** 剪贴板自动清除开关：开启后复制内容延迟 N 秒后自动清空，规避后台读取。 */
     val clipboardAutoClear: Flow<Boolean>

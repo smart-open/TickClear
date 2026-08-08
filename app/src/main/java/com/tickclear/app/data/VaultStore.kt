@@ -70,6 +70,23 @@ object VaultStore {
     }
 
     /**
+     * 从全量备份恢复元数据（V2.9++ 导入）。密文 blob 原样写回，保险箱仍保持「锁定」，
+     * 用户在新设备凭原主口令解锁即可取回条目——无需也不持有明文口令。
+     * 与 [setup] 区别：恢复不假定「首次」，直接覆盖全部元数据。
+     */
+    fun restoreMeta(context: Context, meta: VaultMeta) {
+        prefs(context).edit().apply {
+            putString(KEY_SALT, VaultCrypto.bytesToB64(meta.salt))
+            putString(KEY_VERIFIER, meta.verifier)
+            putString(KEY_QUESTION, meta.question)
+            putString(KEY_ANSWER_HASH, meta.answerHash)
+            putString(KEY_ANSWER_SALT, VaultCrypto.bytesToB64(meta.answerSalt))
+            putString(KEY_ENTRIES, meta.entriesBlob)
+            apply()
+        }
+    }
+
+    /**
      * 通过安全问题重置口令：覆盖盐 / 验证器 / 答案哈希 / 条目（清空），保留原安全问题。
      * 旧条目因无旧口令无法解密，按约定直接清空、不可恢复。
      */

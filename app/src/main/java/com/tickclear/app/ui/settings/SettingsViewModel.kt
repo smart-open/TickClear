@@ -5,13 +5,17 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
+import org.json.JSONObject
+import com.tickclear.app.data.FamilyPointsBackup
 import com.tickclear.app.data.SecureStore
+import com.tickclear.app.data.VaultBackup
 import com.tickclear.app.domain.log.AppLogger
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.assistant.AsrProviderCatalog
 import com.tickclear.app.domain.assistant.AsrProviderResolver
 import com.tickclear.app.domain.backup.AutoBackupRunner
 import com.tickclear.app.domain.backup.AutoBackupScheduler
+import com.tickclear.app.domain.backup.BackupCrypto
 import com.tickclear.app.domain.backup.BackupHealth
 import com.tickclear.app.domain.backup.BackupManager
 import com.tickclear.app.domain.ics.IcsManager
@@ -77,11 +81,29 @@ class SettingsViewModel @Inject constructor(
             val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: throw AppException(ErrorCode.IMPORT_READ_FAILED)
             // 同时支持自动备份的加密信封（.tcbackup）与手动明文 JSON：
-            // importEncrypted 内部按格式自动解密 / 透传，避免「自动备份不可恢复」。
-            val r = backupManager.importEncrypted(bytes)
+            // BackupCrypto.decrypt 内部按魔数自动识别 / 透传，避免「自动备份不可恢复」。
+            val json = BackupCrypto.decrypt(bytes).toString(Charsets.UTF_8)
+            // 导入核心数据（任务/习惯等）；importFromJson 同时兼容嵌套 core 与旧平铺结构。
+            val r = backupManager.importFromJson(json)
+
+            // 全量备份（导出工具 / 新版自动备份）附带 settings / vault / familyPoints，一并还原。
+            // 任一附加块缺失或损坏不影响核心数据导入（逐项 runCatching 兜底）。
+            val root = runCatching { JSONObject(json) }.getOrNull()
+            root?.optJSONObject("settings")?.let { settings ->
+                runCatching { settingsRepository.importSettingsJson(settings.toString()) }
+                    .onFailure { AppLogger.e("SettingsVM", "导入后恢复设置失败：${it.message}") }
+            }
+            root?.optJSONObject("vault")?.let { vault ->
+                runCatching { VaultBackup.restore(appContext, vault) }
+                    .onFailure { AppLogger.e("SettingsVM", "导入后恢复保险箱失败：${it.message}") }
+            }
+            root?.optJSONObject("familyPoints")?.let { fp ->
+                runCatching { FamilyPointsBackup.restore(appContext, fp) }
+                    .onFailure { AppLogger.e("SettingsVM", "导入后恢复家庭积分失败：${it.message}") }
+            }
+
             // 导入只把数据写回了库，AlarmManager 里还是导入前那批闹钟：
             // 恢复出来的任务/习惯/到期提醒会全部静默不响，直到下次重启或改设置才自愈。
-            // 沿用 BootReceiver 的逐项 runCatching 兜底，单项失败不影响其余重排。
             rescheduleAfterImport()
             backupToasts.tryEmit(
                 BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups, r.habits)),
@@ -380,6 +402,7 @@ class SettingsViewModel @Inject constructor(
     fun runAutoBackupNow() = viewModelScope.launch {
         try {
             AutoBackupRunner.run(
+                appContext = appContext,
                 baseDir = appContext.filesDir,
                 backupManager = backupManager,
                 settingsRepository = settingsRepository,

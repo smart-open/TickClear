@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tickclear.app.R
+import com.tickclear.app.data.FamilyPointsBackup
 import com.tickclear.app.data.VaultBackup
 import com.tickclear.app.data.VaultCrypto
 import com.tickclear.app.data.VaultStore
@@ -80,6 +81,8 @@ class BackupExportViewModel @Inject constructor(
                 root.put("exportedAt", System.currentTimeMillis())
                 root.put("core", core)
                 root.put("settings", JSONObject(settingsRepository.exportSettingsJson()))
+                // 家庭积分存于独立 SharedPreferences，此前任何备份都不含，此处补全覆盖。
+                root.put("familyPoints", FamilyPointsBackup.export(appContext))
 
                 val vb = VaultBackup.export(appContext, if (includePlaintext) passphrase else null)
                 val vaultObj = JSONObject()

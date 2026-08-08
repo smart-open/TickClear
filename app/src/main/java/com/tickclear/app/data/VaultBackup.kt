@@ -4,6 +4,7 @@ import android.content.Context
 import com.tickclear.app.domain.model.VaultEntry
 import com.tickclear.app.ui.tools.VAULT_VERIFIER_PLAIN
 import org.json.JSONArray
+import org.json.JSONObject
 import javax.crypto.SecretKey
 
 /**
@@ -55,5 +56,24 @@ object VaultBackup {
             )
         }
         return out
+    }
+
+    /**
+     * 从备份的 vault JSON 还原加密元数据（V2.9++ 导入）。
+     * 仅当已初始化且未触发解锁错误时执行；加密 blob 原样写回，保险箱仍锁定，
+     * 用户凭原主口令在新设备解锁即可。明文 entries 仅作备份内可读展示，不参与还原。
+     */
+    fun restore(context: Context, vaultObj: JSONObject) {
+        if (!vaultObj.optBoolean("initialized", false)) return
+        if (vaultObj.optBoolean("unlockError", false)) return
+        val meta = VaultMeta(
+            salt = VaultCrypto.b64ToBytes(vaultObj.getString("salt")),
+            verifier = vaultObj.getString("verifier"),
+            question = vaultObj.optString("question", ""),
+            answerHash = vaultObj.optString("answerHash", ""),
+            entriesBlob = vaultObj.optString("entriesBlob", ""),
+            answerSalt = VaultCrypto.b64ToBytes(vaultObj.getString("answerSalt")),
+        )
+        VaultStore.restoreMeta(context, meta)
     }
 }
