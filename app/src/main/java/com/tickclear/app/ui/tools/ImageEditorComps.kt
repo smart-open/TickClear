@@ -425,7 +425,7 @@ fun ToolSlider(
 }
 
 /**
- * 缩放 + 方向键平移控制台（卡片式）。
+ * 缩放 + 方向键平移控制台（行内卡片式，与马赛克/去水印侧栏布局一致）。
  * 放大（scale>1）后「上/下/左/右」方向键才可点击，通过小幅平移查看放大后看不见的区域；
  * 未加载图片或未放大时整体禁用并给出提示。
  */
@@ -439,82 +439,73 @@ fun ZoomPanControls(
     modifier: Modifier = Modifier,
 ) {
     // offset 为归一化单位（0..1），方向键每按一次平移固定归一化步长
-    val PAN_STEP = 0.25f
+    val panStep = 0.12f
     val canPan = enabled && scale > 1f
+
+    fun clampPan(o: Offset, s: Float): Offset {
+        val m = (s - 1f) / 2f
+        return Offset(o.x.coerceIn(-m, m), o.y.coerceIn(-m, m))
+    }
 
     fun move(dx: Float, dy: Float) {
         if (!canPan) return
-        onOffsetChange(offset + Offset(dx * PAN_STEP, dy * PAN_STEP))
+        onOffsetChange(clampPan(offset + Offset(dx * panStep, dy * panStep), scale))
     }
 
-    Card(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(10.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Column(
-            modifier = Modifier.padding(Spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(
+                onClick = { onScaleChange((scale - 0.5f).coerceAtLeast(1f)) },
+                enabled = enabled,
+            ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out)) }
             Text(
-                stringResource(R.string.tools_zoom_pan),
+                "${scale.toInt()}×",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = { onScaleChange((scale - 0.5f).coerceAtLeast(1f)) },
-                    enabled = enabled,
-                ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out)) }
-                Text(
-                    String.format(java.util.Locale.US, "%.1f×", scale),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                IconButton(
-                    onClick = { onScaleChange((scale + 0.5f).coerceAtMost(4f)) },
-                    enabled = enabled,
-                ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in)) }
-                OutlinedButton(
-                    onClick = { onScaleChange(1f); onOffsetChange(Offset.Zero) },
-                    enabled = enabled,
-                    modifier = Modifier.height(36.dp),
-                ) { Text(stringResource(R.string.tools_zoom_reset)) }
-            }
-            // 方向键 D-pad
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                IconButton(onClick = { move(0f, -1f) }, enabled = canPan) {
-                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up))
-                }
-            }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { move(-1f, 0f) }, enabled = canPan) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left))
-                }
-                Spacer(Modifier.width(8.dp))
-                IconButton(onClick = { move(1f, 0f) }, enabled = canPan) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right))
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                IconButton(onClick = { move(0f, 1f) }, enabled = canPan) {
-                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down))
-                }
-            }
-            if (!canPan) {
-                Text(
-                    stringResource(R.string.tools_pan_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            IconButton(
+                onClick = { onScaleChange((scale + 0.5f).coerceAtMost(4f)) },
+                enabled = enabled,
+            ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in)) }
+        }
+        OutlinedButton(
+            onClick = { onScaleChange(1f); onOffsetChange(Offset.Zero) },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.tools_zoom_reset)) }
+
+        Spacer(Modifier.height(Spacing.xs))
+        Text(
+            stringResource(R.string.tools_pan_hint),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            IconButton(
+                onClick = { move(-1f, 0f) },
+                enabled = canPan,
+            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
+            IconButton(
+                onClick = { move(0f, -1f) },
+                enabled = canPan,
+            ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
+            IconButton(
+                onClick = { move(0f, 1f) },
+                enabled = canPan,
+            ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
+            IconButton(
+                onClick = { move(1f, 0f) },
+                enabled = canPan,
+            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
         }
     }
 }
