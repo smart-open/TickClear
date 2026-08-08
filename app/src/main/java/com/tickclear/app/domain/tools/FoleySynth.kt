@@ -1,7 +1,11 @@
 package com.tickclear.app.domain.tools
 
+import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
+import com.tickclear.app.R
+import com.tickclear.app.domain.log.AppLogger
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -11,23 +15,57 @@ import kotlin.random.Random
  * 复用 AnimalSynth 的 AudioTrack 实时合成思路，零额外依赖、本地播放。
  * 提供的音效：木鱼敲击 / 打火机点火 / 烟花爆炸 / 吹灭 / 弹珠碰撞。
  * 这些是「拟物」音效，主打解压好玩，并非真实录音。
+ *
+ * 木鱼敲击（V2.11++）：优先播放 res/raw/wood_knock 的真实录音（MediaPlayer），
+ * 缺失或播放失败时回退到内置合成音，保证「点了一定有声音」。
  */
 object FoleySynth {
+    private const val TAG = "FoleySynth"
     private const val SR = 44100
     private var current: AudioTrack? = null
+    private var mp: MediaPlayer? = null
 
-    /** 停止并释放当前正在播放的音轨。 */
+    /** 停止并释放当前正在播放的合成音轨与录音。 */
     fun stop() {
+        releaseTrack()
+        releaseMp()
+    }
+
+    private fun releaseTrack() {
         runCatching {
             current?.stop()
             current?.release()
-        }
+        }.onFailure { AppLogger.w(TAG, "AudioTrack 释放异常：${it.message}") }
         current = null
+    }
+
+    private fun releaseMp() {
+        runCatching { mp?.release() }
+        mp = null
+    }
+
+    /**
+     * 木鱼敲击：优先播放真实录音 wood_knock（MediaPlayer，需在主线程调用），
+     * 录音缺失/失败时回退合成音。录音来自公开木鱼音效（mokugyo），CC0 可用。
+     */
+    fun playWood(context: Context) {
+        val player = runCatching { MediaPlayer.create(context, R.raw.wood_knock) }.getOrNull()
+        if (player != null) {
+            releaseMp()
+            mp = player.apply {
+                setOnCompletionListener { releaseMp() }
+                setOnErrorListener { _, _, _ -> releaseMp(); true }
+                start()
+            }
+        } else {
+            AppLogger.w(TAG, "wood_knock 录音不可用，回退合成")
+            synthWood()
+        }
     }
 
     fun play(key: String) {
         val samples = when (key) {
-            "wood" -> woodKnock()
+            "wood" -> synthWood()
             "lighter" -> lighterFlick()
             "firework" -> firework()
             "blow" -> blowOut()
@@ -43,11 +81,12 @@ object FoleySynth {
             val track = AudioTrack.Builder()
                 .setAudioFormat(fmt)
                 .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(samples.size * 2)
                 .build()
             track.write(samples, 0, samples.size)
             current = track
             track.play()
-        }
+        }.onFailure { AppLogger.w(TAG, "音效合成/播放失败（key=$key）：${it.message}") }
     }
 
     // ---------- 合成基元 ----------
@@ -108,10 +147,13 @@ object FoleySynth {
     private fun g(dur: Double, a: Double, r: Double): (Double) -> Double = { t -> env(t, dur, a, r) }
 
     // ---------- 各音效 ----------
-    /** 木鱼敲击：短促低音“笃” + 一点木质咔哒。 */
-    private fun woodKnock() = concat(
-        tone(0.06, { 200.0 }, { t -> (1 - t / 0.06) * 0.9 }),
-        noise(0.02, { 0.6 }),
+    /**
+     * 木鱼敲击（合成兜底）：木质「笃」声——中频短促音 + 一记咔哒噪声。
+     * 比旧版更亮（520Hz）更突出，确保无声卡/无录音环境也能清晰听到。
+     */
+    private fun synthWood() = concat(
+        tone(0.12, { 520.0 }, { t -> (1 - t / 0.12) * (1 - t / 0.12) * 0.95 }),
+        noise(0.015, { 0.5 }),
     )
 
     /** 打火机点火：金属咔哒 + 火焰呼一声。 */
@@ -121,7 +163,7 @@ object FoleySynth {
         noise(0.2, { t -> 0.5 * (1 - t / 0.2) }),
     )
 
-    /** 烟花爆炸：低频“咚” + 宽频脆响。 */
+    /** 烟花爆炸：低频「咚」 + 宽频脆响。 */
     private fun firework() = concat(
         tone(0.12, { 80.0 }, { t -> (1 - t / 0.12) * 0.8 }),
         silence(0.02),
@@ -131,6 +173,6 @@ object FoleySynth {
     /** 吹灭蜡烛：一声短促的气流。 */
     private fun blowOut() = noise(0.25, { t -> 0.5 * (1 - t / 0.25) })
 
-    /** 弹珠碰撞：清脆“叮”。 */
+    /** 弹珠碰撞：清脆「叮」。 */
     private fun pop() = tone(0.05, { 320.0 }, { t -> (1 - t / 0.05) * 0.9 })
 }

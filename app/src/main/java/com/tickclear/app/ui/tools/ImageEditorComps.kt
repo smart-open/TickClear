@@ -91,33 +91,61 @@ fun SimHintCard(text: String, modifier: Modifier = Modifier) {
 /**
  * 模拟解压类工具的醒目数据卡（计数 / 分数 / 压力等）。
  */
+/**
+ * 模拟解压类工具的醒目数据卡（计数 / 分数 / 压力等）。
+ * [horizontal]=true 时数值与单位同行不换行（如「123下」），用于横向空间紧张的场景。
+ */
 @Composable
 fun SimStatCard(
     value: String,
     modifier: Modifier = Modifier,
     label: String? = null,
+    horizontal: Boolean = false,
 ) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         shape = RoundedCornerShape(16.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(Spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                value,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            if (label != null) {
-                Spacer(Modifier.height(Spacing.xs))
+        if (horizontal && label != null) {
+            Row(
+                modifier = Modifier.padding(Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                Spacer(Modifier.width(Spacing.xs))
                 Text(
                     label,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 1,
+                    softWrap = false,
                 )
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(Spacing.md),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                if (label != null) {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
             }
         }
     }
