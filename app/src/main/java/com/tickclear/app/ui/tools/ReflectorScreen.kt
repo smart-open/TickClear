@@ -11,6 +11,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,11 +59,13 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** 反光板色温选项：白光 / 暖光 / 冷光。 */
+/** 反光板色温选项：白光 / 暖光 / 冷光 / 暖橙 / 自然光（共 5 种，FlowRow 自动换行）。 */
 private val TINTS = listOf(
     R.string.reflector_white to Color.White,
     R.string.reflector_warm to Color(0xFFFFE0B2),
     R.string.reflector_cool to Color(0xFFB3E5FC),
+    R.string.reflector_sunset to Color(0xFFFFB74D),
+    R.string.reflector_natural to Color(0xFFE0F7FA),
 )
 
 /**
@@ -69,7 +73,7 @@ private val TINTS = listOf(
  * 支持亮度滑杆与白/暖/冷三档色温；控制区可向下折叠 / 向上展开，折叠后补光区域自动铺满。
  * 退出自动恢复原有屏幕亮度。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ReflectorScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -222,28 +226,29 @@ fun ReflectorScreen(onBack: () -> Unit) {
                             valueRange = 0.1f..1f,
                             steps = 18,
                             displayValue = "${(brightness * 100).roundToInt()}%",
+                            sliderModifier = Modifier.fillMaxWidth(0.5f),
                         )
 
-                        // 色温：白 / 暖 / 冷 圆形样本选择器
+                        // 色温：白 / 暖 / 冷 / 暖橙 / 自然光 圆形样本选择器（FlowRow 自动换行）
                         Text(
                             stringResource(R.string.reflector_color_temp),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             TINTS.forEach { (labelRes, color) ->
                                 val selected = tintRes == labelRes
                                 Column(
-                                    modifier = Modifier.weight(1f),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(46.dp)
+                                            .size(48.dp)
                                             .clip(CircleShape)
                                             .background(color)
                                             .border(
@@ -277,6 +282,7 @@ fun ReflectorScreen(onBack: () -> Unit) {
                             valueRange = 0.1f..1f,
                             steps = 18,
                             displayValue = "${(zoom * 100).roundToInt()}%",
+                            sliderModifier = Modifier.fillMaxWidth(0.5f),
                         )
 
                         Text(
