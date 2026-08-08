@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -110,6 +111,27 @@ fun MosaicScreen(onBack: () -> Unit) {
         return Offset(o.x.coerceIn(-m, m), o.y.coerceIn(-m, m))
     }
 
+    // 应用并保存（移到右上角图标按钮复用）：选图与选区校验 + 马赛克/涂黑后存相册
+    fun applyMosaic() {
+        val bmp = bitmap ?: run {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint_brush)) }
+            return
+        }
+        if (shapes.isEmpty()) {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint_brush)) }
+            return
+        }
+        scope.launch {
+            busy = true
+            val out = ImageMasker.applyMaskWithShapes(bmp, shapes, maskMode, strength)
+            val ok = QrGenerator.saveToGallery(context, out, "tickclear_mosaic")
+            snackbarHostState.showSnackbar(
+                context.getString(if (ok) R.string.mosaic_saved else R.string.mosaic_save_fail),
+            )
+            busy = false
+        }
+    }
+
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
@@ -127,7 +149,6 @@ fun MosaicScreen(onBack: () -> Unit) {
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     Scaffold(
         topBar = {
@@ -139,6 +160,27 @@ fun MosaicScreen(onBack: () -> Unit) {
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
+                    }
+                },
+                actions = {
+                    // 应用并保存：右上角图标按钮（处理中显示进度圈），替代原侧边面板大按钮
+                    IconButton(
+                        onClick = { applyMosaic() },
+                        enabled = !busy,
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.width(22.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.mosaic_apply),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 },
             )
@@ -355,7 +397,7 @@ fun MosaicScreen(onBack: () -> Unit) {
                         value = brushWidthRatio,
                         onValueChange = { brushWidthRatio = it },
                         valueRange = 0.01f..0.15f,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(0.5f),
                     )
                 }
                 if (maskMode == ImageMasker.MaskMode.MOSAIC) {
@@ -365,43 +407,11 @@ fun MosaicScreen(onBack: () -> Unit) {
                         onValueChange = { strength = it.toInt() },
                         valueRange = 4f..24f,
                         steps = 19,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(0.5f),
                     )
                 }
 
-                Button(
-                    onClick = {
-                        val bmp = bitmap ?: run {
-                            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint_brush)) }
-                            return@Button
-                        }
-                        if (shapes.isEmpty()) {
-                            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.mosaic_hint_brush)) }
-                            return@Button
-                        }
-                        scope.launch {
-                            busy = true
-                            val out = ImageMasker.applyMaskWithShapes(bmp, shapes, maskMode, strength)
-                            val ok = QrGenerator.saveToGallery(context, out, "tickclear_mosaic")
-                            snackbarHostState.showSnackbar(
-                                context.getString(if (ok) R.string.mosaic_saved else R.string.mosaic_save_fail),
-                            )
-                            busy = false
-                        }
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.width(20.dp),
-                            strokeWidth = 2.dp,
-                            color = onPrimaryColor,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(stringResource(R.string.mosaic_apply))
-                }
+                // 应用并保存已移至右上角图标按钮（见 TopAppBar actions）
             }
         }
     }
