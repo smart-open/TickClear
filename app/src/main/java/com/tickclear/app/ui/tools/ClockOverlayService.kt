@@ -55,7 +55,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.shadow
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -223,12 +222,15 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
         onDispose { handler.removeCallbacks(ticker) }
     }
 
-    // 透明科技感配色：青蓝霓虹描边 + 发光数字 + 脉冲信号点
-    val cyan = Color(0xFF00E5FF)
-    val blue = Color(0xFF2979FF)
-    val glow = Color(0x8C00E5FF)
+    // 银色科技感配色：深色玻璃底 + 银色浅边框 + 柔和蓝点缀 + 等宽数字
+    val silverLight = Color(0xFFE9ECF1)
+    val silverDark = Color(0xFF9BA0A8)
+    val glassTop = Color(0xCC14171C)
+    val glassBottom = Color(0xC40D0F13)
+    val digitColor = Color(0xFFEEF1F5)
+    val accent = Color(0xFF7FD4FF)
     val pulse by rememberInfiniteTransition(label = "clockPulse").animateFloat(
-        initialValue = 0.35f,
+        initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(1200, easing = FastOutSlowInEasing),
@@ -239,67 +241,61 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
 
     Box(
         modifier = Modifier
-            // 霓虹外发光：用 shadow 模拟青色光晕（背景透明，仅边缘辉光）
-            .shadow(
-                elevation = 14.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = glow,
-                spotColor = glow,
-                clip = false,
-            )
-            // 玻璃质感：极淡竖向渐变 + 透明，不遮挡内容
+            // 深色玻璃底：保证在任意应用上银色边框与数字都清晰可读
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0x1F0A1B2B), Color(0x0D06121F)),
+                    colors = listOf(glassTop, glassBottom),
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
             )
-            // 青→蓝霓虹描边
+            // 银色浅边框（light border）
             .border(
-                width = 1.2.dp,
+                width = 1.dp,
                 brush = Brush.horizontalGradient(
-                    colors = listOf(cyan.copy(alpha = 0.85f), blue.copy(alpha = 0.85f)),
+                    colors = listOf(silverLight, silverDark, silverLight),
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
             )
             .pointerInput(Unit) {
                 detectDragGestures { _, dragAmount -> onDrag(dragAmount.x, dragAmount.y) }
             }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 18.dp, vertical = 9.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // 脉冲信号点：科技感"运行中"指示
+            // 运行指示点（柔和科技蓝，脉冲呼吸）
             Box(
                 modifier = Modifier
-                    .size(7.dp)
+                    .size(6.dp)
                     .background(
-                        color = cyan.copy(alpha = pulse),
+                        color = accent.copy(alpha = pulse),
                         shape = CircleShape,
                     ),
             )
             Text(
                 text = timeText,
-                color = Color(0xFFE6FBFF),
+                color = digitColor,
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.sp,
+                // 等宽数字：0-9 占位一致，秒数跳动时整体长度不再变化
                 style = LocalTextStyle.current.copy(
+                    fontFeatureSettings = "tnum",
                     shadow = Shadow(
-                        color = cyan.copy(alpha = 0.9f),
+                        color = accent.copy(alpha = 0.30f),
                         offset = Offset(0f, 0f),
-                        blurRadius = 12f,
+                        blurRadius = 8f,
                     ),
                 ),
             )
             Icon(
                 imageVector = Icons.Filled.Close,
                 contentDescription = stringResource(R.string.clock_overlay_close),
-                tint = cyan.copy(alpha = 0.85f),
+                tint = silverLight,
                 modifier = Modifier
-                    .size(18.dp)
+                    .size(16.dp)
                     .clickable(onClick = onClose),
             )
         }
