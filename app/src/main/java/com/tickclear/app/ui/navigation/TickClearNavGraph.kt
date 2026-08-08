@@ -81,14 +81,12 @@ import com.tickclear.app.ui.tools.ImageGrayscaleScreen
 import com.tickclear.app.ui.tools.CookingTimerScreen
 import com.tickclear.app.ui.tools.CookingTimerViewModel
 import com.tickclear.app.ui.tools.AnimalSoundScreen
-import com.tickclear.app.ui.tools.SimCanShakeScreen
 import com.tickclear.app.ui.tools.SimCandleScreen
 import com.tickclear.app.ui.tools.SimWoodFishScreen
 import com.tickclear.app.ui.tools.SimLighterScreen
 import com.tickclear.app.ui.tools.SimFireworksScreen
 import com.tickclear.app.ui.tools.SimPinballScreen
 import com.tickclear.app.ui.tools.GlassCupScreen
-import com.tickclear.app.ui.tools.FluteScreen
 import com.tickclear.app.ui.tools.FortuneScreen
 import com.tickclear.app.ui.tools.RpsScreen
 import com.tickclear.app.ui.tools.VibrationMassageScreen
@@ -461,9 +459,6 @@ private fun AppNavHost(
         composable(Routes.TOOLS_ANIMAL) {
             AnimalSoundScreen(onBack = { navController.popBackStack() })
         }
-        composable(Routes.TOOLS_SIM_CAN) {
-            SimCanShakeScreen(onBack = { navController.popBackStack() })
-        }
         composable(Routes.TOOLS_SIM_CANDLE) {
             SimCandleScreen(onBack = { navController.popBackStack() })
         }
@@ -481,9 +476,6 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_SIM_GLASS) {
             GlassCupScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.TOOLS_SIM_FLUTE) {
-            FluteScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.TOOLS_FORTUNE) {
             FortuneScreen(onBack = { navController.popBackStack() })

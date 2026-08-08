@@ -9,7 +9,7 @@ import kotlin.random.Random
 /**
  * 模拟解压音效合成器（V2.9++ 工具箱「模拟解压」分类）。
  * 复用 AnimalSynth 的 AudioTrack 实时合成思路，零额外依赖、本地播放。
- * 提供的音效：易拉罐喷溅 / 木鱼敲击 / 打火机点火 / 烟花爆炸 / 吹灭 / 弹珠碰撞。
+ * 提供的音效：木鱼敲击 / 打火机点火 / 烟花爆炸 / 吹灭 / 弹珠碰撞。
  * 这些是「拟物」音效，主打解压好玩，并非真实录音。
  */
 object FoleySynth {
@@ -27,7 +27,6 @@ object FoleySynth {
 
     fun play(key: String) {
         val samples = when (key) {
-            "can" -> canSpray()
             "wood" -> woodKnock()
             "lighter" -> lighterFlick()
             "firework" -> firework()
@@ -109,13 +108,6 @@ object FoleySynth {
     private fun g(dur: Double, a: Double, r: Double): (Double) -> Double = { t -> env(t, dur, a, r) }
 
     // ---------- 各音效 ----------
-    /** 易拉罐开罐喷溅：高频嘶嘶白噪声快速淡出。 */
-    private fun canSpray() = concat(
-        noise(0.7) { t -> 0.55 * (1 - t / 0.7) },
-        silence(0.02),
-        tone(0.08, { 520.0 }, g(0.08, 0.02, 0.5)),
-    )
-
     /** 木鱼敲击：短促低音“笃” + 一点木质咔哒。 */
     private fun woodKnock() = concat(
         tone(0.06, { 200.0 }, { t -> (1 - t / 0.06) * 0.9 }),

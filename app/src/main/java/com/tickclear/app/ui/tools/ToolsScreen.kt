@@ -233,12 +233,6 @@ private val TOOL_CATEGORIES = listOf(
                 icon = Icons.Filled.Pets,
             ),
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_CAN,
-                titleRes = R.string.tools_sim_can_title,
-                descRes = R.string.tools_sim_can_desc,
-                icon = Icons.Filled.EmojiFoodBeverage,
-            ),
-            ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_CANDLE,
                 titleRes = R.string.tools_sim_candle_title,
                 descRes = R.string.tools_sim_candle_desc,
@@ -273,12 +267,6 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.sim_glass_title,
                 descRes = R.string.sim_glass_desc,
                 icon = Icons.Filled.LocalBar,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_FLUTE,
-                titleRes = R.string.sim_flute_title,
-                descRes = R.string.sim_flute_desc,
-                icon = Icons.Filled.GraphicEq,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_FORTUNE,

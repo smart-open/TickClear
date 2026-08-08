@@ -88,7 +88,6 @@ object Routes {
     const val TOOLS_COOK_TIMER = "tools/cookTimer"
     const val TOOLS_ANIMAL = "tools/animal"
     // V2.9++：工具箱新增「模拟解压」分类（动物拟声归纳于此 + 6 个解压玩具）
-    const val TOOLS_SIM_CAN = "tools/simCan"
     const val TOOLS_SIM_CANDLE = "tools/simCandle"
     const val TOOLS_SIM_WOOD = "tools/simWood"
     const val TOOLS_SIM_LIGHTER = "tools/simLighter"
@@ -96,8 +95,6 @@ object Routes {
     const val TOOLS_SIM_PINBALL = "tools/simPinball"
     // V2.9++：模拟解压（拟声玻璃杯敲击）
     const val TOOLS_SIM_GLASS = "tools/simGlass"
-    // V2.9++：模拟解压（吹笛子：麦克风采集气流→时域能量分析→驱动 AudioTrack 合成笛声）
-    const val TOOLS_SIM_FLUTE = "tools/simFlute"
     // V2.9++：娱乐休闲（今日运势 / 石头剪刀布 / 振动按摩）
     const val TOOLS_FORTUNE = "tools/fortune"
     const val TOOLS_RPS = "tools/rps"

@@ -1602,7 +1602,6 @@
     <string name="tools_pan_right">右移视图</string>
     <string name="tools_unit_times">下</string>
     <string name="tools_unit_points">分</string>
-    <string name="tools_sim_can_pressure">压力</string>
 
     <!-- ============ V2.9++ 新增工具：烹饪多组定时器 ============ -->
     <string name="tools_cook_timer_title">烹饪定时</string>
@@ -1639,14 +1638,6 @@
 
     <!-- ============ V2.9++ 新增工具分类：模拟解压 ============ -->
     <string name="tools_cat_sim">模拟解压</string>
-
-    <!-- 模拟易拉罐摇晃 -->
-    <string name="tools_sim_can_title">易拉罐摇晃</string>
-    <string name="tools_sim_can_desc">摇一摇攒压力，开罐喷一脸</string>
-    <string name="tools_sim_can_hint">摇手机或点“摇晃”攒压力，再点“开罐”</string>
-    <string name="tools_sim_can_shake">摇晃</string>
-    <string name="tools_sim_can_open">开罐</string>
-    <string name="tools_sim_can_fizzle">压力不够，只滋了一下…</string>
 
     <!-- 虚拟吹蜡烛 -->
     <string name="tools_sim_candle_title">吹蜡烛</string>
@@ -1687,18 +1678,6 @@
     <string name="sim_glass_hint">点击杯身不同位置，越靠杯口音越高，敲出 1234567 音符</string>
     <string name="sim_glass_tap">点一下试试</string>
     <string name="sim_glass_solfege">哆|来|咪|发|唆|拉|西</string>
-
-    <!-- 模拟解压：吹笛子 -->
-    <string name="sim_flute_title">吹笛子</string>
-    <string name="sim_flute_desc">对着麦克风吹气，吹出清澈笛声</string>
-    <string name="sim_flute_hint">选一个音，对着麦克风吹气即可吹响，松口即停</string>
-    <string name="sim_flute_mic_denied">未授权麦克风，可改为按住吹奏</string>
-    <string name="sim_flute_pick_note">当前音高</string>
-    <string name="sim_flute_breath">气息强度</string>
-    <string name="sim_flute_start">开始吹奏</string>
-    <string name="sim_flute_stop">停止吹奏</string>
-    <string name="sim_flute_blow">按住吹奏</string>
-    <string name="sim_flute_solfege">哆|来|咪|发|唆|拉|西|哆</string>
 
     <!-- 养宠物（模拟解压） -->
     <string name="pet_title">养宠物</string>
