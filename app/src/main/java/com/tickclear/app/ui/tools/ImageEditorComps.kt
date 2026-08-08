@@ -377,6 +377,7 @@ fun ToolSlider(
     steps: Int,
     displayValue: String,
     modifier: Modifier = Modifier,
+    sliderModifier: Modifier = Modifier.fillMaxWidth(),
     accent: Color = MaterialTheme.colorScheme.primary,
 ) {
     Card(
@@ -412,7 +413,7 @@ fun ToolSlider(
                 onValueChange = onValueChange,
                 valueRange = valueRange,
                 steps = steps,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = sliderModifier,
                 colors = SliderDefaults.colors(
                     thumbColor = accent,
                     activeTrackColor = accent,
