@@ -176,11 +176,6 @@ fun DeadPixelScreen(onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(Spacing.xs))
-                Text(
-                    stringResource(R.string.deadpixel_current, palette[selected].first),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

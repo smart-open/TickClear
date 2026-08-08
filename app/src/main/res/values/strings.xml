@@ -1720,7 +1720,7 @@
     <string name="pet_tease">逗猫棒</string>
 
     <!-- 屏幕坏点检测（实用工具） -->
-    <string name="deadpixel_title">屏幕坏点检测</string>
+    <string name="deadpixel_title">坏点检测</string>
     <string name="deadpixel_desc">全屏纯色，手动查坏点亮点</string>
     <string name="deadpixel_hint">切换纯色铺满屏幕，凑近看有无不亮的坏点 / 常亮的亮点</string>
     <string name="deadpixel_red">红</string>
@@ -1728,7 +1728,6 @@
     <string name="deadpixel_blue">蓝</string>
     <string name="deadpixel_white">白</string>
     <string name="deadpixel_black">黑</string>
-    <string name="deadpixel_current">当前颜色：%1$s</string>
     <string name="deadpixel_fullscreen">全屏沉浸</string>
     <string name="deadpixel_exit_fullscreen">退出全屏</string>
 
