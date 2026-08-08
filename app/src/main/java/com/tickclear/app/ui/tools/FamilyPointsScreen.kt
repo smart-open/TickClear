@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +24,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Redeem
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,7 +68,7 @@ import kotlin.math.sin
  * 家庭成员积分仪（V2.9++ 生活助手）。
  * 成员 / 任务 / 奖励均支持增删改，并经 SharedPreferences 持久化（零新依赖，无 ViewModel）。
  * 完成任务给当前选中成员加分，积分可兑换奖励，也可手动加减；撤销上一步。
- * 成就徽章扩至 10 级，累计分数达标解锁。
+ * 成就徽章扩至 12 级，累计分数达标解锁。
  */
 
 /** 待删除项的标识，供确认弹窗复用。 */
@@ -109,6 +112,8 @@ private val BADGES = listOf(
     Badge("b8", 360, R.string.badge_legend_name, Color(0xFF5C6BC0)),
     Badge("b9", 450, R.string.badge_master_name, Color(0xFFEC407A)),
     Badge("b10", 550, R.string.badge_grandmaster_name, Color(0xFFFFD700)),
+    Badge("b11", 660, R.string.badge_sage_name, Color(0xFF00BFA5)),
+    Badge("b12", 780, R.string.badge_supreme_name, Color(0xFFFF6E40)),
 )
 
 /** 五角星路径（10 点交替）：中心 (cx,cy)，外半径 [outer]，内半径 [inner]。 */
@@ -448,25 +453,49 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
-                    tasks.forEach { t ->
+                    tasks.forEachIndexed { index, t ->
+                        val rowBg = if (index % 2 == 0) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(rowBg, RoundedCornerShape(10.dp))
+                                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
-                            Button(
-                                onClick = { adjust(selectedId, t.points) },
+                            Column(
                                 modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.Start,
                             ) {
-                                Text(stringResource(R.string.points_task_chip, t.name, t.points))
+                                Text(
+                                    t.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    textAlign = TextAlign.Start,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    stringResource(R.string.points_task_score, t.points),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Start,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { openEditTask(t) }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_task), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                IconButton(onClick = { askDelete("task", t.id, t.name) }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                            IconButton(onClick = { adjust(selectedId, t.points) }) {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = stringResource(R.string.points_task_complete),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            IconButton(onClick = { openEditTask(t) }) {
+                                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_task), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = { askDelete("task", t.id, t.name) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -491,34 +520,68 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
-                    rewards.forEach { r ->
+                    rewards.forEachIndexed { index, r ->
                         val affordable = (scores[selectedId] ?: 0) >= r.cost
+                        val rowBg = if (index % 2 == 0) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(rowBg, RoundedCornerShape(10.dp))
+                                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
-                            Button(
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.Start,
+                            ) {
+                                Text(
+                                    r.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    textAlign = TextAlign.Start,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    stringResource(R.string.points_reward_cost_label, r.cost),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Start,
+                                    color = if (affordable) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.error
+                                    },
+                                )
+                            }
+                            IconButton(
                                 onClick = { redeem(selectedId, r.cost, r.name) },
                                 enabled = affordable,
-                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(stringResource(R.string.points_reward_label, r.name, r.cost))
+                                Icon(
+                                    Icons.Filled.Redeem,
+                                    contentDescription = stringResource(R.string.points_reward_redeem),
+                                    tint = if (affordable) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { openEditReward(r) }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_reward), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                IconButton(onClick = { askDelete("reward", r.id, r.name) }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                            IconButton(onClick = { openEditReward(r) }) {
+                                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_reward), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = { askDelete("reward", r.id, r.name) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
             }
 
-            // 成就徽章（10 级）
+            // 成就徽章（12 级）
             SectionCard(title = stringResource(R.string.points_achievements_title)) {
                 val totalScore = scores[selectedId] ?: 0
                 FlowRow(
