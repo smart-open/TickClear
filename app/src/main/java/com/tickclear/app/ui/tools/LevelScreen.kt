@@ -241,6 +241,7 @@ private fun AngleCard(
                 MaterialTheme.colorScheme.surfaceVariant
             },
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier
