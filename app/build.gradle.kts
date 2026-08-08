@@ -29,8 +29,12 @@ android {
         // v2.9.0 封板：五大 Tab 改版（计划页合并任务+习惯）、工具箱扩至 55 工具、
         // P0 主题/系统栏失联修复、P1 设备身份/位图回收/首页折叠/重组开销修复、
         // 测试加固（消除假绿 + 关键路径零覆盖补齐）、文档同步。综合成熟度 99.2。
-        versionCode = 17
-        versionName = "2.9.0"
+        // v2.10.0 已在远程发布（refs/tags/v2.10.0，早于本轮），本轮顺延为 v2.11.0。
+        // v2.11.0 封板：多工具 UI 打磨（抽签器真 3D/一元硬币、家庭积分徽章扩至 12 级、
+        // 噪音检测/做饭计时/马赛克去水印优化）+ 到站提醒本市优先检索、补光反光板 5 色温、
+        // 图片压缩黑白保存移右上角、打卡补录 Tab 图标前置。综合成熟度 99.5。
+        versionCode = 19
+        versionName = "2.11.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 本 App 仅提供中文界面（res/ 下无任何 values-xx 语言目录），但 Compose Material3 /
         // androidx 各库自带数十种语言的 strings 会被全部打进包。显式收敛可见语言以瘦身；
