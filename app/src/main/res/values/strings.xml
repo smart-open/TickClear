@@ -1282,10 +1282,11 @@
     <string name="countdown_passed">已过去 %1$d 天</string>
     <string name="countdown_delete">删除</string>
     <string name="countdown_remind">提醒</string>
-    <string name="countdown_advance_label">提前通知（天）</string>
-    <string name="countdown_advance_days">提前 %1$d 天</string>
+    <string name="countdown_advance_label">提前通知</string>
+    <string name="countdown_advance_days">%1$d天</string>
+    <string name="countdown_advance_day_zero">当天</string>
     <string name="countdown_daily">每天提醒</string>
-    <string name="countdown_daily_desc">开启后提前期内每天提醒，否则仅提前当天与到期当天提醒</string>
+    <string name="countdown_daily_desc">开启后，提前期内每天提醒</string>
     <string name="countdown_time_label">提醒时间</string>
     <string name="countdown_notif_title">%1$s 提醒</string>
     <string name="countdown_notif_today">就是今天，别忘了！</string>

@@ -10,9 +10,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -60,7 +60,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CountdownScreen(
     vm: CountdownViewModel,
@@ -176,7 +176,6 @@ fun CountdownScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CountdownItem(
     event: CountdownEvent,
@@ -258,16 +257,22 @@ private fun CountdownItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
-                    listOf(0, 1, 2, 3, 5, 7, 14).forEach { d ->
+                    listOf(0, 1, 2, 3, 5, 7, 14, 30).forEach { d ->
                         FilterChip(
                             selected = event.advanceDays == d,
                             onClick = { onUpdate(event, true, d, event.daily, event.hour, event.minute) },
-                            label = { Text(stringResource(R.string.countdown_advance_days, d)) },
+                            label = {
+                                Text(
+                                    if (d == 0) stringResource(R.string.countdown_advance_day_zero)
+                                    else stringResource(R.string.countdown_advance_days, d),
+                                )
+                            },
                         )
                     }
                 }
