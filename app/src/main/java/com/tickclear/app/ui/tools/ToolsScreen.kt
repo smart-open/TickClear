@@ -77,6 +77,7 @@ import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Games
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.WbIncandescent
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.ViewWeek
@@ -297,6 +298,12 @@ private val TOOL_CATEGORIES = listOf(
                 titleRes = R.string.doodle_title,
                 descRes = R.string.doodle_desc,
                 icon = Icons.Filled.Brush,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_PIANO,
+                titleRes = R.string.tools_piano_title,
+                descRes = R.string.tools_piano_desc,
+                icon = Icons.Filled.MusicNote,
             ),
         ),
     ),

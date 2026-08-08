@@ -81,6 +81,7 @@ import com.tickclear.app.ui.tools.ImageGrayscaleScreen
 import com.tickclear.app.ui.tools.CookingTimerScreen
 import com.tickclear.app.ui.tools.CookingTimerViewModel
 import com.tickclear.app.ui.tools.AnimalSoundScreen
+import com.tickclear.app.ui.tools.PianoScreen
 import com.tickclear.app.ui.tools.SimCandleScreen
 import com.tickclear.app.ui.tools.SimWoodFishScreen
 import com.tickclear.app.ui.tools.SimLighterScreen
@@ -497,6 +498,9 @@ private fun AppNavHost(
         }
         composable(Routes.TOOLS_DOODLE) {
             DoodleScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TOOLS_PIANO) {
+            PianoScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.TOOLS_DEADPIXEL) {
             DeadPixelScreen(onBack = { navController.popBackStack() })

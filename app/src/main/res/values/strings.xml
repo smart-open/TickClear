@@ -1678,6 +1678,21 @@
     <string name="sim_glass_tap">点一下试试</string>
     <string name="sim_glass_solfege">哆|来|咪|发|唆|拉|西</string>
 
+    <!-- 电子琴 -->
+    <string name="tools_piano_title">电子琴</string>
+    <string name="tools_piano_desc">点按琴键弹奏，横屏更宽更好弹</string>
+    <string name="tools_piano_hint">点按琴键发声，按住可延长；右上角按钮可切换横竖屏</string>
+    <string name="piano_rotate">切换横竖屏</string>
+    <string name="piano_sol_do">哆</string>
+    <string name="piano_sol_re">来</string>
+    <string name="piano_sol_mi">咪</string>
+    <string name="piano_sol_fa">发</string>
+    <string name="piano_sol_sol">索</string>
+    <string name="piano_sol_la">拉</string>
+    <string name="piano_sol_ti">西</string>
+    <string name="piano_song_twinkle">小星星</string>
+    <string name="piano_song_ode">欢乐颂</string>
+
     <!-- 养宠物（模拟解压） -->
     <string name="pet_title">养宠物</string>
     <string name="pet_desc">选动物，喂食互动解压</string>

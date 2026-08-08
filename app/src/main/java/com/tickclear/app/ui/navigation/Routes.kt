@@ -107,6 +107,8 @@ object Routes {
     const val TOOLS_PET = "tools/pet"
     // V2.9++：模拟解压（手指涂鸦画板）
     const val TOOLS_DOODLE = "tools/doodle"
+    // V2.9++：模拟解压（电子琴：黑白键弹奏，可弹简单曲目）
+    const val TOOLS_PIANO = "tools/piano"
     // V2.9++：实用工具（屏幕坏点检测）
     const val TOOLS_DEADPIXEL = "tools/deadPixel"
     // V2.9++：实用工具（地磁场观测）
