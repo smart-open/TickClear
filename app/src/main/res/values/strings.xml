@@ -1789,7 +1789,7 @@
     <!-- 地磁场观测（实用工具） -->
     <string name="magnet_title">地磁场观测</string>
     <string name="magnet_desc">观测周围磁场强度变化</string>
-    <string name="magnet_hint">手机转动，观察 X/Y/Z 与合成磁场强度(µT)的变化</string>
+    <string name="magnet_hint">转动手机，观察 X / Y / Z 三轴与合成强度的实时变化</string>
     <string name="magnet_x">X</string>
     <string name="magnet_y">Y</string>
     <string name="magnet_z">Z</string>
@@ -1797,6 +1797,17 @@
     <string name="magnet_unit">µT</string>
     <string name="magnet_no_sensor">本设备无磁力传感器</string>
     <string name="magnet_low_accuracy">传感器精度偏低，请握持手机画「8」字校准</string>
+    <string name="magnet_info_title">怎么读懂这些数据？</string>
+    <string name="magnet_info_1">地球自带磁场，强度约 25–65 微特(µT)，像一层隐形护盾包裹着我们</string>
+    <string name="magnet_info_2">数值突然变大：附近多半有磁铁、金属、音箱或电线</string>
+    <string name="magnet_info_3">X / Y / Z 是手机三个方向的磁场分量，转动手机会随之变化</string>
+    <string name="magnet_info_4">读数偏小或不稳：把手机在空中画「8」字校准传感器</string>
+    <string name="magnet_status_label">状态</string>
+    <string name="magnet_status_normal">接近地球自然磁场，环境正常</string>
+    <string name="magnet_status_weak">磁场偏弱，或传感器尚未校准</string>
+    <string name="magnet_status_mild">略有干扰，附近可能有金属物件</string>
+    <string name="magnet_status_strong">强磁场！附近很可能有磁铁或大功率设备</string>
+    <string name="magnet_legend">色彩对应 X / Y / Z 三轴分量</string>
 
 
     <string name="tools_loan_hint">输入金额、利率与期限，实时估算月供与总利息</string>
