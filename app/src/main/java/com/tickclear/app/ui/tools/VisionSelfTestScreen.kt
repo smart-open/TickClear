@@ -51,6 +51,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,11 +61,16 @@ import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
 
 /** 单组色觉题：左右色块 + 是否真「不同」。 */
 private data class ColorTrial(val left: Color, val right: Color, val different: Boolean)
 
+/**
+ * 色觉题库（14 题）：覆盖红绿、蓝黄（蓝黄色盲难点）、冷暖、低饱和与明度差等多类混淆，
+ * 含近同色高难项，避免题型单一。每次测试会随机打乱顺序。
+ */
 private val COLOR_TRIALS = listOf(
     ColorTrial(Color(0xFFE53935), Color(0xFFE53935), false), // 同：红/红
     ColorTrial(Color(0xFFE53935), Color(0xFF43A047), true),  // 异：红/绿（经典红绿色盲混淆）
@@ -74,7 +80,16 @@ private val COLOR_TRIALS = listOf(
     ColorTrial(Color(0xFF43A047), Color(0xFF43A047), false), // 同：绿/绿
     ColorTrial(Color(0xFFE53935), Color(0xFFFB8C00), true),  // 异：红/橙（部分混淆）
     ColorTrial(Color(0xFF9E9E9E), Color(0xFF9E9E9E), false), // 同：灰/灰
+    ColorTrial(Color(0xFFFFEB3B), Color(0xFF00BCD4), true),  // 异：黄/青（蓝黄色盲难点）
+    ColorTrial(Color(0xFF8E24AA), Color(0xFFFF9800), true),  // 异：紫/橙（冷暖混淆）
+    ColorTrial(Color(0xFFBDBDBD), Color(0xFF757575), true),  // 异：浅灰/深灰（明度差小，高难）
+    ColorTrial(Color(0xFFF48FB1), Color(0xFFFFCCBC), true),  // 异：粉/桃（近肤色混淆）
+    ColorTrial(Color(0xFF795548), Color(0xFF808000), true),  // 异：棕/橄榄绿（低饱和混淆）
+    ColorTrial(Color(0xFF0288D1), Color(0xFF26A69A), true),  // 异：蓝/蓝绿（teal 混淆）
 )
+
+/** 色觉判定阈值：错 ≤ 总题数 18% 视为正常（14 题≈3 题）。 */
+private val COLOR_PASS_ERRORS = max(2, (COLOR_TRIALS.size * 18) / 100)
 
 /** 视力阶梯字号（sp），从大到小。 */
 private val ACUITY_SIZES = listOf(60, 44, 34, 26, 20, 15, 12, 9)
@@ -179,9 +194,9 @@ private fun HubCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(2.4f)
+            .aspectRatio(3.6f)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
@@ -189,16 +204,16 @@ private fun HubCard(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(Spacing.md),
+                .padding(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(44.dp)
                     .background(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        RoundedCornerShape(16.dp),
+                        RoundedCornerShape(14.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -206,7 +221,7 @@ private fun HubCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(26.dp),
                 )
             }
             Column(
@@ -233,9 +248,10 @@ private fun HubCard(
     }
 }
 
-/** 色盲色弱测试：8 道题，答对 ≥ 7 道视为正常。 */
+/** 色盲色弱测试：随机打乱的题库，错 ≤ COLOR_PASS_ERRORS 视为正常。 */
 @Composable
 private fun ColorBlindnessTest() {
+    var trials by remember { mutableStateOf(COLOR_TRIALS.shuffled()) }
     var idx by remember { mutableIntStateOf(0) }
     var errors by remember { mutableIntStateOf(0) }
     var finished by remember { mutableStateOf(false) }
@@ -250,10 +266,11 @@ private fun ColorBlindnessTest() {
     if (finished) {
         ResultCard(
             title = resultTitle,
-            passed = errors <= 2,
+            passed = errors <= COLOR_PASS_ERRORS,
             passText = normalText,
             failText = suspectText,
             onRetest = {
+                trials = COLOR_TRIALS.shuffled()
                 idx = 0
                 errors = 0
                 finished = false
@@ -263,7 +280,7 @@ private fun ColorBlindnessTest() {
         return
     }
 
-    val trial = COLOR_TRIALS[idx]
+    val trial = trials[idx]
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -274,7 +291,7 @@ private fun ColorBlindnessTest() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         LinearProgressIndicator(
-            progress = { (idx + 1) / COLOR_TRIALS.size.toFloat() },
+            progress = { (idx + 1) / trials.size.toFloat() },
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
@@ -337,6 +354,8 @@ private fun AcuityTest() {
     val normalText = stringResource(R.string.vision_acuity_normal)
     val suspectText = stringResource(R.string.vision_acuity_suspect)
     val resultTitle = stringResource(R.string.vision_result)
+    val context = LocalContext.current
+    val rows = remember(context) { context.resources.getStringArray(R.array.vision_acuity_rows).toList() }
 
     if (finished) {
         val finalIdx = idx
@@ -383,7 +402,7 @@ private fun AcuityTest() {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    stringResource(R.string.vision_acuity_chars),
+                    rows[idx % rows.size],
                     fontSize = ACUITY_SIZES[idx].sp,
                     fontWeight = FontWeight.Bold,
                 )

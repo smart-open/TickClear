@@ -759,7 +759,7 @@
     <string name="qr_long_press_save">长按二维码保存图片</string>
     <string name="qr_empty_hint">输入内容后自动生成二维码</string>
     <string name="qr_ec_level_label">纠错级别</string>
-    <string name="qr_ec_desc">容错率约 L 7% / M 15% / Q 25% / H 30%：级别越高，被遮挡、污损或弯曲后仍可被识别</string>
+    <string name="qr_ec_desc" formatted="false">容错率约 L 7% / M 15% / Q 25% / H 30%：级别越高，被遮挡、污损或弯曲后仍可被识别</string>
     <string name="qr_logo_center">居中 Logo</string>
     <string name="qr_logo_hint">开启后强制使用 H 级纠错，确保 Logo 遮挡部分仍可识别</string>
     <string name="qr_ec_l">L</string>
@@ -984,14 +984,21 @@
     <string name="vision_intro">本工具为简易自测，结果仅供参考，不能替代专业眼科检查。</string>
     <string name="vision_hub_intro">请选择要测试的项目</string>
     <string name="vision_color_card_title">色盲色弱</string>
-    <string name="vision_color_card_desc">判断左右色块是否相同，8 道题</string>
+    <string name="vision_color_card_desc">判断左右色块是否相同，14 道题</string>
     <string name="vision_acuity_card_title">近视远视</string>
     <string name="vision_acuity_card_desc">逐级缩小字号，找到最低能看清的尺寸</string>
     <string name="vision_color_title">色盲色弱测试：判断左右色块是否相同</string>
     <string name="vision_acuity_title">视力测试：点击你能看清的最小字号</string>
     <string name="vision_acuity_prompt">你能看清这一行字吗？</string>
     <!-- 视力表用字：需笔画数接近、结构差异明显，替换需同时保证这两点 -->
-    <string name="vision_acuity_chars">上中下大小王干</string>
+    <string-array name="vision_acuity_rows">
+        <item>上中下大小王干</item>
+        <item>禾弓丁木火水土</item>
+        <item>山石田力文武日</item>
+        <item>日月目口人心手</item>
+        <item>甲乙丙丁戊己庚</item>
+        <item>风花雪月江湖海</item>
+    </string-array>
     <string name="vision_same">完全相同</string>
     <string name="vision_diff">不一样</string>
     <string name="vision_clear">能看清</string>
@@ -1022,6 +1029,10 @@
     <string name="mood_3">疲惫</string>
     <string name="mood_4">焦虑</string>
     <string name="mood_5">难过</string>
+    <string name="mood_6">生气</string>
+    <string name="mood_7">惊喜</string>
+    <string name="mood_8">不管啦</string>
+    <string name="mood_recent_empty">还没有打卡记录，从今天开始记录吧</string>
 
     <!-- 番茄专注 -->
     <string name="tools_pomodoro_title">番茄专注</string>
