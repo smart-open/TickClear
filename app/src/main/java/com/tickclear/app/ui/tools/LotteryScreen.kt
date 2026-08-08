@@ -61,12 +61,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** 单次转动/滚动总时长（毫秒）。用户要求统一为 6 秒，让结果在动画结束后才揭晓。 */
-private const val SPIN_DURATION = 6000
+/** 单次转动/滚动总时长（毫秒）。用户要求统一为 3 秒，结果在动画结束后才揭晓。 */
+private const val SPIN_DURATION = 3000
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +78,7 @@ fun LotteryScreen(
     val options by vm.options.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<String?>(null) }
-    var mode by remember { mutableStateOf("pick") } // pick / dice / coin
+    var mode by remember { mutableStateOf("dice") } // pick / dice / coin
     var animToken by remember { mutableIntStateOf(0) }
 
     // 非组合上下文（onClick）内禁止调用 stringResource，故在此预取格式串与文案。
@@ -172,7 +173,7 @@ fun LotteryScreen(
                         singleLine = true,
                         modifier = Modifier
                             .weight(1f)
-                            .requiredHeight(38.dp),
+                            .requiredHeight(56.dp),
                     )
                     IconButton(
                         onClick = {
@@ -343,7 +344,7 @@ private fun PickGrid(
     }
 }
 
-/** 掷骰子动画：3D 翻滚（绕 X/Y 双轴）+ 滚动快速换面，6s 后定格为最终点数。 */
+/** 掷骰子动画：真 3D 立方体投影旋转 3s，期间不断翻面，结束定格为等概率随机点数。 */
 @Composable
 private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
     val rotX = remember { Animatable(0f) }
@@ -354,16 +355,16 @@ private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
         if (token == 0) return@LaunchedEffect
         val finalFace = Random.nextInt(1, 7)
         val spinX = launch {
-            rotX.animateTo(rotX.value + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+            rotX.animateTo(rotX.value + 360f * 3f, tween(SPIN_DURATION, easing = LinearEasing))
         }
         val spinY = launch {
-            rotY.animateTo(rotY.value + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+            rotY.animateTo(rotY.value + 360f * 3f, tween(SPIN_DURATION, easing = LinearEasing))
         }
         var elapsed = 0L
         while (elapsed < SPIN_DURATION) {
             shown = Random.nextInt(1, 7)
-            delay(60)
-            elapsed += 60
+            delay(90)
+            elapsed += 90
         }
         shown = finalFace
         spinX.join()
@@ -374,18 +375,14 @@ private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp),
+            .height(200.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
-            modifier = Modifier
-                .size(110.dp)
-                .graphicsLayer {
-                    rotationX = rotX.value
-                    rotationY = rotY.value
-                },
+            modifier = Modifier.size(140.dp),
         ) {
-            drawDie(shown, size)
+            // 读取 rotX/rotY 的 State，每帧重绘投影立方体，实现真 3D 旋转
+            draw3DDie(front = shown, rotXDeg = rotX.value, rotYDeg = rotY.value, size = size)
         }
     }
 }
@@ -440,34 +437,122 @@ private fun CoinDisplay(token: Int, onResult: (Boolean) -> Unit) {
     }
 }
 
-/** 骰子：受光立方体 + 点位。 */
-private fun DrawScope.drawDie(face: Int, size: Size) {
-    val r = size.minDimension
+/** 3D 骰子：投影立方体，按 rotX/rotY 旋转后只绘制朝向相机（法线 z>0）的可见面。 */
+private data class V3(val x: Float, val y: Float, val z: Float)
+
+/** 给定正面点数，返回（顶面、右面）点数，保证不与正面或其对立面（和为 7）冲突。 */
+private fun dieTopRight(front: Int): Pair<Int, Int> {
+    val opp = 7 - front
+    val cands = (1..6).filter { it != front && it != opp }
+    return cands[0] to cands[1]
+}
+
+private fun lerpOffset(a: Offset, b: Offset, t: Float) = Offset(
+    a.x + (b.x - a.x) * t,
+    a.y + (b.y - a.y) * t,
+)
+
+/** 在四边形 [TL,TR,BR,BL] 内做双线性插值，u/v ∈ [0,1]。 */
+private fun quadPoint(tl: Offset, tr: Offset, br: Offset, bl: Offset, u: Float, v: Float): Offset {
+    val top = lerpOffset(tl, tr, u)
+    val bottom = lerpOffset(bl, br, u)
+    return lerpOffset(top, bottom, v)
+}
+
+private fun DrawScope.draw3DDie(
+    front: Int,
+    rotXDeg: Float,
+    rotYDeg: Float,
+    size: Size,
+) {
+    val (topVal, rightVal) = dieTopRight(front)
     val cx = size.width / 2f
     val cy = size.height / 2f
+    val s = size.minDimension * 0.34f
+
+    val base = listOf(
+        V3(-s, -s, -s), V3(s, -s, -s), V3(s, s, -s), V3(-s, s, -s),
+        V3(-s, -s, s), V3(s, -s, s), V3(s, s, s), V3(-s, s, s),
+    )
+    val ax = Math.toRadians(rotXDeg.toDouble())
+    val ay = Math.toRadians(rotYDeg.toDouble())
+    val ca = kotlin.math.cos(ax).toFloat()
+    val sa = kotlin.math.sin(ax).toFloat()
+    val cb = kotlin.math.cos(ay).toFloat()
+    val sb = kotlin.math.sin(ay).toFloat()
+
+    fun rotate(p: V3): V3 {
+        val y1 = p.y * ca - p.z * sa
+        val z1 = p.y * sa + p.z * ca
+        val x2 = p.x * cb + z1 * sb
+        val z2 = -p.x * sb + z1 * cb
+        return V3(x2, y1, z2)
+    }
+
+    val rv = base.map { rotate(it) }
+    val proj = rv.map { Offset(cx + it.x, cy + it.y) }
+
+    // 面定义：4 个角索引按 [TL,TR,BR,BL] 环序，value 为该面点数（背面值为 7-正面）
+    val faces = listOf(
+        listOf(4, 5, 6, 7) to front,
+        listOf(1, 2, 6, 5) to rightVal,
+        listOf(0, 4, 7, 3) to (7 - rightVal),
+        listOf(0, 1, 5, 4) to topVal,
+        listOf(3, 2, 6, 7) to (7 - topVal),
+        listOf(0, 1, 2, 3) to (7 - front),
+    )
+
     drawSoftShadow(
-        center = Offset(cx, cy + r * 0.06f),
-        radiusX = r * 0.52f,
-        radiusY = r * 0.5f,
-        maxAlpha = 0.18f,
+        center = Offset(cx, cy + s * 1.15f),
+        radiusX = s * 0.9f,
+        radiusY = s * 0.3f,
+        maxAlpha = 0.16f,
     )
-    val pad = r * 0.06f
-    fillRoundRect3D(
-        topLeft = Offset(pad, pad),
-        size = Size(size.width - 2 * pad, size.height - 2 * pad),
-        cornerRadius = r * 0.18f,
-        base = Color(0xFFF5F5F0),
-    )
-    val pipColor = Color(0xFF212121)
-    val u = r * 0.24f
-    val pr = r * 0.09f
-    for (p in dicePips(face)) {
-        drawCircle(pipColor, pr, Offset(cx + p.first * u, cy + p.second * u))
+
+    val light = V3(-0.5f, -0.5f, 0.7f)
+    val llen = kotlin.math.sqrt(light.x * light.x + light.y * light.y + light.z * light.z)
+
+    // 仅绘制法线朝向相机（z>0）的面，按 z 从远到近排序
+    val visible = faces.mapNotNull { (idx, value) ->
+        val vs = idx.map { rv[it] }
+        val center = V3(
+            (vs[0].x + vs[1].x + vs[2].x + vs[3].x) / 4f,
+            (vs[0].y + vs[1].y + vs[2].y + vs[3].y) / 4f,
+            (vs[0].z + vs[1].z + vs[2].z + vs[3].z) / 4f,
+        )
+        if (center.z <= 0.001f) null else idx to (value to center)
+    }.sortedBy { it.second.second.z }
+
+    for ((idx, valueCenter) in visible) {
+        val (value, center) = valueCenter
+        val nlen = kotlin.math.sqrt(center.x * center.x + center.y * center.y + center.z * center.z)
+        val ndot = (center.x * light.x + center.y * light.y + center.z * light.z) / (nlen * llen)
+        val shade = (0.55f + 0.45f * ndot.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+        val faceColor = Color(
+            0.62f + 0.36f * shade,
+            0.60f + 0.37f * shade,
+            0.55f + 0.39f * shade,
+        )
+        val tl = proj[idx[0]]; val tr = proj[idx[1]]; val br = proj[idx[2]]; val bl = proj[idx[3]]
+        val path = Path().apply {
+            moveTo(tl.x, tl.y); lineTo(tr.x, tr.y); lineTo(br.x, br.y); lineTo(bl.x, bl.y); close()
+        }
+        drawPath(path, faceColor)
+        drawPath(path, Color(0xFFCFC9BE), style = Stroke(width = s * 0.035f))
+        if (value in 1..6) {
+            val pipR = s * 0.115f
+            for ((px, py) in dicePips(value)) {
+                val u = (px + 1f) / 2f
+                val v = (py + 1f) / 2f
+                val pt = quadPoint(tl, tr, br, bl, u, v)
+                drawCircle(Color(0xFF2A2A2A), pipR, pt)
+            }
+        }
     }
 }
 
-/** 硬币：银色金属盘（参考 2020 版 1 元硬币）；正面=国徽（五角星+环），反面=1元。 */
-private fun DrawScope.drawCoin(side: Boolean, size: Size) {
+/** 硬币主体：银色金属盘 + 边缘双圈 + 内圈。 */
+private fun DrawScope.drawCoinBody(size: Size) {
     val r = size.minDimension / 2f
     val cx = size.width / 2f
     val cy = size.height / 2f
@@ -477,7 +562,6 @@ private fun DrawScope.drawCoin(side: Boolean, size: Size) {
         radiusY = r * 0.6f,
         maxAlpha = 0.18f,
     )
-    // 银色金属渐变（左上受光）
     val silver = Brush.radialGradient(
         colors = listOf(
             Color(0xFFF4F6F8),
@@ -488,34 +572,121 @@ private fun DrawScope.drawCoin(side: Boolean, size: Size) {
         radius = r * 1.5f,
     )
     drawCircle(brush = silver, radius = r, center = Offset(cx, cy))
-    // 边缘圈
     drawCircle(
         color = Color(0xFF8A9099),
         radius = r * 0.92f,
         center = Offset(cx, cy),
         style = Stroke(width = r * 0.06f),
     )
+    drawCircle(
+        color = Color(0xFF8A9099),
+        radius = r * 0.78f,
+        center = Offset(cx, cy),
+        style = Stroke(width = r * 0.02f),
+    )
+}
 
-    if (side) {
-        // 国徽面：内环 + 中央五角星（简化国徽意象）
-        drawCircle(
-            color = Color(0xFF6E747C),
-            radius = r * 0.66f,
-            center = Offset(cx, cy),
-            style = Stroke(width = r * 0.03f),
-        )
-        drawStar(cx, cy, r * 0.34f, Color(0xFF5A6068))
-    } else {
-        // 1 元面
-        val paint = android.graphics.Paint().apply {
-            isAntiAlias = true
-            setColor(android.graphics.Color.BLACK)
-            textSize = r * 0.66f
-            textAlign = android.graphics.Paint.Align.CENTER
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-        }
-        drawContext.canvas.nativeCanvas.drawText("1元", cx, cy + r * 0.24f, paint)
+/** 硬币：side=true 为正面（字：中国人民银行 / 1元 / 年号），false 为背面（国徽）。 */
+private fun DrawScope.drawCoin(side: Boolean, size: Size) {
+    drawCoinBody(size)
+    val r = size.minDimension / 2f
+    val cx = size.width / 2f
+    val cy = size.height / 2f
+    if (side) drawCoinObverse(cx, cy, r) else drawNationalEmblem(cx, cy, r)
+}
+
+/** 正面：顶部弧形国号 + 大号 1元 + 底部年号，参考 2020 版 1 元硬币。 */
+private fun DrawScope.drawCoinObverse(cx: Float, cy: Float, r: Float) {
+    val canvas = drawContext.canvas.nativeCanvas
+    val dark = 0xFF3A3D42.toInt()
+    // 顶部弧形：中国人民银行
+    val oval = android.graphics.RectF(
+        cx - r * 0.74f, cy - r * 0.74f,
+        cx + r * 0.74f, cy + r * 0.74f,
+    )
+    val arcPath = android.graphics.Path().apply { arcTo(oval, 202f, 136f) }
+    val arcPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.19f
+        textAlign = android.graphics.Paint.Align.LEFT
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
+    canvas.drawTextOnPath("中国人民银行", arcPath, 0f, -r * 0.02f, arcPaint)
+    // 中央 1元（1 大、元 小）
+    val numPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.60f
+        textAlign = android.graphics.Paint.Align.LEFT
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("1", cx - r * 0.22f, cy + r * 0.22f, numPaint)
+    val yuanPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.40f
+        textAlign = android.graphics.Paint.Align.LEFT
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("元", cx + r * 0.20f, cy + r * 0.16f, yuanPaint)
+    // 底部年号
+    val yrPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.16f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("2020", cx, cy + r * 0.62f, yrPaint)
+}
+
+/** 背面：简化国徽——大星 + 四小星、天安门城楼、麦穗齿轮环。 */
+private fun DrawScope.drawNationalEmblem(cx: Float, cy: Float, r: Float) {
+    val emblem = Color(0xFF3A3D42)
+    val disc = Color(0xFFC3C8CE)
+    // 大星
+    drawStar(cx, cy - r * 0.30f, r * 0.17f, emblem)
+    // 四小星（环绕大星右下，指向大星）
+    val smallR = r * 0.07f
+    val angles = listOf(205f, 250f, 292f, 338f)
+    for (a in angles) {
+        val rad = Math.toRadians(a.toDouble())
+        val sx = cx + (r * 0.42f * kotlin.math.cos(rad)).toFloat()
+        val sy = cy - r * 0.04f + (r * 0.34f * kotlin.math.sin(rad)).toFloat()
+        drawStar(sx, sy, smallR, emblem)
+    }
+    // 天安门城楼（简化）
+    val gw = r * 0.46f
+    val gx0 = cx - gw / 2f
+    val roofTop = cy + r * 0.04f
+    val roofH = r * 0.10f
+    val bodyH = r * 0.16f
+    val bodyTop = roofTop + roofH
+    val roof = Path().apply {
+        moveTo(gx0 - r * 0.05f, bodyTop)
+        lineTo(gx0 + gw + r * 0.05f, bodyTop)
+        lineTo(gx0 + gw - r * 0.02f, roofTop)
+        lineTo(gx0 + r * 0.02f, roofTop)
+        close()
+    }
+    drawPath(roof, emblem)
+    drawRect(emblem, Offset(gx0, bodyTop), Size(gw, bodyH))
+    // 拱门（用底色挖空）
+    drawCircle(disc, r * 0.05f, Offset(cx, bodyTop + bodyH * 0.5f))
+    drawCircle(disc, r * 0.032f, Offset(cx - r * 0.12f, bodyTop + bodyH * 0.5f))
+    drawCircle(disc, r * 0.032f, Offset(cx + r * 0.12f, bodyTop + bodyH * 0.5f))
+    // 基座
+    drawRect(emblem, Offset(gx0 - r * 0.02f, bodyTop + bodyH), Size(gw + r * 0.04f, r * 0.10f))
+    // 麦穗（左右弧线）+ 齿轮底环
+    for (side in listOf(-1f, 1f)) {
+        val wp = Path().apply {
+            moveTo(cx + side * r * 0.34f, cy + r * 0.42f)
+            quadraticTo(cx + side * r * 0.58f, cy + r * 0.08f, cx + side * r * 0.32f, cy - r * 0.06f)
+        }
+        drawPath(wp, emblem, style = Stroke(width = r * 0.022f))
+    }
+    drawCircle(emblem, r * 0.30f, Offset(cx, cy + r * 0.06f), style = Stroke(width = r * 0.02f))
 }
 
 /** 绘制一个以 (cx,cy) 为中心、外接半径 radius 的五角星。 */
