@@ -225,14 +225,14 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "$value",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = needleColor,
-                )
-                Text(
                     text = "dB",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "$value",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = needleColor,
                 )
             }
         }
