@@ -1199,8 +1199,8 @@
     <string name="vault_copied">已复制</string>
     <string name="vault_lock">锁定</string>
     <string name="vault_bio_unlock">使用指纹解锁</string>
-    <string name="vault_bio_enable">开启指纹解锁</string>
-    <string name="vault_bio_disable">关闭指纹解锁</string>
+    <string name="vault_bio_enable">开启</string>
+    <string name="vault_bio_disable">关闭</string>
     <string name="vault_bio_bind_title">开启指纹解锁</string>
     <string name="vault_bio_bind_subtitle">验证指纹以完成绑定</string>
     <string name="vault_bio_unlock_title">指纹解锁</string>
