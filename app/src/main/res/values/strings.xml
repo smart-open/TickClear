@@ -903,7 +903,7 @@
 
     <!-- 噪音检测 -->
     <string name="tools_noise_title">噪音检测</string>
-    <string name="tools_noise_desc">麦克风测量并按国标输出评价</string>
+    <string name="tools_noise_desc">实时测环境分贝，按国标与 WHO 评估健康风险</string>
     <string name="noise_hint">靠近声源点击开始；建议测约 10 秒（过短不准、过长无增益）</string>
     <string name="noise_start">开始测量</string>
     <string name="noise_stop">停止测量</string>
