@@ -7,7 +7,9 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import java.util.Locale
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -61,6 +62,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
@@ -162,50 +165,63 @@ fun CookingTimerScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             SimHintCard(stringResource(R.string.tools_cook_timer_hint))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(R.string.tools_cook_timer_name)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().requiredHeight(50.dp),
-            )
-            Row(
+            // 新建计时面板：卡片分组，输入框恢复自然高度以完整显示文本
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                OutlinedTextField(
-                    value = minStr,
-                    onValueChange = { minStr = it.filter { c -> c.isDigit() } },
-                    label = { Text(stringResource(R.string.tools_cook_timer_min)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f).requiredHeight(50.dp),
-                )
-                OutlinedTextField(
-                    value = secStr,
-                    onValueChange = { secStr = it.filter { c -> c.isDigit() } },
-                    label = { Text(stringResource(R.string.tools_cook_timer_sec)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f).requiredHeight(50.dp),
-                )
-                IconButton(
-                    onClick = {
-                        if (totalSec > 0) {
-                            vm.add(name.trim(), totalSec, defaultTimerName)
-                            name = ""
-                            minStr = ""
-                            secStr = ""
-                        }
-                    },
-                    enabled = totalSec > 0,
-                    modifier = Modifier.size(40.dp),
+                Column(
+                    modifier = Modifier.padding(Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.tools_cook_timer_add),
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text(stringResource(R.string.tools_cook_timer_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        OutlinedTextField(
+                            value = minStr,
+                            onValueChange = { minStr = it.filter { c -> c.isDigit() } },
+                            label = { Text(stringResource(R.string.tools_cook_timer_min)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = secStr,
+                            onValueChange = { secStr = it.filter { c -> c.isDigit() } },
+                            label = { Text(stringResource(R.string.tools_cook_timer_sec)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = {
+                                if (totalSec > 0) {
+                                    vm.add(name.trim(), totalSec, defaultTimerName)
+                                    name = ""
+                                    minStr = ""
+                                    secStr = ""
+                                }
+                            },
+                            enabled = totalSec > 0,
+                            modifier = Modifier.size(48.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.tools_cook_timer_add),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -252,6 +268,7 @@ private fun TimerCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (finished) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -259,6 +276,7 @@ private fun TimerCard(
                 MaterialTheme.colorScheme.surfaceVariant
             },
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(modifier = Modifier.padding(Spacing.sm)) {
             Row(
@@ -290,7 +308,7 @@ private fun TimerCard(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Box(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(60.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     TimerRing(
@@ -302,6 +320,9 @@ private fun TimerCard(
                     Text(
                         text = if (finished) "✓" else fmtTime(remainSec),
                         style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        softWrap = false,
                         color = if (finished) {
                             MaterialTheme.colorScheme.onPrimaryContainer
                         } else {
