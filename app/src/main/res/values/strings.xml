@@ -1443,11 +1443,13 @@
     <string name="arrival_monitor">到站监测</string>
     <string name="arrival_add">添加站点</string>
     <string name="arrival_empty_hint">还没有添加站点，点下方按钮添加常坐的公交/地铁站</string>
+    <string name="arrival_paused">已暂停</string>
     <string name="arrival_station_meta">经纬度 %1$s, %2$s｜提醒半径 %3$d 米</string>
     <string name="arrival_name_required">请输入站点名称</string>
     <string name="arrival_coord_required">请填写有效的经纬度</string>
     <string name="arrival_coord_invalid">请输入有效的经纬度</string>
     <string name="arrival_station_name">站点名称</string>
+    <string name="arrival_name_placeholder">输入或搜索地点名，如「人民广场」</string>
     <string name="arrival_lat">纬度</string>
     <string name="arrival_lng">经度</string>
     <string name="arrival_use_current">使用当前位置</string>
@@ -1466,9 +1468,9 @@
 
     <!-- 备份导出（V2.9++） -->
     <string name="tools_backup_title">备份导出</string>
-    <string name="tools_backup_desc">设置与保险箱一键备份</string>
+    <string name="tools_backup_desc">一键备份：任务/习惯/工具配置/系统设置等</string>
     <string name="backup_title">备份导出</string>
-    <string name="backup_desc">一键导出工具箱设置、密码保险箱与习惯记录</string>
+    <string name="backup_desc">一键导出全部数据：任务、习惯、各工具配置、助手配置、系统设置等（密码保险箱可选明文导出）</string>
     <string name="backup_vault_pass">保险箱口令（留空则不导出明文）</string>
     <string name="backup_include_plain">同时导出保险箱明文</string>
     <string name="backup_plain_warn">明文包含账号密码，请妥善保管导出文件</string>

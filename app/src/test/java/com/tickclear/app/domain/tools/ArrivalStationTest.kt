@@ -61,6 +61,40 @@ class ArrivalStationTest {
     }
 
     @Test
+    fun `含enabled标志 编解码往返一致`() {
+        val st = ArrivalStation("id-5", "望京西", 39.9962, 116.4709, 350, enabled = false)
+        val back = roundTrip(st)
+        assertNotNull(back)
+        assertEquals("望京西", back!!.name)
+        assertEquals(39.9962, back.lat, 1e-9)
+        assertEquals(116.4709, back.lng, 1e-9)
+        assertEquals(350, back.radius)
+        assertEquals(false, back.enabled)
+    }
+
+    @Test
+    fun `旧格式无enabled字段 默认启用`() {
+        // 兼容升级前 "id|name|lat|lng|radius" 五段格式：解析后默认 enabled = true
+        val line = "id-old|西直门|39.94|116.35|300"
+        val back = ArrivalStation.decode(line)
+        assertNotNull(back)
+        assertEquals(true, back!!.enabled)
+        assertEquals(300, back.radius)
+    }
+
+    @Test
+    fun `名称含竖线且关闭 字段不错位 enabled正确`() {
+        val st = ArrivalStation("id-6", "人民广场|1号线", 31.2336, 121.4692, 500, enabled = false)
+        val back = roundTrip(st)
+        assertNotNull(back)
+        assertEquals("人民广场|1号线", back!!.name)
+        assertEquals(31.2336, back.lat, 1e-9)
+        assertEquals(121.4692, back.lng, 1e-9)
+        assertEquals(500, back.radius)
+        assertEquals(false, back.enabled)
+    }
+
+    @Test
     fun `多站点整体编解码 且脏行不影响其余站点`() {
         val list = listOf(
             ArrivalStation("a", "站A", 1.0, 2.0, 100),

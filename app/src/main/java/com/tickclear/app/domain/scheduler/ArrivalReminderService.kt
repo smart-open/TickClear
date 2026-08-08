@@ -128,6 +128,7 @@ class ArrivalReminderService : Service() {
     private fun checkProximity(loc: Location) {
         val now = System.currentTimeMillis()
         for (st in stations) {
+            if (!st.enabled) continue
             val dist = FloatArray(1)
             Location.distanceBetween(loc.latitude, loc.longitude, st.lat, st.lng, dist)
             val within = dist[0] <= st.radius
