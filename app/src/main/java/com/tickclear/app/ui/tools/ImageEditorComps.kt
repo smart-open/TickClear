@@ -3,6 +3,7 @@ package com.tickclear.app.ui.tools
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -15,23 +16,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
@@ -261,18 +274,26 @@ private fun toNormCoord(
 }
 
 /**
- * 可缩放的「预览画布」（图片压缩 / 黑白）。
- * 支持双指捏合缩放 + 单指拖动平移；scale 由外部 state 控制（侧边面板按钮与捏合手势都改它），
- * 回到 1× 时自动复位平移。
+ * 可缩放 / 平移的「预览画布」（图片压缩 / 黑白）。
+ * - scale / offset 均由外部 state 控制：侧边面板的方向键、捏合手势、单指拖动都会改它们；
+ * - 内部对平移做钳制，保证放大后图片始终至少部分可见，不会整张滑出视野；
+ * - 回到 1× 时由调用方复位 offset（方向键在 scale<=1 时禁用）。
  */
 @Composable
 fun ZoomableImagePreview(
     bitmap: Bitmap,
     scale: Float,
     onScaleChange: (Float) -> Unit,
+    offset: Offset,
+    onOffsetChange: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    // 最新值，供 pointerInput(Unit) 闭包实时读取，避免捕获陈旧参数
+    val scaleState = rememberUpdatedState(scale)
+    val offsetState = rememberUpdatedState(offset)
+    val onScaleState = rememberUpdatedState(onScaleChange)
+    val onOffsetState = rememberUpdatedState(onOffsetChange)
+    val density = LocalDensity.current
 
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
@@ -290,6 +311,24 @@ fun ZoomableImagePreview(
             fh = maxH
             fw = maxH * ratio
         }
+        val fwPx = with(density) { fw.toPx() }
+        val fhPx = with(density) { fh.toPx() }
+        val maxWPx = with(density) { maxW.toPx() }
+        val maxHPx = with(density) { maxH.toPx() }
+
+        // 允许的最大归一化平移：放大后超出容器的部分（offset 为 0..1 归一化）。
+        // 归一化 = 像素溢出 / (2 × 图片像素宽高)，确保图片不整张滑出视野。
+        val maxTXNorm = if (fwPx > 0f) maxOf(0f, (fwPx * scale - maxWPx) / (2f * fwPx)) else 0f
+        val maxTYNorm = if (fhPx > 0f) maxOf(0f, (fhPx * scale - maxHPx) / (2f * fhPx)) else 0f
+        val clampedX = offset.x.coerceIn(-maxTXNorm, maxTXNorm)
+        val clampedY = offset.y.coerceIn(-maxTYNorm, maxTYNorm)
+        // 把钳制结果回写，使外部 state 始终合法（避免抖动循环）
+        LaunchedEffect(clampedX, clampedY) {
+            if (kotlin.math.abs(clampedX - offset.x) > 1e-4f || kotlin.math.abs(clampedY - offset.y) > 1e-4f) {
+                onOffsetState.value(Offset(clampedX, clampedY))
+            }
+        }
+
         Box(
             modifier = Modifier
                 .size(fw, fh)
@@ -299,16 +338,18 @@ fun ZoomableImagePreview(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        translationX = offset.x
-                        translationY = offset.y
+                        scaleX = scaleState.value
+                        scaleY = scaleState.value
+                        translationX = clampedX * fwPx
+                        translationY = clampedY * fhPx
                     }
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
-                            val ns = (scale * zoom).coerceIn(1f, 4f)
-                            onScaleChange(ns)
-                            offset = if (ns == 1f) Offset.Zero else offset + pan
+                            val ns = (scaleState.value * zoom).coerceIn(1f, 4f)
+                            onScaleState.value(ns)
+                            // pan 是像素增量，转归一化后累加（与 offset 单位一致）
+                            val base = if (ns <= 1f) Offset.Zero else offsetState.value
+                            onOffsetState.value(base + Offset(pan.x / fwPx, pan.y / fhPx))
                         }
                     },
             ) {
@@ -317,6 +358,160 @@ fun ZoomableImagePreview(
                     contentDescription = null,
                     contentScale = ContentScale.FillBounds,
                     modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 卡片式美化滑块：顶部一行「标签 + 数值徽章」，下方整条滑块使用主题强调色。
+ * 用于图片压缩的质量、黑白的阈值 / 对比度等调节器。
+ */
+@Composable
+fun ToolSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    displayValue: String,
+    modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    displayValue,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = accent,
+                    modifier = Modifier
+                        .background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                steps = steps,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = accent,
+                    activeTrackColor = accent,
+                    inactiveTrackColor = accent.copy(alpha = 0.25f),
+                ),
+            )
+        }
+    }
+}
+
+/**
+ * 缩放 + 方向键平移控制台（卡片式）。
+ * 放大（scale>1）后「上/下/左/右」方向键才可点击，通过小幅平移查看放大后看不见的区域；
+ * 未加载图片或未放大时整体禁用并给出提示。
+ */
+@Composable
+fun ZoomPanControls(
+    scale: Float,
+    onScaleChange: (Float) -> Unit,
+    offset: Offset,
+    onOffsetChange: (Offset) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    // offset 为归一化单位（0..1），方向键每按一次平移固定归一化步长
+    val PAN_STEP = 0.25f
+    val canPan = enabled && scale > 1f
+
+    fun move(dx: Float, dy: Float) {
+        if (!canPan) return
+        onOffsetChange(offset + Offset(dx * PAN_STEP, dy * PAN_STEP))
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                stringResource(R.string.tools_zoom_pan),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { onScaleChange((scale - 0.5f).coerceAtLeast(1f)) },
+                    enabled = enabled,
+                ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out)) }
+                Text(
+                    String.format(java.util.Locale.US, "%.1f×", scale),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                IconButton(
+                    onClick = { onScaleChange((scale + 0.5f).coerceAtMost(4f)) },
+                    enabled = enabled,
+                ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in)) }
+                OutlinedButton(
+                    onClick = { onScaleChange(1f); onOffsetChange(Offset.Zero) },
+                    enabled = enabled,
+                    modifier = Modifier.height(36.dp),
+                ) { Text(stringResource(R.string.tools_zoom_reset)) }
+            }
+            // 方向键 D-pad
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                IconButton(onClick = { move(0f, -1f) }, enabled = canPan) {
+                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up))
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { move(-1f, 0f) }, enabled = canPan) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left))
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(onClick = { move(1f, 0f) }, enabled = canPan) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right))
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                IconButton(onClick = { move(0f, 1f) }, enabled = canPan) {
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down))
+                }
+            }
+            if (!canPan) {
+                Text(
+                    stringResource(R.string.tools_pan_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
