@@ -32,7 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -346,9 +346,9 @@ private val STRETCHES = listOf(
 
 @Composable
 private fun StretchRoutineCard() {
-    var index by remember { mutableStateOf(-1) } // -1 未开始；==size 已完成
+    var index by remember { mutableIntStateOf(-1) } // -1 未开始；==size 已完成
     val total = 20
-    var holdLeft by remember { mutableStateOf(total) }
+    var holdLeft by remember { mutableIntStateOf(total) }
 
     LaunchedEffect(index) {
         if (index in 0 until STRETCHES.size) {
