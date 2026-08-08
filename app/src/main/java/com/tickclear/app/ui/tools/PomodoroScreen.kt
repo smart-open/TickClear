@@ -2,6 +2,8 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,10 +34,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 
-private val FOCUS_OPTIONS = listOf(15, 25, 45)
-private val BREAK_OPTIONS = listOf(5, 10)
+private val FOCUS_OPTIONS = listOf(15, 25, 45, 60, 90, 120)
+private val BREAK_OPTIONS = listOf(5, 10, 20, 30, 60, 120)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PomodoroScreen(
     vm: PomodoroViewModel = hiltViewModel(),
@@ -117,7 +119,11 @@ fun PomodoroScreen(
 
             Spacer(Modifier.height(Spacing.sm))
             Text(focusLenLabel, style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
                 FOCUS_OPTIONS.forEach { min ->
                     FilterChip(
                         selected = vm.focusMin == min,
@@ -129,7 +135,11 @@ fun PomodoroScreen(
             }
 
             Text(breakLenLabel, style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
                 BREAK_OPTIONS.forEach { min ->
                     FilterChip(
                         selected = vm.breakMin == min,

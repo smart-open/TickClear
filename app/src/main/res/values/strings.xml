@@ -1051,7 +1051,7 @@
     <string name="tools_calc_title">表格计算</string>
     <string name="tools_calc_desc">粘贴数字快速统计</string>
     <string name="calc_input_hint">每行一组数字，同行用空格或逗号分隔多列</string>
-    <string name="calc_formula_hint">支持空格、逗号、分号、Tab 分隔多列；每行一条记录</string>
+    <string name="calc_formula_hint">自动识别每行的数字（含小数、负数），自动忽略汉字、字母与其他符号；同行可用空格、逗号、分号、Tab、竖线、斜杠、中英文逗号等任意符号分隔</string>
     <string name="calc_compute">计算</string>
     <string name="calc_empty">暂无数据，请先粘贴数字</string>
     <string name="calc_summary">共 %1$d 行 %2$d 列</string>
@@ -1253,6 +1253,17 @@
     <string name="countdown_today">就是今天</string>
     <string name="countdown_passed">已过去 %1$d 天</string>
     <string name="countdown_delete">删除</string>
+    <string name="countdown_remind">提醒</string>
+    <string name="countdown_advance_label">提前通知（天）</string>
+    <string name="countdown_advance_days">提前 %1$d 天</string>
+    <string name="countdown_daily">每天提醒</string>
+    <string name="countdown_daily_desc">开启后提前期内每天提醒，否则仅提前当天与到期当天提醒</string>
+    <string name="countdown_time_label">提醒时间</string>
+    <string name="countdown_notif_title">%1$s 提醒</string>
+    <string name="countdown_notif_today">就是今天，别忘了！</string>
+    <string name="countdown_notif_days">还有 %1$d 天</string>
+    <string name="channel_countdown_name">重要日子倒计时</string>
+    <string name="channel_countdown_desc">重要日期临近时提醒</string>
 
     <!-- 条码识别（选图解码 + 商品查询，V2.9++） -->
     <string name="tools_barcode_title">条码识别</string>
@@ -1474,9 +1485,12 @@
     <string name="tools_loan_method">还款方式</string>
     <string name="tools_loan_equal_installment">等额本息</string>
     <string name="tools_loan_equal_principal">等额本金</string>
+    <string name="tools_loan_bullet_principal">本金到期</string>
     <string name="tools_loan_monthly">每月还款</string>
     <string name="tools_loan_first_month">首月还款</string>
     <string name="tools_loan_decrease">每月递减</string>
+    <string name="tools_loan_monthly_interest">每月利息</string>
+    <string name="tools_loan_final_principal">到期还本</string>
     <string name="tools_loan_total_interest">总利息</string>
     <string name="tools_loan_total_pay">总还款</string>
     <string name="tools_loan_reset">重置</string>
@@ -1487,10 +1501,16 @@
     <string name="tools_tax_salary">税前月薪（元）</string>
     <string name="tools_tax_insurance">五险一金（元/月）</string>
     <string name="tools_tax_extra">专项附加扣除（元/月）</string>
+    <string name="tools_tax_other">其他金额（元/月，可正可负，计入应税收入）</string>
+    <string name="tools_tax_accum_months">已累计月份（0-11）</string>
+    <string name="tools_tax_bonus">年终奖（元）</string>
     <string name="tools_tax_taxable">应纳税所得额</string>
     <string name="tools_tax_rate">适用税率</string>
     <string name="tools_tax_amount">本月个税</string>
     <string name="tools_tax_after">税后到手</string>
+    <string name="tools_tax_remaining_months">今年剩余月份</string>
+    <string name="tools_tax_bonus_tax">年终奖个税</string>
+    <string name="tools_tax_bonus_after">年终奖到手</string>
     <string name="tools_tax_insurance_label">五险一金</string>
     <string name="tools_tax_note">简易估算，未含年终奖等特殊情形</string>
     <string name="tools_tax_reset">重置</string>

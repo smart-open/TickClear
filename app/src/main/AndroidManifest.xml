@@ -170,6 +170,12 @@
             android:exported="false"
             android:enabled="true" />
 
+        <!-- V2.9++ 重要日子倒计时：一次性精确闹钟触发 -->
+        <receiver
+            android:name=".domain.scheduler.CountdownReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
         <receiver
             android:name=".domain.scheduler.HabitReminderReceiver"
             android:exported="false"

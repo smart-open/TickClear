@@ -44,6 +44,8 @@ private data class LoanResult(
     val monthlyFixed: Double?,
     val firstMonth: Double?,
     val decrease: Double?,
+    val monthlyInterest: Double?,
+    val finalPrincipal: Double?,
     val totalInterest: Double,
     val totalPay: Double,
 )
@@ -58,13 +60,18 @@ private fun computeLoan(principal: Double, n: Int, r: Double, method: Int): Loan
             principal * r * f / (f - 1)
         }
         val total = monthly * n
-        LoanResult(monthly, null, null, total - principal, total)
-    } else {
+        LoanResult(monthly, null, null, null, null, total - principal, total)
+    } else if (method == 1) {
         val mp = principal / n
         val first = mp + principal * r
         val dec = mp * r
         val totalInterest = mp * r * n * (n + 1) / 2
-        LoanResult(null, first, dec, totalInterest, principal + totalInterest)
+        LoanResult(null, first, dec, null, null, totalInterest, principal + totalInterest)
+    } else {
+        // 本金到期（按月付息、到期还本）：每月只还利息，期末一次性归还本金
+        val monthlyInterest = principal * r
+        val totalInterest = monthlyInterest * n
+        LoanResult(null, null, null, monthlyInterest, principal, totalInterest, principal + totalInterest)
     }
 }
 
@@ -147,6 +154,11 @@ fun LoanCalculatorScreen(onBack: () -> Unit) {
                     onClick = { method = 1 },
                     label = { Text(stringResource(R.string.tools_loan_equal_principal)) },
                 )
+                FilterChip(
+                    selected = method == 2,
+                    onClick = { method = 2 },
+                    label = { Text(stringResource(R.string.tools_loan_bullet_principal)) },
+                )
             }
 
             if (result == null) {
@@ -158,9 +170,12 @@ fun LoanCalculatorScreen(onBack: () -> Unit) {
             } else {
                 if (method == 0) {
                     ResultCard(stringResource(R.string.tools_loan_monthly), yuan(result.monthlyFixed ?: 0.0), primary = true)
-                } else {
+                } else if (method == 1) {
                     ResultCard(stringResource(R.string.tools_loan_first_month), yuan(result.firstMonth ?: 0.0), primary = true)
                     ResultCard(stringResource(R.string.tools_loan_decrease), yuan(result.decrease ?: 0.0))
+                } else {
+                    ResultCard(stringResource(R.string.tools_loan_monthly_interest), yuan(result.monthlyInterest ?: 0.0), primary = true)
+                    ResultCard(stringResource(R.string.tools_loan_final_principal), yuan(result.finalPrincipal ?: 0.0))
                 }
                 ResultCard(stringResource(R.string.tools_loan_total_interest), yuan(result.totalInterest))
                 ResultCard(stringResource(R.string.tools_loan_total_pay), yuan(result.totalPay))

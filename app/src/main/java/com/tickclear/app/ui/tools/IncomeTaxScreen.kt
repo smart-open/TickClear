@@ -48,6 +48,13 @@ private fun taxBracket(t: Double): Pair<Double, Double> = when {
     else -> 0.45 to 15160.0
 }
 
+/** 年终奖单独计税：以「奖金/12」定位月度税率，按奖金全额计税（不并入综合所得）。 */
+private fun bonusTax(bonus: Double): Double {
+    if (bonus <= 0) return 0.0
+    val (rate, quick) = taxBracket(bonus / 12.0)
+    return maxOf(0.0, bonus * rate - quick)
+}
+
 private fun fmt(v: Double): String = String.format(java.util.Locale.US, "%,.2f", v)
 private fun yuan(v: Double): String = "¥${fmt(v)}"
 
@@ -57,14 +64,24 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
     var salaryStr by remember { mutableStateOf("20000") }
     var insuranceStr by remember { mutableStateOf("3000") }
     var extraStr by remember { mutableStateOf("0") }
+    var otherStr by remember { mutableStateOf("0") }
+    var monthsAccumStr by remember { mutableStateOf("0") }
+    var bonusStr by remember { mutableStateOf("0") }
 
     val salary = salaryStr.toDoubleOrNull() ?: 0.0
     val insurance = insuranceStr.toDoubleOrNull() ?: 0.0
     val extra = extraStr.toDoubleOrNull() ?: 0.0
-    val taxable = maxOf(0.0, salary - 5000 - insurance - extra)
+    val other = otherStr.toDoubleOrNull() ?: 0.0
+    val monthsAccum = monthsAccumStr.toIntOrNull()?.coerceIn(0, 11) ?: 0
+    val bonus = bonusStr.toDoubleOrNull() ?: 0.0
+    // 其他金额可正可负，直接计入应税收入（减项填负数、加项填正数）
+    val taxable = maxOf(0.0, salary - 5000 - insurance - extra + other)
     val (rate, quick) = taxBracket(taxable)
     val tax = maxOf(0.0, taxable * rate - quick)
     val after = maxOf(0.0, salary - insurance - tax)
+    val bonusTax = bonusTax(bonus)
+    val bonusAfter = maxOf(0.0, bonus - bonusTax)
+    val remainingMonths = maxOf(0, 12 - monthsAccum)
 
     Scaffold(
         topBar = {
@@ -114,6 +131,30 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
+            OutlinedTextField(
+                value = otherStr,
+                onValueChange = { otherStr = it },
+                label = { Text(stringResource(R.string.tools_tax_other)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = monthsAccumStr,
+                onValueChange = { monthsAccumStr = it },
+                label = { Text(stringResource(R.string.tools_tax_accum_months)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = bonusStr,
+                onValueChange = { bonusStr = it },
+                label = { Text(stringResource(R.string.tools_tax_bonus)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             ResultCard(stringResource(R.string.tools_tax_taxable), yuan(taxable))
             ResultCard(
@@ -123,6 +164,12 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
             ResultCard(stringResource(R.string.tools_tax_insurance_label), yuan(insurance))
             ResultCard(stringResource(R.string.tools_tax_amount), yuan(tax))
             ResultCard(stringResource(R.string.tools_tax_after), yuan(after), highlight = true)
+
+            ResultCard(stringResource(R.string.tools_tax_remaining_months), "$remainingMonths")
+            if (bonus > 0) {
+                ResultCard(stringResource(R.string.tools_tax_bonus_tax), yuan(bonusTax))
+                ResultCard(stringResource(R.string.tools_tax_bonus_after), yuan(bonusAfter), highlight = true)
+            }
 
             Text(
                 stringResource(R.string.tools_tax_note),
@@ -135,6 +182,9 @@ fun IncomeTaxScreen(onBack: () -> Unit) {
                     salaryStr = "20000"
                     insuranceStr = "3000"
                     extraStr = "0"
+                    otherStr = "0"
+                    monthsAccumStr = "0"
+                    bonusStr = "0"
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

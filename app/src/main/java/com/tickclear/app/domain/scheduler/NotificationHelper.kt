@@ -47,6 +47,8 @@ object NotificationHelper {
     const val CHANNEL_CLOCK = "tickclear.tools.clock.$CHANNEL_VERSION"
     /** 到站提醒渠道（V2.9++）。 */
     const val CHANNEL_ARRIVAL = "tickclear.tools.arrival.$CHANNEL_VERSION"
+    /** 重要日子倒计时提醒渠道（V2.9++ 扩展通知）。 */
+    const val CHANNEL_COUNTDOWN = "tickclear.tools.countdown.$CHANNEL_VERSION"
 
     /** 历史渠道 ID（升级清理用）：无后缀初版 + 各历史版本后缀。 */
     private val LEGACY_CHANNEL_IDS = listOf(
@@ -224,7 +226,18 @@ object NotificationHelper {
         enableVibration(true)
         vibrationPattern = longArrayOf(0, 400, 200, 400)
     }
-    manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, napPlayback, expiry, hearing, clock, arrival))
+    // 重要日子倒计时提醒渠道：标准重要性 + 震动。
+    val countdown = NotificationChannel(
+        CHANNEL_COUNTDOWN,
+        context.getString(R.string.channel_countdown_name),
+        android.app.NotificationManager.IMPORTANCE_DEFAULT,
+    ).apply {
+        description = context.getString(R.string.channel_countdown_desc)
+        enableLights(true)
+        enableVibration(true)
+        vibrationPattern = longArrayOf(0, 200, 150, 200)
+    }
+    manager.createNotificationChannels(listOf(reminder, high, mid, midMuted, low, silent, water, rest, eyecare, nap, napPlayback, expiry, hearing, clock, arrival, countdown))
     }
 
     /**
@@ -276,6 +289,28 @@ object NotificationHelper {
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { manager.notify(notifyId, notification) }
+    }
+
+    /** 重要日子倒计时提醒通知（V2.9++ 扩展通知）。点击仅打开 App。固定 id 避免堆叠。 */
+    fun showCountdownNotification(context: Context, name: String, text: String) {
+        val notifyId = 9451
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pi = android.app.PendingIntent.getActivity(
+            context,
+            notifyId,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_COUNTDOWN)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.countdown_notif_title, name))
+            .setContentText(text)
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         runCatching { manager.notify(notifyId, notification) }

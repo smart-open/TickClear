@@ -51,10 +51,14 @@ fun TableCalcScreen(onBack: () -> Unit) {
     val summaryFmt = stringResource(R.string.calc_summary)
 
     fun compute() {
+        // 预处理：从可能含有汉字/英文/特殊符号的单元格中自动抽取数字（含小数、负数），
+        // 其余字符一律视为分隔，免用户手动清理。
+        val numRegex = Regex("[-+]?\\d+(?:\\.\\d+)?")
         val rows = input.lines()
             .map { line ->
-                line.split(Regex("[\\s,;\\t]+"))
-                    .mapNotNull { it.toDoubleOrNull() }
+                numRegex.findAll(line)
+                    .map { it.value.toDouble() }
+                    .toList()
             }
             .filter { it.isNotEmpty() }
         if (rows.isEmpty()) {
@@ -104,7 +108,7 @@ fun TableCalcScreen(onBack: () -> Unit) {
                 singleLine = false,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp),
+                    .height(188.dp),
             )
             Text(
                 stringResource(R.string.calc_formula_hint),
