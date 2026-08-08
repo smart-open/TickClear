@@ -1920,6 +1920,10 @@
     <string name="reflector_warm">暖光</string>
     <string name="reflector_cool">冷光</string>
     <string name="reflector_restore_note">退出自动恢复原有亮度</string>
+    <string name="reflector_panel_title">控制区 · 亮度 %d%%</string>
+    <string name="reflector_color_temp">色温</string>
+    <string name="reflector_collapse">向下折叠控制区</string>
+    <string name="reflector_expand">向上展开控制区</string>
 
     <!-- 测距仪优化 -->
     <string name="ruler_unit_cm">厘米</string>
