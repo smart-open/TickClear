@@ -230,8 +230,9 @@ fun ZoomableDrawCanvas(
 
 /**
  * 将指针落点（内层 Box 布局坐标，px）反解算为归一化图片坐标。
- * 内层 Box 先按中心缩放 [scale]、再平移 (offset*fwPx, offset*fhPx)，故逆向：
- * 先减平移、再按中心反缩放，最后除以图片布局尺寸得到归一化坐标。
+ * graphicsLayer 真实变换顺序：**先平移 (offset*fwPx, offset*fhPx)，再以中心为轴缩放 [scale]**，
+ * 因此平移量在最终屏幕上被 [scale] 放大，逆向必须减去 `scale * offset * fwPx`，
+ * 否则放大+平移后笔迹会整体偏移到下方（偏移量被少减一截）。
  */
 private fun toNormCoord(
     p: Offset,
@@ -242,10 +243,8 @@ private fun toNormCoord(
 ): Pair<Float, Float> {
     val cx = fwPx / 2f
     val cy = fhPx / 2f
-    val tx = offset.x * fwPx
-    val ty = offset.y * fhPx
-    val nx = (cx + (p.x - tx - cx) / scale) / fwPx
-    val ny = (cy + (p.y - ty - cy) / scale) / fhPx
+    val nx = (cx + (p.x - cx - scale * offset.x * fwPx) / scale) / fwPx
+    val ny = (cy + (p.y - cy - scale * offset.y * fhPx) / scale) / fhPx
     return nx to ny
 }
 
