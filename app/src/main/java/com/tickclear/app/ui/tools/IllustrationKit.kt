@@ -248,7 +248,7 @@ fun DrawScope.drawRimLight(
 }
 
 /**
- * 圆柱受光（横向渐变：暗边→高光带→基色→暗侧），适合蜡体/易拉罐/打火机机身等柱状物。
+ * 圆柱受光（横向渐变：暗边→高光带→基色→暗侧），适合蜡体/打火机机身等柱状物。
  * 比 [fillRoundRect3D] 的径向渐变更贴合"圆柱"的受光规律。
  */
 fun DrawScope.fillCylinder(
