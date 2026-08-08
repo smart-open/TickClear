@@ -1066,6 +1066,25 @@
     <string name="pomodoro_break_len">休息时长</string>
     <string name="pomodoro_completed">已完成专注 %1$d 次</string>
     <string name="pomodoro_hint">专注中，请放下手机，远离干扰</string>
+    <string name="pomodoro_tip_title">番茄钟时长建议</string>
+    <string name="pomodoro_tip_col_focus">专注时长</string>
+    <string name="pomodoro_tip_col_break">短休息</string>
+    <string name="pomodoro_tip_col_scene">适用场景</string>
+    <string name="pomodoro_tip_f1">15分钟</string>
+    <string name="pomodoro_tip_b1">3-5分钟</string>
+    <string name="pomodoro_tip_s1">新手入门、简单任务、低龄儿童</string>
+    <string name="pomodoro_tip_f2">25分钟</string>
+    <string name="pomodoro_tip_b2">5分钟</string>
+    <string name="pomodoro_tip_s2">经典标准、日常学习工作</string>
+    <string name="pomodoro_tip_f3">30分钟</string>
+    <string name="pomodoro_tip_b3">5-10分钟</string>
+    <string name="pomodoro_tip_s3">中等难度、连贯任务</string>
+    <string name="pomodoro_tip_f4">45分钟</string>
+    <string name="pomodoro_tip_b4">10-15分钟</string>
+    <string name="pomodoro_tip_s4">复杂攻坚、深度思考</string>
+    <string name="pomodoro_tip_f5">52分钟</string>
+    <string name="pomodoro_tip_b5">15-17分钟</string>
+    <string name="pomodoro_tip_s5">创造性工作、长时间深度投入</string>
 
     <!-- 表格计算 -->
     <string name="tools_calc_title">表格计算</string>
