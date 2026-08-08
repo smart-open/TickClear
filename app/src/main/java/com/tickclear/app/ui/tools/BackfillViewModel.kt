@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * 打卡补录 ViewModel（V2.9++）：为习惯或每日记录补打 / 取消过往任意日期的打卡。
+ * 打卡补录 ViewModel（V2.9++）：为习惯或任务完成记录补打 / 取消过往任意日期的记录。
  * 底层 HabitRepository.checkIn / CheckInRepository 本就支持任意日期，本 VM 仅开放显式入口。
  */
 @HiltViewModel

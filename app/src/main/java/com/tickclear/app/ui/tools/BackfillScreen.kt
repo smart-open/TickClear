@@ -60,8 +60,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * 打卡补录工具（V2.9++）：为习惯或每日记录手动补打 / 取消过往任意日期的打卡，
- * 补全缺失的打卡记录。底层仓库本就支持任意日期，本页开放显式入口。
+ * 打卡补录工具（V2.9++）：为习惯或任务完成记录手动补打 / 取消过往任意日期的记录，
+ * 补全缺失的完成记录。底层仓库本就支持任意日期，本页开放显式入口。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
