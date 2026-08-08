@@ -10,14 +10,19 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -25,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,6 +52,12 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 private val WEAR_OPTIONS = listOf(15, 30, 45, 60, 90, 120)
+
+/** 仪表盘直径与轨道外边距，二者共同决定「dB 数字」下沉到中心与底部垂直中点的偏移量。 */
+private val GAUGE_DIAMETER = 220.dp
+private val GAUGE_TRACK_MARGIN = 22.dp
+/** 圆心到轨道半径 = 直径/2 - 外边距；数字下沉量取该半径的一半，即圆心与圆周底部的垂直中点。 */
+private val GAUGE_NUMBER_OFFSET = (GAUGE_DIAMETER / 2 - GAUGE_TRACK_MARGIN) / 2
 
 /**
  * 听力保护（V2.9++）：设置总开关、音量安全阈值、建议最大佩戴时长。
@@ -102,16 +114,13 @@ fun HearingScreen(
                         .fillMaxWidth()
                         .align(Alignment.CenterHorizontally),
                 )
-                Text(stringResource(R.string.hearing_volume_label), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    text = stringResource(R.string.hearing_volume_current, volume),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = stringResource(R.string.hearing_volume_hint, volume),
+                    style = MaterialTheme.typography.titleSmall,
                 )
-                Slider(
-                    value = volume.toFloat(),
-                    onValueChange = { vm.setVolumeThreshold(it.toInt()) },
-                    valueRange = 0f..100f,
-                    steps = 0,
+                VolumeThresholdSlider(
+                    value = volume,
+                    onValueChange = { vm.setVolumeThreshold(it) },
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -158,12 +167,12 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(220.dp),
+            modifier = Modifier.size(GAUGE_DIAMETER),
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 val cx = size.width / 2f
                 val cy = size.height / 2f
-                val rTrack = size.minDimension / 2f - 22.dp.toPx()
+                val rTrack = size.minDimension / 2f - GAUGE_TRACK_MARGIN.toPx()
                 val trackW = 18.dp.toPx()
                 val zoneW = 10.dp.toPx()
 
@@ -223,7 +232,10 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
                 drawCircle(color = needleColor, radius = 7.dp.toPx(), center = Offset(cx, cy))
                 drawCircle(color = surfaceColor, radius = 3.dp.toPx(), center = Offset(cx, cy))
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.offset(y = GAUGE_NUMBER_OFFSET),
+            ) {
                 Text(
                     text = "dB",
                     style = MaterialTheme.typography.labelSmall,
@@ -244,6 +256,74 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
             ZoneChip(dangerColor, stringResource(R.string.hearing_zone_danger))
         }
     }
+}
+
+/**
+ * 音量安全阈值调节器（美化版）：卡片式外壳 + 动态分区配色滑块（安全绿 → 警戒黄 → 危险红，
+ * 与仪表盘分区一致）+ 0 / 50 / 100 刻度标签。
+ */
+@Composable
+private fun VolumeThresholdSlider(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val safeColor = Color(0xFF43A047)
+    val cautionColor = Color(0xFFF9A825)
+    val dangerColor = Color(0xFFE53935)
+    val zone = when {
+        value <= 60 -> safeColor
+        value <= 85 -> cautionColor
+        else -> dangerColor
+    }
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.toInt()) },
+                valueRange = 0f..100f,
+                steps = 0,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = zone,
+                    activeTrackColor = zone,
+                    inactiveTrackColor = zone.copy(alpha = 0.25f),
+                    activeTickColor = MaterialTheme.colorScheme.surface,
+                    inactiveTickColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                ),
+            )
+            // 0-50-100 刻度标签，与滑块行程对齐（留出滑块半径余量）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                ScaleLabel("0")
+                ScaleLabel("50")
+                ScaleLabel("100")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScaleLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
