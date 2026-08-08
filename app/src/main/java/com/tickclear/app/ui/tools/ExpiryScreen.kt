@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -191,36 +194,84 @@ private fun ExpiryItemCard(
     } else {
         stringResource(R.string.expiry_days_left, left)
     }
+    val statusColor = expiryStatusColor(left, isSystemInDarkTheme())
+    // 剩余天数进入「提前提醒」窗口（剩 ≤ 提前天数）时高亮标记
+    val soon = entity.reminderEnabled && left in 1..entity.reminderDaysBefore
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = entity.title, style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    Text(text = entity.title, style = MaterialTheme.typography.titleMedium)
+                    // 分类标签
+                    Tag(
+                        text = entity.category,
+                        bg = MaterialTheme.colorScheme.primaryContainer,
+                        fg = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    if (soon) {
+                        Tag(
+                            text = stringResource(R.string.expiry_soon),
+                            bg = statusColor,
+                            fg = Color.White,
+                        )
+                    }
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
+                }
+            }
+            Text(
+                text = "${formatDate(entity.expireEpochDay)} · $leftText",
+                style = MaterialTheme.typography.bodySmall,
+                color = statusColor,
+            )
+            // 提醒信息：到期前 N 天 09:00 系统通知推送；未开启则提示
+            if (entity.reminderEnabled) {
+                val remindDate = formatDate(entity.expireEpochDay - entity.reminderDaysBefore)
                 Text(
-                    text = "${entity.category} · ${formatDate(entity.expireEpochDay)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(R.string.expiry_reminder_line, remindDate, "09:00"),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else {
                 Text(
-                    text = leftText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = expiryStatusColor(left, isSystemInDarkTheme()),
+                    text = stringResource(R.string.expiry_reminder_disabled),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
-            }
         }
+    }
+}
+
+/** 卡片内小标签（分类 / 即将提醒）。 */
+@Composable
+private fun Tag(text: String, bg: Color, fg: Color) {
+    Box(
+        modifier = Modifier
+            .background(bg, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    ) {
+        Text(text = text, style = MaterialTheme.typography.labelSmall, color = fg)
     }
 }
 

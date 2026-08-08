@@ -759,6 +759,7 @@
     <string name="qr_long_press_save">长按二维码保存图片</string>
     <string name="qr_empty_hint">输入内容后自动生成二维码</string>
     <string name="qr_ec_level_label">纠错级别</string>
+    <string name="qr_ec_desc">容错率约 L 7% / M 15% / Q 25% / H 30%：级别越高，被遮挡、污损或弯曲后仍可被识别</string>
     <string name="qr_logo_center">居中 Logo</string>
     <string name="qr_logo_hint">开启后强制使用 H 级纠错，确保 Logo 遮挡部分仍可识别</string>
     <string name="qr_ec_l">L</string>
@@ -803,6 +804,9 @@
     <string name="expiry_days_before_7">7 天前</string>
     <string name="expiry_days_left">剩 %1$d 天</string>
     <string name="expiry_expired">已过期</string>
+    <string name="expiry_soon">即将提醒</string>
+    <string name="expiry_reminder_line">提醒 %1$s %2$s · 系统通知推送</string>
+    <string name="expiry_reminder_disabled">未开启提醒</string>
     <string name="expiry_delete_title">删除到期提醒</string>
     <string name="expiry_delete_confirm">确定删除「%1$s」？</string>
     <string name="expiry_delete_confirm_btn">删除</string>
@@ -1259,6 +1263,7 @@
     <string name="barcode_not_found">未找到该条码的商品信息</string>
     <string name="barcode_query_fail">商品查询失败（可离线复制条码）</string>
     <string name="barcode_copied">已复制条码</string>
+    <string name="barcode_web_search">浏览器搜索该条码</string>
 
     <!-- 马赛克（图片涂抹遮挡，V2.9++） -->
     <string name="tools_mosaic_title">马赛克</string>
@@ -1662,7 +1667,7 @@
     <string name="doodle_size">笔刷</string>
 
     <!-- 家庭成员积分仪（生活助手） -->
-    <string name="points_title">家庭成员积分仪</string>
+    <string name="points_title">家庭积分</string>
     <string name="points_desc">完成任务赚积分，兑换心仪奖励</string>
     <string name="points_hint">孩子完成事项得积分，积分可兑换玩具 / 吃食 / 零花钱</string>
     <string name="points_score">积分</string>
@@ -1671,28 +1676,37 @@
     <string name="points_tasks">今日任务</string>
     <string name="points_rewards">奖励兑换</string>
     <string name="points_reward_label">%1$s · 需 %2$d 分</string>
-    <string name="points_member_child1">小明</string>
-    <string name="points_member_child2">小红</string>
-    <string name="points_task_tidy">整理房间</string>
-    <string name="points_task_homework">完成作业</string>
-    <string name="points_task_dish">帮忙洗碗</string>
-    <string name="points_task_early">早起打卡</string>
-    <string name="points_task_read">阅读15分钟</string>
-    <string name="points_task_sport">运动30分钟</string>
-    <string name="points_reward_toy">玩具</string>
-    <string name="points_reward_milktea">奶茶</string>
-    <string name="points_reward_money">零花钱10元</string>
-    <string name="points_reward_park">去公园</string>
-    <string name="points_reward_movie">看电影</string>
+    <string name="points_members">成员</string>
+    <string name="points_task_chip">%1$s +%2$d</string>
     <string name="points_undo">撤销上一步</string>
     <string name="points_undone">已撤销</string>
     <string name="points_achievements_title">成就徽章</string>
     <string name="points_locked">未解锁</string>
+    <string name="points_add_member">添加成员</string>
+    <string name="points_edit_member">编辑成员</string>
+    <string name="points_member_name">成员姓名</string>
+    <string name="points_add_task">添加任务</string>
+    <string name="points_edit_task">编辑任务</string>
+    <string name="points_task_name">任务名称</string>
+    <string name="points_task_points">完成任务得分</string>
+    <string name="points_add_reward">添加奖励</string>
+    <string name="points_edit_reward">编辑奖励</string>
+    <string name="points_reward_name">奖励名称</string>
+    <string name="points_reward_cost">兑换所需积分</string>
+    <string name="points_manual_add">手动 +1</string>
+    <string name="points_manual_sub">手动 −1</string>
+    <string name="points_delete_item">删除</string>
+    <string name="points_delete_item_confirm">确定删除「%1$s」？</string>
     <string name="badge_novice_name">新手</string>
     <string name="badge_progress_name">进步</string>
     <string name="badge_excellent_name">优秀</string>
     <string name="badge_outstanding_name">卓越</string>
     <string name="badge_role_model_name">榜样</string>
+    <string name="badge_star_name">明星</string>
+    <string name="badge_champion_name">冠军</string>
+    <string name="badge_legend_name">传奇</string>
+    <string name="badge_master_name">大师</string>
+    <string name="badge_grandmaster_name">至尊</string>
 
     <!-- 地磁场观测（实用工具） -->
     <string name="magnet_title">地磁场观测</string>

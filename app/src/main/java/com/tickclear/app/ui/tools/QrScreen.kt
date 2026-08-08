@@ -270,6 +270,12 @@ listOf(
             }
         }
 
+        Text(
+            stringResource(R.string.qr_ec_desc),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         // 居中 Logo 开关（V2.9++ 二巡）：开启后在二维码中央叠加应用图标，提升品牌辨识。
         Row(
             modifier = Modifier.fillMaxWidth(),

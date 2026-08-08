@@ -254,7 +254,7 @@ private fun TimerCard(
             },
         ),
     ) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
+        Column(modifier = Modifier.padding(Spacing.sm)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -277,14 +277,14 @@ private fun TimerCard(
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Spacing.xs))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Box(
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(56.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     TimerRing(
@@ -325,8 +325,8 @@ private fun TimerCard(
                     )
                 }
             }
-            Spacer(Modifier.height(Spacing.sm))
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Spacer(Modifier.height(Spacing.xs))
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 if (finished) {
                     Button(onClick = onReset, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.tools_cook_timer_reset))

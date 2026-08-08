@@ -240,6 +240,21 @@ fun BarcodeScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                // 库内查不到时给浏览器兜底：跳京东按条码搜索，避免用户无从下手
+                                OutlinedButton(
+                                    onClick = {
+                                        val url =
+                                            "https://search.jd.com/Search?keyword=" +
+                                                java.net.URLEncoder.encode(s.result.text, "UTF-8")
+                                        val intent = android.content.Intent(
+                                            android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(url),
+                                        )
+                                        context.startActivity(intent)
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.barcode_web_search))
+                                }
                             }
                         }
                     }
