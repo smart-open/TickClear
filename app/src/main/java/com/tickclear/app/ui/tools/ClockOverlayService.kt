@@ -222,11 +222,13 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
         onDispose { handler.removeCallbacks(ticker) }
     }
 
-    // 银色科技感配色：深色玻璃底 + 银色浅边框 + 柔和蓝点缀 + 等宽数字
+    // 银色科技感配色：半透明玻璃底 + 银色浅边框 + 柔和蓝点缀 + 等宽数字
     val silverLight = Color(0xFFE9ECF1)
     val silverDark = Color(0xFF9BA0A8)
-    val glassTop = Color(0xCC14171C)
-    val glassBottom = Color(0xC40D0F13)
+    // 玻璃底 alpha 由 0xCC/0xC4（≈80% 不透明）降至 0x40/0x33（≈25%/20%），
+    // 大幅增强透底，使其下层的背景文字清晰可见，同时保留淡淡深色底保证银色数字可读。
+    val glassTop = Color(0x4014171C)
+    val glassBottom = Color(0x330D0F13)
     val digitColor = Color(0xFFEEF1F5)
     val accent = Color(0xFF7FD4FF)
     val pulse by rememberInfiniteTransition(label = "clockPulse").animateFloat(
@@ -241,7 +243,7 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
 
     Box(
         modifier = Modifier
-            // 深色玻璃底：保证在任意应用上银色边框与数字都清晰可读
+            // 半透明玻璃底：大幅透底使背景文字可见，仍保留淡淡深色以衬托银色边框与数字
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(glassTop, glassBottom),

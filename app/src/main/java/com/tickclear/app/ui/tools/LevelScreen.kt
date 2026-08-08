@@ -384,12 +384,12 @@ private fun DrawScope.drawTubeLevel(
     val color = if (isLevel) okColor else accentColor
     val tubeSize = Size(w, tubeH)
 
-    // 接地软阴影：让气泡管"放置"在画布上而非悬浮（二巡精修）
+    // 接地软阴影：收紧在管体下方、降低浓度，避免 Canvas 底部裁出深色椭圆弧压在卡片上
     drawSoftShadow(
-        center = Offset(w / 2f, top + tubeH * 1.5f),
-        radiusX = w * 0.48f,
-        radiusY = tubeH * 0.5f,
-        maxAlpha = 0.16f,
+        center = Offset(w / 2f, top + tubeH * 0.88f),
+        radiusX = w * 0.42f,
+        radiusY = tubeH * 0.18f,
+        maxAlpha = 0.08f,
     )
 
     // 管体受光（圆角矩形圆柱感）

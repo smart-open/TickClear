@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -110,10 +111,13 @@ fun RulerScreen(onBack: () -> Unit) {
 
     // 方向 = 状态 → 朝向 的纯单向映射：切换时只在 LANDSCAPE / PORTRAIT 之间切换，
     // 绝不经过 UNSPECIFIED。MainActivity 声明了 configChanges=orientation|screenSize，
-    // 旋转由系统在位处理、不重建 Activity；若切换瞬间落回 UNSPECIFIED，
-    // 设备被物理握持为竖屏时系统会立刻回退到竖屏 —— 即"切过去又切回来"的根因。
-    // 因此 onDispose 留空（切换不解锁），仅在真正离开本页时（下方 Unit 键 effect）交还系统默认。
-    LaunchedEffect(landscape) {
+    // 旋转由系统在位处理、不重建 Activity。
+    // 关键修复：把 LocalConfiguration 的当前朝向也作为 effect 的 key。旋转引发的配置变更
+    // 会让系统把 requestedOrientation 重置回 UNSPECIFIED（"切过去又切回来"的真正根因），
+    // 此时 landscape 值没变、旧 LaunchedEffect 不会重新触发 → 锁定丢失、弹回竖屏。
+    // 现改为每次真实旋转后都重新断言锁定，盖掉系统重置。
+    val configuration = LocalConfiguration.current
+    LaunchedEffect(landscape, configuration.orientation) {
         context.findActivity()?.requestedOrientation =
             if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
