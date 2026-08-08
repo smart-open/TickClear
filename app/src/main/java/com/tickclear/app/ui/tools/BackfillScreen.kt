@@ -130,19 +130,42 @@ fun BackfillScreen(
                 Tab(
                     selected = tab == 0,
                     onClick = { tab = 0 },
-                    text = { Text(stringResource(R.string.backfill_habit)) },
+                    content = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            Icon(
+                                Icons.Filled.LocalFireDepartment,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(stringResource(R.string.backfill_habit))
+                        }
+                    },
                 )
                 Tab(
                     selected = tab == 1,
                     onClick = { tab = 1 },
-                    text = { Text(stringResource(R.string.backfill_daily)) },
+                    content = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            Icon(
+                                Icons.Filled.Event,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(stringResource(R.string.backfill_daily))
+                        }
+                    },
                 )
             }
 
-            // 概要说明：跟随当前 Tab 动态展示用途解释
+            // 概要说明：跟随当前 Tab 动态展示用途解释（不再重复 Tab 标题，仅保留图标 + 说明文字）
             when (tab) {
                 0 -> SummaryCard(
-                    title = stringResource(R.string.backfill_habit),
                     text = stringResource(R.string.backfill_habit_summary),
                     icon = {
                         Icon(
@@ -154,7 +177,6 @@ fun BackfillScreen(
                     },
                 )
                 else -> SummaryCard(
-                    title = stringResource(R.string.backfill_daily),
                     text = stringResource(R.string.backfill_daily_summary),
                     icon = {
                         Icon(
@@ -301,7 +323,6 @@ fun BackfillScreen(
  */
 @Composable
 private fun SummaryCard(
-    title: String,
     text: String,
     icon: @Composable () -> Unit,
 ) {
@@ -321,11 +342,6 @@ private fun SummaryCard(
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodyMedium,
