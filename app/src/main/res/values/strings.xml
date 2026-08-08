@@ -826,8 +826,7 @@
     <string name="tools_hearing_desc">耳机音量/佩戴时长超标提醒</string>
     <string name="hearing_enable_label">开启听力保护</string>
     <string name="hearing_hint">连接耳机后，音量过大或佩戴过久将提醒你。监测在 App 运行时生效。</string>
-    <string name="hearing_volume_label">音量安全阈值</string>
-    <string name="hearing_volume_current">超过 %1$d%% 提醒</string>
+    <string name="hearing_volume_hint">超过音量安全阈值 %1$d%% 会提醒</string>
     <string name="hearing_wear_label">建议最大佩戴时长</string>
     <string name="hearing_wear_min">%1$d 分钟</string>
     <string name="hearing_zone_safe">安全</string>
@@ -903,7 +902,7 @@
 
     <!-- 噪音检测 -->
     <string name="tools_noise_title">噪音检测</string>
-    <string name="tools_noise_desc">实时测环境分贝，按国标与 WHO 评估健康风险</string>
+    <string name="tools_noise_desc">实时测环境分贝，按国标与 WHO 评估影响</string>
     <string name="noise_hint">靠近声源点击开始；建议测约 10 秒（过短不准、过长无增益）</string>
     <string name="noise_start">开始测量</string>
     <string name="noise_stop">停止测量</string>
@@ -1450,6 +1449,7 @@
     <string name="arrival_coord_invalid">请输入有效的经纬度</string>
     <string name="arrival_station_name">站点名称</string>
     <string name="arrival_name_placeholder">输入或搜索地点名，如「人民广场」</string>
+    <string name="arrival_name_search_hint">输入名称会实时检索本市地点（优先），从下方列表选择即可自动填入经纬度</string>
     <string name="arrival_lat">纬度</string>
     <string name="arrival_lng">经度</string>
     <string name="arrival_use_current">使用当前位置</string>
@@ -1732,9 +1732,7 @@
     <string name="points_not_enough">积分不足</string>
     <string name="points_tasks">今日任务</string>
     <string name="points_rewards">奖励兑换</string>
-    <string name="points_reward_label">%1$s · 需 %2$d 分</string>
     <string name="points_members">成员</string>
-    <string name="points_task_chip">%1$s +%2$d</string>
     <string name="points_undo">撤销上一步</string>
     <string name="points_undone">已撤销</string>
     <string name="points_achievements_title">成就徽章</string>
@@ -1754,6 +1752,10 @@
     <string name="points_manual_sub">手动 −1</string>
     <string name="points_delete_item">删除</string>
     <string name="points_delete_item_confirm">确定删除「%1$s」？</string>
+    <string name="points_task_complete">完成任务</string>
+    <string name="points_reward_redeem">兑换奖励</string>
+    <string name="points_task_score">+%1$d 分</string>
+    <string name="points_reward_cost_label">需 %1$d 分</string>
     <string name="badge_novice_name">新手</string>
     <string name="badge_progress_name">进步</string>
     <string name="badge_excellent_name">优秀</string>
@@ -1764,6 +1766,8 @@
     <string name="badge_legend_name">传奇</string>
     <string name="badge_master_name">大师</string>
     <string name="badge_grandmaster_name">至尊</string>
+    <string name="badge_sage_name">王者</string>
+    <string name="badge_supreme_name">神话</string>
 
     <!-- 地磁场观测（实用工具） -->
     <string name="magnet_title">地磁场观测</string>
@@ -1908,6 +1912,8 @@
     <string name="reflector_white">白光</string>
     <string name="reflector_warm">暖光</string>
     <string name="reflector_cool">冷光</string>
+    <string name="reflector_sunset">暖橙</string>
+    <string name="reflector_natural">自然光</string>
     <string name="reflector_restore_note">退出自动恢复原有亮度</string>
     <string name="reflector_panel_title">控制区 · 亮度 %d%%</string>
     <string name="reflector_color_temp">色温</string>
