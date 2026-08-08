@@ -184,36 +184,27 @@ fun ZoomableDrawCanvas(
         }
         val fwPx = with(density) { fw.toPx() }
         val fhPx = with(density) { fh.toPx() }
-        // 最新 scale / offset，供手势回调实时读取，避免 pointerInput(Unit) 闭包捕获陈旧值
+        // 最新值，供 pointerInput(Unit) 闭包实时读取，避免捕获陈旧的回调与参数
         val scaleState = rememberUpdatedState(scale)
         val offsetState = rememberUpdatedState(offset)
+        val onStartState = rememberUpdatedState(onDrawStart)
+        val onMoveState = rememberUpdatedState(onDrawMove)
+        val onEndState = rememberUpdatedState(onDrawEnd)
 
         Box(
             modifier = Modifier
                 .size(fw, fh)
                 .clipToBounds(),
         ) {
+            // 视觉层：图片与 overlay 一起被 graphicsLayer 缩放/平移，二者天然对齐
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        translationX = offset.x * fwPx
-                        translationY = offset.y * fhPx
-                    }
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { p ->
-                                val (nx, ny) = toNormCoord(p, scaleState.value, offsetState.value, fwPx, fhPx)
-                                onDrawStart(nx, ny)
-                            },
-                            onDrag = { change, _ ->
-                                val (nx, ny) = toNormCoord(change.position, scaleState.value, offsetState.value, fwPx, fhPx)
-                                onDrawMove(nx, ny)
-                            },
-                            onDragEnd = onDrawEnd,
-                        )
+                        scaleX = scaleState.value
+                        scaleY = scaleState.value
+                        translationX = offsetState.value.x * fwPx
+                        translationY = offsetState.value.y * fhPx
                     },
             ) {
                 Image(
@@ -224,15 +215,34 @@ fun ZoomableDrawCanvas(
                 )
                 overlay()
             }
+            // 手势层：透明、不缩放，落点直接是未变换的布局坐标；
+            // 反解算由 toNormCoord 显式完成，彻底摆脱 graphicsLayer 指针语义的歧义
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { p ->
+                                val (nx, ny) = toNormCoord(p, scaleState.value, offsetState.value, fwPx, fhPx)
+                                onStartState.value(nx, ny)
+                            },
+                            onDrag = { change, _ ->
+                                val (nx, ny) = toNormCoord(change.position, scaleState.value, offsetState.value, fwPx, fhPx)
+                                onMoveState.value(nx, ny)
+                            },
+                            onDragEnd = { onEndState.value() },
+                        )
+                    },
+            )
         }
     }
 }
 
 /**
- * 将指针落点（内层 Box 布局坐标，px）反解算为归一化图片坐标。
- * graphicsLayer 真实变换顺序：**先平移 (offset*fwPx, offset*fhPx)，再以中心为轴缩放 [scale]**，
- * 因此平移量在最终屏幕上被 [scale] 放大，逆向必须减去 `scale * offset * fwPx`，
- * 否则放大+平移后笔迹会整体偏移到下方（偏移量被少减一截）。
+ * 将手势层落点（未变换的布局坐标，px）反解算为归一化图片坐标。
+ * 手势层不缩放，[p] 即视觉位置；视觉位置是「图片点以中心为轴缩放 [scale] 再平移
+ * (offset*fwPx, offset*fhPx)」的结果，故逆推：
+ * `imgLocal = (p - translation - center) / scale + center`，再除以图片尺寸归一化。
  */
 private fun toNormCoord(
     p: Offset,
@@ -243,9 +253,11 @@ private fun toNormCoord(
 ): Pair<Float, Float> {
     val cx = fwPx / 2f
     val cy = fhPx / 2f
-    val nx = (cx + (p.x - cx - scale * offset.x * fwPx) / scale) / fwPx
-    val ny = (cy + (p.y - cy - scale * offset.y * fhPx) / scale) / fhPx
-    return nx to ny
+    val tx = offset.x * fwPx
+    val ty = offset.y * fhPx
+    val lx = (p.x - tx - cx) / scale + cx
+    val ly = (p.y - ty - cy) / scale + cy
+    return (lx / fwPx) to (ly / fhPx)
 }
 
 /**

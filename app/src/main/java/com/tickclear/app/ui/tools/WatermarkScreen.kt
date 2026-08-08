@@ -181,9 +181,15 @@ fun WatermarkScreen(onBack: () -> Unit) {
                             onDrawStart = { nx, ny -> dragStart = Offset(nx, ny) },
                             onDrawMove = { nx, ny -> dragCurrent = Offset(nx, ny) },
                             onDrawEnd = {
-                                currentRect?.let {
-                                    if (it.right - it.left > 0.005f && it.bottom - it.top > 0.005f) {
-                                        rects = rects + RectF(it.left, it.top, it.right, it.bottom)
+                                val s = dragStart
+                                val c = dragCurrent
+                                if (s != null && c != null) {
+                                    val l = min(s.x, c.x)
+                                    val t = min(s.y, c.y)
+                                    val r = max(s.x, c.x)
+                                    val b = max(s.y, c.y)
+                                    if (r - l > 0.005f && b - t > 0.005f) {
+                                        rects = rects + RectF(l, t, r, b)
                                     }
                                 }
                                 dragStart = null
