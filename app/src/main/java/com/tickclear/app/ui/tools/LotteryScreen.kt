@@ -1,7 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -45,7 +47,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -61,6 +65,9 @@ import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** 单次转动/滚动总时长（毫秒）。用户要求统一为 6 秒，让结果在动画结束后才揭晓。 */
+private const val SPIN_DURATION = 6000
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LotteryScreen(
@@ -71,10 +78,6 @@ fun LotteryScreen(
     var input by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<String?>(null) }
     var mode by remember { mutableStateOf("pick") } // pick / dice / coin
-
-    // 动画状态：骰子点数、硬币正反面、以及每次"掷/抛"递增的触发令牌
-    var diceFace by remember { mutableIntStateOf(1) }
-    var coinSide by remember { mutableStateOf(true) } // true=正面
     var animToken by remember { mutableIntStateOf(0) }
 
     // 非组合上下文（onClick）内禁止调用 stringResource，故在此预取格式串与文案。
@@ -85,26 +88,19 @@ fun LotteryScreen(
     val tails = stringResource(R.string.lottery_coin_tails)
     val emptyMsg = stringResource(R.string.lottery_empty)
 
-    fun roll() {
-        result = when (mode) {
-            "dice" -> {
-                val f = Random.nextInt(1, 7)
-                diceFace = f
-                animToken++
-                java.lang.String.format(diceFmt, f)
-            }
-            "coin" -> {
-                val h = Random.nextBoolean()
-                coinSide = h
-                animToken++
-                java.lang.String.format(coinFmt, if (h) heads else tails)
-            }
-            else -> if (options.isNotEmpty()) {
-                java.lang.String.format(pickFmt, options[Random.nextInt(options.size)])
-            } else {
-                emptyMsg
-            }
+    fun switchMode(next: String) {
+        mode = next
+        result = null
+        animToken = 0 // 复位令牌，避免进入新模式时旧令牌触发非点击动画
+    }
+
+    fun trigger() {
+        if (mode == "pick" && options.isEmpty()) {
+            result = emptyMsg
+            return
         }
+        result = null // 动画期间不显示结果，结束才揭晓
+        animToken++
     }
 
     val actionLabel = when (mode) {
@@ -142,25 +138,25 @@ fun LotteryScreen(
             ) {
                 FilterChip(
                     selected = mode == "dice",
-                    onClick = { mode = "dice" },
+                    onClick = { switchMode("dice") },
                     label = { Text(stringResource(R.string.lottery_dice)) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = mode == "coin",
-                    onClick = { mode = "coin" },
+                    onClick = { switchMode("coin") },
                     label = { Text(stringResource(R.string.lottery_coin)) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = mode == "pick",
-                    onClick = { mode = "pick" },
+                    onClick = { switchMode("pick") },
                     label = { Text(stringResource(R.string.lottery_draw)) },
                     modifier = Modifier.weight(1f),
                 )
             }
 
-            // 抽签模式：仅此时出现选项名单（列表高度已压缩）
+            // 抽签模式：仅此时出现选项名单
             if (mode == "pick") {
                 Text(stringResource(R.string.lottery_options_title), style = MaterialTheme.typography.titleSmall)
 
@@ -171,10 +167,12 @@ fun LotteryScreen(
                 ) {
                     OutlinedTextField(
                         value = input,
-                        onValueChange = { input = it },
+                        onValueChange = { if (it.length <= 6) input = it },
                         placeholder = { Text(stringResource(R.string.lottery_option_placeholder)) },
                         singleLine = true,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .requiredHeight(38.dp),
                     )
                     IconButton(
                         onClick = {
@@ -187,42 +185,19 @@ fun LotteryScreen(
                     }
                 }
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 200.dp),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    // 选项内容允许重复，故 key 必须带下标：删除中间项时纯内容 key 会撞车，
-                    // 纯下标（缺省行为）又会让后续项全部错位复用。
-                    itemsIndexed(options, key = { index, option -> "$index-$option" }) { index, option ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(option, style = MaterialTheme.typography.bodyLarge)
-                                IconButton(onClick = { vm.removeOption(index) }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.lottery_delete))
-                                }
-                            }
-                        }
-                    }
-                }
+                PickGrid(
+                    options = options,
+                    token = animToken,
+                    onResult = { opt -> result = java.lang.String.format(pickFmt, opt) },
+                    onDelete = { vm.removeOption(it) },
+                )
 
                 if (options.isNotEmpty()) {
                     TextButton(
                         onClick = {
                             vm.clearOptions()
                             result = null
+                            animToken = 0
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -230,13 +205,20 @@ fun LotteryScreen(
                     }
                 }
             } else {
-                // 掷骰子 / 抛硬币：动画展示区
-                if (mode == "dice") DiceDisplay(face = diceFace, token = animToken)
-                else CoinDisplay(side = coinSide, token = animToken)
+                // 掷骰子 / 抛硬币：动画展示区，结果仅在动画结束后由回调设置
+                if (mode == "dice") {
+                    DiceDisplay(token = animToken) { face ->
+                        result = java.lang.String.format(diceFmt, face)
+                    }
+                } else {
+                    CoinDisplay(token = animToken) { side ->
+                        result = java.lang.String.format(coinFmt, if (side) heads else tails)
+                    }
+                }
             }
 
             Button(
-                onClick = { roll() },
+                onClick = { trigger() },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(actionLabel)
@@ -273,61 +255,186 @@ fun LotteryScreen(
     }
 }
 
-/** 掷骰子动画：滚动期间快速换面，落地定格为最终点数，并旋转三圈。 */
+/** 抽签选项网格：2 列紧凑卡片；点击抽签时背景色高亮在选项间滚动 6s 后落定。 */
 @Composable
-private fun DiceDisplay(face: Int, token: Int) {
-    val rotation = remember { Animatable(0f) }
-    var shown by remember { mutableIntStateOf(face) }
+private fun PickGrid(
+    options: List<String>,
+    token: Int,
+    onResult: (String) -> Unit,
+    onDelete: (Int) -> Unit,
+) {
+    var highlightIndex by remember { mutableIntStateOf(-1) }
+    var animating by remember { mutableStateOf(false) }
+
     LaunchedEffect(token) {
         if (token == 0) return@LaunchedEffect
-        // 旋转与快速换面并行：多圈旋转的同时持续换面，落定更连贯、更带感
-        val spin = launch {
-            rotation.animateTo(
-                rotation.value + 360f * 6f,
-                animationSpec = tween(900, easing = FastOutSlowInEasing),
-            )
+        if (options.isEmpty()) {
+            onResult("")
+            return@LaunchedEffect
         }
-        repeat(16) {
-            shown = Random.nextInt(1, 7)
-            delay(50)
+        animating = true
+        val finalIdx = Random.nextInt(options.size)
+        var i = 0
+        var elapsed = 0L
+        while (elapsed < SPIN_DURATION) {
+            highlightIndex = i % options.size
+            i++
+            delay(80)
+            elapsed += 80
         }
-        shown = face
-        spin.join()
+        highlightIndex = finalIdx
+        animating = false
+        onResult(options[finalIdx])
     }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 220.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        // 选项内容允许重复，故 key 必须带下标：删除中间项时纯内容 key 会撞车。
+        itemsIndexed(options, key = { index, option -> "$index-$option" }) { index, option ->
+            val highlighted = animating && index == highlightIndex
+            Card(
+                modifier = Modifier.requiredHeight(40.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (highlighted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        option,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (highlighted) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        maxLines = 1,
+                    )
+                    if (!animating) {
+                        IconButton(
+                            onClick = { onDelete(index) },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.lottery_delete),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 掷骰子动画：3D 翻滚（绕 X/Y 双轴）+ 滚动快速换面，6s 后定格为最终点数。 */
+@Composable
+private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
+    val rotX = remember { Animatable(0f) }
+    val rotY = remember { Animatable(0f) }
+    var shown by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(token) {
+        if (token == 0) return@LaunchedEffect
+        val finalFace = Random.nextInt(1, 7)
+        val spinX = launch {
+            rotX.animateTo(rotX.value + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+        }
+        val spinY = launch {
+            rotY.animateTo(rotY.value + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+        }
+        var elapsed = 0L
+        while (elapsed < SPIN_DURATION) {
+            shown = Random.nextInt(1, 7)
+            delay(60)
+            elapsed += 60
+        }
+        shown = finalFace
+        spinX.join()
+        spinY.join()
+        onResult(finalFace)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.size(110.dp).graphicsLayer { rotationZ = rotation.value }) {
+        Canvas(
+            modifier = Modifier
+                .size(110.dp)
+                .graphicsLayer {
+                    rotationX = rotX.value
+                    rotationY = rotY.value
+                },
+        ) {
             drawDie(shown, size)
         }
     }
 }
 
-/** 抛硬币动画：绕竖轴翻转两圈，正面/反面随翻转实时切换。 */
+/** 抛硬币动画：绕竖轴翻转 6s，期间正反面随翻转实时切换，结束才揭晓结果。 */
 @Composable
-private fun CoinDisplay(side: Boolean, token: Int) {
+private fun CoinDisplay(token: Int, onResult: (Boolean) -> Unit) {
     val flip = remember { Animatable(0f) }
+    var restSide by remember { mutableStateOf(true) }
+    var animating by remember { mutableStateOf(false) }
+
     LaunchedEffect(token) {
         if (token == 0) return@LaunchedEffect
+        val finalSide = Random.nextBoolean()
+        animating = true
         val start = flip.value
         flip.snapTo(start)
-        flip.animateTo(
-            start + 360f * 5f,
-            animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        )
+        val spin = launch {
+            flip.animateTo(start + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+        }
+        var elapsed = 0L
+        while (elapsed < SPIN_DURATION) {
+            delay(60)
+            elapsed += 60
+        }
+        spin.join()
+        animating = false
+        restSide = finalSide
+        flip.snapTo(0f)
+        onResult(finalSide)
     }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val front = cos(Math.toRadians(flip.value.toDouble())) >= 0
-        val displaySide = if (front) side else !side
-        Canvas(modifier = Modifier.size(110.dp).graphicsLayer { rotationY = flip.value }) {
+        val displaySide = if (animating) {
+            val front = cos(Math.toRadians(flip.value.toDouble())) >= 0
+            if (front) restSide else !restSide
+        } else {
+            restSide
+        }
+        Canvas(
+            modifier = Modifier
+                .size(110.dp)
+                .graphicsLayer { rotationY = if (animating) flip.value else 0f },
+        ) {
             drawCoin(displaySide, size)
         }
     }
@@ -359,7 +466,7 @@ private fun DrawScope.drawDie(face: Int, size: Size) {
     }
 }
 
-/** 硬币：金色受光球 + 内圈 + 正/反字样。 */
+/** 硬币：银色金属盘（参考 2020 版 1 元硬币）；正面=国徽（五角星+环），反面=1元。 */
 private fun DrawScope.drawCoin(side: Boolean, size: Size) {
     val r = size.minDimension / 2f
     val cx = size.width / 2f
@@ -370,26 +477,60 @@ private fun DrawScope.drawCoin(side: Boolean, size: Size) {
         radiusY = r * 0.6f,
         maxAlpha = 0.18f,
     )
-    fillSphere(center = Offset(cx, cy), radius = r * 0.92f, base = Color(0xFFD4AF37))
+    // 银色金属渐变（左上受光）
+    val silver = Brush.radialGradient(
+        colors = listOf(
+            Color(0xFFF4F6F8),
+            Color(0xFFC3C8CE),
+            Color(0xFF9BA1A9),
+        ),
+        center = Offset(cx - r * 0.3f, cy - r * 0.3f),
+        radius = r * 1.5f,
+    )
+    drawCircle(brush = silver, radius = r, center = Offset(cx, cy))
+    // 边缘圈
     drawCircle(
-        color = Color.Black.copy(alpha = 0.18f),
-        radius = r * 0.7f,
+        color = Color(0xFF8A9099),
+        radius = r * 0.92f,
         center = Offset(cx, cy),
-        style = Stroke(width = r * 0.05f),
+        style = Stroke(width = r * 0.06f),
     )
-    val paint = android.graphics.Paint().apply {
-        isAntiAlias = true
-        setColor(android.graphics.Color.WHITE)
-        textSize = r * 0.72f
-        textAlign = android.graphics.Paint.Align.CENTER
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+
+    if (side) {
+        // 国徽面：内环 + 中央五角星（简化国徽意象）
+        drawCircle(
+            color = Color(0xFF6E747C),
+            radius = r * 0.66f,
+            center = Offset(cx, cy),
+            style = Stroke(width = r * 0.03f),
+        )
+        drawStar(cx, cy, r * 0.34f, Color(0xFF5A6068))
+    } else {
+        // 1 元面
+        val paint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            setColor(android.graphics.Color.BLACK)
+            textSize = r * 0.66f
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        drawContext.canvas.nativeCanvas.drawText("1元", cx, cy + r * 0.24f, paint)
     }
-    drawContext.canvas.nativeCanvas.drawText(
-        if (side) "正" else "反",
-        cx,
-        cy + r * 0.25f,
-        paint,
-    )
+}
+
+/** 绘制一个以 (cx,cy) 为中心、外接半径 radius 的五角星。 */
+private fun DrawScope.drawStar(cx: Float, cy: Float, radius: Float, color: Color) {
+    val path = Path()
+    val inner = radius * 0.4f
+    for (i in 0 until 10) {
+        val ang = Math.toRadians(-90.0 + i * 36.0)
+        val rad = if (i % 2 == 0) radius else inner
+        val x = cx + (rad * kotlin.math.cos(ang)).toFloat()
+        val y = cy + (rad * kotlin.math.sin(ang)).toFloat()
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    drawPath(path, color)
 }
 
 /** 标准骰子点位布局，返回相对中心的归一化坐标（单位 u）。 */
