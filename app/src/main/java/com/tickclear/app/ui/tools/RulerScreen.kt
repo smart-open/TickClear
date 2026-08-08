@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,12 +104,18 @@ fun RulerScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(RulerMode.SCREEN) }
-    var landscape by remember { mutableStateOf(false) }
+    // 用 saveable 持久化：横竖屏切换会触发配置变更/重建，普通 remember 会重置回 false，
+    // 旧实例 onDispose 又设回 UNSPECIFIED —— 表现为"切过去瞬间被切回来"。saveable 跨重建保留。
+    var landscape by rememberSaveable { mutableStateOf(false) }
 
-    // 退出时恢复系统默认朝向，避免锁定残留
-    DisposableEffect(Unit) {
+    // 以 landscape 为键：进入/重建后都会按当前状态重新锁定朝向；退出时恢复系统默认。
+    DisposableEffect(landscape) {
+        val act = context.findActivity()
+        act?.requestedOrientation =
+            if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         onDispose {
-            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            act?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -124,6 +131,15 @@ fun RulerScreen(onBack: () -> Unit) {
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = { landscape = !landscape }) {
+                        Icon(
+                            Icons.Filled.ScreenRotation,
+                            contentDescription = stringResource(R.string.ruler_orientation_toggle),
+                            tint = if (landscape) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -131,20 +147,10 @@ fun RulerScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                .padding(horizontal = Spacing.md, vertical = Spacing.xs),
         ) {
             ModeSelector(mode, onChange = { mode = it })
-            Spacer(Modifier.height(Spacing.sm))
-            OrientationToggle(
-                landscape = landscape,
-                onToggle = {
-                    landscape = !landscape
-                    context.findActivity()?.requestedOrientation =
-                        if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                        else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                },
-            )
-            Spacer(Modifier.height(Spacing.sm))
+            Spacer(Modifier.height(Spacing.xs))
             when (mode) {
                 RulerMode.SCREEN -> ScreenRuler()
                 RulerMode.PHOTO -> PhotoRulerPanel(scope = scope, context = context)
@@ -194,7 +200,7 @@ private fun ScreenRuler() {
     val pxPerUnit = if (useCm) pxPerCm else pxPerInch
     val minorCount = if (useCm) 10 else 8
 
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(
             stringResource(R.string.ruler_hint),
             style = MaterialTheme.typography.bodyMedium,
@@ -230,7 +236,7 @@ private fun ScreenRuler() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(144.dp)
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         if (!initialized) {
@@ -317,23 +323,6 @@ private fun ScreenRuler() {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-/** 横/竖屏切换按钮。 */
-@Composable
-private fun OrientationToggle(landscape: Boolean, onToggle: () -> Unit) {
-    OutlinedButton(
-        onClick = onToggle,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.ScreenRotation,
-            contentDescription = null,
-            modifier = Modifier.padding(end = Spacing.xs),
-        )
-        Text(stringResource(R.string.ruler_orientation_toggle))
     }
 }
 

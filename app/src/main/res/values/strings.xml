@@ -872,7 +872,7 @@
     <!-- 测距仪 -->
     <string name="tools_ruler_title">测距仪</string>
     <string name="tools_ruler_desc">屏幕刻度或拍照按参照物测量长度</string>
-    <string name="ruler_hint">轻点物件两端即可测距（按屏幕实际尺寸校准，结果为约值）</string>
+    <string name="ruler_hint">轻点两端测距，结果为约值</string>
     <string name="ruler_calibrated">已按设备屏幕密度校准</string>
     <string name="ruler_tap_second">再轻点物件另一端</string>
     <string name="ruler_mode_screen">屏幕刻度</string>
@@ -904,7 +904,7 @@
     <!-- 噪音检测 -->
     <string name="tools_noise_title">噪音检测</string>
     <string name="tools_noise_desc">麦克风测量并按国标输出评价</string>
-    <string name="noise_hint">点击下方按钮，靠近声源测量环境噪音</string>
+    <string name="noise_hint">靠近声源点击开始；建议测约 10 秒（过短不准、过长无增益）</string>
     <string name="noise_start">开始测量</string>
     <string name="noise_stop">停止测量</string>
     <string name="noise_db">%1$d dB</string>
@@ -917,7 +917,8 @@
 
     <!-- 噪声评价报告（GB 3096-2008 声环境质量标准 / GBZ 2.2-2007 职业接触限值） -->
     <string name="noise_report_title">噪声评价报告</string>
-    <string name="noise_report_basis">依据 GB 3096–2008、GBZ 2.2–2007</string>
+    <string name="noise_report_basis">国内 GB 3096 / GBZ 2.2 与 WHO 指南综合评估</string>
+    <string name="noise_report_summary">当前环境约相当于：%1$s</string>
     <string name="noise_report_leq">等效声级 Leq：%1$s dB(A)</string>
     <string name="noise_report_peak">峰值声级：%1$d dB(A)</string>
     <string name="noise_report_duration">测量时长：%1$d 秒</string>
@@ -927,6 +928,25 @@
     <string name="noise_report_exposure_title">职业接触限值</string>
     <string name="noise_report_disclaimer">手机麦克风未经声学校准，测值仅供参考，不能替代专业声级计。</string>
     <string name="noise_report_too_short">测量时间过短，未生成评价报告（请连续测量 3 秒以上）</string>
+    <string name="noise_elapsed">已测量 %1$d 秒</string>
+    <string name="noise_reach_target">已到建议时长，可随时停止</string>
+    <string name="noise_env_excellent">图书馆 / 深夜卧室</string>
+    <string name="noise_env_good">安静办公室 / 居家客厅</string>
+    <string name="noise_env_fair">普通街道 / 咖啡馆</string>
+    <string name="noise_env_poor">菜市场 / 喧闹餐厅</string>
+    <string name="noise_env_harmful">施工现场 / 酒吧</string>
+    <string name="noise_env_danger">机场跑道 / 摇滚现场</string>
+    <string name="noise_report_who_title">国际参考（WHO）</string>
+    <string name="noise_who_line">WHO 指南：昼间 Lden ≤ 53 dB、夜间 Lnight ≤ 45 dB；当前 %1$s（昼）/ %2$s（夜）</string>
+    <string name="noise_who_pass">达标</string>
+    <string name="noise_who_fail">超标</string>
+    <string name="noise_report_advice_title">建议</string>
+    <string name="noise_advice_excellent">非常适合休息与专注，保持即可。</string>
+    <string name="noise_advice_good">较为舒适，可长时间停留。</string>
+    <string name="noise_advice_fair">尚可，长时间停留建议适当降低音量。</string>
+    <string name="noise_advice_poor">较吵，交谈需提高音量，注意保护听力。</string>
+    <string name="noise_advice_harmful">有害，请佩戴耳塞并减少停留时间。</string>
+    <string name="noise_advice_danger">危险！务必远离并佩戴护耳设备。</string>
     <string name="noise_grade_excellent">优（很安静）</string>
     <string name="noise_grade_good">良（较安静）</string>
     <string name="noise_grade_fair">一般（可接受）</string>

@@ -61,6 +61,12 @@ private const val NOISE_CALIBRATION_DB = 90f // 麦克风相对灵敏度校准�
 /** 少于该时长的测量样本不足以计算等效声级，不出评价报告。 */
 private const val NOISE_MIN_SECONDS = 3
 
+/** 推荐测量时长（秒）：过短代表性不足、过长无增益，10s 为最佳折中。 */
+private const val NOISE_TARGET_SECONDS = 10
+
+/** 硬上限（秒）：达到后自动停止，避免误触长时间空测。 */
+private const val NOISE_MAX_SECONDS = 30
+
 /** 一次测量结束后的评价数据。 */
 private data class NoiseReport(
     val leqDb: Double,
@@ -83,6 +89,7 @@ fun NoiseMeterScreen(onBack: () -> Unit) {
 
     var measuring by remember { mutableStateOf(false) }
     var db by remember { mutableIntStateOf(0) }
+    var elapsed by remember { mutableIntStateOf(0) }
     var report by remember { mutableStateOf<NoiseReport?>(null) }
     var tooShort by remember { mutableStateOf(false) }
 
@@ -91,6 +98,7 @@ fun NoiseMeterScreen(onBack: () -> Unit) {
             return@LaunchedEffect
         }
         db = 0
+        elapsed = 0
         report = null
         tooShort = false
 
@@ -134,6 +142,10 @@ fun NoiseMeterScreen(onBack: () -> Unit) {
                                 energySum += NoiseAssessment.toEnergy(spl)
                                 sampleCount++
                                 if (spl > peakDb) peakDb = spl
+                                val sec = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
+                                elapsed = sec
+                                // 达到硬上限自动停止，避免误触长时间空测
+                                if (sec >= NOISE_MAX_SECONDS) break
                             }
                         }
                     } finally {
@@ -220,11 +232,31 @@ fun NoiseMeterScreen(onBack: () -> Unit) {
             ) {
                 Text(if (measuring) stringResource(R.string.noise_stop) else stringResource(R.string.noise_start))
             }
-            Text(
-                stringResource(R.string.noise_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            if (measuring) {
+                Text(
+                    stringResource(R.string.noise_elapsed, elapsed),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LinearProgressIndicator(
+                    progress = { (elapsed.toFloat() / NOISE_TARGET_SECONDS).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (elapsed >= NOISE_TARGET_SECONDS && elapsed < NOISE_MAX_SECONDS) {
+                    Text(
+                        stringResource(R.string.noise_reach_target),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                Text(
+                    stringResource(R.string.noise_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             if (!measuring) {
                 report?.let { NoiseReportCard(it) }
@@ -290,6 +322,12 @@ private fun NoiseReportCard(report: NoiseReport) {
                 style = MaterialTheme.typography.titleSmall,
                 color = gradeColor,
             )
+            // 环境类比：把抽象分贝落成生活场景，更易理解
+            Text(
+                stringResource(R.string.noise_report_summary, stringResource(envRes(grade))),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
             Text(
@@ -335,6 +373,22 @@ private fun NoiseReportCard(report: NoiseReport) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
             Text(
+                stringResource(R.string.noise_report_who_title),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            val whoDay = report.leqDb <= 53.0
+            val whoNight = report.leqDb <= 45.0
+            Text(
+                stringResource(
+                    R.string.noise_who_line,
+                    stringResource(if (whoDay) R.string.noise_who_pass else R.string.noise_who_fail),
+                    stringResource(if (whoNight) R.string.noise_who_pass else R.string.noise_who_fail),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
+            Text(
                 stringResource(R.string.noise_report_exposure_title),
                 style = MaterialTheme.typography.labelLarge,
             )
@@ -348,6 +402,16 @@ private fun NoiseReportCard(report: NoiseReport) {
                         String.format(Locale.getDefault(), "%.1f", hours),
                     )
                 },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            Spacer(Modifier.height(Spacing.xs))
+            Text(
+                stringResource(R.string.noise_report_advice_title),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                stringResource(adviceRes(grade)),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -379,6 +443,26 @@ private fun gradeEffectRes(grade: NoiseAssessment.Grade): Int = when (grade) {
     NoiseAssessment.Grade.POOR -> R.string.noise_effect_poor
     NoiseAssessment.Grade.HARMFUL -> R.string.noise_effect_harmful
     NoiseAssessment.Grade.DANGEROUS -> R.string.noise_effect_danger
+}
+
+@StringRes
+private fun envRes(grade: NoiseAssessment.Grade): Int = when (grade) {
+    NoiseAssessment.Grade.EXCELLENT -> R.string.noise_env_excellent
+    NoiseAssessment.Grade.GOOD -> R.string.noise_env_good
+    NoiseAssessment.Grade.FAIR -> R.string.noise_env_fair
+    NoiseAssessment.Grade.POOR -> R.string.noise_env_poor
+    NoiseAssessment.Grade.HARMFUL -> R.string.noise_env_harmful
+    NoiseAssessment.Grade.DANGEROUS -> R.string.noise_env_danger
+}
+
+@StringRes
+private fun adviceRes(grade: NoiseAssessment.Grade): Int = when (grade) {
+    NoiseAssessment.Grade.EXCELLENT -> R.string.noise_advice_excellent
+    NoiseAssessment.Grade.GOOD -> R.string.noise_advice_good
+    NoiseAssessment.Grade.FAIR -> R.string.noise_advice_fair
+    NoiseAssessment.Grade.POOR -> R.string.noise_advice_poor
+    NoiseAssessment.Grade.HARMFUL -> R.string.noise_advice_harmful
+    NoiseAssessment.Grade.DANGEROUS -> R.string.noise_advice_danger
 }
 
 @StringRes

@@ -281,12 +281,12 @@ private fun DrawScope.drawBubbleDial(
     val bubbleR = radius * 0.16f
     val bubbleColor = if (isLevel) okColor else accentColor
 
-    // 接地软阴影：让仪表盘"放置"在卡片上而非悬浮（二巡精修）
+    // 接地软阴影：椭圆收紧至表盘内、降透明度，避免达标变绿时顶部椭圆弧阴影刺眼
     drawSoftShadow(
-        center = Offset(cx, cy + radius * 0.06f),
-        radiusX = radius * 1.06f,
-        radiusY = radius * 1.02f,
-        maxAlpha = 0.16f,
+        center = Offset(cx, cy + radius * 0.04f),
+        radiusX = radius * 0.98f,
+        radiusY = radius * 0.92f,
+        maxAlpha = 0.10f,
     )
 
     // 底盘渐变，中心略暗形成凹槽感
