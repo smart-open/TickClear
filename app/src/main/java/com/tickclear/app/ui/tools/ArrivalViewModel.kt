@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.LinkedHashSet
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
@@ -38,6 +39,9 @@ data class CurrentLoc(val lat: Double, val lng: Double, val placeName: String?)
 
 /** 地点名搜索建议（前向地理编码结果）。 */
 data class PlaceSuggestion(val name: String, val lat: Double, val lng: Double, val snippet: String)
+
+/** 地理编码包围盒（左下/右上经纬度），用于本市范围优先检索。 */
+private data class Bounds(val llLat: Double, val llLng: Double, val urLat: Double, val urLng: Double)
 
 /**
  * 到站提醒（V2.9++）：管理站点列表、监测开关、当前位置获取与地点名搜索。
@@ -100,23 +104,59 @@ class ArrivalViewModel @Inject constructor(
 
     /**
      * 地点名前向搜索（地理编码）：输入名称返回候选地点列表，供下拉选择直接填入名称与经纬度。
+     * 优化点：① 结果上限由 5 提升到 15，扩大可选范围；
+     * ② 若已获取当前位置，则用「以当前点为圆心约 ±0.5°（约 55km）的包围盒」做带边界的地理编码，
+     *    让本市/本区地点优先返回；
+     * ③ 当带边界结果偏少时，再补一次全国范围检索并去重合并，兼顾「本市优先」与「更多候选」。
      * 设备无地理编码后端时静默返回空列表，不影响手动输入。
      */
     fun searchPlaces(query: String) {
         if (query.isBlank()) { _places.value = emptyList(); return }
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Geocoder.isPresent()) {
-                    _places.value = emptyList()
-                    return@launch
+                val b = _currentLocation.value?.let { cl ->
+                    val d = 0.5
+                    Bounds(cl.lat - d, cl.lng - d, cl.lat + d, cl.lng + d)
                 }
-                val geocoder = Geocoder(appContext, Locale.getDefault())
-                val list = geocoder.getFromLocationName(query, 5) ?: emptyList()
-                _places.value = list.mapNotNull { addr -> toSuggestion(addr) }
+                val max = 15
+                val base = if (b != null) {
+                    geocodeNameBounded(query, max, b)
+                } else {
+                    geocodeName(query, max)
+                } ?: emptyList()
+                // 带边界结果偏少时，补一次无边界检索，合并更多候选（城市优先 + 兜底更广）
+                val extra = if (b != null && base.size < 6) geocodeName(query, max) ?: emptyList() else emptyList()
+                val merged = base + extra
+                val seen = LinkedHashSet<String>()
+                _places.value = merged.filter { addr ->
+                    val key = "%.3f".format(Locale.US, addr.latitude) + "," + "%.3f".format(Locale.US, addr.longitude)
+                    seen.add(key)
+                }.mapNotNull { toSuggestion(it) }.take(max)
             }.onFailure {
                 _places.value = emptyList()
             }
         }
+    }
+
+    /** 无边界前向地理编码；无地理编码后端或异常时返回 null。
+     * 注：Geocoder 同步接口已在新版 Android 标记 deprecated，但本工程零新依赖、无替代 SDK，
+     * 仍须用其做前向地理编码，故在此显式抑制该 deprecation 警告（已在 IO 线程调用）。 */
+    @Suppress("DEPRECATION")
+    private fun geocodeName(query: String, max: Int): List<Address>? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Geocoder.isPresent()) return null
+        return runCatching {
+            Geocoder(appContext, Locale.getDefault()).getFromLocationName(query, max)
+        }.getOrNull()
+    }
+
+    /** 带包围盒（本市优先）的前向地理编码；部分机型不支持该重载时返回 null，交由调用方兜底。 */
+    @Suppress("DEPRECATION")
+    private fun geocodeNameBounded(query: String, max: Int, b: Bounds): List<Address>? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Geocoder.isPresent()) return null
+        return runCatching {
+            Geocoder(appContext, Locale.getDefault())
+                .getFromLocationName(query, max, b.llLat, b.llLng, b.urLat, b.urLng)
+        }.getOrNull()
     }
 
     private fun toSuggestion(addr: Address): PlaceSuggestion? {
@@ -177,7 +217,9 @@ class ArrivalViewModel @Inject constructor(
         }
     }
 
-    /** 反查当前坐标的地点名，失败返回 null（不影响定位本身）。 */
+    /** 反查当前坐标的地点名，失败返回 null（不影响定位本身）。
+     * 同 geocodeName：同步 Geocoder 接口已 deprecated，零新依赖下仍须使用，故抑制该警告。 */
+    @Suppress("DEPRECATION")
     private fun reverseGeocode(lat: Double, lng: Double): String? = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Geocoder.isPresent()) return null
         val geocoder = Geocoder(appContext, Locale.getDefault())

@@ -326,6 +326,11 @@ private fun AddStationDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    stringResource(R.string.arrival_name_search_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 // 地点名搜索下拉：选择即回填名称与经纬度，优化录入
                 if (showSuggestions && places.isNotEmpty()) {
                     Card(
