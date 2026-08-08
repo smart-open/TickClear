@@ -1,24 +1,51 @@
 package com.tickclear.app.domain.tools
 
+import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
+import com.tickclear.app.R
 import com.tickclear.app.domain.log.AppLogger
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * 动物拟声合成器（工具箱「动物拟声」，V2.9++）。
- * 用 AudioTrack 实时合成各动物音效（正弦+包络+少量噪声），零额外依赖、本地播放。
- * 这是「模拟」音效，并非真实录音，主打解压好玩。
+ * 动物拟声（工具箱「动物拟声」，V2.9++）。
+ *
+ * 播放策略（V2.11++ 优化）：
+ *  - 优先播放 `res/raw/animal_<key>` 里的真实录音（MediaPlayer，零额外依赖）；
+ *  - 若该动物没有对应录音文件，则回退到内置合成音（AudioTrack 实时合成）。
+ *
+ * 真实录音来源：dog/cat/cow/sheep/chicken/lion/bird/frog 取自公开动物声音数据集；
+ * duck/pig/tiger/horse 暂未找到可可靠下载的免费录音，继续走合成兜底，
+ * 后续可把 CC0 录音按 `animal_<key>.wav` 放进 res/raw 即自动启用。
  */
 object AnimalSynth {
     private const val TAG = "AnimalSynth"
     private const val SR = 44100
     private var current: AudioTrack? = null
+    private var mp: MediaPlayer? = null
 
-    /** 停止并释放当前正在播放的音轨。 */
-    fun stop() {
+    /** 已内置真实录音的动物：key -> res/raw/animal_<key> 资源 id（静态引用，避免 lint 误判未使用）。 */
+    private val RAW_SOUNDS = mapOf(
+        "dog" to R.raw.animal_dog,
+        "cat" to R.raw.animal_cat,
+        "cow" to R.raw.animal_cow,
+        "sheep" to R.raw.animal_sheep,
+        "chicken" to R.raw.animal_chicken,
+        "lion" to R.raw.animal_lion,
+        "bird" to R.raw.animal_bird,
+        "frog" to R.raw.animal_frog,
+    )
+
+    /** 该动物是否有内置真实录音。 */
+    fun hasRecording(key: String): Boolean = RAW_SOUNDS.containsKey(key)
+
+    /** 停止并释放当前正在播放的合成音轨与录音。 */
+    fun stop() = releaseAll()
+
+    private fun releaseAll() {
         // 未播放状态下 stop() 会抛 IllegalStateException，属预期；但不得裸吞（AGENT.md §3 禁裸 catch），
         // 记 w 级日志以便排查「音轨未释放」这类偶发问题。
         runCatching {
@@ -26,10 +53,31 @@ object AnimalSynth {
             current?.release()
         }.onFailure { AppLogger.w(TAG, "AudioTrack 释放异常：${it.message}") }
         current = null
+        runCatching { mp?.release() }
+        mp = null
     }
 
-    fun play(key: String) {
-        stop()
+    /** 播放内置真实录音（key 须有对应录音，否则静默忽略；在主线程调用，Looper 存在）。 */
+    fun playRaw(context: Context, key: String) {
+        val resId = RAW_SOUNDS[key] ?: return
+        releaseAll()
+        runCatching {
+            mp = MediaPlayer.create(context, resId)?.apply {
+                setOnCompletionListener { releaseMp() }
+                setOnErrorListener { _, _, _ -> releaseMp(); true }
+                start()
+            }
+        }.onFailure { AppLogger.w(TAG, "raw 录音播放失败（key=$key）：${it.message}") }
+    }
+
+    private fun releaseMp() {
+        runCatching { mp?.release() }
+        mp = null
+    }
+
+    /** 内置合成（无录音文件时的兜底，并非真实录音）。 */
+    fun playSynth(key: String) {
+        releaseAll()
         val samples = when (key) {
             "dog" -> dog()
             "cat" -> cat()

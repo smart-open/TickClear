@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -135,6 +136,7 @@ fun AnimalSoundScreen(onBack: () -> Unit) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
@@ -162,8 +164,13 @@ fun AnimalSoundScreen(onBack: () -> Unit) {
                             ) {
                                 playingKey = animal.key
                                 Haptic.vibrate(context, 20)
-                                scope.launch(Dispatchers.Default) {
-                                    AnimalSynth.play(animal.key)
+                                // 有真实录音优先用 MediaPlayer 播录音，否则回退合成
+                                if (AnimalSynth.hasRecording(animal.key)) {
+                                    AnimalSynth.playRaw(context, animal.key)
+                                } else {
+                                    scope.launch(Dispatchers.Default) {
+                                        AnimalSynth.playSynth(animal.key)
+                                    }
                                 }
                             },
                         colors = CardDefaults.cardColors(
