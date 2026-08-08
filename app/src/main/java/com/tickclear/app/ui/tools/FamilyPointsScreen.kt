@@ -444,20 +444,30 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(Spacing.xs))
-                FlowRow(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
                     tasks.forEach { t ->
-                        Button(onClick = { adjust(selectedId, t.points) }) {
-                            Text(stringResource(R.string.points_task_chip, t.name, t.points))
-                        }
-                        IconButton(onClick = { openEditTask(t) }) {
-                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_task), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick = { askDelete("task", t.id, t.name) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            Button(
+                                onClick = { adjust(selectedId, t.points) },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.points_task_chip, t.name, t.points))
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { openEditTask(t) }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_task), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                IconButton(onClick = { askDelete("task", t.id, t.name) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
                     }
                 }
@@ -477,25 +487,32 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(Spacing.xs))
-                FlowRow(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
                     rewards.forEach { r ->
                         val affordable = (scores[selectedId] ?: 0) >= r.cost
-                        val rewardNameStr = r.name
-                        Button(
-                            onClick = { redeem(selectedId, r.cost, rewardNameStr) },
-                            enabled = affordable,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
-                            Text(stringResource(R.string.points_reward_label, r.name, r.cost))
-                        }
-                        IconButton(onClick = { openEditReward(r) }) {
-                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_reward), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick = { askDelete("reward", r.id, r.name) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(
+                                onClick = { redeem(selectedId, r.cost, r.name) },
+                                enabled = affordable,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.points_reward_label, r.name, r.cost))
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { openEditReward(r) }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_edit_reward), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                IconButton(onClick = { askDelete("reward", r.id, r.name) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_item), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
                     }
                 }
@@ -506,8 +523,8 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                 val totalScore = scores[selectedId] ?: 0
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
                     BADGES.forEach { b ->
                         AchievementBadge(
@@ -682,11 +699,11 @@ private fun AchievementBadge(
     val labelColor = if (unlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
     val starFill = if (unlocked) Color.White else Color(0xFFBDBDBD)
     Column(
-        modifier = Modifier.width(64.dp),
+        modifier = Modifier.width(54.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val s = size.minDimension
                 val cx = size.width / 2f

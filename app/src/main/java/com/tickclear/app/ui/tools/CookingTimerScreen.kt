@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -165,7 +167,7 @@ fun CookingTimerScreen(
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.tools_cook_timer_name)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().requiredHeight(50.dp),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -178,7 +180,7 @@ fun CookingTimerScreen(
                     label = { Text(stringResource(R.string.tools_cook_timer_min)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).requiredHeight(50.dp),
                 )
                 OutlinedTextField(
                     value = secStr,
@@ -186,9 +188,9 @@ fun CookingTimerScreen(
                     label = { Text(stringResource(R.string.tools_cook_timer_sec)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).requiredHeight(50.dp),
                 )
-                Button(
+                IconButton(
                     onClick = {
                         if (totalSec > 0) {
                             vm.add(name.trim(), totalSec, defaultTimerName)
@@ -198,8 +200,12 @@ fun CookingTimerScreen(
                         }
                     },
                     enabled = totalSec > 0,
+                    modifier = Modifier.size(40.dp),
                 ) {
-                    Text(stringResource(R.string.tools_cook_timer_add))
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.tools_cook_timer_add),
+                    )
                 }
             }
 
@@ -284,7 +290,7 @@ private fun TimerCard(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Box(
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(44.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     TimerRing(
