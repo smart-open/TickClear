@@ -13,8 +13,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,7 +80,7 @@ private val TINTS = listOf(
  * 支持亮度滑杆与白/暖/冷三档色温；控制区可向下折叠 / 向上展开，折叠后补光区域自动铺满。
  * 退出自动恢复原有屏幕亮度。
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReflectorScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -237,26 +235,27 @@ fun ReflectorScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                         )
 
-                        // 色温：白 / 暖 / 冷 / 暖橙 / 自然光 圆形样本选择器（FlowRow 自动换行，preview 旧版）
+                        // 色温：白 / 暖 / 冷 / 暖橙 / 自然光 圆形样本选择器（强制一行 5 个均分占满）
                         Text(
                             stringResource(R.string.reflector_color_temp),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        FlowRow(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            verticalAlignment = Alignment.Top,
                         ) {
                             TINTS.forEach { (labelRes, color) ->
                                 val selected = tintRes == labelRes
                                 Column(
+                                    modifier = Modifier.weight(1f),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(48.dp)
+                                            .size(44.dp)
                                             .clip(CircleShape)
                                             .background(color)
                                             .border(
@@ -273,6 +272,7 @@ fun ReflectorScreen(onBack: () -> Unit) {
                                     Text(
                                         stringResource(labelRes),
                                         style = MaterialTheme.typography.labelSmall,
+                                        textAlign = TextAlign.Center,
                                         color = if (selected) {
                                             MaterialTheme.colorScheme.primary
                                         } else {
