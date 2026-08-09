@@ -180,7 +180,7 @@ object MassageVibrator {
 
     /** 设备是否支持「逐段振幅」控制（不支持时振幅参数被忽略，需靠时长补偿）。 */
     private fun hasAmplitudeControl(vib: Vibrator?): Boolean =
-        Build.VERSION.SDK_INT >= 26 && vib?.hasAmplitudeControl() == true
+        vib?.hasAmplitudeControl() == true
 
     /** 诊断信息：API 等级、是否具备振动器。 */
     fun describe(context: Context): String {
@@ -228,16 +228,9 @@ object MassageVibrator {
         }
         val ampControl = hasAmplitudeControl(vib)
         runCatching {
-            if (Build.VERSION.SDK_INT >= 26) {
-                val (timings, amplitudes) = combine(modes, ampControl)
-                val effect = VibrationEffect.createWaveform(timings, amplitudes, 0)
-                vib.vibrate(effect)
-            } else {
-                // API < 26：无 VibrationEffect，逐段振幅不可控，仅按 timings 播放（已用 ON_BOOST 放大 ON）
-                val pattern = combineLegacy(modes, ampControl)
-                @Suppress("DEPRECATION")
-                vib.vibrate(pattern, 0)
-            }
+            val (timings, amplitudes) = combine(modes, ampControl)
+            val effect = VibrationEffect.createWaveform(timings, amplitudes, 0)
+            vib.vibrate(effect)
         }.onFailure {
             AppLogger.e(TAG, "start: vibrate failed  ${describe(context)}", it)
         }
@@ -258,21 +251,6 @@ object MassageVibrator {
             }
         }
         return ts.toLongArray() to as_.toIntArray()
-    }
-
-    /** API < 26 的 legacy 拼接（仅 timings，振幅不可控）。 */
-    private fun combineLegacy(modes: Set<String>, ampControl: Boolean): LongArray {
-        val ts = mutableListOf<Long>()
-        for (k in ORDER) {
-            if (k !in modes) continue
-            val w = PATTERNS[k] ?: continue
-            for (i in w.timings.indices) {
-                val on = w.amplitudes[i] > 0
-                val t = if (on && !ampControl) (w.timings[i] * ON_BOOST).toLong() else w.timings[i]
-                ts += t
-            }
-        }
-        return ts.toLongArray()
     }
 
     fun stop(context: Context) {
