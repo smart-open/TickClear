@@ -329,19 +329,15 @@ fun MosaicScreen(onBack: () -> Unit) {
 
                 Spacer(Modifier.height(Spacing.xs))
                 Text(stringResource(R.string.tools_pan_hint), style = MaterialTheme.typography.labelMedium)
-                // 方向键拆两行：上下（↑↓）一行、左右（←→）一行，整体更窄、省横向空间
+                // 方向键改常规十字 D-pad：↑ 在上、←→ 在中间、↓ 在下（共 3 行）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     IconButton(
                         onClick = { offset = clampPan(offset + Offset(0f, -panStep), scale) },
                         enabled = scale > 1f,
                     ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(0f, panStep), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -355,6 +351,15 @@ fun MosaicScreen(onBack: () -> Unit) {
                         onClick = { offset = clampPan(offset + Offset(panStep, 0f), scale) },
                         enabled = scale > 1f,
                     ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(0f, panStep), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
                 }
 
                 HorizontalDivider()
