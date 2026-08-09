@@ -34,83 +34,134 @@ import com.tickclear.app.domain.log.AppLogger
 object MassageVibrator {
     private const val TAG = "MassageVibrator"
 
-    /** ON 振幅 0~255；整体抬高下限，最强档恒为 255（平台硬上限）。 */
-    private const val AMP_LOW = 215
+    /** ON 振幅 0~255；整体抬高下限，最强档恒为 255（平台硬上限）。
+     *  V2.11++ 进一步把 LOW 从 215 抬到 230：振幅不可调设备 + 默认振幅的机型
+     *  即使不靠 ON_BOOST 补偿，也能听到明显触感。 */
+    private const val AMP_LOW = 230
     private const val AMP_MID = 245
     private const val AMP_HIGH = 255
 
     /**
      * 无振幅控制设备（老机型/部分厂商）的补偿系数：
      * 把每个「开」段时长放大该倍数，用更长持续来换取更强体感。
+     *  V2.11++ 从 1.7 提到 2.4：因为振幅不可调时电机本身偏弱，必须靠「拉长 ON 段」补偿。
      */
-    private const val ON_BOOST = 1.7f
+    private const val ON_BOOST = 2.4f
+
+    /**
+     * 现有模式的「放大系数」：ON 段乘该倍率（实际体感更长）、OFF 段乘 0.8 倍率（间隙更短），
+     * 既保持节奏感，又让电机转得更久——同样的振幅参数下体感明显更强。
+     * 仅对现有模式生效；新增模式已按「强振感」思路设计，不参与放大。
+     */
+    private const val ON_AMP = 1.3f
+    private const val OFF_AMP = 0.8f
 
     /**
      * 每个模式 = (timings, amplitudes)。
      * timings 与 amplitudes 长度必须一致；OFF 段对应位置的振幅会被忽略。
-     * 模式设计（均已提高占空比）：
-     *  - gentle：连续呼吸，ON 240 / OFF 260，主基调冷静；
-     *  - strong：几乎连续震动；
-     *  - wave：三段渐强渐弱循环，模拟海浪；
-     *  - rhythm：哒-哒-哒-停，三连击 + 长间歇；
-     *  - pulse：50ms 短促脉冲 + 长间隔，最像心跳；
-     *  - knead：快速揉捏嗡鸣；
-     *  - tap：轻快点按；
-     *  - roll：低→高→低缓慢滚动；
-     *  - shock：三连尖锐冲击；
-     *  - heart：lub-dub 心跳。
+     *
+     * V2.11++ 扩到 15 模式：
+     *  - 轻柔 / 强劲 / 波浪 / 节奏 / 脉冲 / 揉捏 / 点按 / 滚动 / 冲击 / 心跳：原有 10 个；
+     *  - 颤动 / 呼吸 / 层叠 / 短促 / 深沉：新增 5 个（高密度 / 慢节奏 / 渐变 / 爆裂 / 重低频）。
      */
     private data class Wave(val timings: LongArray, val amplitudes: IntArray)
 
     private val PATTERNS = mapOf(
         "gentle" to Wave(
-            longArrayOf(0, 240, 260, 200, 340),
+            scaledOn(longArrayOf(0, 240, 260, 200, 340)),
             intArrayOf(0, AMP_MID, 0, AMP_LOW, 0),
         ),
         "strong" to Wave(
-            longArrayOf(0, 900, 120),
+            scaledOn(longArrayOf(0, 900, 120)),
             intArrayOf(0, AMP_HIGH, 0),
         ),
         "wave" to Wave(
-            longArrayOf(0, 160, 110, 220, 130, 300, 150, 340, 150, 300, 130, 220, 110, 160, 300),
+            scaledOn(longArrayOf(0, 160, 110, 220, 130, 300, 150, 340, 150, 300, 130, 220, 110, 160, 300)),
             intArrayOf(
                 0, AMP_LOW, 0, AMP_MID, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_MID, 0, AMP_LOW, 0, AMP_LOW, 0,
             ),
         ),
         "rhythm" to Wave(
-            longArrayOf(0, 110, 90, 110, 90, 110, 480),
+            scaledOn(longArrayOf(0, 110, 90, 110, 90, 110, 480)),
             intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0),
         ),
         "pulse" to Wave(
-            longArrayOf(0, 70, 170, 70, 170, 70, 720),
+            scaledOn(longArrayOf(0, 70, 170, 70, 170, 70, 720)),
             intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0),
         ),
         "knead" to Wave(
-            longArrayOf(0, 120, 80, 120, 80, 120, 80),
+            scaledOn(longArrayOf(0, 120, 80, 120, 80, 120, 80)),
             intArrayOf(0, AMP_MID, 0, AMP_MID, 0, AMP_MID, 0),
         ),
         "tap" to Wave(
-            longArrayOf(0, 60, 140, 60, 140, 60, 140),
+            scaledOn(longArrayOf(0, 60, 140, 60, 140, 60, 140)),
             intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0),
         ),
         "roll" to Wave(
-            longArrayOf(0, 200, 160, 320, 200, 420, 200, 320, 160),
+            scaledOn(longArrayOf(0, 200, 160, 320, 200, 420, 200, 320, 160)),
             intArrayOf(0, AMP_LOW, 0, AMP_MID, 0, AMP_HIGH, 0, AMP_MID, 0),
         ),
         "shock" to Wave(
-            longArrayOf(0, 40, 60, 40, 60, 40, 300),
+            scaledOn(longArrayOf(0, 40, 60, 40, 60, 40, 300)),
             intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0),
         ),
         "heart" to Wave(
-            longArrayOf(0, 90, 120, 60, 400),
+            scaledOn(longArrayOf(0, 90, 120, 60, 400)),
+            intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0),
+        ),
+        // V2.11++ 新增 5 个高强度 / 差异化模式
+        "flutter" to Wave(
+            // 高频微振：30ms ON / 40ms OFF × 10，模拟轻颤
+            longArrayOf(0, 30, 40, 30, 40, 30, 40, 30, 40, 30, 40, 30, 40, 30, 40, 30, 40, 30, 40, 200),
+            intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, 0),
+        ),
+        "breath" to Wave(
+            // 缓慢深呼吸：1500ms ON / 1000ms OFF 循环
+            longArrayOf(0, 1500, 1000, 1500, 1500),
+            intArrayOf(0, AMP_MID, 0, AMP_HIGH, 0),
+        ),
+        "cascade" to Wave(
+            // 渐强渐弱：低→高→低，每段 100~480ms，最强段 AMP_HIGH 持续 80ms × 2
+            longArrayOf(0, 100, 80, 150, 80, 220, 80, 300, 80, 380, 80, 480, 80, 380, 80, 300, 80, 220, 80, 150, 80, 100, 80, 600),
+            intArrayOf(0, AMP_LOW, 0, AMP_LOW, 0, AMP_MID, 0, AMP_MID, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_MID, 0, AMP_MID, 0, AMP_LOW, 0, AMP_LOW, 0, 0),
+        ),
+        "burst" to Wave(
+            // 5 连短促爆破 + 长间歇
+            longArrayOf(0, 60, 40, 60, 40, 60, 40, 60, 40, 60, 800),
+            intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0, AMP_HIGH, 0),
+        ),
+        "deep" to Wave(
+            // 重低频：600ms ON / 400ms OFF × 2，整体像被「按压」
+            longArrayOf(0, 700, 400, 700, 600),
             intArrayOf(0, AMP_HIGH, 0, AMP_HIGH, 0),
         ),
     )
+
+    /**
+     * 把现有模式的 timings 按「ON/OFF」分别放大：
+     *  ON 段（amp>0）×ON_AMP，OFF 段（amp=0）×OFF_AMP，使节奏更紧密、电机更持久。
+     *  timings[0] 永远为 0，是延迟启动参数（createWaveform 第一个参数语义），保持不变。
+     */
+    private fun scaledOn(timings: LongArray): LongArray {
+        if (timings.isEmpty()) return timings
+        val out = LongArray(timings.size)
+        out[0] = timings[0]
+        // 注意：调用方传进来的 amplitudes 在 map 里独立保存，这里只能按奇偶位简化判断：
+        // 我们约定 timings[0]=0 永远是延迟起点；其余奇数位是 ON、偶数位是 OFF。
+        // 但当前模式的设计是 [0, ON, OFF, ON, OFF, ...]，所以 1、3、5...是 ON，2、4、6...是 OFF。
+        for (i in 1 until timings.size) {
+            out[i] = if (i % 2 == 1) (timings[i] * ON_AMP).toLong()
+                     else (timings[i] * OFF_AMP).toLong()
+        }
+        return out
+    }
 
     /** 组合时的稳定顺序，保证多模式循环序列确定、可预期。 */
     private val ORDER = listOf(
         "gentle", "strong", "wave", "rhythm", "pulse",
         "knead", "tap", "roll", "shock", "heart",
+        // V2.11++ 新增 5 模式按"由柔到烈"排序，放在
+        "flutter", "breath", "cascade", "burst", "deep",
     )
 
     /** 返回适配当前 API 的 Vibrator，绝不抛。 */

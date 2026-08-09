@@ -1905,6 +1905,11 @@
     <string name="vibe_mode_roll">滚动</string>
     <string name="vibe_mode_shock">冲击</string>
     <string name="vibe_mode_heart">心跳</string>
+    <string name="vibe_mode_flutter">颤动</string>
+    <string name="vibe_mode_breath">呼吸</string>
+    <string name="vibe_mode_cascade">层叠</string>
+    <string name="vibe_mode_burst">短促</string>
+    <string name="vibe_mode_deep">深沉</string>
 
     <!-- 睡眠白噪音 -->
     <string name="tools_white_noise_title">睡眠白噪音</string>

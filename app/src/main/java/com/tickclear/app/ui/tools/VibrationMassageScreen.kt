@@ -84,6 +84,12 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
         "roll" to R.string.vibe_mode_roll,
         "shock" to R.string.vibe_mode_shock,
         "heart" to R.string.vibe_mode_heart,
+        // V2.11++ 新增 5 模式（颤动/呼吸/层叠/短促/深沉）
+        "flutter" to R.string.vibe_mode_flutter,
+        "breath" to R.string.vibe_mode_breath,
+        "cascade" to R.string.vibe_mode_cascade,
+        "burst" to R.string.vibe_mode_burst,
+        "deep" to R.string.vibe_mode_deep,
     )
     // 多选组合：所选模式的波形首尾相接拼成一个长循环
     var selectedModes by remember { mutableStateOf(setOf("gentle")) }
