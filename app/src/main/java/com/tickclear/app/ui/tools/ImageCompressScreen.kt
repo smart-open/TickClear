@@ -206,7 +206,7 @@ fun ImageCompressScreen(onBack: () -> Unit) {
             ToolSidePanel(
                 expanded = panelExpanded,
                 onToggle = { panelExpanded = !panelExpanded },
-                modifier = Modifier.width(if (panelExpanded) 220.dp else 52.dp),
+                modifier = Modifier.width(if (panelExpanded) 148.dp else 52.dp),
             ) {
                 ZoomPanControls(
                     scale = scale,

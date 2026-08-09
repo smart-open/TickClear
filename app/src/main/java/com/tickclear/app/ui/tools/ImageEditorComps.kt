@@ -672,26 +672,25 @@ fun ZoomPanControls(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 常规十字 D-pad：↑ 在上、←→ 在中间、↓ 在下（共 3 行）
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            IconButton(onClick = { move(0f, -1f) }, enabled = canPan) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            IconButton(
-                onClick = { move(-1f, 0f) },
-                enabled = canPan,
-            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
-            IconButton(
-                onClick = { move(0f, -1f) },
-                enabled = canPan,
-            ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
-            IconButton(
-                onClick = { move(0f, 1f) },
-                enabled = canPan,
-            ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
-            IconButton(
-                onClick = { move(1f, 0f) },
-                enabled = canPan,
-            ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
+            IconButton(onClick = { move(-1f, 0f) }, enabled = canPan) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
+            IconButton(onClick = { move(1f, 0f) }, enabled = canPan) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            IconButton(onClick = { move(0f, 1f) }, enabled = canPan) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
         }
     }
 }
