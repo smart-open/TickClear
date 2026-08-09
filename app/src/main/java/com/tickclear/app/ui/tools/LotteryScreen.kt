@@ -706,12 +706,28 @@ private fun DrawScope.drawStar(cx: Float, cy: Float, radius: Float, color: Color
     drawPath(path, color)
 }
 
-/** 标准骰子点位布局，返回相对中心的归一化坐标（单位 u）。 */
+/**
+ * 标准骰子点位布局，返回相对面中心的归一化坐标（单位 u）。
+ * 黑点全部内缩到距面中心 70% 半径处（不再贴角贴边），参照用户提供的 3D 白骰子截图：
+ * 即便是 4 号面的四个对角点、6 号面的 2x3 网格都明显有内缩 padding 让点居于面中部。
+ */
+private const val PIP_OFFSET = 0.7f
+
 private fun dicePips(face: Int): List<Pair<Float, Float>> = when (face) {
     1 -> listOf(0f to 0f)
-    2 -> listOf(-1f to -1f, 1f to 1f)
-    3 -> listOf(-1f to -1f, 0f to 0f, 1f to 1f)
-    4 -> listOf(-1f to -1f, -1f to 1f, 1f to -1f, 1f to 1f)
-    5 -> listOf(-1f to -1f, -1f to 1f, 0f to 0f, 1f to -1f, 1f to 1f)
-    else -> listOf(-1f to -1f, -1f to 0f, -1f to 1f, 1f to -1f, 1f to 0f, 1f to 1f)
+    2 -> listOf(-PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET)
+    3 -> listOf(-PIP_OFFSET to -PIP_OFFSET, 0f to 0f, PIP_OFFSET to PIP_OFFSET)
+    4 -> listOf(
+        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to PIP_OFFSET,
+        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET,
+    )
+    5 -> listOf(
+        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to PIP_OFFSET,
+        0f to 0f,
+        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET,
+    )
+    else -> listOf(
+        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to 0f, -PIP_OFFSET to PIP_OFFSET,
+        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to 0f, PIP_OFFSET to PIP_OFFSET,
+    )
 }
