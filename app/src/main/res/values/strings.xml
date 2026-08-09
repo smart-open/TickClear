@@ -1869,7 +1869,8 @@
     <!-- 石头剪刀布 -->
     <string name="tools_rps_title">石头剪刀布</string>
     <string name="tools_rps_desc">人机对战，休闲小游戏</string>
-    <string name="tools_rps_hint">出拳吧，看看能不能赢过机器</string>
+    <string name="tools_rps_hint">出拳后双方博 3–5 秒揭晓结果，看看能不能赢过机器</string>
+    <string name="rps_spinning">揭晓中…</string>
     <string name="rps_rock">石头</string>
     <string name="rps_scissors">剪刀</string>
     <string name="rps_paper">布</string>
