@@ -51,14 +51,32 @@ import kotlin.random.Random
 /** 全部色相铺满彩虹，单次爆炸即「五颜六色」。 */
 private val FIREWORK_HUES = listOf(0f, 25f, 50f, 75f, 110f, 140f, 175f, 200f, 230f, 265f, 295f, 320f, 345f)
 
+/** 一次爆炸的调色板：决定这朵烟花是单色球 / 双色 / 全彩虹。 */
+private data class Palette(val hues: List<Float>)
+
+/** 随机生成调色板：约 1/3 全彩虹、1/3 单色球、1/3 双色，让每次烟花各有性格。 */
+private fun randomPalette(): Palette {
+    val roll = Random.nextFloat()
+    return if (roll < 0.34f) {
+        Palette(FIREWORK_HUES)
+    } else if (roll < 0.67f) {
+        val h = FIREWORK_HUES[Random.nextInt(FIREWORK_HUES.size)]
+        Palette(listOf(h))
+    } else {
+        val a = FIREWORK_HUES[Random.nextInt(FIREWORK_HUES.size)]
+        val b = FIREWORK_HUES[(FIREWORK_HUES.indexOf(a) + 5) % FIREWORK_HUES.size]
+        Palette(listOf(a, b))
+    }
+}
+
 /**
  * 单个"发射器火箭"。从屏幕底部 [startY]=1 起飞，沿抛物线飞向点击位置 [targetX]/[targetY]，
- * 到点炸开（粒子群 + 烟花声 + 触感）。[travelTime] 控制飞行速度。
+ * 到点炸开（粒子群 + 烟花声 + 触感）。[travelTime] 控制飞行速度。[palette] 决定炸开颜色。
  */
 private class FireworkRocket(
     val targetX: Float,
     val targetY: Float,
-    val hue: Float,
+    val palette: Palette,
     val travelTime: Float,
 ) {
     var t: Float = 0f // 已飞行时间（秒）
@@ -73,10 +91,11 @@ private class BurstFlash(
 )
 
 /**
- * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画大改）。
+ * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画大改，V2.11++ 调色板+齐射）。
  * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，沿抛物线飞向点击位置；
- * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出多色相（五颜六色）大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
- * - 双击 = 3 发短间隔连发（每发独立飞行），炮竹齐鸣感；
+ * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
+ * - 每朵烟花随机"单色球/双色/全彩虹"调色板，画面更丰富；
+ * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；
  * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
  * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
  * 纯 Canvas + AudioTrack/MediaPlayer，零新依赖。
@@ -100,19 +119,18 @@ fun SimFireworksScreen(onBack: () -> Unit) {
      * 注意：音效/触感延迟到 "抵达" 才触发，「先静后响」才像真放烟花。
      */
     fun launchTo(nx: Float, ny: Float, travelTime: Float = 0.85f) {
-        val hue = FIREWORK_HUES[Random.nextInt(FIREWORK_HUES.size)]
         rockets = rockets + FireworkRocket(
             targetX = nx.coerceIn(0.05f, 0.95f),
             targetY = ny.coerceIn(0.10f, 0.85f),
-            hue = hue,
+            palette = randomPalette(),
             travelTime = travelTime,
         )
     }
 
     /** 当火箭"到达"（飞行时间用尽或超越目标）时调用：炸粒子 + 白光 + 音 + 触感。 */
-    fun burstAt(nx: Float, ny: Float, hue: Float) {
-        // 多色相（整条彩虹）一次性炸开 = 五颜六色；粒子数翻倍更壮观。
-        particles = particles + burst(nx, ny, 80, 0.72f, 1.35f, FIREWORK_HUES, 5f)
+    fun burstAt(nx: Float, ny: Float, palette: Palette) {
+        // 按本发火箭的调色板炸开（单色球/双色/全彩虹），粒子数翻倍更壮观。
+        particles = particles + burst(nx, ny, 80, 0.72f, 1.35f, palette.hues, 5f)
         // 爆点白光闪。
         flashes = flashes + BurstFlash(nx, ny, 0.24f, 0.24f)
         // 真实爆炸音优先；缺失回退合成。
@@ -133,7 +151,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                 for (r in rockets) {
                     r.t += dt
                     if (r.t >= r.travelTime) {
-                        burstAt(r.targetX, r.targetY, r.hue)
+                        burstAt(r.targetX, r.targetY, r.palette)
                     } else {
                         newRockets.add(r)
                     }
@@ -192,11 +210,16 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                                 val nx = if (canvasSize.width > 0) offset.x / canvasSize.width else 0.5f
                                 val ny = if (canvasSize.height > 0) offset.y / canvasSize.height else 0.5f
                                 scope.launch {
-                                    repeat(3) { i ->
-                                        val dx = (Random.nextFloat() - 0.5f) * 0.10f
-                                        val dy = (Random.nextFloat() - 0.5f) * 0.10f
-                                        launchTo((nx + dx).coerceIn(0.05f, 0.95f), (ny + dy).coerceIn(0.10f, 0.85f))
-                                        delay(110)
+                                    // 齐射：5 发短间隔、目标与飞行时长略错开，炮竹齐鸣更密更自然。
+                                    repeat(5) { i ->
+                                        val dx = (Random.nextFloat() - 0.5f) * 0.16f
+                                        val dy = (Random.nextFloat() - 0.5f) * 0.12f
+                                        launchTo(
+                                            (nx + dx).coerceIn(0.05f, 0.95f),
+                                            (ny + dy).coerceIn(0.10f, 0.85f),
+                                            0.78f + Random.nextFloat() * 0.18f,
+                                        )
+                                        delay(60)
                                     }
                                 }
                             },
@@ -222,6 +245,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
 
                         val cx = x * w
                         val cy = y * h
+                        val trailHue = r.palette.hues.first()
 
                         // 拉丝：火箭身后一道明亮长拖尾（向上的相反方向），越接近顶端越亮。
                         val tailLen = h * 0.14f
@@ -229,8 +253,8 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                         drawLine(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    simColor(r.hue, 0.0f),
-                                    simColor(r.hue, 1f),
+                                    simColor(trailHue, 0.0f),
+                                    simColor(trailHue, 1f),
                                 ),
                                 startY = cy,
                                 endY = tailEnd.y,
@@ -246,9 +270,9 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    simColor(r.hue, 1f),
-                                    simColor(r.hue, 0.6f),
-                                    simColor(r.hue, 0f),
+                                    simColor(trailHue, 1f),
+                                    simColor(trailHue, 0.6f),
+                                    simColor(trailHue, 0f),
                                 ),
                                 center = Offset(cx, cy),
                                 radius = headR * 2.2f,
