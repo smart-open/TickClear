@@ -55,7 +55,7 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.cos
 import kotlin.math.sin
 
-private val WEAR_OPTIONS = listOf(15, 30, 45, 60, 90, 120)
+private val WEAR_OPTIONS = listOf(15, 30, 45, 60, 90, 120, 180, 240)
 
 /** 仪表盘直径与轨道外边距，二者共同决定「dB 数字」下沉到中心与底部垂直中点的偏移量。 */
 private val GAUGE_DIAMETER = 220.dp
