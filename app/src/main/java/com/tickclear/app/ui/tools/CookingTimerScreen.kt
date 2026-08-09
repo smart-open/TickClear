@@ -36,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,6 +78,13 @@ private fun fmtTime(sec: Int): String {
     return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s)
     else String.format(Locale.ROOT, "%02d:%02d", m, s)
 }
+
+/**
+ * 烹饪计时列表项的环形进度尺寸。60.dp 显得偏小且难以容纳
+ * `2:00:58` / `120:58:00` 这类 ≥ 6 字符时间（含冒号），提升到 80.dp
+ * 给字号让出空间；与计时列表整体视觉权重也更协调。
+ */
+private val TimerRingSize = 80.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,62 +173,56 @@ fun CookingTimerScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             SimHintCard(stringResource(R.string.tools_cook_timer_hint))
-            // 新建计时面板：卡片分组，输入框恢复自然高度以完整显示文本
-            Card(
+            // 新建计时面板：去外框 Card、改用 Column 平铺；末尾的"+"按钮升级为 FilledIconButton（primaryContainer 填充色），
+            // 比普通 IconButton 更醒目，与下方计时列表的视觉权重也对齐。
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                Column(
-                    modifier = Modifier.padding(Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.tools_cook_timer_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text(stringResource(R.string.tools_cook_timer_name)) },
+                        value = minStr,
+                        onValueChange = { minStr = it.filter { c -> c.isDigit() } },
+                        label = { Text(stringResource(R.string.tools_cook_timer_min)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    OutlinedTextField(
+                        value = secStr,
+                        onValueChange = { secStr = it.filter { c -> c.isDigit() } },
+                        label = { Text(stringResource(R.string.tools_cook_timer_sec)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilledIconButton(
+                        onClick = {
+                            if (totalSec > 0) {
+                                vm.add(name.trim(), totalSec, defaultTimerName)
+                                name = ""
+                                minStr = ""
+                                secStr = ""
+                            }
+                        },
+                        enabled = totalSec > 0,
+                        modifier = Modifier.size(56.dp),
                     ) {
-                        OutlinedTextField(
-                            value = minStr,
-                            onValueChange = { minStr = it.filter { c -> c.isDigit() } },
-                            label = { Text(stringResource(R.string.tools_cook_timer_min)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.tools_cook_timer_add),
                         )
-                        OutlinedTextField(
-                            value = secStr,
-                            onValueChange = { secStr = it.filter { c -> c.isDigit() } },
-                            label = { Text(stringResource(R.string.tools_cook_timer_sec)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(
-                            onClick = {
-                                if (totalSec > 0) {
-                                    vm.add(name.trim(), totalSec, defaultTimerName)
-                                    name = ""
-                                    minStr = ""
-                                    secStr = ""
-                                }
-                            },
-                            enabled = totalSec > 0,
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = stringResource(R.string.tools_cook_timer_add),
-                            )
-                        }
                     }
                 }
             }
