@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,11 +32,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -261,7 +265,15 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
 /**
  * 音量安全阈值调节器（美化版）：卡片式外壳 + 动态分区配色滑块（安全绿 → 警戒黄 → 危险红，
  * 与仪表盘分区一致）+ 0 / 50 / 100 刻度标签。
+ *
+ * thumbSize 说明：M3 1.3.0 Slider 默认 thumb 为 DpSize(4.dp, 20.dp)，视觉上的"长度"取 thumb 在
+ * 用户手指拖动方向的尺寸（20dp）做参考。减小为 [VOLUME_SLIDER_THUMB_SIZE] = DpSize(14.dp, 14.dp)
+ * 即把"长度"从 20dp → 14dp，减少 6dp/20dp ≈ 30% ≈ 1/3，符合"拖动把手长度减少三分之一"的优化要求。
+ * 选用 14dp × 14dp 是为了构成正方形胶囊（capsule），让小尺寸 thumb 仍保持圆润、把手指接触面做清晰。
  */
+private val VOLUME_SLIDER_THUMB_SIZE = DpSize(14.dp, 14.dp)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VolumeThresholdSlider(
     value: Int,
@@ -276,6 +288,14 @@ private fun VolumeThresholdSlider(
         value <= 85 -> cautionColor
         else -> dangerColor
     }
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = zone,
+        activeTrackColor = zone,
+        inactiveTrackColor = zone.copy(alpha = 0.25f),
+        activeTickColor = MaterialTheme.colorScheme.surface,
+        inactiveTickColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+    )
+    val interactionSource = remember { MutableInteractionSource() }
 
     Card(
         modifier = modifier,
@@ -291,16 +311,27 @@ private fun VolumeThresholdSlider(
             Slider(
                 value = value.toFloat(),
                 onValueChange = { onValueChange(it.toInt()) },
+                modifier = Modifier.fillMaxWidth(),
                 valueRange = 0f..100f,
                 steps = 0,
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = zone,
-                    activeTrackColor = zone,
-                    inactiveTrackColor = zone.copy(alpha = 0.25f),
-                    activeTickColor = MaterialTheme.colorScheme.surface,
-                    inactiveTickColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                ),
+                colors = sliderColors,
+                interactionSource = interactionSource,
+                thumb = {
+                    SliderDefaults.Thumb(
+                        interactionSource = interactionSource,
+                        colors = sliderColors,
+                        enabled = true,
+                        thumbSize = VOLUME_SLIDER_THUMB_SIZE,
+                    )
+                },
+                track = { sliderState: SliderState ->
+                    SliderDefaults.Track(
+                        sliderState = sliderState,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = sliderColors,
+                        enabled = true,
+                    )
+                },
             )
             // 0-50-100 刻度标签，与滑块行程对齐（留出滑块半径余量）
             Row(
