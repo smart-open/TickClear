@@ -1740,6 +1740,7 @@
     <string name="doodle_fullscreen">全屏</string>
     <string name="doodle_exit_fullscreen">退出全屏</string>
     <string name="doodle_size">笔刷</string>
+    <string name="doodle_undo_2">撤销 2</string>
 
     <!-- 家庭成员积分仪（生活助手） -->
     <string name="points_title">家庭积分</string>

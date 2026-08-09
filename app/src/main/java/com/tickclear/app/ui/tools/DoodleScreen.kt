@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
@@ -38,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -264,23 +267,85 @@ fun DoodleScreen(onBack: () -> Unit) {
                         )
                     }
                 }
+                // 笔刷调节器：标签 + 实时预览圆 + 滑杆（从细到粗，预览随动）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     Text(stringResource(R.string.doodle_size), style = MaterialTheme.typography.labelMedium)
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .shadow(1.dp, CircleShape)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            // 实时笔刷预览：当前颜色 + 当前粗细；最小半径 1.5f 避免极小笔刷看不见
+                            val r = (brushSize / 2f).coerceAtLeast(1.5f)
+                            drawCircle(
+                                color = drawColor,
+                                radius = r,
+                                center = Offset(size.width / 2f, size.height / 2f),
+                            )
+                        }
+                    }
                     Slider(
                         value = brushSize,
                         onValueChange = { brushSize = it },
                         valueRange = 2f..40f,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = { strokes = strokes.dropLast(1); Haptic.vibrate(context, 14) }) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = stringResource(R.string.doodle_undo))
+                }
+                // 操作按钮：撤销 2 / 撤销 / 清空（V2.11++ 新增撤销 2，三个等宽 OutlinedButton）
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    OutlinedButton(
+                        onClick = { strokes = strokes.dropLast(2); Haptic.vibrate(context, 14) },
+                        modifier = Modifier.weight(1f),
+                        enabled = strokes.size >= 2,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.doodle_undo_2), style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
-                    IconButton(onClick = { strokes = emptyList(); Haptic.vibrate(context, 14) }) {
-                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.doodle_clear))
+                    OutlinedButton(
+                        onClick = { strokes = strokes.dropLast(1); Haptic.vibrate(context, 14) },
+                        modifier = Modifier.weight(1f),
+                        enabled = strokes.isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.doodle_undo), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = { strokes = emptyList(); Haptic.vibrate(context, 14) },
+                        modifier = Modifier.weight(1f),
+                        enabled = strokes.isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.doodle_clear), style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
                 }
                 Box(
