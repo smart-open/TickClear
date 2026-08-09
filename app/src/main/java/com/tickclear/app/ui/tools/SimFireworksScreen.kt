@@ -48,7 +48,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-private val FIREWORK_HUES = listOf(0f, 35f, 130f, 190f, 260f, 310f, 340f)
+/** 全部色相铺满彩虹，单次爆炸即「五颜六色」。 */
+private val FIREWORK_HUES = listOf(0f, 25f, 50f, 75f, 110f, 140f, 175f, 200f, 230f, 265f, 295f, 320f, 345f)
 
 /**
  * 单个"发射器火箭"。从屏幕底部 [startY]=1 起飞，沿抛物线飞向点击位置 [targetX]/[targetY]，
@@ -63,13 +64,22 @@ private class FireworkRocket(
     var t: Float = 0f // 已飞行时间（秒）
 }
 
+/** 爆炸瞬间的白光闪：快速膨胀并淡出，营造"炸开那一下"的刺眼感。 */
+private class BurstFlash(
+    val x: Float,
+    val y: Float,
+    var life: Float,
+    val maxLife: Float,
+)
+
 /**
- * 模拟烟花（V2.9++ 模拟解压，V2.9++ 三巡大改）。
+ * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画大改）。
  * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，沿抛物线飞向点击位置；
- * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出 40 颗粒子 + 烟花爆炸声 + 触感；
+ * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出多色相（五颜六色）大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
  * - 双击 = 3 发短间隔连发（每发独立飞行），炮竹齐鸣感；
- * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯，呈现自然散开。
- * 纯 Canvas + AudioTrack 合成，零新依赖。
+ * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
+ * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
+ * 纯 Canvas + AudioTrack/MediaPlayer，零新依赖。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +88,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
     var rockets by remember { mutableStateOf(emptyList<FireworkRocket>()) }
+    var flashes by remember { mutableStateOf(emptyList<BurstFlash>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
     DisposableEffect(Unit) {
@@ -98,10 +109,14 @@ fun SimFireworksScreen(onBack: () -> Unit) {
         )
     }
 
-    /** 当火箭"到达"（飞行时间用尽或超越目标）时调用：炸粒子 + 音 + 触感。 */
+    /** 当火箭"到达"（飞行时间用尽或超越目标）时调用：炸粒子 + 白光 + 音 + 触感。 */
     fun burstAt(nx: Float, ny: Float, hue: Float) {
-        particles = particles + burst(nx, ny, 40, 0.7f, 1.3f, listOf(hue), 5f)
-        FoleySynth.play("firework")
+        // 多色相（整条彩虹）一次性炸开 = 五颜六色；粒子数翻倍更壮观。
+        particles = particles + burst(nx, ny, 80, 0.72f, 1.35f, FIREWORK_HUES, 5f)
+        // 爆点白光闪。
+        flashes = flashes + BurstFlash(nx, ny, 0.24f, 0.24f)
+        // 真实爆炸音优先；缺失回退合成。
+        FoleySynth.playFirework(context)
         Haptic.vibrate(context, 25)
     }
 
@@ -126,6 +141,15 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                 rockets = newRockets
             }
             if (particles.isNotEmpty()) particles = stepParticles(particles, dt)
+            // 推进白光闪。
+            if (flashes.isNotEmpty()) {
+                val kept = ArrayList<BurstFlash>(flashes.size)
+                for (f in flashes) {
+                    f.life -= dt
+                    if (f.life > 0f) kept.add(f)
+                }
+                flashes = kept
+            }
         }
     }
 
@@ -185,7 +209,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                     val w = size.width
                     val h = size.height
 
-                    // 1) 绘制飞行中的火箭：抛物线轨迹 + 高速向上 + 收缩拖尾。
+                    // 1) 绘制飞行中的火箭：抛物线轨迹 + 高速向上 + 又长又亮的拖尾。
                     for (r in rockets) {
                         val f = (r.t / r.travelTime).coerceIn(0f, 1.05f)
                         // 抛物线 x：起点 targetX 左侧 5% 处（带上推偏置），终点严格 = targetX
@@ -199,37 +223,37 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                         val cx = x * w
                         val cy = y * h
 
-                        // 拉丝：火箭身后一道短促亮线（向上的相反方向）
-                        val tailLen = h * 0.06f
+                        // 拉丝：火箭身后一道明亮长拖尾（向上的相反方向），越接近顶端越亮。
+                        val tailLen = h * 0.14f
                         val tailEnd = Offset(cx, cy + tailLen)
                         drawLine(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
                                     simColor(r.hue, 0.0f),
-                                    simColor(r.hue, 0.85f),
+                                    simColor(r.hue, 1f),
                                 ),
                                 startY = cy,
                                 endY = tailEnd.y,
                             ),
                             start = Offset(cx, cy),
                             end = tailEnd,
-                            strokeWidth = 4f,
+                            strokeWidth = 5f,
                             cap = StrokeCap.Round,
                         )
 
                         // 火箭头部：亮芯 + 径向光晕 + 内核白点
-                        val headR = 12f
+                        val headR = 13f
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colors = listOf(
                                     simColor(r.hue, 1f),
-                                    simColor(r.hue, 0.55f),
+                                    simColor(r.hue, 0.6f),
                                     simColor(r.hue, 0f),
                                 ),
                                 center = Offset(cx, cy),
-                                radius = headR * 2.0f,
+                                radius = headR * 2.2f,
                             ),
-                            radius = headR * 2.0f,
+                            radius = headR * 2.2f,
                             center = Offset(cx, cy),
                         )
                         // 内部小白芯
@@ -240,29 +264,53 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                         )
                     }
 
-                    // 2) 绘制爆炸粒子群（拖尾 + 光晕 + 亮芯）
+                    // 2) 白光闪：在爆点快速膨胀并淡出，模拟"炸开那一下"的刺眼强光。
+                    for (fl in flashes) {
+                        val fa = (fl.life / fl.maxLife).coerceIn(0f, 1f)
+                        val fr = (1f - fa) * 70f + 28f
+                        val fx = fl.x * w
+                        val fy = fl.y * h
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = fa),
+                                    Color.White.copy(alpha = fa * 0.45f),
+                                    Color.White.copy(alpha = 0f),
+                                ),
+                                center = Offset(fx, fy),
+                                radius = fr,
+                            ),
+                            radius = fr,
+                            center = Offset(fx, fy),
+                        )
+                    }
+
+                    // 3) 绘制爆炸粒子群（拖尾 + 光晕 + 亮芯 + twinkle 闪烁）
                     for (pt in particles) {
-                        val a = (pt.life / pt.maxLife).coerceIn(0f, 1f)
+                        val base = (pt.life / pt.maxLife).coerceIn(0f, 1f)
+                        // twinkle：轻微闪烁，像真实火花在高空中明灭。
+                        val twinkle = 0.7f + 0.3f * kotlin.math.sin(pt.life * 42f + pt.x * 60f)
+                        val a = base * twinkle
                         val cx = pt.x * w
                         val cy = pt.y * h
 
-                        // 拖尾：沿速度反方向画一道渐隐短线，速度越快拖尾越长（V2.9++ 二巡）。
+                        // 拖尾：沿速度反方向画一道渐隐短线，速度越快拖尾越长。
                         val speedPx = kotlin.math.hypot(pt.vx * w, pt.vy * h)
                         if (speedPx > 6f && a > 0.05f) {
-                            val tail = 0.04f
+                            val tail = 0.045f
                             val tx = cx - pt.vx * w * tail
                             val ty = cy - pt.vy * h * tail
                             drawLine(
-                                color = simColor(pt.hue, a * 0.55f),
+                                color = simColor(pt.hue, a * 0.6f),
                                 start = Offset(tx, ty),
                                 end = Offset(cx, cy),
-                                strokeWidth = pt.radius * 0.7f,
+                                strokeWidth = pt.radius * 0.8f,
                                 cap = StrokeCap.Round,
                             )
                         }
 
                         // 径向光晕：从亮到透明的自然拖尾渐隐（替代原先的平涂椭圆）。
-                        val glowR = pt.radius * 3.2f
+                        val glowR = pt.radius * 3.6f
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colors = listOf(
