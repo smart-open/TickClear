@@ -332,7 +332,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
                     ) { Text(stringResource(R.string.watermark_clear)) }
                 }
 
-                ToolVerticalSlider(
+                MiniHorizontalSlider(
                     label = stringResource(R.string.watermark_strength),
                     value = strength.toFloat(),
                     onValueChange = { strength = it.toInt() },

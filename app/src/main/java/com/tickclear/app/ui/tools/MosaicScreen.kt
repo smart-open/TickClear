@@ -394,7 +394,7 @@ fun MosaicScreen(onBack: () -> Unit) {
                 }
 
                 if (drawMode == DrawMode.BRUSH) {
-                    ToolVerticalSlider(
+                    MiniHorizontalSlider(
                         label = stringResource(R.string.mosaic_brush_width),
                         value = brushWidthRatio,
                         onValueChange = { brushWidthRatio = it },
@@ -404,7 +404,7 @@ fun MosaicScreen(onBack: () -> Unit) {
                     )
                 }
                 if (maskMode == ImageMasker.MaskMode.MOSAIC) {
-                    ToolVerticalSlider(
+                    MiniHorizontalSlider(
                         label = stringResource(R.string.mosaic_strength),
                         value = strength.toFloat(),
                         onValueChange = { strength = it.toInt() },
