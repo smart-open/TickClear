@@ -216,7 +216,7 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                     enabled = processed != null,
                 )
 
-                ToolVerticalSlider(
+                MiniHorizontalSlider(
                     label = stringResource(R.string.tools_img_compress_quality),
                     value = quality,
                     onValueChange = { quality = it },

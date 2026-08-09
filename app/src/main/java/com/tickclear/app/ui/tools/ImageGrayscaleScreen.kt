@@ -234,7 +234,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                 }
 
                 if (mode == 1) {
-                    ToolVerticalSlider(
+                    MiniHorizontalSlider(
                         label = stringResource(R.string.tools_img_gray_threshold),
                         value = threshold.toFloat(),
                         onValueChange = { threshold = it.toInt() },
@@ -244,7 +244,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                     )
                 }
 
-                ToolVerticalSlider(
+                MiniHorizontalSlider(
                     label = stringResource(R.string.tools_img_gray_contrast),
                     value = contrast,
                     onValueChange = { contrast = it.coerceIn(0.5f, 2.5f) },
