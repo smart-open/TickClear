@@ -16,12 +16,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -160,22 +162,23 @@ fun WatermarkScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    // 修复并保存：右上角图标按钮（处理中显示进度圈），替代原侧边面板大按钮
-                    IconButton(
+                    // 修复并保存：右上角 FilledIconButton + Save 图标（primaryContainer 填充色，比原 IconButton + ✓ 更醒目）；
+                    // 处理中显示进度圈
+                    FilledIconButton(
                         onClick = { applyRepair() },
                         enabled = !busy,
+                        modifier = Modifier.size(40.dp),
                     ) {
                         if (busy) {
                             CircularProgressIndicator(
-                                modifier = Modifier.width(22.dp),
+                                modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         } else {
                             Icon(
-                                Icons.Filled.Check,
+                                Icons.Filled.Save,
                                 contentDescription = stringResource(R.string.watermark_apply),
-                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }

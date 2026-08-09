@@ -560,6 +560,57 @@ fun ToolVerticalSlider(
 }
 
 /**
+ * 单行紧凑横向调节器（V2.9++）：label / Slider / display-value 三段在同一行 Row 内，
+ * label 自然宽度、Slider 占 weight(1f) 弹性空间、display-value 自然宽度，整体 1 行不占两行竖向空间。
+ * 与 [ToolSlider]（顶部 label + 下方整条 Slider 的卡片样式）和 [ToolVerticalSlider]（左 label + 右侧竖条）互补——
+ * **工具箱侧边面板专用** 紧凑型，横排节省 portrait 屏幕的纵向空间。
+ *
+ * 用于马赛克 / 去水印等工具的强度 / 笔刷宽度调节器。
+ */
+@Composable
+fun MiniHorizontalSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    displayValue: String,
+    modifier: Modifier = Modifier,
+    steps: Int = 0,
+    accent: Color = MaterialTheme.colorScheme.primary,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.weight(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent,
+                inactiveTrackColor = accent.copy(alpha = 0.25f),
+            ),
+        )
+        Text(
+            displayValue,
+            style = MaterialTheme.typography.labelSmall,
+            color = accent,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
  * 缩放 + 方向键平移控制台（行内卡片式，与马赛克/去水印侧栏布局一致）。
  * 放大（scale>1）后「上/下/左/右」方向键才可点击，通过小幅平移查看放大后看不见的区域；
  * 未加载图片或未放大时整体禁用并给出提示。
