@@ -1663,7 +1663,11 @@
     <!-- 模拟烟花 -->
     <string name="tools_sim_fireworks_title">烟花特效</string>
     <string name="tools_sim_fireworks_desc">底部窜起，到点开花</string>
-    <string name="tools_sim_fireworks_hint">点击屏幕，火箭飞向指尖炸开；双击连发</string>
+    <string name="tools_sim_fireworks_hint">点按发射，火箭飞向指尖炸开；切换牡丹/柳叶；双击齐射</string>
+    <string name="tools_sim_fireworks_type_label">烟花类型</string>
+    <string name="tools_sim_fireworks_type_peony">牡丹</string>
+    <string name="tools_sim_fireworks_type_willow">柳叶</string>
+    <string name="tools_sim_fireworks_type_random">随机</string>
 
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>

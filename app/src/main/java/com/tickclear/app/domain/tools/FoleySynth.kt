@@ -89,6 +89,7 @@ object FoleySynth {
             "lighter" -> lighterFlick()
             "lid_close" -> lidClose()
             "firework" -> firework()
+            "launch" -> launchWhistle()
             "blow" -> blowOut()
             "pop" -> pop()
             else -> return
@@ -196,6 +197,16 @@ object FoleySynth {
 
     /** 弹珠碰撞：清脆「叮」。 */
     private fun pop() = tone(0.05, { 320.0 }, { t -> (1 - t / 0.05) * 0.9 })
+
+    /**
+     * 烟花发射「咻」：高频口哨由低到高急升后轻收，约 0.3s。
+     * 在火箭起飞时播放，与抵达时的爆炸 boom 形成「先咻后响」的真实节奏。
+     */
+    private fun launchWhistle() = tone(
+        0.30,
+        { t -> 380.0 + 1500.0 * (t / 0.30) },
+        { t -> (1 - t / 0.30).coerceAtLeast(0.0) * 0.30 },
+    )
 
     /** 打火机盖合拢：短促金属「咔嗒」——高频噪声爆发 + 一记金属泛音。 */
     private fun lidClose() = concat(

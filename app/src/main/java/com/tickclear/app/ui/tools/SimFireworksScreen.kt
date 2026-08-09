@@ -2,8 +2,10 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,14 +72,37 @@ private fun randomPalette(): Palette {
     }
 }
 
+/** 烟花类型：牡丹=球形炸开；柳叶=低重力慢垂长拖尾；随机=每次随机其一。 */
+private enum class FireworkType(val labelRes: Int) {
+    PEONY(R.string.tools_sim_fireworks_type_peony),
+    WILLOW(R.string.tools_sim_fireworks_type_willow),
+    RANDOM(R.string.tools_sim_fireworks_type_random),
+}
+
+/** 不同烟花类型的炸开形态参数。 */
+private data class BurstShape(
+    val count: Int,
+    val speed: Float,
+    val life: Float,
+    val gravityScale: Float,
+    val trailScale: Float,
+)
+
+private fun shapeFor(type: FireworkType): BurstShape = when (type) {
+    FireworkType.PEONY -> BurstShape(80, 0.72f, 1.35f, 1f, 1f)
+    FireworkType.WILLOW -> BurstShape(58, 0.55f, 2.4f, 0.30f, 2.8f)
+    FireworkType.RANDOM -> BurstShape(80, 0.72f, 1.35f, 1f, 1f) // 仅占位，实际发射时已被替换为 PEONY/WILLOW
+}
+
 /**
  * 单个"发射器火箭"。从屏幕底部 [startY]=1 起飞，沿抛物线飞向点击位置 [targetX]/[targetY]，
- * 到点炸开（粒子群 + 烟花声 + 触感）。[travelTime] 控制飞行速度。[palette] 决定炸开颜色。
+ * 到点炸开（粒子群 + 烟花声 + 触感）。[travelTime] 控制飞行速度。[palette]/[type] 决定炸开颜色与形态。
  */
 private class FireworkRocket(
     val targetX: Float,
     val targetY: Float,
     val palette: Palette,
+    val type: FireworkType,
     val travelTime: Float,
 ) {
     var t: Float = 0f // 已飞行时间（秒）
@@ -91,10 +117,10 @@ private class BurstFlash(
 )
 
 /**
- * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画大改，V2.11++ 调色板+齐射）。
- * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，沿抛物线飞向点击位置；
+ * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画，V2.11++ 调色板+齐射+类型切换+发射咻声）。
+ * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，起飞时播「咻」声；
  * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
- * - 每朵烟花随机"单色球/双色/全彩虹"调色板，画面更丰富；
+ * - 每朵烟花随机"单色球/双色/全彩虹"调色板；可选"牡丹/柳叶/随机"类型（球形炸开 vs 低重力慢垂长拖尾）；
  * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；
  * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
  * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
@@ -109,28 +135,41 @@ fun SimFireworksScreen(onBack: () -> Unit) {
     var rockets by remember { mutableStateOf(emptyList<FireworkRocket>()) }
     var flashes by remember { mutableStateOf(emptyList<BurstFlash>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
+    var typeMode by remember { mutableStateOf(FireworkType.RANDOM) }
+    var lastWhistleMs by remember { mutableStateOf(0L) }
 
     DisposableEffect(Unit) {
         onDispose { FoleySynth.stop() }
     }
 
     /**
-     * 点击屏幕时调用：在画布内从底部弹一颗火箭飞向 (nx, ny)，
-     * 注意：音效/触感延迟到 "抵达" 才触发，「先静后响」才像真放烟花。
+     * 点击屏幕时调用：在画布内从底部弹一颗火箭飞向 (nx, ny)，起飞播「咻」。
+     * 注意：爆炸音/触感延迟到 "抵达" 才触发，「先咻后响」才像真放烟花。
      */
     fun launchTo(nx: Float, ny: Float, travelTime: Float = 0.85f) {
+        val concrete = if (typeMode == FireworkType.RANDOM)
+            if (Random.nextBoolean()) FireworkType.PEONY else FireworkType.WILLOW
+        else typeMode
         rockets = rockets + FireworkRocket(
             targetX = nx.coerceIn(0.05f, 0.95f),
             targetY = ny.coerceIn(0.10f, 0.85f),
             palette = randomPalette(),
+            type = concrete,
             travelTime = travelTime,
         )
+        // 发射「咻」：节流 ~110ms，避免齐射时多重口哨叠成噪声。
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - lastWhistleMs >= 110L) {
+            FoleySynth.play("launch")
+            lastWhistleMs = nowMs
+        }
     }
 
     /** 当火箭"到达"（飞行时间用尽或超越目标）时调用：炸粒子 + 白光 + 音 + 触感。 */
-    fun burstAt(nx: Float, ny: Float, palette: Palette) {
-        // 按本发火箭的调色板炸开（单色球/双色/全彩虹），粒子数翻倍更壮观。
-        particles = particles + burst(nx, ny, 80, 0.72f, 1.35f, palette.hues, 5f)
+    fun burstAt(nx: Float, ny: Float, palette: Palette, type: FireworkType) {
+        // 按本发火箭的类型调色板与形态炸开（单色球/双色/全彩虹 × 牡丹/柳叶），更壮观。
+        val s = shapeFor(type)
+        particles = particles + burst(nx, ny, s.count, s.speed, s.life, palette.hues, 5f, s.gravityScale, s.trailScale)
         // 爆点白光闪。
         flashes = flashes + BurstFlash(nx, ny, 0.24f, 0.24f)
         // 真实爆炸音优先；缺失回退合成。
@@ -151,7 +190,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                 for (r in rockets) {
                     r.t += dt
                     if (r.t >= r.travelTime) {
-                        burstAt(r.targetX, r.targetY, r.palette)
+                        burstAt(r.targetX, r.targetY, r.palette, r.type)
                     } else {
                         newRockets.add(r)
                     }
@@ -192,6 +231,26 @@ fun SimFireworksScreen(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SimHintCard(stringResource(R.string.tools_sim_fireworks_hint))
+            Spacer(Modifier.height(Spacing.md))
+
+            // 烟花类型切换：牡丹（球形）/柳叶（慢垂长拖尾）/随机。
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.tools_sim_fireworks_type_label),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                listOf(FireworkType.PEONY, FireworkType.WILLOW, FireworkType.RANDOM).forEach { t ->
+                    FilterChip(
+                        selected = typeMode == t,
+                        onClick = { typeMode = t },
+                        label = { Text(stringResource(t.labelRes)) },
+                    )
+                }
+            }
             Spacer(Modifier.height(Spacing.md))
 
             Box(
@@ -318,10 +377,10 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                         val cx = pt.x * w
                         val cy = pt.y * h
 
-                        // 拖尾：沿速度反方向画一道渐隐短线，速度越快拖尾越长。
+                        // 拖尾：沿速度反方向画一道渐隐短线，速度越快拖尾越长；柳叶型拖尾倍率更大。
                         val speedPx = kotlin.math.hypot(pt.vx * w, pt.vy * h)
                         if (speedPx > 6f && a > 0.05f) {
-                            val tail = 0.045f
+                            val tail = 0.045f * pt.trailScale
                             val tx = cx - pt.vx * w * tail
                             val ty = cy - pt.vy * h * tail
                             drawLine(

@@ -18,6 +18,8 @@ data class SimParticle(
     val hue: Float,     // 色相 0..360
     var radius: Float,  // 像素半径
     val ring: Boolean = false, // true=扩散圆环（敲木鱼涟漪）
+    val gravityScale: Float = 1f, // 重力倍率（柳叶型 <1，慢垂）
+    val trailScale: Float = 1f,  // 拖尾倍率（柳叶型更长）
 )
 
 /** 重力（归一化/秒²，y 向下为正）。 */
@@ -34,7 +36,7 @@ fun stepParticles(list: List<SimParticle>, dt: Float): List<SimParticle> {
     if (list.isEmpty()) return list
     val out = ArrayList<SimParticle>(list.size)
     for (p in list) {
-        p.vy += SIM_GRAVITY * dt
+        p.vy += SIM_GRAVITY * p.gravityScale * dt
         p.x += p.vx * dt
         p.y += p.vy * dt
         p.life -= dt
@@ -54,7 +56,7 @@ fun tickParticles(
     return stepParticles(particles, dt) to nowMs
 }
 
-/** 在 [center]（归一化）处生成一次径向爆发，[count] 个粒子。 */
+/** 在 [center]（归一化）处生成一次径向爆发，[count] 个粒子。[gravityScale]/[trailScale] 控制扩散形态。 */
 fun burst(
     cx: Float,
     cy: Float,
@@ -63,6 +65,8 @@ fun burst(
     life: Float,
     hues: List<Float>,
     radiusPx: Float,
+    gravityScale: Float = 1f,
+    trailScale: Float = 1f,
 ): List<SimParticle> = List(count) { i ->
     val ang = (i.toFloat() / count) * 2 * PI_F - PI_F / 2f + (kotlin.random.Random.nextFloat() - 0.5f) * 0.4f
     val sp = speed * (0.6f + kotlin.random.Random.nextFloat() * 0.6f)
@@ -75,6 +79,8 @@ fun burst(
         maxLife = life,
         hue = hues[kotlin.random.Random.nextInt(hues.size)],
         radius = radiusPx * (0.6f + kotlin.random.Random.nextFloat() * 0.8f),
+        gravityScale = gravityScale,
+        trailScale = trailScale,
     )
 }
 
