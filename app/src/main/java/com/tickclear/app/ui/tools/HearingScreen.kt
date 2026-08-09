@@ -21,7 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,23 +31,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -263,17 +268,21 @@ private fun DbGauge(value: Int, modifier: Modifier = Modifier) {
 }
 
 /**
- * 音量安全阈值调节器（美化版）：卡片式外壳 + 动态分区配色滑块（安全绿 → 警戒黄 → 危险红，
- * 与仪表盘分区一致）+ 0 / 50 / 100 刻度标签。
+ * 音量安全阈值调节器（自绘胶囊 + 圆环 thumb 版）：
+ *  - 整条滑块为带圆角的水平胶囊轨道，左半已填充（active 实色），右半未填充（inactive 同色 0.18 透明）。
+ *  - thumb 是一个**空心圆环**：底层 surface 色实心圆 + 上层 zone 色描边 Stroke，外径比轨道鼓出一圈让圆环更显眼。
+ *  - 颜色随 value 在三段阈值之间切换：≤60 安全绿 / (60, 85] 警戒黄 / >85 危险红。
+ *  - 点击 / 拖动皆通过 pointerInput + detect(Tap|Drag)Gestures 把 x 坐标映射回 value。
  *
- * thumbSize 说明：M3 1.3.0 Slider 默认 thumb 为 DpSize(4.dp, 20.dp)，视觉上的"长度"取 thumb 在
- * 用户手指拖动方向的尺寸（20dp）做参考。减小为 [VOLUME_SLIDER_THUMB_SIZE] = DpSize(14.dp, 14.dp)
- * 即把"长度"从 20dp → 14dp，减少 6dp/20dp ≈ 30% ≈ 1/3，符合"拖动把手长度减少三分之一"的优化要求。
- * 选用 14dp × 14dp 是为了构成正方形胶囊（capsule），让小尺寸 thumb 仍保持圆润、把手指接触面做清晰。
+ * 注意：M3 1.3.0 Slider 的 thumb 默认是实心胶囊，无法做出"圆环 + 底色穿透"这一形态，故此处完全自绘。
+ * 卡片外壳（surface + 1dp outlineVariant）保留以维持与「听力保护」其他卡片视觉一致。
  */
-private val VOLUME_SLIDER_THUMB_SIZE = DpSize(14.dp, 14.dp)
+private val VolumeSliderHeight = 22.dp
+/** 圆环描边宽（px）。 */
+private val VolumeRingStroke = 4.dp
+/** 圆环外径相对轨道半径的鼓出量（让圆环"戴"在轨道上更醒目）。 */
+private val VolumeRingOvershoot = 4.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VolumeThresholdSlider(
     value: Int,
@@ -288,14 +297,11 @@ private fun VolumeThresholdSlider(
         value <= 85 -> cautionColor
         else -> dangerColor
     }
-    val sliderColors = SliderDefaults.colors(
-        thumbColor = zone,
-        activeTrackColor = zone,
-        inactiveTrackColor = zone.copy(alpha = 0.25f),
-        activeTickColor = MaterialTheme.colorScheme.surface,
-        inactiveTickColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-    )
-    val interactionSource = remember { MutableInteractionSource() }
+    val inactiveZone = zone.copy(alpha = 0.18f)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    var widthPx by remember { mutableIntStateOf(0) }
+    val v = value.coerceIn(0, 100)
 
     Card(
         modifier = modifier,
@@ -308,31 +314,71 @@ private fun VolumeThresholdSlider(
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Slider(
-                value = value.toFloat(),
-                onValueChange = { onValueChange(it.toInt()) },
-                modifier = Modifier.fillMaxWidth(),
-                valueRange = 0f..100f,
-                steps = 0,
-                colors = sliderColors,
-                interactionSource = interactionSource,
-                thumb = {
-                    SliderDefaults.Thumb(
-                        interactionSource = interactionSource,
-                        colors = sliderColors,
-                        enabled = true,
-                        thumbSize = VOLUME_SLIDER_THUMB_SIZE,
+            // 自绘滑块：胶囊轨道 + 圆环 thumb + 点击/拖动手势
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(VolumeSliderHeight)
+                    .clipToBounds()
+                    .onSizeChanged { widthPx = it.width }
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            applyVolumeValue(widthPx.toFloat(), offset.x, onValueChange)
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                applyVolumeValue(widthPx.toFloat(), offset.x, onValueChange)
+                            },
+                            onDrag = { change, _ ->
+                                applyVolumeValue(widthPx.toFloat(), change.position.x, onValueChange)
+                                change.consume()
+                            },
+                        )
+                    },
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    if (w <= 0f) return@Canvas
+                    val rad = h / 2f
+                    val cy = h / 2f
+                    val cx = (v / 100f) * w
+
+                    // 1) 整条胶囊底色（inactive 全段）
+                    drawRoundRect(
+                        color = inactiveZone,
+                        topLeft = Offset.Zero,
+                        size = Size(w, h),
+                        cornerRadius = CornerRadius(rad, rad),
                     )
-                },
-                track = { sliderState: SliderState ->
-                    SliderDefaults.Track(
-                        sliderState = sliderState,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = sliderColors,
-                        enabled = true,
+                    // 2) 已完成左半（active 实色）—— 用 clipRect 把右半裁掉
+                    clipRect(left = 0f, top = 0f, right = cx, bottom = h) {
+                        drawRoundRect(
+                            color = zone,
+                            topLeft = Offset.Zero,
+                            size = Size(w, h),
+                            cornerRadius = CornerRadius(rad, rad),
+                        )
+                    }
+                    // 3) 圆环 thumb：底层=surface（穿透露出卡面色），上层=彩色描边
+                    val ringOuterR = rad + VolumeRingOvershoot.toPx()
+                    val ringStrokePx = VolumeRingStroke.toPx()
+                    val safeCx = cx.coerceIn(0f, w)
+                    drawCircle(
+                        color = surfaceColor,
+                        radius = ringOuterR,
+                        center = Offset(safeCx, cy),
                     )
-                },
-            )
+                    drawCircle(
+                        color = zone,
+                        radius = ringOuterR - ringStrokePx / 2f,
+                        center = Offset(safeCx, cy),
+                        style = Stroke(width = ringStrokePx),
+                    )
+                }
+            }
             // 0-50-100 刻度标签，与滑块行程对齐（留出滑块半径余量）
             Row(
                 modifier = Modifier
@@ -346,6 +392,13 @@ private fun VolumeThresholdSlider(
             }
         }
     }
+}
+
+/** 把触摸 x 坐标按容器宽度映射为 0-100 的整数 value；width<=0 时忽略以避免除零。 */
+private fun applyVolumeValue(widthPx: Float, x: Float, onValueChange: (Int) -> Unit) {
+    if (widthPx <= 0f) return
+    val fraction = (x / widthPx).coerceIn(0f, 1f)
+    onValueChange((fraction * 100f).toInt())
 }
 
 @Composable
