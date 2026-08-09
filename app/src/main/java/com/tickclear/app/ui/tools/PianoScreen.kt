@@ -1,10 +1,8 @@
 package com.tickclear.app.ui.tools
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
+import com.tickclear.app.ui.components.LockScreenOrientation
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,20 +90,8 @@ fun PianoScreen(onBack: () -> Unit) {
         onDispose { PianoSynth.stop() }
     }
 
-    // 方向锁定策略（与 RulerScreen 同款修复：点横屏不被切回竖屏）。
-    // 1) 用 SENSOR_LANDSCAPE / SENSOR_PORTRAIT：在目标朝向范围内跟随传感器，避免纯固定方向
-    //    与 Android 12+「用户可覆盖应用固定方向」冲突导致的 UNSPECIFIED 重置→弹回竖屏抖动。
-    // 2) key 只用 landscape，不把 configuration.orientation 当 key，避免旋转后重入 effect 的竞态。
-    LaunchedEffect(landscape) {
-        context.findActivity()?.requestedOrientation =
-            if (landscape) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-    }
+    // 方向锁定抽成共享组件（带旋转后自愈兜底，见 ScreenOrientationLocker）。
+    LockScreenOrientation(landscape)
 
     Scaffold(
         topBar = {
@@ -390,12 +375,3 @@ private val SONG_ODE = listOf(
     60 to 320L, 60 to 320L, 62 to 320L, 64 to 320L, 62 to 480L, 60 to 160L, 60 to 640L,
 )
 
-/** 从任意 Context 向上回溯找到宿主 Activity。 */
-private fun Context.findActivity(): Activity? {
-    var ctx = this
-    while (ctx is ContextWrapper) {
-        if (ctx is Activity) return ctx
-        ctx = ctx.baseContext
-    }
-    return null
-}

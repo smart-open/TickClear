@@ -3,9 +3,6 @@ package com.tickclear.app.ui.tools
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.app.Activity
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,7 +44,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,7 +51,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +72,7 @@ import androidx.core.content.FileProvider
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
 import com.tickclear.app.domain.tools.PhotoRuler
+import com.tickclear.app.ui.components.LockScreenOrientation
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -108,26 +104,8 @@ fun RulerScreen(onBack: () -> Unit) {
     // 横竖屏偏好用 saveable 持久化：若因配置变更重建，能保留用户选择。
     var landscape by rememberSaveable { mutableStateOf(false) }
 
-    // 方向锁定策略（修复「点横屏瞬间被切回竖屏」）：
-    // 1) 用 SENSOR_LANDSCAPE / SENSOR_PORTRAIT 这类「在目标朝向范围内跟随传感器」的变体，
-    //    而非纯固定 LANDSCAPE/PORTRAIT。纯固定方向会与 Android 12+ 的「用户可覆盖应用固定方向」
-    //    机制冲突——系统把 requestedOrientation 重置回 UNSPECIFIED 后，若设备物理仍是竖握持，
-    //    屏幕立即按传感器弹回竖屏，表现为「切过去又切回来」（甚至横竖横竖持续抖动）。SENSOR_*
-    //    由传感器驱动、不会触发该覆盖重置，能稳定停在用户所选朝向。
-    // 2) key 只用 landscape（用户意图），不把 configuration.orientation 当 key——
-    //    把它当 key 会在每次真实旋转后重入 effect，与系统重置/传感器形成竞态，反而加剧抖动。
-    // MainActivity 声明 configChanges=orientation|screenSize，旋转由系统在位处理、不重建 Activity。
-    LaunchedEffect(landscape) {
-        context.findActivity()?.requestedOrientation =
-            if (landscape) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-    }
-    // 离开本页时恢复系统默认朝向（含重建场景：旧实例销毁会走这里复位）
-    DisposableEffect(Unit) {
-        onDispose {
-            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-    }
+    // 方向锁定抽成共享组件（带旋转后自愈兜底，见 ScreenOrientationLocker）。
+    LockScreenOrientation(landscape)
 
     Scaffold(
         topBar = {
@@ -334,16 +312,6 @@ private fun ScreenRuler() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-}
-
-/** 从任意 Context 向上回溯找到宿主 Activity。 */
-private fun Context.findActivity(): Activity? {
-    var ctx = this
-    while (ctx is ContextWrapper) {
-        if (ctx is Activity) return ctx
-        ctx = ctx.baseContext
-    }
-    return null
 }
 
 /** 拍照测距模式。 */
