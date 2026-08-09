@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -132,6 +133,7 @@ fun BackfillScreen(
                     onClick = { tab = 0 },
                     content = {
                         Row(
+                            modifier = Modifier.fillMaxWidth().height(96.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
@@ -149,6 +151,7 @@ fun BackfillScreen(
                     onClick = { tab = 1 },
                     content = {
                         Row(
+                            modifier = Modifier.fillMaxWidth().height(96.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
@@ -163,30 +166,10 @@ fun BackfillScreen(
                 )
             }
 
-            // 概要说明：跟随当前 Tab 动态展示用途解释（不再重复 Tab 标题，仅保留图标 + 说明文字）
+            // 概要说明：跟随当前 Tab 动态展示用途解释（不再重复 Tab 标题，仅保留说明文字）
             when (tab) {
-                0 -> SummaryCard(
-                    text = stringResource(R.string.backfill_habit_summary),
-                    icon = {
-                        Icon(
-                            Icons.Filled.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    },
-                )
-                else -> SummaryCard(
-                    text = stringResource(R.string.backfill_daily_summary),
-                    icon = {
-                        Icon(
-                            Icons.Filled.Event,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    },
-                )
+                0 -> SummaryCard(text = stringResource(R.string.backfill_habit_summary))
+                else -> SummaryCard(text = stringResource(R.string.backfill_daily_summary))
             }
 
             if (tab == 0) {
@@ -324,7 +307,6 @@ fun BackfillScreen(
 @Composable
 private fun SummaryCard(
     text: String,
-    icon: @Composable () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -333,21 +315,15 @@ private fun SummaryCard(
         ),
         shape = RoundedCornerShape(14.dp),
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Box(modifier = Modifier.size(22.dp)) { icon() }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
