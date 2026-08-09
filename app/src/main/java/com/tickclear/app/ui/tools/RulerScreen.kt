@@ -50,7 +50,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +72,7 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageMasker
 import com.tickclear.app.domain.tools.PhotoRuler
 import com.tickclear.app.ui.components.LockScreenOrientation
+import com.tickclear.app.ui.components.OrientationLockState
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -101,8 +101,9 @@ fun RulerScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(RulerMode.SCREEN) }
-    // 横竖屏偏好用 saveable 持久化：若因配置变更重建，能保留用户选择。
-    var landscape by rememberSaveable { mutableStateOf(false) }
+    // 横竖屏偏好存进程级单例 OrientationLockState：部分 ROM（如 HyperOS）旋转会整页重建，
+    // rememberSaveable 不可靠恢复，改用 remember 从单例恢复，保证用户选择不丢、不被弹回竖屏。
+    var landscape by remember { mutableStateOf(OrientationLockState.desiredLandscape) }
 
     // 方向锁定抽成共享组件（带旋转后自愈兜底，见 ScreenOrientationLocker）。
     LockScreenOrientation(landscape)

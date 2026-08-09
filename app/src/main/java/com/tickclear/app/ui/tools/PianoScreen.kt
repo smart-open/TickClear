@@ -3,6 +3,7 @@ package com.tickclear.app.ui.tools
 import android.content.Context
 import androidx.compose.foundation.background
 import com.tickclear.app.ui.components.LockScreenOrientation
+import com.tickclear.app.ui.components.OrientationLockState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,7 +72,9 @@ fun PianoScreen(onBack: () -> Unit) {
         CoroutineExceptionHandler { _, _ -> /* 合成/播放异常静默吞掉，绝不冲垮进程 */ }
     }
     // 横竖屏偏好用 saveable 持久化：旋转重建后能保留用户选择（与 RulerScreen 同款范式）。
-    var landscape by rememberSaveable { mutableStateOf(false) }
+    // 横竖屏偏好存进程级单例 OrientationLockState：部分 ROM（如 HyperOS）旋转会整页重建，
+    // rememberSaveable 不可靠恢复，改用 remember 从单例恢复，保证用户选择不丢、不被弹回竖屏。
+    var landscape by remember { mutableStateOf(OrientationLockState.desiredLandscape) }
     var pressed by remember { mutableStateOf(emptySet<Int>()) }
     var playingSong by remember { mutableStateOf(false) }
 
