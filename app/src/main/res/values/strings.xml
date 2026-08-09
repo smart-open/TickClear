@@ -1748,13 +1748,19 @@
     <string name="points_desc">完成任务赚积分，兑换心仪奖励</string>
     <string name="points_hint">孩子完成事项得积分，积分可兑换玩具 / 吃食 / 零花钱</string>
     <string name="points_score">积分</string>
-    <string name="points_redeemed">已兑换：%1$s</string>
-    <string name="points_not_enough">积分不足</string>
     <string name="points_tasks">今日任务</string>
     <string name="points_rewards">奖励兑换</string>
     <string name="points_members">成员</string>
     <string name="points_undo">撤销上一步</string>
-    <string name="points_undone">已撤销</string>
+    <!-- Snackbar 文案（2026-08-09 优化：完成任务/兑换/撤销添加 Snackbar 反馈，比 Toast 更友好；含'撤销'按钮） -->
+    <string name="points_snackbar_added_fmt">%1$s %2$s%3$d 分</string>
+    <string name="points_snackbar_added_with_hint_fmt">%1$s %2$s%3$d 分 · %4$s</string>
+    <string name="points_snackbar_not_enough_fmt">积分不足，无法兑换 %1$s</string>
+    <string name="points_snackbar_undone_fmt">已撤销：%1$s %2$s%3$d 分</string>
+    <string name="points_snackbar_action_undo">撤销</string>
+    <!-- Snackbar 末尾 hint 短标签：让玩家知道是因为哪个任务/奖励加减分 -->
+    <string name="points_task_label_short">完成任务 %1$s</string>
+    <string name="points_reward_label_short">兑换 %1$s</string>
     <string name="points_achievements_title">成就徽章</string>
     <string name="points_locked">未解锁</string>
     <string name="points_add_member">添加成员</string>

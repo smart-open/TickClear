@@ -2,7 +2,6 @@ package com.tickclear.app.ui.tools
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +39,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +67,7 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlinx.coroutines.launch
 
 /**
  * 家庭成员积分仪（V2.9++ 生活助手）。
@@ -204,6 +209,8 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     // 缓存 prefs 实例：每次加减分都 getSharedPreferences 会重复走一次 ContextImpl 查表。
     val prefs = remember(context) { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
     var members by remember { mutableStateOf(loadMembers(prefs)) }
     var tasks by remember { mutableStateOf(loadTasks(prefs)) }
@@ -230,31 +237,78 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
         if (selectedId !in next.map { it.id }) selectedId = next.firstOrNull()?.id ?: ""
     }
 
-    fun adjust(memberId: String, delta: Int) {
+    /**
+     * 弹一条 Snackbar（带「撤销」按钮），用户点撤销时回调 [onAction]；
+     * 用于 adjust / redeem / undo 三处统一反馈样式，比 Toast 更友好且不打断用户。
+     */
+    fun showPointsSnackbar(message: String, onAction: () -> Unit) {
+        snackbarScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = context.getString(R.string.points_snackbar_action_undo),
+                withDismissAction = false,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) onAction()
+        }
+    }
+
+    fun undo() {
+        val action = lastAction ?: return
+        val mName = members.firstOrNull { it.id == action.memberId }?.name ?: ""
+        val sign = if (action.delta > 0) "+" else ""
+        scores = scores + (action.memberId to ((scores[action.memberId] ?: 0) - action.delta).coerceAtLeast(0))
+        saveScore(prefs, action.memberId, scores[action.memberId] ?: 0)
+        // 注意：先清 lastAction 再写新分数，避免撤销动作又被记录到 lastAction
+        lastAction = null
+        Haptic.vibrate(context, 12)
+        // 撤销后用反向 delta 提示（例如撤销了 +5，显示"小明 -5 分"）
+        val undoDelta = -action.delta
+        val undoSign = if (undoDelta >= 0) "+" else ""
+        showPointsSnackbar(
+            context.getString(R.string.points_snackbar_undone_fmt, mName, undoSign, undoDelta),
+        ) { /* 已经撤销，无可再撤销 */ }
+    }
+
+    /**
+     * 给某成员加减 [delta] 分。任务完成/兑换礼物/手动加减都走这里。
+     * [taskName]（任务完成时传）/[rewardName]（兑换时传）决定 Snackbar 文案末尾是否带"· 提示"。
+     */
+    fun adjust(memberId: String, delta: Int, taskName: String? = null, rewardName: String? = null) {
         val next = ((scores[memberId] ?: 0) + delta).coerceAtLeast(0)
         scores = scores + (memberId to next)
         saveScore(prefs, memberId, next)
         lastAction = PointsAction(memberId, delta)
         Haptic.vibrate(context, if (delta >= 0) 18 else 14)
+        val mName = members.firstOrNull { it.id == memberId }?.name ?: ""
+        val sign = if (delta >= 0) "+" else ""
+        val hint = taskName?.let { context.getString(R.string.points_task_label_short, it) }
+            ?: rewardName?.let { context.getString(R.string.points_reward_label_short, it) }
+        val msg = if (hint != null) {
+            context.getString(R.string.points_snackbar_added_with_hint_fmt, mName, sign, delta, hint)
+        } else {
+            context.getString(R.string.points_snackbar_added_fmt, mName, sign, delta)
+        }
+        showPointsSnackbar(msg) {
+            // 用户在 Snackbar 上点「撤销」时撤销本次加分（undo 函数已定义在前）
+            val last = lastAction
+            if (last != null && last.memberId == memberId) {
+                undo()
+            }
+        }
     }
 
     fun redeem(memberId: String, cost: Int, rewardName: String) {
         val cur = scores[memberId] ?: 0
         if (cur < cost) {
-            Toast.makeText(context, R.string.points_not_enough, Toast.LENGTH_SHORT).show()
+            Haptic.vibrate(context, 14)
+            showPointsSnackbar(
+                context.getString(R.string.points_snackbar_not_enough_fmt, rewardName),
+            ) { /* 积分不足无撤销语义 */ }
             return
         }
-        adjust(memberId, -cost)
+        adjust(memberId, -cost, rewardName = rewardName)
         Haptic.vibrate(context, 24)
-        Toast.makeText(context, context.getString(R.string.points_redeemed, rewardName), Toast.LENGTH_SHORT).show()
-    }
-
-    fun undo() {
-        val action = lastAction ?: return
-        adjust(action.memberId, -action.delta)
-        lastAction = null
-        Haptic.vibrate(context, 12)
-        Toast.makeText(context, R.string.points_undone, Toast.LENGTH_SHORT).show()
     }
 
     // ——— 成员编辑 ———
@@ -333,6 +387,7 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.points_title)) },
@@ -484,7 +539,7 @@ fun FamilyPointsScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            IconButton(onClick = { adjust(selectedId, t.points) }) {
+                            IconButton(onClick = { adjust(selectedId, t.points, taskName = t.name) }) {
                                 Icon(
                                     Icons.Filled.CheckCircle,
                                     contentDescription = stringResource(R.string.points_task_complete),
