@@ -588,7 +588,7 @@ private fun DrawScope.drawCoinBody(size: Size) {
     )
 }
 
-/** 硬币：side=true 为正面（字：中国人民银行 / 1元 / 年号），false 为背面（国徽）。 */
+/** 硬币：side=true 为正面（1 元牡丹花），false 为背面（国徽）。 */
 private fun DrawScope.drawCoin(side: Boolean, size: Size) {
     drawCoinBody(size)
     val r = size.minDimension / 2f
@@ -597,59 +597,132 @@ private fun DrawScope.drawCoin(side: Boolean, size: Size) {
     if (side) drawCoinObverse(cx, cy, r) else drawNationalEmblem(cx, cy, r)
 }
 
-/** 正面：顶部弧形国号 + 大号 1元 + 底部年号，参考 2020 版 1 元硬币。 */
+/**
+ * 硬币周边装饰：在半径 ringR 处均匀绘制 n 颗小圆点，
+ * 参考 1 元牡丹花币与国徽币实物都有"周边一排小圆点装饰"（珠圈纹）。
+ * 默认 n=44、ringR=0.86r、dotR=0.018r——视觉上饱满而不喧宾夺主。
+ */
+private fun DrawScope.drawCoinBorderDots(
+    cx: Float,
+    cy: Float,
+    r: Float,
+    color: Color,
+    n: Int = 44,
+    ringR: Float = 0.86f * r,
+    dotR: Float = 0.018f * r,
+) {
+    for (i in 0 until n) {
+        val ang = Math.toRadians((i * 360f / n).toDouble())
+        val x = cx + (ringR * cos(ang)).toFloat()
+        val y = cy + (ringR * sin(ang)).toFloat()
+        drawCircle(color = color, radius = dotR, center = Offset(x, y))
+    }
+}
+
+/**
+ * 正面：周边装饰珠圈 + 牡丹花（左下）+ 中央"1" + 右侧"元"+ 下方"YI YUAN"拼音，
+ * 参考实物 2019 版 1 元硬币（牡丹 + 元 + YI YUAN）。**简化的"双层 5+5 圆 + 中心圆"作为牡丹花纹理**——
+ * 与国徽大小匹配、肉眼可识别为"花"。
+ */
 private fun DrawScope.drawCoinObverse(cx: Float, cy: Float, r: Float) {
     val canvas = drawContext.canvas.nativeCanvas
     val dark = 0xFF3A3D42.toInt()
-    // 顶部弧形：中国人民银行
-    val oval = android.graphics.RectF(
-        cx - r * 0.74f, cy - r * 0.74f,
-        cx + r * 0.74f, cy + r * 0.74f,
-    )
-    val arcPath = android.graphics.Path().apply { arcTo(oval, 202f, 136f) }
-    val arcPaint = android.graphics.Paint().apply {
+    val darkColor = Color(dark)
+
+    // 1) 周边小圆点装饰
+    drawCoinBorderDots(cx, cy, r, darkColor)
+
+    // 2) 牡丹花（左下）
+    drawPeonyFlower(cx - r * 0.34f, cy + r * 0.30f, r * 0.20f, darkColor)
+
+    // 3) 中央"1"（粗体超大）
+    val num1Paint = android.graphics.Paint().apply {
         isAntiAlias = true
         color = dark
-        textSize = r * 0.19f
-        textAlign = android.graphics.Paint.Align.LEFT
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    }
-    canvas.drawTextOnPath("中国人民银行", arcPath, 0f, -r * 0.02f, arcPaint)
-    // 中央 1元（1 大、元 小）
-    val numPaint = android.graphics.Paint().apply {
-        isAntiAlias = true
-        color = dark
-        textSize = r * 0.60f
-        textAlign = android.graphics.Paint.Align.LEFT
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    }
-    canvas.drawText("1", cx - r * 0.22f, cy + r * 0.22f, numPaint)
-    val yuanPaint = android.graphics.Paint().apply {
-        isAntiAlias = true
-        color = dark
-        textSize = r * 0.40f
-        textAlign = android.graphics.Paint.Align.LEFT
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    }
-    canvas.drawText("元", cx + r * 0.20f, cy + r * 0.16f, yuanPaint)
-    // 底部年号
-    val yrPaint = android.graphics.Paint().apply {
-        isAntiAlias = true
-        color = dark
-        textSize = r * 0.16f
+        textSize = r * 0.62f
         textAlign = android.graphics.Paint.Align.CENTER
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
-    canvas.drawText("2020", cx, cy + r * 0.62f, yrPaint)
+    canvas.drawText("1", cx + r * 0.10f, cy + r * 0.30f, num1Paint)
+
+    // 4) 右侧"元"（小一号）
+    val yuanPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.34f
+        textAlign = android.graphics.Paint.Align.LEFT
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("元", cx + r * 0.34f, cy + r * 0.18f, yuanPaint)
+
+    // 5) 下方"YI YUAN"拼音
+    val pinyinPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.14f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT
+    }
+    canvas.drawText("YI YUAN", cx, cy + r * 0.60f, pinyinPaint)
 }
 
-/** 背面：简化国徽——大星 + 四小星、天安门城楼、麦穗齿轮环。 */
+/**
+ * 简化牡丹花：外层 5 圆 + 内层 5 圆错位 + 中心实心圆，共 11 个圆形叠成饱满花型。
+ * [cx, cy] 花心位置；[radius] 外层花瓣中心距花心的距离（决定整体大小）。
+ */
+private fun DrawScope.drawPeonyFlower(cx: Float, cy: Float, radius: Float, color: Color) {
+    val outerR = radius * 0.46f
+    val dist = radius * 0.55f
+    // 外层 5 花瓣（90° 起每隔 72°）
+    for (i in 0 until 5) {
+        val ang = Math.toRadians((-90.0 + i * 72.0))
+        val ox = (dist * cos(ang)).toFloat()
+        val oy = (dist * sin(ang)).toFloat()
+        drawCircle(color = color, radius = outerR, center = Offset(cx + ox, cy + oy))
+    }
+    // 内层 5 花瓣（与外层错位 36°），半径略小
+    val innerR = outerR * 0.72f
+    val innerDist = dist * 0.62f
+    for (i in 0 until 5) {
+        val ang = Math.toRadians((-90.0 + 36.0 + i * 72.0))
+        val ox = (innerDist * cos(ang)).toFloat()
+        val oy = (innerDist * sin(ang)).toFloat()
+        drawCircle(color = color, radius = innerR, center = Offset(cx + ox, cy + oy))
+    }
+    // 中心花蕊
+    drawCircle(color = color, radius = radius * 0.32f, center = Offset(cx, cy))
+}
+
+/**
+ * 背面：周边装饰珠圈 + 顶部弧形"ZHONGHUA RENMIN GONGHEGUO" + 标准国徽（大星 + 四小星 + 天安门 + 麦穗齿轮）
+ * + 下方"中华人民共和国"+ 年份。参照 2000 年版 1 元硬币实物图。
+ */
 private fun DrawScope.drawNationalEmblem(cx: Float, cy: Float, r: Float) {
     val emblem = Color(0xFF3A3D42)
     val disc = Color(0xFFC3C8CE)
-    // 大星
+    val canvas = drawContext.canvas.nativeCanvas
+    val dark = 0xFF3A3D42.toInt()
+
+    // 1) 周边小圆点装饰
+    drawCoinBorderDots(cx, cy, r, emblem)
+
+    // 2) 顶部弧形"ZHONGHUA RENMIN GONGHEGUO"（沿外圈内侧）
+    val oval = android.graphics.RectF(
+        cx - r * 0.78f, cy - r * 0.78f,
+        cx + r * 0.78f, cy + r * 0.78f,
+    )
+    val arcPath = android.graphics.Path().apply { arcTo(oval, 200f, 140f) }
+    val arcPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.115f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawTextOnPath("ZHONGHUA RENMIN GONGHEGUO", arcPath, 0f, -r * 0.012f, arcPaint)
+
+    // 3) 国徽主体（大星 + 四小星）
     drawStar(cx, cy - r * 0.30f, r * 0.17f, emblem)
-    // 四小星（环绕大星右下，指向大星）
     val smallR = r * 0.07f
     val angles = listOf(205f, 250f, 292f, 338f)
     for (a in angles) {
@@ -658,7 +731,7 @@ private fun DrawScope.drawNationalEmblem(cx: Float, cy: Float, r: Float) {
         val sy = cy - r * 0.04f + (r * 0.34f * kotlin.math.sin(rad)).toFloat()
         drawStar(sx, sy, smallR, emblem)
     }
-    // 天安门城楼（简化）
+    // 4) 天安门城楼（简化）
     val gw = r * 0.46f
     val gx0 = cx - gw / 2f
     val roofTop = cy + r * 0.04f
@@ -674,13 +747,12 @@ private fun DrawScope.drawNationalEmblem(cx: Float, cy: Float, r: Float) {
     }
     drawPath(roof, emblem)
     drawRect(emblem, Offset(gx0, bodyTop), Size(gw, bodyH))
-    // 拱门（用底色挖空）
     drawCircle(disc, r * 0.05f, Offset(cx, bodyTop + bodyH * 0.5f))
     drawCircle(disc, r * 0.032f, Offset(cx - r * 0.12f, bodyTop + bodyH * 0.5f))
     drawCircle(disc, r * 0.032f, Offset(cx + r * 0.12f, bodyTop + bodyH * 0.5f))
-    // 基座
     drawRect(emblem, Offset(gx0 - r * 0.02f, bodyTop + bodyH), Size(gw + r * 0.04f, r * 0.10f))
-    // 麦穗（左右弧线）+ 齿轮底环
+
+    // 5) 麦穗（左右弧线）+ 齿轮底环
     for (side in listOf(-1f, 1f)) {
         val wp = Path().apply {
             moveTo(cx + side * r * 0.34f, cy + r * 0.42f)
@@ -689,6 +761,26 @@ private fun DrawScope.drawNationalEmblem(cx: Float, cy: Float, r: Float) {
         drawPath(wp, emblem, style = Stroke(width = r * 0.022f))
     }
     drawCircle(emblem, r * 0.30f, Offset(cx, cy + r * 0.06f), style = Stroke(width = r * 0.02f))
+
+    // 6) 下方"中华人民共和国"
+    val chnPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.13f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("中华人民共和国", cx, cy + r * 0.62f, chnPaint)
+
+    // 7) 年份"2000"
+    val yrPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = dark
+        textSize = r * 0.10f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText("2000", cx, cy + r * 0.76f, yrPaint)
 }
 
 /** 绘制一个以 (cx,cy) 为中心、外接半径 radius 的五角星。 */
