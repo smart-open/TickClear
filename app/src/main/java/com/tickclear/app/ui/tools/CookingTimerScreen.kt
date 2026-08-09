@@ -310,7 +310,7 @@ private fun TimerCard(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Box(
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(TimerRingSize),
                     contentAlignment = Alignment.Center,
                 ) {
                     TimerRing(
@@ -319,12 +319,21 @@ private fun TimerCard(
                         finished = finished,
                         modifier = Modifier.fillMaxSize(),
                     )
+                    val timeText = if (finished) "✓" else fmtTime(remainSec)
+                    // 字符数 > 5 时（如 "2:00:58" 7 字符、"120:58" 等）降级到 labelSmall，
+                    // 否则用 labelMedium，保证任意剩余时间都能完整显示而不溢出 ring 圆圈。
+                    val timeStyle = if (timeText.length > 5) {
+                        MaterialTheme.typography.labelSmall
+                    } else {
+                        MaterialTheme.typography.labelMedium
+                    }
                     Text(
-                        text = if (finished) "✓" else fmtTime(remainSec),
-                        style = MaterialTheme.typography.labelLarge,
+                        text = timeText,
+                        style = timeStyle,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         softWrap = false,
+                        overflow = TextOverflow.Visible,
                         color = if (finished) {
                             MaterialTheme.colorScheme.onPrimaryContainer
                         } else {
