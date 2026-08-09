@@ -1,21 +1,26 @@
 package com.tickclear.app.domain.tools
 
+import android.content.Context
+import com.tickclear.app.R
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
 
 /**
  * 拟声玻璃杯敲击合成器（工具箱「模拟解压」分类）。
- * 玻璃杯敲击声是高频、明亮、衰减极快的“叮”声，带非谐分音（玻璃/钟体特征）。
- * 7 个位置对应 1234567 音符（C 大调）：杯口(上)音高、杯底(下)音低。
- * 复用 AnimalSynth 的 AudioTrack 实时合成思路，零额外依赖、本地播放。
+ * 7 个玻璃杯对应 C 大调音阶 1234567（C5..B5）：杯中水越多音越低。
+ *
+ * 声音来源：优先播放真实钢琴单音素材（mcapodici/pianosounds，CC0，res/raw/glass_note_1..7），
+ * 缺失或播放失败时回退到本地 AudioTrack 合成的玻璃“叮”声。
+ * 复用 AnimalSynth / FoleySynth 的「真实录音优先、合成兜底」思路，零额外依赖。
  */
 object GlassSynth {
     private const val SR = 44100
 
-    /** 1..7 对应 C5 大调音阶 do re mi fa sol la ti。 */
+    /** 1..7 对应 C 大调音阶 do re mi fa sol la ti（C5..B5）。 */
     private val NOTE_FREQS = floatArrayOf(
         523.25f, // 1 do
         587.33f, // 2 re
@@ -26,21 +31,40 @@ object GlassSynth {
         987.77f, // 7 ti
     )
 
-    private var current: AudioTrack? = null
+    /** 真实钢琴单音素材：note 1..7 → C5..B5。 */
+    private val NOTE_RES = intArrayOf(
+        R.raw.glass_note_1, R.raw.glass_note_2, R.raw.glass_note_3, R.raw.glass_note_4,
+        R.raw.glass_note_5, R.raw.glass_note_6, R.raw.glass_note_7,
+    )
 
-    /** 停止并释放当前正在播放的音轨。 */
+    private var currentMp: MediaPlayer? = null
+    private var currentTrack: AudioTrack? = null
+
+    /** 释放所有正在播放的音频（离开页面时调用）。 */
     fun stop() {
-        runCatching {
-            current?.stop()
-            current?.release()
-        }
-        current = null
+        releaseMp()
+        runCatching { currentTrack?.stop(); currentTrack?.release() }
+        currentTrack = null
     }
 
-    /** 播放第 [note] 个位置(1..7)的玻璃杯敲击声。 */
-    fun play(note: Int) {
-        stop()
-        val idx = (note.coerceIn(1, 7) - 1).coerceIn(0, NOTE_FREQS.lastIndex)
+    /**
+     * 播放第 [note] 个玻璃杯(1..7)的敲击音。
+     * 优先用真实钢琴单音素材（MediaPlayer），缺失/失败再回退到合成的“叮”声。
+     */
+    fun play(context: Context, note: Int) {
+        val idx = (note.coerceIn(1, 7) - 1).coerceIn(0, NOTE_RES.lastIndex)
+        val resId = NOTE_RES[idx]
+        val mp = runCatching { MediaPlayer.create(context, resId) }.getOrNull()
+        if (mp != null) {
+            releaseMp()
+            mp.setOnCompletionListener { releaseMp() }
+            mp.setOnErrorListener { _, _, _ -> releaseMp(); true }
+            currentMp = mp
+            runCatching { mp.start() }
+            return
+        }
+        // 回退：合成玻璃“叮”声
+        releaseMp()
         val samples = glass(NOTE_FREQS[idx])
         val fmt = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -56,14 +80,19 @@ object GlassSynth {
                 .setBufferSizeInBytes(samples.size * 2)
                 .build()
             track.write(samples, 0, samples.size)
-            current = track
+            currentTrack = track
             track.play()
         }
     }
 
+    private fun releaseMp() {
+        runCatching { currentMp?.stop(); currentMp?.release() }
+        currentMp = null
+    }
+
     /**
      * 合成一次玻璃杯敲击：基频 + 两个非谐分音(2.76/5.40)，各自指数衰减，
-     * 高次分音衰减更快，整体呈明亮短促的“叮”声。
+     * 高次分音衰减更快，整体呈明亮短促的“叮”声（仅在真实素材缺失时兜底使用）。
      */
     private fun glass(base: Float): ShortArray {
         val dur = 0.7
