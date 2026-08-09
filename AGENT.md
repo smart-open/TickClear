@@ -23,7 +23,7 @@ ui/         Compose 界面与 ViewModel
   plan/     计划 Tab 容器（任务 + 习惯双子页，仅 PlanScreen.kt）
   tasks/    任务子页 / 回收站 / TasksViewModel（被 plan 复用）
   habits/   习惯子页 / HabitsViewModel（被 plan 复用）
-  tools/    工具箱：TOOL_CATEGORIES 注册表 + 55 个工具界面 + 共享组件
+  tools/    工具箱：TOOL_CATEGORIES 注册表 + 53 个工具界面 + 共享组件
   stats/ assistant/ settings/ ai/ adaptive/
 data/       Room 实体、DAO、AppDatabase、Repository、SecureStore、VaultCrypto
 domain/     纯 Kotlin 模型、UseCase、ConflictChecker、util/、tools/、log/、ai/、assistant/、scheduler/
@@ -61,7 +61,7 @@ di/         Hilt 模块
   - **任务子页**：全部任务 + 任务组 CRUD（级联软删）；回收站（软删 `deletedAt`，默认 30 天自动彻底清理，可恢复）。
   - **习惯子页**：习惯 CRUD（emoji / 重复星期 CSV / 提醒时刻 / 配色 / 排序 / 归档），按日打卡（`HabitCheckInEntity`，同日幂等；习惯列表内的快捷打卡仍仅限当天）。连续天数统一走 `HabitDates.computeStreak`（`java.time.LocalDate` DST 安全实现，唯一事实来源）；提醒经 `HabitReminderScheduler` 排程、`HabitReminderReceiver` 触发后自动续排，**习惯提醒无条件响铃 + 震动，不受全局「声音」开关约束**。
   - **打卡补录（v2.9++ 工具）**：底层 `HabitRepository.checkIn(habitId, date)` / `CheckInRepository` 本就支持任意历史日期，该工具开放显式入口，为习惯或每日记录补打 / 取消过往日期的打卡，补全缺失记录；与习惯列表内「仅当天」的快捷打卡互不冲突。
-- **工具**（`tools`）：原「统计」Tab 改造为工具箱（v2.8X 起持续扩充），当前 **7 大类 55 个工具**（健康提醒 6 / 效率与安全 5 / 生活助手 5 / 模拟解压 14 / 实用工具 18 / 健康自查 2 / 效率工具 5），全部离线可用。分类展示小工具——健康类：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）；效率安全类：语音备忘录（录制/播放/删除，音频存本地；录制可开启「降噪」，改用 `VOICE_RECOGNITION` 音源触发平台级降噪/回声消除，开关持久化于 DataStore）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回、条目含名称/地址/用户名/密码/备注）。统计详情仍经今日页进度环点击进入 `Routes.STATS`。
+- **工具**（`tools`）：原「统计」Tab 改造为工具箱（v2.8X 起持续扩充），当前 **7 大类 53 个工具**（健康提醒 6 / 效率与安全 5 / 生活助手 5 / 模拟解压 13 / 实用工具 17 / 健康自查 2 / 效率工具 5；v2.12.0 由 v2.9.0 的 55 个收敛 2 个），全部离线可用。分类展示小工具——健康类：喝水提醒、久坐/眨眼休息提醒（间隔可配、到点通知、自调度）；效率安全类：语音备忘录（录制/播放/删除，音频存本地；录制可开启「降噪」，改用 `VOICE_RECOGNITION` 音源触发平台级降噪/回声消除，开关持久化于 DataStore）、密码保险箱（PBKDF2+AES-GCM 加密、主口令 + 安全问题找回、条目含名称/地址/用户名/密码/备注）。统计详情仍经今日页进度环点击进入 `Routes.STATS`。
   - **v2.9++ 新增工具（分类入工具箱）**：`条码识别`（生活助手：从相册选图经 ZXing core 解码商品条码，并可联网查 Open Food Facts 商品基础信息，无相机实时扫码以规避新增 CameraX 依赖）、`马赛克`（实用工具：选图后拖动框选，支持马赛克/涂黑两种遮挡方式，保存到相册）、`指南针`（实用工具：加速度计+磁力计融合解算方位角，表盘随朝向旋转）、`打卡补录`（实用工具：为习惯/每日记录补打或取消过往日期打卡）、`去水印`（实用工具：选图后拖动框选水印区域，支持「色彩修复」（四周环带取色覆盖，适合纯色背景/AI 文字水印）与「模糊柔化」，保存到相册，纯 Bitmap 处理）、`摄像头检测`（安全工具：相机实时占用经 `CameraManager.AvailabilityCallback` 监测；麦克风占用经 `AppOpsManager` 监听尽力检测；并静态审计已授权相机/麦克风权限的应用供用户收敛）、`剪贴板保护`（安全工具：监听剪贴板，开启后复制内容延迟 N 秒自动清空以规避后台读取，并提供「安全复制并自动清除」与「立即清除」，开关与延迟持久化于 DataStore；受 Android 10+ 限制无法真正拦截其他 App 读取，采用延时清空策略）。新增工具统一在 `ToolsScreen.kt` 的 `TOOL_CATEGORIES` 登记、在 `TickClearNavGraph.kt` 登记路由（命名 `TOOLS_*`、值 `"tools/*"`），文案全部抽离 `strings.xml`，图标用 Material Icons Extended。
 - **助手**：模拟硬件设备对接小智(Xiaozhi) WebSocket 协议，语音 + 文字聊天；对话出现任务时经 **MCP 函数调用(`create_task`)** 在本机建任务（复用 `AddTaskUseCase` + 冲突检测）。默认 Mock 模式离线可跑。
 - **设置**：主题(浅色/深色/动态)、语音/ASR 配置 + 测试、回收站管理、调试(日志/测试按钮)、关于。
@@ -89,7 +89,7 @@ node    test/scan_strings.mjs      # strings.xml 引用完整性，Missing 必�
 - SQLCipher 与 Room 共用 SQLite：已在 `app/build.gradle.kts` 排除 `androidx.sqlite:sqlite-framework`。
 
 ## 7. 分支与任务追踪
-- 当前状态与任务追踪见 `docs/成熟度评估.md`（v2.8.0 封板四维成熟度评估，综合 99.0/100，含 V2.63–V2.83 全量记录 + 已知限制 §6 + §13 v2.8.0 封板收口）；历史阶段任务清单（v1.0 / v2.0–v2.5 各版本「开发计划_*_任务清单」及「未完成任务清单」）已于 2026-07-27 整理删除，其内容（R1–R10、V2.44–V2.51、Q4/Q5 等）已并入该评估，单一可信源即此文档。
+- 当前状态与任务追踪见 `docs/成熟度评估.md`（v2.12.0 封板四维成熟度评估，综合 99.6/100，2026-08-09；含 V2.63–V2.83 全量记录 + 已知限制 §6 + §13 v2.8.0 封板收口 + v2.12.0 拟物重画/真实素材增量）；历史阶段任务清单（v1.0 / v2.0–v2.5 各版本「开发计划_*_任务清单」及「未完成任务清单」）已于 2026-07-27 整理删除，其内容（R1–R10、V2.44–V2.51、Q4/Q5 等）已并入该评估，单一可信源即此文档。
 - 每完成一个子任务，按需追加 `D:/ai_work/TickClear/.workbuddy/memory/` 工作日志（状态总览见 `docs/成熟度评估.md`）。
 - **提交纪律（红线）**：每一次编码 / 修改完成、进入下一项事项前必须 `git commit`（功能自洽、可独立回滚）；禁止把多个不相关改动攒成一次大提交。提交信息用中文，类型前缀 + 简述，例如：`[fix] 子日级实例完成状态脱节`、`[feature] 新增日志查看页`、`[config] release 签名注入`、`[test] 新增备份往返测试`、`[docs] 更新发布说明`、`[refactor] 拆分 Repository 边界`、`[chore] 升级依赖`。
 - 工程纪律（全程保持）：中文全抽离 `strings.xml`、数据库迁移显式 `Migration` 禁 `fallbackToDestructiveMigration`、不引入新依赖（复用 OkHttp/DataStore/系统框架）。

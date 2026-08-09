@@ -4,6 +4,77 @@
 
 ---
 
+## v2.12.0（2026-08-09 · 封板）· 模拟解压/拟物重画/真实素材三线齐推 + 新增电子琴 + lint 零警告
+
+**平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
+**版本**：versionCode 20 / versionName 2.12.0 · DB schema v10（本次无 schema 变更）
+**相对 v2.11.0**（本地顺延 tag，未发布）：v2.11.0 是上次顺延的本地 tag（指向 commit ea35a6fe，从未推送），本轮顺着 minor bump 用 v2.12.0；累计 20 个新 commit，含以下三类主线 + 新工具 + UI 打磨 + 维护修复。零新增远程依赖，DB 版本不变。
+
+### 🧰 模拟解压重做（4 个工具大幅升级）
+- **弹珠台（Pinball）**：12 颗弹珠雨（顶部随机分布、落底重生）+ 分数水平卡（不换行）+ 真实弹珠碰撞音（Freesound #401741「marble spilling onto wooden table」by PMBROWNE, CC0，silencedetect 定位首击裁 ~0.4s + volume=1.7 + mono/22k/16bit）；视觉手感拖尾辉光（暖琥珀 GLOW 0xFFFFAB40，每球记录最近 8 帧轨迹）+ 连击系统（800ms 窗口、最高 x10 倍率）+ 钉子命中 160ms 衰减白色光圈 + 命中飘分（颜色随连击升级：绿→黄→橙→红）+ 重震动阈值（连击 ≥5 时 22ms）。
+- **烟花（Fireworks）**：从底部抛物线发射、13 色全彩虹、80 粒子白光闪 + 爆点 BurstFlash（r 28→98px）；随机调色板（1/3 全彩虹 + 1/3 单色 + 1/3 双色）+ 双击 5 发齐射（间隔 60ms、目标散开 0.16、飞行 0.78~0.96s 错开）；类型切换 FilterChip（牡丹=球形 80 粒/柳叶=58 粒低重力慢垂长拖尾/随机）；发射「咻」声（FoleySynth.launchWhistle 380→1880Hz 急升 0.3s）+ 抵达爆炸 boom（firework_boom.wav Freesound #624413 by MilanKovanda CC0，裁前 3.18s 静音）。
+- **剪刀石头布（RPS）**：出拳后双方手势 80ms 切换 ✊/✌️/✋，3.0–5.0s 随机（3000L + Random.nextInt(2001)）定格揭晓；揭晓期间 "VS"→"?"、底部「揭晓中…」、按钮 enabled=!isSpinning 禁用；ChoiceBadge 弹跳动画键控在 revealed（false→true）触发而非 choice 立即触发；触感分级（出招 25ms 轻 + 揭晓定格 60ms 重）。
+- **养宠物（Pet）**：拟物重画（侧视狗/坐姿猫/圆猪）+ 每操作各异的粒子反应；提示文字全部压到 12 字内一行不换行。
+
+### 🎨 拟物重画 + 操作差异化
+- **小狗**（侧视）：长椭圆身 + 头圆在前侧偏上 + 两片下垂扇形耳（base.darken(0.18)）+ 突出浅色口鼻 + 黑鼻头带高光 + 微笑嘴曲线 + 4 条腿（前后各二，深色）+ 摆尾贝塞尔 sin(phase*7)*0.25。
+- **小猫**（坐姿，尖耳）：身体椭圆 + 头圆 + 两条前腿；外三角尖耳（base.darken(0.10)）+ 内层粉色三角；杏仁形绿眼（高度 r*0.20，眨眼压扁到 r*0.04）+ 黑色竖瞳；粉红小三角鼻 + "w" 形嘴曲线 + 6 根胡须分列两侧；长卷尾两段 quadraticTo 从身体右侧勾到上方。
+- **小猪**（圆鼓鼓坐姿）：圆身 + 圆头（sway 微动）+ 突出大圆盘鼻 + 两鼻孔 + 小三角耳 + 卷尾 + 黑眼带白色高光。
+- **操作差异化粒子**：
+  - 鱼·喂食 → 落饵料（追食）；鱼·换水 → 蓝气泡
+  - 狗·喂食 → 5 颗棕色 hue=35 骨头；狗·摸摸 → 6 颗粉色心
+  - 猪·喂食 → 5 颗红色 hue=0 苹果 + 3 颗鼻息 ring 圈；猪·摸摸 → 6 心 + 2 哼气 ring 圈
+  - 猫·喂食 → 5 颗绿色 hue=130 鱼肉；猫·撸猫 → 6 心 + 2 颗蓝色 hue=200 大半径「Z」呼噜；猫·逗猫棒 → 黄星 + 扑逗动画
+- **打火机**：开盖角度 -46°→-120°（pivot 铰链，旋转让开火焰不可挡火）；铰链销 fillSphere(hingeR=bodyW*0.05) + drawRimLight 镶边钉在机身，自由端 lidOverlap=底=bodyH*0.025 压入闭合缝；关盖金属「咔嗒」FoleySynth.lidClose（高频噪声 0.03s + 1150Hz 泛音 0.045s）+ 30ms 震动；弹簧 stiffness 520→600 回弹更利落。
+- **吹蜡烛**：阈值 0.20→0.13（普通吹气即触发、仍挡说话误触）；blowPower 累积/衰减改成「阈值处净增益为正」（loud: 1.0+over*1.5 每 60ms 帧，over=(rms-0.13)/0.20；quiet: -0.8*dt），轻吹可缓慢累积；满功率 ~1s 灭；无麦降级同步放宽。
+
+### 🎵 真实素材全员接入（CC0 录音替换合成兜底）
+- 木鱼 `wood_knock`：duoduosysa/defoldmuyu 仓 `mokugyo.wav`，CC0，16-bit/44.1k/1.83s
+- 玻璃杯 7 音 `glass_note_1..7`：mcapodici/pianosounds 仓 Piano.ff.*.ogg，CC0，ffmpeg 转 mono/44.1k/16-bit/3s
+- 烟花 `firework_boom`：Freesound #624413「Firework single shot」by MilanKovanda, CC0，裁前 3.18s 静音让爆炸即时触发，185KB
+- 弹珠 `marble_click`：Freesound #401741「marble spilling onto wooden table」by PMBROWNE, CC0，silencedetect 定位首击 t≈1.013s 后裁 ~0.4s，volume=1.7，35KB
+- 动物 8 个（dog/cat/cow/sheep/chicken/lion/bird/frog）：huydinutran/animal-sound 仓公开数据集
+- 动物 4 个补齐：
+  - `duck` → Freesound #242664「quack」by reitanna, CC0, 0.6s
+  - `pig`  → Freesound #442906「Pig Oink」by qubodup, CC0, 0.74s
+  - `tiger` → Freesound #496131「Tiger Growl」by peenois, CC0, 裁首吼 1.85s (volume=1.4)
+  - `horse` → Freesound #149024「Horse_Whinny」by foxen10, CC0, 裁首嘶 3.0s (volume=1.3)
+  - ⚠️ 跳过 #327842/heisz50：实为 CC BY-NC 3.0（非商用），不符合上架要求；CC0 替换
+- 全员经 ffmpeg 转 mono/22050Hz/16-bit PCM；`AnimalSynth.RAW_SOUNDS` 静态 map 引用 `R.raw.animal_*`
+
+### 📳 振动按摩放大 + 扩模式
+- 模式 10→15（新增颤动 flutter/呼吸 breath/层叠 cascade/短促 burst/深沉 deep）
+- 放大三招：AMP_LOW 215→230（"轻柔"档也明显可感）；`scaledOn()` 把现有 10 模式 ON ×1.3、OFF ×0.8（占空比↑）；ON_BOOST 1.7→2.4（对 `hasAmplitudeControl()==false` 设备直接拉长 ON 段补偿）
+- FlowRow 自适应换行 + `selectedModes: Set<String>` 多选组合拼接
+- VIBRATE 普通权限已在 manifest 声明；硬件诊断「API=$api，振动器=$ok」紧跟 SimHintCard
+
+### 🎨 UI 打磨
+- **涂鸦画板**：笔刷调节器加 56dp 实时预览圆（surface 底 + outlineVariant 1dp 边框 + 1dp 阴影），`drawCircle(drawColor, brushSize/2.coerceAtLeast(1.5f))` 实时反映；3 按钮独立一行（撤销 2 / 撤销 / 清空），按笔画数 `enabled`（strokes.size>=2 等）
+- **敲木鱼**：计数「4 发」水平单行 + 木锤动画 + +1 淡出 + 真实录音
+- **玻璃杯**：7 杯水平排列不同水位（fill=0.85-(i/6)*0.70，杯 0 最满→最低音，杯 6 最浅→最高音）+ 标准音符 C5..B5
+- **图片编辑**：参数滑块统一改竖向 + 长度减半（与其他工具对齐）
+
+### 🆕 新工具
+- **电子琴（PianoScreen）**：拟真钢琴单音 + 横竖屏切换（屏幕布局调整）
+
+### 🔧 维护 / 修复
+- 修复 release lint 全部告警：AutoboxingStateCreation（mutableStateOf<int>） + TypographyDashes
+- 图标前置 / Tab 布局打磨：图片编辑 4 类工具参数滑块统一竖向
+- 涂鸦/弹珠台/烟花/剪刀石头布等工具「点后无反应」「节流太宽」类问题统一排查修复
+- 工具箱 7 大类 55 → **53 个**（v2.12.0 期间清理了 2 个不再合适的工具位）
+
+### 📚 文档同步
+- `README.md`：版本基线 v2.9.0 → v2.12.0，工具数 55 → 53，综合成熟度 99.2 → 99.6
+- `docs/release-notes.md`：新增本节（v2.12.0 封板记录）
+- `docs/成熟度评估.md`：v2.12.0 封板综合成熟度评估（详见该文档）
+
+### 成熟度
+- 综合 **99.6 / 100**（产品设计 99 / 软件开发 99 / 质量测试 99 / 应用配置 99；本轮拟物重画 + 真实素材接入 + lint 零警告 + 三道门禁稳定全绿）
+- 三道门禁（`compileDebugKotlin` / `lintRelease` / `scan_strings.mjs`）+ 单元测试（`testDebugUnitTest`）全绿
+- 默认不 push：领先 origin/master 37 个 commit（v2.12.0 + [config] bump），等待用户授权推送
+
+---
+
 ## v2.9.0（2026-08-06 · 封板）· 五大 Tab 导航改版 + 工具箱 55 工具 + 全维度质量加固
 
 **平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
