@@ -1,7 +1,6 @@
 package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,9 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -45,20 +42,29 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.tools.FoleySynth
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
-import kotlin.math.min
 import kotlin.math.sqrt
 import androidx.compose.runtime.withFrameMillis
+import kotlin.random.Random
 
-private val LAUNCH = Offset(0.5f, 0.9f)
+private const val BALL_COUNT = 12
 private const val BALL_R = 0.018f
 private const val PEG_R = 0.022f
 
 private data class Ball(var x: Float, var y: Float, var vx: Float, var vy: Float)
 
+/** 在顶部随机位置生成一颗弹珠，带微小初速，形成"随机分布"的弹珠雨。 */
+private fun spawnBall(): Ball = Ball(
+    x = 0.05f + Random.nextFloat() * 0.90f,
+    y = 0.02f + Random.nextFloat() * 0.55f,
+    vx = (Random.nextFloat() - 0.5f) * 0.12f,
+    vy = Random.nextFloat() * 0.06f,
+)
+
 /**
- * 虚拟弹珠台（V2.9++ 模拟解压）。
- * 底部拖拽瞄准、松手发射弹珠；弹珠受重力下落，与钉板碰撞反弹并计分。
- * 纯 Canvas + 拖拽手势 + AudioTrack 合成，零新依赖。
+ * 虚拟弹珠台（V2.9++ 模拟解压，V2.11++ 12 球弹珠雨重做）。
+ * 12 颗弹珠随机分布、受重力下落，与钉板碰撞反弹并计分；落底自动从顶部重新撒下，保持 12 颗持续弹跳。
+ * 碰撞声优先真实录音 marble_click（CC0），缺失回退合成「叮」。
+ * 纯 Canvas + AudioTrack/MediaPlayer，零新依赖。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,12 +80,8 @@ fun SimPinballScreen(onBack: () -> Unit) {
             Offset(0.40f, 0.59f), Offset(0.60f, 0.59f),
         )
     }
-    var ball by remember { mutableStateOf(Ball(LAUNCH.x, LAUNCH.y, 0f, 0f)) }
-    var ballMoving by remember { mutableStateOf(false) }
-    var aiming by remember { mutableStateOf(false) }
-    var aimPoint by remember { mutableStateOf(LAUNCH) }
+    var balls by remember { mutableStateOf(List(BALL_COUNT) { spawnBall() }) }
     var score by remember { mutableIntStateOf(0) }
-    var tick by remember { mutableLongStateOf(0L) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
     DisposableEffect(Unit) {
@@ -87,56 +89,58 @@ fun SimPinballScreen(onBack: () -> Unit) {
     }
 
     fun reset() {
-        ball = Ball(LAUNCH.x, LAUNCH.y, 0f, 0f)
-        ballMoving = false
-        aiming = false
+        balls = List(BALL_COUNT) { spawnBall() }
+        score = 0
     }
 
-    // 仅在弹珠运动时运行物理循环，静止即挂起（省电基线）
-    val pinAnimating = ballMoving
-    LaunchedEffect(pinAnimating) {
-        if (!pinAnimating) return@LaunchedEffect
+    // 弹珠持续在动 → 帧循环持续运行（类比"粒子在飞"），离开页面即随组合销毁挂起。
+    LaunchedEffect(Unit) {
         var last = 0L
-        while (ballMoving) {
+        var lastHitMs = 0L
+        while (true) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.04f)
             last = now
-            var b = ball
-            b = b.copy(vy = b.vy + SIM_GRAVITY * dt)
-            b = b.copy(x = b.x + b.vx * dt, y = b.y + b.vy * dt)
-            if (b.x < BALL_R) b = b.copy(x = BALL_R, vx = -b.vx * 0.8f)
-            if (b.x > 1 - BALL_R) b = b.copy(x = 1 - BALL_R, vx = -b.vx * 0.8f)
-            if (b.y < BALL_R) b = b.copy(y = BALL_R, vy = -b.vy * 0.8f)
-            if (b.y > 1.05f) { reset(); tick++; continue }
-            for (peg in pegs) {
-                val dx = b.x - peg.x
-                val dy = b.y - peg.y
-                val d = sqrt(dx * dx + dy * dy)
-                val minD = BALL_R + PEG_R
-                if (d < minD && d > 1e-4f) {
-                    val nx = dx / d
-                    val ny = dy / d
-                    b = b.copy(x = peg.x + nx * minD, y = peg.y + ny * minD)
-                    val vDotN = b.vx * nx + b.vy * ny
-                    if (vDotN < 0) {
-                        b = b.copy(
-                            vx = (b.vx - 2 * vDotN * nx) * 0.9f,
-                            vy = (b.vy - 2 * vDotN * ny) * 0.9f,
-                        )
-                        score += 1
-                        FoleySynth.play("pop")
-                        Haptic.vibrate(context, 12)
+            val tNow = System.currentTimeMillis()
+            var scored = 0
+            var hit = false
+            val next = balls.map { b ->
+                var nb = b.copy(vy = b.vy + SIM_GRAVITY * dt)
+                nb = nb.copy(x = nb.x + nb.vx * dt, y = nb.y + nb.vy * dt)
+                if (nb.x < BALL_R) nb = nb.copy(x = BALL_R, vx = -nb.vx * 0.8f)
+                if (nb.x > 1 - BALL_R) nb = nb.copy(x = 1 - BALL_R, vx = -nb.vx * 0.8f)
+                if (nb.y < BALL_R) nb = nb.copy(y = BALL_R, vy = -nb.vy * 0.8f)
+                for (peg in pegs) {
+                    val dx = nb.x - peg.x
+                    val dy = nb.y - peg.y
+                    val d = sqrt(dx * dx + dy * dy)
+                    val minD = BALL_R + PEG_R
+                    if (d < minD && d > 1e-4f) {
+                        val nx = dx / d
+                        val ny = dy / d
+                        nb = nb.copy(x = peg.x + nx * minD, y = peg.y + ny * minD)
+                        val vDotN = nb.vx * nx + nb.vy * ny
+                        if (vDotN < 0) {
+                            nb = nb.copy(
+                                vx = (nb.vx - 2 * vDotN * nx) * 0.9f,
+                                vy = (nb.vy - 2 * vDotN * ny) * 0.9f,
+                            )
+                            scored++
+                            hit = true
+                        }
                     }
                 }
+                nb = nb.copy(vx = nb.vx * 0.999f, vy = nb.vy * 0.999f)
+                if (nb.y > 1.05f) spawnBall() else nb
             }
-            b = b.copy(vx = b.vx * 0.999f, vy = b.vy * 0.999f)
-            if (b.y > 0.88f && sqrt(b.vx * b.vx + b.vy * b.vy) < 0.02f) {
-                reset()
-                tick++
-                continue
+            if (scored > 0) score += scored
+            // 12 球齐撞时音/震节流，避免过载成噪声。
+            if (hit && tNow - lastHitMs >= 70L) {
+                FoleySynth.playPop(context)
+                Haptic.vibrate(context, 12)
+                lastHitMs = tNow
             }
-            ball = b
-            tick++
+            balls = next
         }
     }
 
@@ -165,6 +169,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
             SimStatCard(
                 value = score.toString(),
                 label = stringResource(R.string.tools_unit_points),
+                horizontal = true,
             )
             Spacer(Modifier.height(Spacing.md))
 
@@ -172,38 +177,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .height(420.dp)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                if (ballMoving) return@detectDragGestures
-                                aiming = true
-                                aimPoint = if (canvasSize.width > 0) {
-                                    Offset(offset.x / canvasSize.width, offset.y / canvasSize.height)
-                                } else offset
-                            },
-                            onDrag = { change, _ ->
-                                aimPoint = if (canvasSize.width > 0) {
-                                    Offset(change.position.x / canvasSize.width, change.position.y / canvasSize.height)
-                                } else change.position
-                            },
-                            onDragEnd = {
-                                if (!aiming) return@detectDragGestures
-                                aiming = false
-                                val dx = aimPoint.x - LAUNCH.x
-                                val dy = aimPoint.y - LAUNCH.y
-                                val len = sqrt(dx * dx + dy * dy)
-                                if (len > 0.03f) {
-                                    val speed = min(len * 2.4f, 1.3f)
-                                    ball = Ball(
-                                        LAUNCH.x, LAUNCH.y,
-                                        dx / len * speed, dy / len * speed,
-                                    )
-                                    ballMoving = true
-                                }
-                            },
-                        )
-                    },
+                    .height(420.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -223,31 +197,19 @@ fun SimPinballScreen(onBack: () -> Unit) {
                         )
                         fillSphere(Offset(px, py), PEG_R * w, primary)
                     }
-                    // 发射点
-                    drawCircle(
-                        color = outline,
-                        radius = 4f,
-                        center = Offset(LAUNCH.x * w, LAUNCH.y * h),
-                    )
-                    if (aiming) {
-                        drawLine(
-                            color = primary,
-                            start = Offset(LAUNCH.x * w, LAUNCH.y * h),
-                            end = Offset(aimPoint.x * w, aimPoint.y * h),
-                            strokeWidth = 3f,
-                        )
-                    }
                     // 弹珠：3D 球体 + 接地软阴影 + 材质辉光边（二巡精修）
-                    val bx = ball.x * w
-                    val by = ball.y * h
-                    drawSoftShadow(
-                        center = Offset(bx, by + BALL_R * w * 0.95f),
-                        radiusX = BALL_R * w * 0.95f,
-                        radiusY = BALL_R * w * 0.4f,
-                        maxAlpha = 0.18f,
-                    )
-                    fillSphere(Offset(bx, by), BALL_R * w, Color(0xFFFF5252), rimLight = false)
-                    drawRimLight(center = Offset(bx, by), radius = BALL_R * w, tint = Color(0xFFFF8A80), alpha = 0.40f)
+                    for (ball in balls) {
+                        val bx = ball.x * w
+                        val by = ball.y * h
+                        drawSoftShadow(
+                            center = Offset(bx, by + BALL_R * w * 0.95f),
+                            radiusX = BALL_R * w * 0.95f,
+                            radiusY = BALL_R * w * 0.4f,
+                            maxAlpha = 0.18f,
+                        )
+                        fillSphere(Offset(bx, by), BALL_R * w, Color(0xFFFF5252), rimLight = false)
+                        drawRimLight(center = Offset(bx, by), radius = BALL_R * w, tint = Color(0xFFFF8A80), alpha = 0.40f)
+                    }
                 }
             }
 
@@ -257,7 +219,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Button(
-                    onClick = { score = 0; reset() },
+                    onClick = { reset() },
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.tools_sim_pinball_reset)) }
             }

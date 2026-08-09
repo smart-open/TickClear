@@ -83,6 +83,26 @@ object FoleySynth {
         }
     }
 
+    /**
+     * 弹珠碰撞：优先播放真实录音 marble_click（MediaPlayer，主线程调用），
+     * 缺失/失败时回退合成音。录音取自 Freesound #401741「marble spilling onto wooden table」(PMBROWNE)，
+     * CC0 公有领域；经 ffmpeg 从 16s 原始录音裁出首击 ~0.4s 清脆段，转 16-bit/44.1k/单声道。
+     */
+    fun playPop(context: Context) {
+        val player = runCatching { MediaPlayer.create(context, R.raw.marble_click) }.getOrNull()
+        if (player != null) {
+            releaseMp()
+            mp = player.apply {
+                setOnCompletionListener { releaseMp() }
+                setOnErrorListener { _, _, _ -> releaseMp(); true }
+                start()
+            }
+        } else {
+            AppLogger.w(TAG, "marble_click 录音不可用，回退合成")
+            play("pop")
+        }
+    }
+
     fun play(key: String) {
         val samples = when (key) {
             "wood" -> synthWood()

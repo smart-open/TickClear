@@ -1671,8 +1671,8 @@
 
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>
-    <string name="tools_sim_pinball_desc">拖拽瞄准，发射弹珠碰撞</string>
-    <string name="tools_sim_pinball_hint">在底部拖拽瞄准，松手发射弹珠</string>
+    <string name="tools_sim_pinball_desc">12 颗弹珠弹跳，撞钉得分</string>
+    <string name="tools_sim_pinball_hint">12 颗弹珠自由落体撞击钉板得分；点「重置」重新撒珠</string>
     <string name="tools_sim_pinball_reset">重置</string>
 
     <!-- 拟声玻璃杯敲击 -->
