@@ -17,9 +17,7 @@ import kotlin.random.Random
  *  - 优先播放 `res/raw/animal_<key>` 里的真实录音（MediaPlayer，零额外依赖）；
  *  - 若该动物没有对应录音文件，则回退到内置合成音（AudioTrack 实时合成）。
  *
- * 真实录音来源：dog/cat/cow/sheep/chicken/lion/bird/frog 取自公开动物声音数据集；
- * duck/pig/tiger/horse 暂未找到可可靠下载的免费录音，继续走合成兜底，
- * 后续可把 CC0 录音按 `animal_<key>.wav` 放进 res/raw 即自动启用。
+ * 真实录音来源：12 个动物全部接入 CC0 录音，源出处见各 WAV 资源；其余继续走合成兜底。
  */
 object AnimalSynth {
     private const val TAG = "AnimalSynth"
@@ -37,6 +35,11 @@ object AnimalSynth {
         "lion" to R.raw.animal_lion,
         "bird" to R.raw.animal_bird,
         "frog" to R.raw.animal_frog,
+        // Freesound CC0（V2.11++ 补齐）：duck(reitanna#242664)/pig(qubodup#442906)/tiger(peenois#496131)/horse(foxen10#149024)
+        "duck" to R.raw.animal_duck,
+        "pig" to R.raw.animal_pig,
+        "tiger" to R.raw.animal_tiger,
+        "horse" to R.raw.animal_horse,
     )
 
     /** 该动物是否有内置真实录音。 */
