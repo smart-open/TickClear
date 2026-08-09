@@ -3,7 +3,6 @@ package com.tickclear.app.ui.tools
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +27,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -63,8 +61,13 @@ import com.tickclear.app.ui.theme.Spacing
  *
  * V2.9++ Bug 排查补丁：
  *  - 进入页面立刻做一次 25ms 强触感诊断（testPulse），让用户明确感知到硬件通断；
- *  - 行内展示硬件信息（是否有振动器 / API 级别），便于「没震动」类问题定位；
- *  - 「试一下」次级按钮：随时单次 25ms 触感，免开/停循环就能验证电机。
+ *  - 行内展示硬件信息（API 级别 / 是否有振动器），便于「没震动」类问题定位；
+ *  - 顶部提示说明已补充权限开启简要说明。
+ *
+ * 本轮优化：
+ *  - 去掉「试一下」次级按钮（诊断仅在进入页面做一次）；
+ *  - 模式扩到 10 个，且支持多选组合（FlowRow 自动换行排布）；
+ *  - 放大震动：抬高振幅下限 + 提高占空比 + 无振幅控制设备用拉长 ON 段补偿。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -76,8 +79,14 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
         "wave" to R.string.vibe_mode_wave,
         "rhythm" to R.string.vibe_mode_rhythm,
         "pulse" to R.string.vibe_mode_pulse,
+        "knead" to R.string.vibe_mode_knead,
+        "tap" to R.string.vibe_mode_tap,
+        "roll" to R.string.vibe_mode_roll,
+        "shock" to R.string.vibe_mode_shock,
+        "heart" to R.string.vibe_mode_heart,
     )
-    var selected by remember { mutableStateOf("gentle") }
+    // 多选组合：所选模式的波形首尾相接拼成一个长循环
+    var selectedModes by remember { mutableStateOf(setOf("gentle")) }
     var running by remember { mutableStateOf(false) }
     // 一次性诊断：进入页面立刻给一下 + 取得状态字符串。
     var diagnose by remember { mutableStateOf<String?>(null) }
@@ -87,14 +96,22 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
             MassageVibrator.stop(context)
             running = false
         } else {
-            MassageVibrator.start(context, selected)
+            if (selectedModes.isEmpty()) return
+            MassageVibrator.start(context, selectedModes)
             running = true
         }
     }
 
-    // 切换模式时若正在运行，立即以新模式重启
-    LaunchedEffect(selected) {
-        if (running) MassageVibrator.start(context, selected)
+    // 切换模式时若正在运行，立即以新模式组合重启
+    LaunchedEffect(selectedModes) {
+        if (running) {
+            if (selectedModes.isEmpty()) {
+                MassageVibrator.stop(context)
+                running = false
+            } else {
+                MassageVibrator.start(context, selectedModes)
+            }
+        }
     }
     // 进入页面一次性诊断：硬件空闲时弹一下，便于用户感知电机是否可用。
     LaunchedEffect(Unit) {
@@ -149,16 +166,22 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.fillMaxWidth(),
             )
+            // 模式标签并排成行，排满自动换行；支持多选组合。
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                maxItemsInEachRow = 3,
             ) {
                 modes.forEach { (key, labelRes) ->
                     FilterChip(
-                        selected = selected == key,
-                        onClick = { selected = key },
+                        selected = key in selectedModes,
+                        onClick = {
+                            selectedModes = if (key in selectedModes) {
+                                selectedModes - key
+                            } else {
+                                selectedModes + key
+                            }
+                        },
                         label = { Text(stringResource(labelRes)) },
                     )
                 }
@@ -223,27 +246,17 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(Spacing.sm))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            Button(
+                onClick = ::toggle,
+                enabled = selectedModes.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().height(64.dp),
             ) {
-                OutlinedButton(
-                    onClick = { MassageVibrator.testPulse(context) },
-                    modifier = Modifier.weight(1f).height(56.dp),
-                ) {
-                    Text(stringResource(R.string.vibe_test))
-                }
-                Button(
-                    onClick = ::toggle,
-                    modifier = Modifier.weight(2f).height(64.dp),
-                ) {
-                    Icon(
-                        imageVector = if (running) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = Spacing.xs),
-                    )
-                    Text(if (running) stringResource(R.string.vibe_stop) else stringResource(R.string.vibe_start))
-                }
+                Icon(
+                    imageVector = if (running) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = Spacing.xs),
+                )
+                Text(if (running) stringResource(R.string.vibe_stop) else stringResource(R.string.vibe_start))
             }
         }
     }
