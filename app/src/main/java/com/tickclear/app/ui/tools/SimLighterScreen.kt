@@ -64,9 +64,15 @@ import kotlinx.coroutines.launch
  * V2.9++ 三巡美化：
  *  - 机身改"科技金"调色（antique gold + 高光金 + 深铜暗部），金属感更有质感；
  *  - 加 9 道竖向拉丝纹，模拟 brushed metal，告别平涂；
- *  - 盖子去掉"抬起 lift"的位移（曾经让盖子看起来物理脱离机身），只用绕铰链旋转；
- *    一边翘起、始终连着机身，绝不脱钩。
+ *  - 盖子去掉"抬起 lift"的位移（曾经让盖子看起来物理脱离机身），只用绕左端铰链旋转，
+ *    始终连着机身，绝不脱钩。
  *  - 出气口/铰链缝/底座包边等接缝线更细致，金属感更对得起"科技金"三个字。
+ *
+ * V2.11++ 调优：
+ *  - 开盖角度 -46° → -120°，盖子翻起后完全让开火焰（原 46° 时自由端压在火苗上方挡火）。
+ *  - 铰链处加固定销（hinge pin），开盖翻起后仍清晰可见盖子"钉"在机身上、不悬空。
+ *  - 盖子底边压入机身 2.5% 并加闭合缝阴影，关盖严丝合缝、不露缝。
+ *  - 关盖补触觉 + 金属"咔嗒"音，开/合手感对称。
  *
  * 性能：帧循环仅在点燃时运行，熄灭后自动挂起（原实现常驻空转 + withFrameMillis 与 delay 双重节流）。
  */
@@ -91,7 +97,7 @@ fun SimLighterScreen(onBack: () -> Unit) {
             animate(
                 initialValue = lidProgress,
                 targetValue = target,
-                animationSpec = spring(dampingRatio = 0.58f, stiffness = 520f),
+                animationSpec = spring(dampingRatio = 0.58f, stiffness = 600f),
             ) { v, _ -> lidProgress = v }
         }
     }
@@ -106,6 +112,8 @@ fun SimLighterScreen(onBack: () -> Unit) {
     fun closeLid() {
         animateLid(0f)
         lit = false
+        FoleySynth.play("lid_close")
+        Haptic.vibrate(context, 30)
     }
 
     // 火焰摇曳：只在点燃时驱动，熄灭即挂起（省电）
@@ -326,17 +334,22 @@ fun SimLighterScreen(onBack: () -> Unit) {
                         )
                     }
 
-                    // 盖子：绕铰链翻起 —— 关键修复：去掉 `lift` 位移，只旋转。
-                    // 之前的 `lift = lidProgress * bodyH * 0.30f` 让盖子平移后再旋转，
-                    // 视觉上盖子"浮起来脱离机身"。现在盖子用铰链接到 (bodyX, bodyTop)，
-                    // 旋转 -46° 后右端被抬起，左端仍贴在铰链，绝不脱钩。
+                    // 铰链销（固定不动）：让盖子明确"钉"在机身上，开盖翻起后仍可见连接点、不悬空。
+                    val hingeR = bodyW * 0.05f
+                    fillSphere(center = Offset(bodyX, bodyTop), radius = hingeR, base = goldDeep, rimLight = false)
+                    drawRimLight(Offset(bodyX, bodyTop), hingeR, goldGloss, alpha = 0.55f)
+
+                    // 盖子：绕左端铰链 (bodyX, bodyTop) 翻起。
+                    //  - 开盖 -120°，自由端翻到机身左上方，完全让开火焰（原 46° 时压在火苗上挡火）。
+                    //  - 底边压入机身 lidOverlap，关盖严丝合缝；hinge 销保证开盖也不脱钩。
                     val lidH = bodyH * 0.18f
-                    rotate(-lidProgress * 46f, pivot = Offset(bodyX, bodyTop)) {
+                    val lidOverlap = bodyH * 0.025f
+                    rotate(-lidProgress * 120f, pivot = Offset(bodyX, bodyTop)) {
                         fillCylinder(
                             topLeft = Offset(bodyX, bodyTop - lidH),
-                            size = Size(bodyW, lidH),
+                            size = Size(bodyW, lidH + lidOverlap),
                             base = goldRim,
-                            cornerRadius = bodyW * 0.12f,
+                            cornerRadius = bodyW * 0.10f,
                         )
                         // 盖子上的光泽
                         drawGloss(
@@ -350,6 +363,13 @@ fun SimLighterScreen(onBack: () -> Unit) {
                             color = goldGloss.copy(alpha = 0.65f),
                             start = Offset(bodyX + bodyW * 0.04f, bodyTop - lidH * 0.10f),
                             end = Offset(bodyX + bodyW * 0.96f, bodyTop - lidH * 0.10f),
+                            strokeWidth = bodyW * 0.012f,
+                        )
+                        // 闭合缝阴影：盖合时明显、开盖渐隐，强化"合拢严实"的质感
+                        drawLine(
+                            color = goldDeep.copy(alpha = 0.5f * (1f - lidProgress)),
+                            start = Offset(bodyX + bodyW * 0.03f, bodyTop + lidOverlap * 0.5f),
+                            end = Offset(bodyX + bodyW * 0.97f, bodyTop + lidOverlap * 0.5f),
                             strokeWidth = bodyW * 0.012f,
                         )
                     }
