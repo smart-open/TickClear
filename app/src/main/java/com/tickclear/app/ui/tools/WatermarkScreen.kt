@@ -260,7 +260,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
             ToolSidePanel(
                 expanded = panelExpanded,
                 onToggle = { panelExpanded = !panelExpanded },
-                modifier = Modifier.width(if (panelExpanded) 196.dp else 52.dp),
+                modifier = Modifier.width(if (panelExpanded) 148.dp else 52.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -282,14 +282,11 @@ fun WatermarkScreen(onBack: () -> Unit) {
 
                 Spacer(Modifier.height(Spacing.xs))
                 Text(stringResource(R.string.tools_pan_hint), style = MaterialTheme.typography.labelMedium)
+                // 方向键拆两行：上下（↑↓）一行、左右（←→）一行，整体更窄、省横向空间
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(-panStep, 0f), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
                     IconButton(
                         onClick = { offset = clampPan(offset + Offset(0f, -panStep), scale) },
                         enabled = scale > 1f,
@@ -298,6 +295,15 @@ fun WatermarkScreen(onBack: () -> Unit) {
                         onClick = { offset = clampPan(offset + Offset(0f, panStep), scale) },
                         enabled = scale > 1f,
                     ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    IconButton(
+                        onClick = { offset = clampPan(offset + Offset(-panStep, 0f), scale) },
+                        enabled = scale > 1f,
+                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
                     IconButton(
                         onClick = { offset = clampPan(offset + Offset(panStep, 0f), scale) },
                         enabled = scale > 1f,
