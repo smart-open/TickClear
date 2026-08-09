@@ -1,5 +1,7 @@
 package com.tickclear.app.ui.tools
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,7 @@ import com.tickclear.app.R
 import com.tickclear.app.domain.tools.FoleySynth
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
+import kotlin.math.sin
 import kotlin.math.sqrt
 import androidx.compose.runtime.withFrameMillis
 import kotlin.random.Random
@@ -49,20 +55,43 @@ import kotlin.random.Random
 private const val BALL_COUNT = 12
 private const val BALL_R = 0.018f
 private const val PEG_R = 0.022f
+private const val TRAIL_LEN = 8
+private const val COMBO_WINDOW = 800L   // 连击窗口（ms）：窗口内连续碰撞累计连击
+private const val POPUP_LIFE = 900L     // 飘分存活时长（ms）
+private val GLOW = Color(0xFFFFAB40)    // 拖尾辉光暖琥珀色
 
-private data class Ball(var x: Float, var y: Float, var vx: Float, var vy: Float)
-
-/** 在顶部随机位置生成一颗弹珠，带微小初速，形成"随机分布"的弹珠雨。 */
-private fun spawnBall(): Ball = Ball(
-    x = 0.05f + Random.nextFloat() * 0.90f,
-    y = 0.02f + Random.nextFloat() * 0.55f,
-    vx = (Random.nextFloat() - 0.5f) * 0.12f,
-    vy = Random.nextFloat() * 0.06f,
+private data class Ball(
+    val x: Float,
+    val y: Float,
+    val vx: Float,
+    val vy: Float,
+    val trail: List<Offset> = emptyList(),
 )
 
+/** 命中飘分：在命中点升起并淡出。 */
+private data class Popup(val x: Float, val y: Float, val text: String, val born: Long, val hue: Color)
+
+/** 在顶部随机位置生成一颗弹珠，带微小初速，形成"随机分布"的弹珠雨。 */
+private fun spawnBall(): Ball {
+    val x = 0.05f + Random.nextFloat() * 0.90f
+    val y = 0.02f + Random.nextFloat() * 0.55f
+    val vx = (Random.nextFloat() - 0.5f) * 0.12f
+    val vy = Random.nextFloat() * 0.06f
+    return Ball(x, y, vx, vy, listOf(Offset(x, y)))
+}
+
+/** 连击数越高颜色越"烫"：绿→黄→橙→红。 */
+private fun comboColor(c: Int): Color = when {
+    c >= 8 -> Color(0xFFFF1744)
+    c >= 5 -> Color(0xFFFF9100)
+    c >= 3 -> Color(0xFFFFEA00)
+    else -> Color(0xFFB2FF59)
+}
+
 /**
- * 虚拟弹珠台（V2.9++ 模拟解压，V2.11++ 12 球弹珠雨重做）。
+ * 虚拟弹珠台（V2.9++ 模拟解压，V2.11++ 12 球弹珠雨重做，V2.11++ 视觉手感打磨）。
  * 12 颗弹珠随机分布、受重力下落，与钉板碰撞反弹并计分；落底自动从顶部重新撒下，保持 12 颗持续弹跳。
+ * 视觉手感：弹珠拖尾辉光、钉子命中闪光、连击计数（分数倍率）、命中飘分。
  * 碰撞声优先真实录音 marble_click（CC0），缺失回退合成「叮」。
  * 纯 Canvas + AudioTrack/MediaPlayer，零新依赖。
  */
@@ -71,7 +100,6 @@ private fun spawnBall(): Ball = Ball(
 fun SimPinballScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val primary = MaterialTheme.colorScheme.primary
-    val outline = MaterialTheme.colorScheme.outline
     val pegs = remember {
         listOf(
             Offset(0.5f, 0.20f),
@@ -82,6 +110,10 @@ fun SimPinballScreen(onBack: () -> Unit) {
     }
     var balls by remember { mutableStateOf(List(BALL_COUNT) { spawnBall() }) }
     var score by remember { mutableIntStateOf(0) }
+    var combo by remember { mutableIntStateOf(0) }
+    var comboExpire by remember { mutableStateOf(0L) }
+    var popups by remember { mutableStateOf<List<Popup>>(emptyList()) }
+    var pegFlash by remember { mutableStateOf(LongArray(pegs.size)) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
     DisposableEffect(Unit) {
@@ -91,56 +123,97 @@ fun SimPinballScreen(onBack: () -> Unit) {
     fun reset() {
         balls = List(BALL_COUNT) { spawnBall() }
         score = 0
+        combo = 0
+        comboExpire = 0L
+        popups = emptyList()
+        pegFlash = LongArray(pegs.size)
     }
 
     // 弹珠持续在动 → 帧循环持续运行（类比"粒子在飞"），离开页面即随组合销毁挂起。
     LaunchedEffect(Unit) {
         var last = 0L
         var lastHitMs = 0L
+        var lastComboMs = 0L
         while (true) {
             val now = withFrameMillis { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1000f).coerceAtMost(0.04f)
             last = now
             val tNow = System.currentTimeMillis()
+
+            // 连击窗口过期则清零
+            if (tNow > comboExpire && combo != 0) combo = 0
+
             var scored = 0
             var hit = false
-            val next = balls.map { b ->
-                var nb = b.copy(vy = b.vy + SIM_GRAVITY * dt)
-                nb = nb.copy(x = nb.x + nb.vx * dt, y = nb.y + nb.vy * dt)
-                if (nb.x < BALL_R) nb = nb.copy(x = BALL_R, vx = -nb.vx * 0.8f)
-                if (nb.x > 1 - BALL_R) nb = nb.copy(x = 1 - BALL_R, vx = -nb.vx * 0.8f)
-                if (nb.y < BALL_R) nb = nb.copy(y = BALL_R, vy = -nb.vy * 0.8f)
-                for (peg in pegs) {
-                    val dx = nb.x - peg.x
-                    val dy = nb.y - peg.y
+            var lastHitX = 0f
+            var lastHitY = 0f
+            val next = balls.mapIndexed { idx, b ->
+                var x = b.x
+                var y = b.y
+                var vx = b.vx
+                var vy = b.vy
+                vy += SIM_GRAVITY * dt
+                x += vx * dt
+                y += vy * dt
+                if (x < BALL_R) { x = BALL_R; vx = -vx * 0.8f }
+                if (x > 1 - BALL_R) { x = 1 - BALL_R; vx = -vx * 0.8f }
+                if (y < BALL_R) { y = BALL_R; vy = -vy * 0.8f }
+                for (pegIdx in pegs.indices) {
+                    val peg = pegs[pegIdx]
+                    val dx = x - peg.x
+                    val dy = y - peg.y
                     val d = sqrt(dx * dx + dy * dy)
                     val minD = BALL_R + PEG_R
                     if (d < minD && d > 1e-4f) {
                         val nx = dx / d
                         val ny = dy / d
-                        nb = nb.copy(x = peg.x + nx * minD, y = peg.y + ny * minD)
-                        val vDotN = nb.vx * nx + nb.vy * ny
+                        x = peg.x + nx * minD
+                        y = peg.y + ny * minD
+                        val vDotN = vx * nx + vy * ny
                         if (vDotN < 0) {
-                            nb = nb.copy(
-                                vx = (nb.vx - 2 * vDotN * nx) * 0.9f,
-                                vy = (nb.vy - 2 * vDotN * ny) * 0.9f,
-                            )
+                            vx = (vx - 2 * vDotN * nx) * 0.9f
+                            vy = (vy - 2 * vDotN * ny) * 0.9f
                             scored++
                             hit = true
+                            lastHitX = peg.x
+                            lastHitY = peg.y
+                            val nf = pegFlash.copyOf()
+                            nf[pegIdx] = tNow
+                            pegFlash = nf
                         }
                     }
                 }
-                nb = nb.copy(vx = nb.vx * 0.999f, vy = nb.vy * 0.999f)
-                if (nb.y > 1.05f) spawnBall() else nb
+                vx *= 0.999f
+                vy *= 0.999f
+                val newTrail = (b.trail + Offset(x, y)).takeLast(TRAIL_LEN)
+                if (y > 1.05f) {
+                    val nb = spawnBall()
+                    Ball(nb.x, nb.y, nb.vx, nb.vy, listOf(Offset(nb.x, nb.y)))
+                } else {
+                    Ball(x, y, vx, vy, newTrail)
+                }
             }
-            if (scored > 0) score += scored
+            balls = next
+
+            if (scored > 0) {
+                // 窗口内连续命中则累计连击，否则重置为 1
+                combo = if (tNow - lastComboMs < COMBO_WINDOW) combo + 1 else 1
+                lastComboMs = tNow
+                comboExpire = tNow + COMBO_WINDOW
+                val mult = combo.coerceAtMost(10)
+                val gained = scored * mult
+                score += gained
+                if (hit) {
+                    popups = popups + Popup(lastHitX, lastHitY, "+$gained", tNow, comboColor(combo))
+                }
+            }
             // 12 球齐撞时音/震节流，避免过载成噪声。
             if (hit && tNow - lastHitMs >= 70L) {
                 FoleySynth.playPop(context)
-                Haptic.vibrate(context, 12)
+                Haptic.vibrate(context, if (combo >= 5) 22 else 12)
                 lastHitMs = tNow
             }
-            balls = next
+            popups = popups.filter { tNow - it.born < POPUP_LIFE }
         }
     }
 
@@ -184,9 +257,28 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     canvasSize = size
                     val w = size.width
                     val h = size.height
+                    val tNow = System.currentTimeMillis()
 
-                    // 钉子：3D 受光金属球 + 接地软阴影（二巡精修）
-                    for (peg in pegs) {
+                    // 拖尾辉光：每颗弹珠身后拖出渐隐暖色光晕
+                    for (ball in balls) {
+                        val tr = ball.trail
+                        val n = tr.size
+                        for (i in tr.indices) {
+                            val f = if (n > 1) i.toFloat() / (n - 1) else 1f // 0 最旧 → 1 最新
+                            val a = 0.05f + 0.16f * f
+                            val r = BALL_R * w * (0.35f + 0.55f * f)
+                            drawCircle(
+                                color = GLOW,
+                                radius = r,
+                                center = Offset(tr[i].x * w, tr[i].y * h),
+                                alpha = a,
+                            )
+                        }
+                    }
+
+                    // 钉子：3D 受光金属球 + 接地软阴影 + 命中闪光圈
+                    for (pegIdx in pegs.indices) {
+                        val peg = pegs[pegIdx]
                         val px = peg.x * w
                         val py = peg.y * h
                         drawSoftShadow(
@@ -196,8 +288,20 @@ fun SimPinballScreen(onBack: () -> Unit) {
                             maxAlpha = 0.16f,
                         )
                         fillSphere(Offset(px, py), PEG_R * w, primary)
+                        val fl = tNow - pegFlash[pegIdx]
+                        if (fl in 0..160) {
+                            val fa = 1f - fl / 160f
+                            drawCircle(
+                                color = Color.White,
+                                radius = PEG_R * w * (1.25f + 0.5f * fa),
+                                center = Offset(px, py),
+                                alpha = 0.5f * fa,
+                                style = Stroke(width = 3f),
+                            )
+                        }
                     }
-                    // 弹珠：3D 球体 + 接地软阴影 + 材质辉光边（二巡精修）
+
+                    // 弹珠：3D 球体 + 接地软阴影 + 材质辉光边
                     for (ball in balls) {
                         val bx = ball.x * w
                         val by = ball.y * h
@@ -209,6 +313,41 @@ fun SimPinballScreen(onBack: () -> Unit) {
                         )
                         fillSphere(Offset(bx, by), BALL_R * w, Color(0xFFFF5252), rimLight = false)
                         drawRimLight(center = Offset(bx, by), radius = BALL_R * w, tint = Color(0xFFFF8A80), alpha = 0.40f)
+                    }
+
+                    // 连击数（顶部居中，脉冲放大 + 颜色随连击升级）
+                    if (combo >= 2 && tNow < comboExpire) {
+                        val pulse = 1f + 0.12f * sin(tNow / 90f)
+                        val size = (if (combo >= 5) 36f else 28f) * (w / 360f) * pulse
+                        val paint = Paint().apply {
+                            isAntiAlias = true
+                            textAlign = Paint.Align.CENTER
+                            textSize = size
+                            color = comboColor(combo).toArgb()
+                            typeface = Typeface.DEFAULT_BOLD
+                            setShadowLayer(8f, 0f, 0f, Color.Black.toArgb())
+                        }
+                        drawContext.canvas.nativeCanvas.drawText("连击 x$combo", w / 2f, h * 0.10f, paint)
+                    }
+
+                    // 飘分：命中处升起并淡出
+                    for (p in popups) {
+                        val age = (tNow - p.born) / 1000f
+                        val life = POPUP_LIFE / 1000f
+                        if (age < life) {
+                            val a = 1f - age / life
+                            val rise = age * 0.12f * h
+                            val paint = Paint().apply {
+                                isAntiAlias = true
+                                textAlign = Paint.Align.CENTER
+                                textSize = 22f * (w / 360f)
+                                color = p.hue.toArgb()
+                                alpha = (a * 255).toInt()
+                                typeface = Typeface.DEFAULT_BOLD
+                                setShadowLayer(6f, 0f, 0f, Color.Black.toArgb())
+                            }
+                            drawContext.canvas.nativeCanvas.drawText(p.text, p.x * w, p.y * h - rise, paint)
+                        }
                     }
                 }
             }
