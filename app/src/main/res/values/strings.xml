@@ -1704,10 +1704,10 @@
     <string name="pet_dog">小狗</string>
     <string name="pet_pig">小猪</string>
     <string name="pet_cat">小猫</string>
-    <string name="pet_fish_hint">点「喂食」投喂饵料，小鱼会追食；「换水」让水体更清透</string>
-    <string name="pet_dog_hint">点「喂食」给骨头，「摸摸」或点屏幕冒爱心、摇尾巴</string>
-    <string name="pet_pig_hint">点「喂食」给苹果，「摸摸」或点屏幕冒爱心</string>
-    <string name="pet_cat_hint">点「喂食」放饭碗，「撸猫」呼噜冒爱心，「逗猫棒」逗它扑逗</string>
+    <string name="pet_fish_hint">喂食投饵料 · 换水让水更清透</string>
+    <string name="pet_dog_hint">喂食给骨头 · 摸摸摇尾巴</string>
+    <string name="pet_pig_hint">喂食给苹果 · 摸摸哼哼叫</string>
+    <string name="pet_cat_hint">喂食 · 撸猫 · 逗猫棒</string>
     <string name="pet_fullness">饱食度</string>
     <string name="pet_happiness">心情</string>
     <string name="pet_feed">喂食</string>
