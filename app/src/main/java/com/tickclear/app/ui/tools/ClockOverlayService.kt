@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,7 +55,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.shape.CircleShape
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -224,11 +224,11 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
 
     // 银色科技感配色：半透明玻璃底 + 银色浅边框 + 柔和蓝点缀 + 等宽数字
     val silverLight = Color(0xFFE9ECF1)
-    val silverDark = Color(0xFF9BA0A8)
-    // 玻璃底 alpha 由 0xCC/0xC4（≈80% 不透明）降至 0x40/0x33（≈25%/20%），
-    // 大幅增强透底，使其下层的背景文字清晰可见，同时保留淡淡深色底保证银色数字可读。
-    val glassTop = Color(0x4014171C)
-    val glassBottom = Color(0x330D0F13)
+    val silverDark = Color(0xFFB0B5BD)
+    // 玻璃底 alpha 由 0xCC/0xC4（≈80% 不透明）降至 0x40/0x33（≈25%/20%），并进一步调浅，
+    // 大幅增强透底，去除暗色在边角形成的生硬棱角；同时保留淡淡深色底保证银色数字可读。
+    val glassTop = Color(0x3614171C)
+    val glassBottom = Color(0x2C0D0F13)
     val digitColor = Color(0xFFEEF1F5)
     val accent = Color(0xFF7FD4FF)
     val pulse by rememberInfiniteTransition(label = "clockPulse").animateFloat(
@@ -248,7 +248,7 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
                 brush = Brush.verticalGradient(
                     colors = listOf(glassTop, glassBottom),
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(20.dp),
             )
             // 银色浅边框（light border）
             .border(
@@ -256,7 +256,7 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
                 brush = Brush.horizontalGradient(
                     colors = listOf(silverLight, silverDark, silverLight),
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(20.dp),
             )
             .pointerInput(Unit) {
                 detectDragGestures { _, dragAmount -> onDrag(dragAmount.x, dragAmount.y) }
@@ -267,14 +267,12 @@ private fun ClockOverlayContent(onClose: () -> Unit, onDrag: (Float, Float) -> U
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // 运行指示点（柔和科技蓝，脉冲呼吸）
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .background(
-                        color = accent.copy(alpha = pulse),
-                        shape = CircleShape,
-                    ),
+            // 运行指示表盘图标（柔和科技蓝，脉冲呼吸）
+            Icon(
+                imageVector = Icons.Filled.Schedule,
+                contentDescription = null,
+                tint = accent.copy(alpha = pulse),
+                modifier = Modifier.size(18.dp),
             )
             Text(
                 text = timeText,
