@@ -45,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -94,15 +93,14 @@ fun PianoScreen(onBack: () -> Unit) {
         onDispose { PianoSynth.stop() }
     }
 
-    // 方向 = 状态 → 朝向 的纯单向映射：仅在 LANDSCAPE / PORTRAIT 间切换，绝不经过 UNSPECIFIED。
-    // 关键修复：把当前朝向也作为 effect 的 key，旋转引发的配置变更会把 requestedOrientation
-    // 重置回 UNSPECIFIED，此时 landscape 没变、旧 effect 不会重触发 → 锁定丢失弹回竖屏；
-    // 现改为每次真实旋转后重新断言锁定，盖掉系统重置（RulerScreen 已验证）。
-    val configuration = LocalConfiguration.current
-    LaunchedEffect(landscape, configuration.orientation) {
+    // 方向锁定策略（与 RulerScreen 同款修复：点横屏不被切回竖屏）。
+    // 1) 用 SENSOR_LANDSCAPE / SENSOR_PORTRAIT：在目标朝向范围内跟随传感器，避免纯固定方向
+    //    与 Android 12+「用户可覆盖应用固定方向」冲突导致的 UNSPECIFIED 重置→弹回竖屏抖动。
+    // 2) key 只用 landscape，不把 configuration.orientation 当 key，避免旋转后重入 effect 的竞态。
+    LaunchedEffect(landscape) {
         context.findActivity()?.requestedOrientation =
-            if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (landscape) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
     }
     DisposableEffect(Unit) {
         onDispose {

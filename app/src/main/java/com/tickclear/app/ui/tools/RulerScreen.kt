@@ -68,7 +68,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -109,18 +108,19 @@ fun RulerScreen(onBack: () -> Unit) {
     // 横竖屏偏好用 saveable 持久化：若因配置变更重建，能保留用户选择。
     var landscape by rememberSaveable { mutableStateOf(false) }
 
-    // 方向 = 状态 → 朝向 的纯单向映射：切换时只在 LANDSCAPE / PORTRAIT 之间切换，
-    // 绝不经过 UNSPECIFIED。MainActivity 声明了 configChanges=orientation|screenSize，
-    // 旋转由系统在位处理、不重建 Activity。
-    // 关键修复：把 LocalConfiguration 的当前朝向也作为 effect 的 key。旋转引发的配置变更
-    // 会让系统把 requestedOrientation 重置回 UNSPECIFIED（"切过去又切回来"的真正根因），
-    // 此时 landscape 值没变、旧 LaunchedEffect 不会重新触发 → 锁定丢失、弹回竖屏。
-    // 现改为每次真实旋转后都重新断言锁定，盖掉系统重置。
-    val configuration = LocalConfiguration.current
-    LaunchedEffect(landscape, configuration.orientation) {
+    // 方向锁定策略（修复「点横屏瞬间被切回竖屏」）：
+    // 1) 用 SENSOR_LANDSCAPE / SENSOR_PORTRAIT 这类「在目标朝向范围内跟随传感器」的变体，
+    //    而非纯固定 LANDSCAPE/PORTRAIT。纯固定方向会与 Android 12+ 的「用户可覆盖应用固定方向」
+    //    机制冲突——系统把 requestedOrientation 重置回 UNSPECIFIED 后，若设备物理仍是竖握持，
+    //    屏幕立即按传感器弹回竖屏，表现为「切过去又切回来」（甚至横竖横竖持续抖动）。SENSOR_*
+    //    由传感器驱动、不会触发该覆盖重置，能稳定停在用户所选朝向。
+    // 2) key 只用 landscape（用户意图），不把 configuration.orientation 当 key——
+    //    把它当 key 会在每次真实旋转后重入 effect，与系统重置/传感器形成竞态，反而加剧抖动。
+    // MainActivity 声明 configChanges=orientation|screenSize，旋转由系统在位处理、不重建 Activity。
+    LaunchedEffect(landscape) {
         context.findActivity()?.requestedOrientation =
-            if (landscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (landscape) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
     }
     // 离开本页时恢复系统默认朝向（含重建场景：旧实例销毁会走这里复位）
     DisposableEffect(Unit) {
