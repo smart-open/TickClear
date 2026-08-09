@@ -653,6 +653,7 @@
     <string name="habits_reminder_set">设置提醒时间</string>
     <string name="habits_name_hint">习惯名称（如 每天喝水）</string>
     <string name="habits_emoji_hint">图标 emoji（可选）</string>
+    <string name="habits_emoji_clear">清除 emoji</string>
     <string name="habits_repeat">重复</string>
     <string name="habits_streak">连续 %1$d 天</string>
     <string name="habits_checkin">打卡</string>

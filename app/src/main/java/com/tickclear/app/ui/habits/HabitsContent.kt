@@ -359,7 +359,7 @@ private fun HabitEditDialog(
                     )
                     if (emoji.isNotEmpty()) {
                         Spacer(Modifier.width(8.dp))
-                        TextButton(onClick = { emoji = "" }) { Text("×") }
+                        TextButton(onClick = { emoji = "" }) { Text(stringResource(R.string.habits_emoji_clear)) }
                     }
                 }
                 FlowRow(
