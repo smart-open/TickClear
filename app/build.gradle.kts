@@ -33,8 +33,10 @@ android {
         // v2.11.0 封板：多工具 UI 打磨（抽签器真 3D/一元硬币、家庭积分徽章扩至 12 级、
         // 噪音检测/做饭计时/马赛克去水印优化）+ 到站提醒本市优先检索、补光反光板 5 色温、
         // 图片压缩黑白保存移右上角、打卡补录 Tab 图标前置。综合成熟度 99.5。
-        versionCode = 19
-        versionName = "2.11.0"
+        // v2.12.0 封板：模拟解压/拟物重画/真实素材三线齐推 + 新增电子琴 + lint 零警告 +
+        // 振动按摩 5 新模式 + 三招放大 + 图片编辑滑块统一竖向。20 个新 commit。综合成熟度 99.6。
+        versionCode = 20
+        versionName = "2.12.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 本 App 仅提供中文界面（res/ 下无任何 values-xx 语言目录），但 Compose Material3 /
         // androidx 各库自带数十种语言的 strings 会被全部打进包。显式收敛可见语言以瘦身；
