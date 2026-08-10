@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,13 +47,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.withFrameMillis
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.GlassSynth
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
-import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.layout.onSizeChanged
 
 /**
  * 拟声玻璃杯敲击（V2.9++ 模拟解压）。
@@ -63,9 +68,11 @@ import kotlin.math.roundToInt
 @Composable
 fun GlassCupScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
-    var canvasSize by remember { mutableStateOf(Size.Zero) }
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
     var note by remember { mutableIntStateOf(0) } // 0=未敲；1..7=当前音符（=杯子序号）
+    var simulating by remember { mutableStateOf(false) } // 模拟演奏中（防止重入）
     val solfege = stringResource(R.string.sim_glass_solfege).split('|')
 
     DisposableEffect(Unit) {
@@ -85,14 +92,31 @@ fun GlassCupScreen(onBack: () -> Unit) {
         }
     }
 
-    fun knock(cup: Int, nx: Float, ny: Float) {
+    // 敲击第 cup 个杯子（1..7）：杯中心位置生成涟漪，播放对应音符 + 触觉反馈。
+    // 这里按杯中心计算归一化坐标，避免依赖手势坐标，模拟演奏与手指点击表现一致。
+    fun knock(cup: Int) {
         note = cup
+        val nx = ((cup - 0.5f) / 7f).coerceIn(0.08f, 0.92f)
         particles = particles + SimParticle(
-            x = nx, y = ny, vx = 0f, vy = 0f,
+            x = nx, y = 0.5f, vx = 0f, vy = 0f,
             life = 0.6f, maxLife = 0.6f, hue = 195f, radius = 8f, ring = true,
         )
         GlassSynth.play(context, cup)
         Haptic.vibrate(context, 25)
+    }
+
+    // 模拟按钮：自动按一段旋律序列依次敲击各杯，并播放背景旋律（详见 GlassSynth.playSong）。
+    fun simulate() {
+        if (simulating) return
+        simulating = true
+        GlassSynth.playSong(context)
+        scope.launch {
+            for (cup in SIM_MELODY) {
+                knock(cup)
+                delay(300)
+            }
+            simulating = false
+        }
     }
 
     // 主题色须在组合作用域内取值（MaterialTheme.colorScheme 是 @Composable getter），
@@ -122,32 +146,32 @@ fun GlassCupScreen(onBack: () -> Unit) {
         ) {
             SimHintCard(stringResource(R.string.sim_glass_hint))
             Spacer(Modifier.height(Spacing.sm))
-            // 当前音符卡片：数字与唱名同行（如「4 发」），水平单行不换行、居中
+            // 当前音符卡片：未敲时直接显示「点一下试试」（去掉前导横杠）；敲中后显示数字与唱名同行
             SimStatCard(
-                value = if (note == 0) "—" else note.toString(),
-                label = if (note == 0) stringResource(R.string.sim_glass_tap) else solfege.getOrElse(note - 1) { "" },
+                value = if (note == 0) stringResource(R.string.sim_glass_tap) else note.toString(),
+                label = if (note == 0) null else solfege.getOrElse(note - 1) { "" },
                 horizontal = true,
             )
             Spacer(Modifier.height(Spacing.md))
 
-            // 7 个玻璃杯：画布内按 x 划分 7 个等宽槽位，点哪个槽位敲哪个杯子
+            // 7 个玻璃杯：Box 用 onSizeChanged 稳定捕获尺寸（不在 Canvas draw 内副作用赋值），
+            // 点哪个槽位敲哪个杯子。杯子索引用 toInt()（floor）对齐绘制中心，修正此前
+            // roundToInt 在边界四舍五入导致的「点击偏移/点错杯」问题。
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(320.dp)
+                    .onSizeChanged { boxSize = it }
                     .pointerInput(Unit) {
                         detectTapGestures { offset ->
-                            val w = canvasSize.width
-                            val cup = if (w > 0) ((offset.x / w) * 7f).roundToInt().coerceIn(0, 6) else 0
-                            val nx = if (w > 0) offset.x / w else 0.5f
-                            val ny = if (canvasSize.height > 0) offset.y / canvasSize.height else 0.5f
-                            knock(cup + 1, nx, ny)
+                            val w = boxSize.width.toFloat()
+                            val cup = if (w > 0) ((offset.x / w) * 7f).toInt().coerceIn(0, 6) else 3
+                            knock(cup + 1)
                         }
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    canvasSize = size
                     val w = size.width
                     val h = size.height
                     val n = 7
@@ -208,9 +232,28 @@ fun GlassCupScreen(onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(Spacing.md))
+
+            // 水杯下方的「模拟」按钮：点击自动按一段旋律依次敲击各杯（requirement 2/3）
+            Button(
+                onClick = { simulate() },
+                enabled = !simulating,
+                modifier = Modifier.fillMaxWidth(0.6f),
+            ) {
+                Text(
+                    stringResource(R.string.sim_glass_simulate) +
+                        if (simulating) "…" else "",
+                )
+            }
+            Spacer(Modifier.height(Spacing.md))
         }
     }
 }
+
+/**
+ * 模拟按钮自动演奏的旋律序列（杯号 1..7 = do..ti）。
+ * 一段舒缓的音阶起伏，点击「模拟」即按此顺序依次敲击各杯。
+ */
+private val SIM_MELODY = intArrayOf(1, 3, 5, 6, 5, 3, 1, 2, 4, 5, 4, 2, 1)
 
 /**
  * 在 DrawScope 内绘制一个玻璃杯：半透明杯身 + 木纹般的水 + 杯口/水面椭圆 + 高光条。
