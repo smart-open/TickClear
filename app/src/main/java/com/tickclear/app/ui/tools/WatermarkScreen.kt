@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,13 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -91,13 +86,8 @@ fun WatermarkScreen(onBack: () -> Unit) {
 
     var panelExpanded by remember { mutableStateOf(true) }
     var scale by remember { mutableFloatStateOf(1f) }
-    // 归一化平移量（单位：图片宽/高比例），由方向键控制，缩放/平移时与选区坐标同步
+    // 归一化平移量（单位：图片宽/高比例），由 ZoomPanControls 控制并在其内部钳制
     var offset by remember { mutableStateOf(Offset.Zero) }
-    val panStep = 0.12f
-    fun clampPan(o: Offset, s: Float): Offset {
-        val m = (s - 1f) / 2f
-        return Offset(o.x.coerceIn(-m, m), o.y.coerceIn(-m, m))
-    }
 
     // 修复并保存（移到右上角图标按钮复用）：选图与选区校验 + 修复/模糊后存相册
     fun applyRepair() {
@@ -166,7 +156,7 @@ fun WatermarkScreen(onBack: () -> Unit) {
                     // 处理中显示进度圈
                     FilledIconButton(
                         onClick = { applyRepair() },
-                        enabled = !busy,
+                        enabled = !busy && bitmap != null && rects.isNotEmpty(),
                         modifier = Modifier.size(40.dp),
                     ) {
                         if (busy) {
@@ -262,58 +252,14 @@ fun WatermarkScreen(onBack: () -> Unit) {
                 onToggle = { panelExpanded = !panelExpanded },
                 modifier = Modifier.width(if (panelExpanded) 148.dp else 52.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = { scale = (scale - 0.5f).coerceAtLeast(1f); offset = clampPan(offset, scale) }) {
-                        Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out))
-                    }
-                    Text("${scale.toInt()}×", style = MaterialTheme.typography.labelMedium)
-                    IconButton(onClick = { scale = (scale + 0.5f).coerceAtMost(4f); offset = clampPan(offset, scale) }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in))
-                    }
-                }
-                OutlinedButton(
-                    onClick = { scale = 1f; offset = Offset.Zero },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.tools_zoom_reset)) }
-
-                Spacer(Modifier.height(Spacing.xs))
-                Text(stringResource(R.string.tools_pan_hint), style = MaterialTheme.typography.labelMedium)
-                // 方向键改常规十字 D-pad：↑ 在上、←→ 在中间、↓ 在下（共 3 行）
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(0f, -panStep), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(-panStep, 0f), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(panStep, 0f), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    IconButton(
-                        onClick = { offset = clampPan(offset + Offset(0f, panStep), scale) },
-                        enabled = scale > 1f,
-                    ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
-                }
+                ZoomPanControls(
+                    scale = scale,
+                    onScaleChange = { scale = it },
+                    offset = offset,
+                    onOffsetChange = { offset = it },
+                    enabled = true,
+                    compact = true,
+                )
 
                 HorizontalDivider()
 
@@ -335,15 +281,31 @@ fun WatermarkScreen(onBack: () -> Unit) {
                 ) {
                     OutlinedButton(
                         onClick = { rects = rects.dropLast(1) },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.watermark_undo)) }
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.watermark_undo),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                     OutlinedButton(
                         onClick = { rects = emptyList() },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.watermark_clear)) }
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.watermark_clear),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
 
-                MiniHorizontalSlider(
+                ToolHorizontalSlider(
                     label = stringResource(R.string.watermark_strength),
                     value = strength.toFloat(),
                     onValueChange = { strength = it.toInt() },
