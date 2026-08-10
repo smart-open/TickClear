@@ -1601,7 +1601,6 @@
     <string name="tools_pan_left">左移视图</string>
     <string name="tools_pan_right">右移视图</string>
     <string name="tools_unit_times">下</string>
-    <string name="tools_unit_points">分</string>
 
     <!-- ============ V2.9++ 新增工具：烹饪多组定时器 ============ -->
     <string name="tools_cook_timer_title">烹饪定时</string>
@@ -1674,10 +1673,16 @@
 
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>
-    <string name="tools_sim_pinball_desc">台面 12 颗弹珠，发射弹珠撞中得分</string>
-    <string name="tools_sim_pinball_hint">台面随机摆放 12 颗弹珠；按住「发射弹珠」向任意方向甩出，甩得越远力度越大、弹珠越快；每撞中一颗 +1 分</string>
+    <string name="tools_sim_pinball_desc">台面 12 颗蓝珠，10 发瞄准撞击计分</string>
+    <string name="tools_sim_pinball_hint">台面随机摆放 12 颗蓝色弹珠。在台面按住并向任意方向拖动设定发射口朝向与力度，松手从底部发射台射出红色弹珠；每撞到一颗蓝珠 +1 分，共 10 发。结算本局总分、单发最佳 / 最差，并一直保留历史最高分</string>
     <string name="tools_sim_pinball_launch">发射弹珠</string>
     <string name="tools_sim_pinball_reset">重置</string>
+    <string name="tools_sim_pinball_score">本局总分</string>
+    <string name="tools_sim_pinball_shots">已发射</string>
+    <string name="tools_sim_pinball_single_best">单发最佳</string>
+    <string name="tools_sim_pinball_single_worst">单发最差</string>
+    <string name="tools_sim_pinball_best_total">历史最高分</string>
+    <string name="tools_sim_pinball_over">本局结束 · 点「重置」再来一局</string>
 
     <!-- 拟声玻璃杯敲击 -->
     <string name="sim_glass_title">玻璃杯敲击</string>
