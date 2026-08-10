@@ -56,6 +56,7 @@ import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import androidx.compose.ui.layout.onSizeChanged
 
 /**
@@ -73,6 +74,8 @@ fun GlassCupScreen(onBack: () -> Unit) {
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
     var note by remember { mutableIntStateOf(0) } // 0=未敲；1..7=当前音符（=杯子序号）
     var simulating by remember { mutableStateOf(false) } // 模拟演奏中（防止重入）
+    // 跟踪自动演奏协程，便于「停止」按钮中途取消；取消时 GlassSynth.stop() 释放仍响的杯声。
+    var songJob by remember { mutableStateOf<Job?>(null) }
     val solfege = stringResource(R.string.sim_glass_solfege).split('|')
 
     DisposableEffect(Unit) {
@@ -109,12 +112,16 @@ fun GlassCupScreen(onBack: () -> Unit) {
     fun playThisLife() {
         if (simulating) return
         simulating = true
-        scope.launch {
-            for (cup in SONG_THIS_LIFE) {
-                knock(cup)
-                delay(260)
+        songJob = scope.launch {
+            try {
+                for (cup in SONG_THIS_LIFE) {
+                    knock(cup)
+                    delay(260)
+                }
+            } finally {
+                simulating = false
+                songJob = null
             }
-            simulating = false
         }
     }
 
@@ -242,6 +249,20 @@ fun GlassCupScreen(onBack: () -> Unit) {
                     stringResource(R.string.sim_glass_song_name) +
                         if (simulating) "…" else "",
                 )
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            // 停止按钮：仅在自动演奏进行中可点击；点击取消协程并停掉仍响的杯声，避免取消后余音。
+            Button(
+                onClick = {
+                    songJob?.cancel()
+                    GlassSynth.stop()
+                    simulating = false
+                    songJob = null
+                },
+                enabled = simulating,
+                modifier = Modifier.fillMaxWidth(0.6f),
+            ) {
+                Text(stringResource(R.string.sim_glass_stop))
             }
             Spacer(Modifier.height(Spacing.md))
         }

@@ -91,20 +91,25 @@ object GlassSynth {
     }
 
     /**
-     * 合成一次玻璃杯敲击：基频 + 两个非谐分音(2.76/5.40)，各自指数衰减，
-     * 高次分音衰减更快，整体呈明亮短促的“叮”声（仅在真实素材缺失时兜底使用）。
+     * 合成一次玻璃杯敲击：基频 + 多个非谐分音(玻璃本征模态比 2.76/5.40/8.10/11.8)，
+     * 高次分音衰减更快，整体呈「明亮短促的叮 + 清晰余韵」的清脆玻璃声。
+     * 与 res/raw/glass_note_1..7.wav 同款明亮音色保持一致（仅在真实素材缺失时兜底使用）。
      */
     private fun glass(base: Float): ShortArray {
-        val dur = 0.7
+        val dur = 0.9
         val n = (dur * SR).toInt()
         val out = ShortArray(n)
-        // (频率比, 振幅, 时间常数tau：越小衰减越快)
+        // (频率比, 振幅, 时间常数tau 秒：越小衰减越快)
         val partials = listOf(
-            Triple(1.0, 1.0, 0.0009),
-            Triple(2.76, 0.5, 0.00045),
-            Triple(5.40, 0.28, 0.00028),
+            Triple(1.0, 1.00, 0.34),
+            Triple(2.76, 0.55, 0.18),
+            Triple(5.40, 0.45, 0.10),
+            Triple(8.10, 0.26, 0.06),
+            Triple(11.8, 0.14, 0.04),
         )
-        val norm = partials.sumOf { it.second }
+        val norm = partials.sumOf { it.second } * 0.82 // 留削波余量
+        val atkN = (0.003 * SR).toInt()
+        val fadeN = (0.02 * SR).toInt()
         for (i in 0 until n) {
             val t = i.toDouble() / SR
             var s = 0.0
@@ -112,8 +117,9 @@ object GlassSynth {
                 val env = exp(-t / tau)
                 s += amp * env * sin(2.0 * PI * base * ratio * t)
             }
-            val atk = (t / 0.004).coerceIn(0.0, 1.0) // 极快起音
+            val atk = if (i < atkN) (i.toDouble() / atkN).coerceIn(0.0, 1.0) else 1.0 // 极快起音、不爆音
             s *= atk / norm
+            if (i > n - fadeN) s *= (n - i).toDouble() / fadeN // 尾部淡出防爆音
             out[i] = (s.coerceIn(-1.0, 1.0) * 32767).toInt().toShort()
         }
         return out
