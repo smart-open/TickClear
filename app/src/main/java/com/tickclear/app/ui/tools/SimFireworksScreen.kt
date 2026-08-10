@@ -2,6 +2,7 @@ package com.tickclear.app.ui.tools
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,11 +73,14 @@ private fun randomPalette(): Palette {
     }
 }
 
-/** 烟花类型：牡丹=球形炸开；柳叶=低重力慢垂长拖尾；随机=每次随机其一。 */
+/** 烟花类型：牡丹=球形炸开；柳叶=低重力慢垂长拖尾；随机=每次随机其一；
+ *  加特林=扫射连喷（短间隔横向扫动、小朵连爆）；连发=快速齐射（一簇密集连开）。 */
 private enum class FireworkType(val labelRes: Int) {
     PEONY(R.string.tools_sim_fireworks_type_peony),
     WILLOW(R.string.tools_sim_fireworks_type_willow),
     RANDOM(R.string.tools_sim_fireworks_type_random),
+    GATLING(R.string.tools_sim_fireworks_type_gatling),
+    BURST(R.string.tools_sim_fireworks_type_burst),
 }
 
 /** 不同烟花类型的炸开形态参数。 */
@@ -92,6 +96,8 @@ private fun shapeFor(type: FireworkType): BurstShape = when (type) {
     FireworkType.PEONY -> BurstShape(80, 0.72f, 1.35f, 1f, 1f)
     FireworkType.WILLOW -> BurstShape(58, 0.55f, 2.4f, 0.30f, 2.8f)
     FireworkType.RANDOM -> BurstShape(80, 0.72f, 1.35f, 1f, 1f) // 仅占位，实际发射时已被替换为 PEONY/WILLOW
+    FireworkType.GATLING -> BurstShape(22, 0.66f, 0.92f, 1.15f, 1.3f) // 小朵、快落、连爆
+    FireworkType.BURST -> BurstShape(64, 0.70f, 1.25f, 1f, 1.1f) // 中等、密集齐开
 }
 
 /**
@@ -120,7 +126,8 @@ private class BurstFlash(
  * 模拟烟花（V2.9++ 模拟解压，V2.11++ 重画，V2.11++ 调色板+齐射+类型切换+发射咻声）。
  * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，起飞时播「咻」声；
  * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
- * - 每朵烟花随机"单色球/双色/全彩虹"调色板；可选"牡丹/柳叶/随机"类型（球形炸开 vs 低重力慢垂长拖尾）；
+ * - 每朵烟花随机"单色球/双色/全彩虹"调色板；可选"牡丹/柳叶/随机/加特林/连发"类型：
+ *   牡丹=球形炸开、柳叶=低重力慢垂长拖尾、随机=两者任取；加特林=短间隔横向扫射连爆、连发=一簇快速齐开；
  * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；
  * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
  * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
@@ -143,10 +150,49 @@ fun SimFireworksScreen(onBack: () -> Unit) {
     }
 
     /**
+     * 连射弹幕：以 [baseX]/[baseY] 为中心，短间隔连发 [shots] 颗火箭。
+     * [sweep] 控制横向扫动幅度（加特林=大，像机枪横扫天空）；[spreadX] 控制随机散布。
+     * 每颗都带自身调色板与类型，到达即炸，形成炫酷的连续爆花。
+     */
+    fun launchBarrage(baseX: Float, baseY: Float, shots: Int, gapMs: Long, spreadX: Float, sweep: Float) {
+        scope.launch {
+            repeat(shots) { i ->
+                val f = if (shots > 1) i.toFloat() / (shots - 1) else 0f
+                val sx = (baseX + spreadX * (Random.nextFloat() - 0.5f) + sweep * (f - 0.5f))
+                    .coerceIn(0.05f, 0.95f)
+                val sy = (baseY + 0.10f * (Random.nextFloat() - 0.5f)).coerceIn(0.10f, 0.85f)
+                val tt = 0.58f + Random.nextFloat() * 0.22f
+                rockets = rockets + FireworkRocket(
+                    targetX = sx,
+                    targetY = sy,
+                    palette = randomPalette(),
+                    type = typeMode,
+                    travelTime = tt,
+                )
+                val nowMs = System.currentTimeMillis()
+                if (nowMs - lastWhistleMs >= 110L) {
+                    FoleySynth.play("launch")
+                    lastWhistleMs = nowMs
+                }
+                delay(gapMs)
+            }
+        }
+    }
+
+    /**
      * 点击屏幕时调用：在画布内从底部弹一颗火箭飞向 (nx, ny)，起飞播「咻」。
      * 注意：爆炸音/触感延迟到 "抵达" 才触发，「先咻后响」才像真放烟花。
      */
     fun launchTo(nx: Float, ny: Float, travelTime: Float = 0.85f) {
+        // 加特林 / 连发：不单发，改为连射弹幕（见 launchBarrage）
+        if (typeMode == FireworkType.GATLING) {
+            launchBarrage(nx, ny, shots = 16, gapMs = 48L, spreadX = 0.03f, sweep = 0.55f)
+            return
+        }
+        if (typeMode == FireworkType.BURST) {
+            launchBarrage(nx, ny, shots = 9, gapMs = 64L, spreadX = 0.14f, sweep = 0.0f)
+            return
+        }
         val concrete = if (typeMode == FireworkType.RANDOM)
             if (Random.nextBoolean()) FireworkType.PEONY else FireworkType.WILLOW
         else typeMode
@@ -233,9 +279,11 @@ fun SimFireworksScreen(onBack: () -> Unit) {
             SimHintCard(stringResource(R.string.tools_sim_fireworks_hint))
             Spacer(Modifier.height(Spacing.md))
 
-            // 烟花类型切换：牡丹（球形）/柳叶（慢垂长拖尾）/随机。
+            // 烟花类型切换：牡丹（球形）/柳叶（慢垂长拖尾）/随机/加特林（扫射连喷）/连发（快速齐射）。
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -243,7 +291,13 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                     stringResource(R.string.tools_sim_fireworks_type_label),
                     style = MaterialTheme.typography.labelMedium,
                 )
-                listOf(FireworkType.PEONY, FireworkType.WILLOW, FireworkType.RANDOM).forEach { t ->
+                listOf(
+                    FireworkType.PEONY,
+                    FireworkType.WILLOW,
+                    FireworkType.RANDOM,
+                    FireworkType.GATLING,
+                    FireworkType.BURST,
+                ).forEach { t ->
                     FilterChip(
                         selected = typeMode == t,
                         onClick = { typeMode = t },
