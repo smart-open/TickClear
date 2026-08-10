@@ -61,6 +61,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.FilterBAndW
@@ -112,7 +114,14 @@ private data class ToolCategory(
     val entries: List<ToolEntry>,
 )
 
+/**
+ * 工具分类表（8 类，按「用户想做什么」而非「技术上是什么」划分）。
+ *
+ * 排序原则：前 6 类为刚需工具（健康 → 效率 → 生活 → 图像 → 测量 → 安全），后 2 类为休闲娱乐，
+ * 让高频刚需靠前、娱乐沉底。每类控制在 5-8 个，避免再出现「实用工具」式什么都往里塞的垃圾桶分类。
+ */
 private val TOOL_CATEGORIES = listOf(
+    // 健康作息：定时提醒 + 助眠 + 身心自查，统一「照顾好身体」心智
     ToolCategory(
         titleRes = R.string.tools_cat_health,
         entries = listOf(
@@ -152,17 +161,205 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_hearing_desc,
                 icon = Icons.AutoMirrored.Filled.VolumeUp,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VISION,
+                titleRes = R.string.tools_vision_title,
+                descRes = R.string.tools_vision_desc,
+                icon = Icons.Filled.RemoveRedEye,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOOD,
+                titleRes = R.string.tools_mood_title,
+                descRes = R.string.tools_mood_desc,
+                icon = Icons.Filled.Mood,
+            ),
         ),
     ),
+    // 效率与计算：管时间（番茄/倒计时/悬浮时钟）+ 补数据（打卡补录）+ 算数字（表格/贷款/个税）
     ToolCategory(
-        titleRes = R.string.tools_cat_security,
+        titleRes = R.string.tools_cat_productivity,
         entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POMODORO,
+                titleRes = R.string.tools_pomodoro_title,
+                descRes = R.string.tools_pomodoro_desc,
+                icon = Icons.Filled.Timer,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COUNTDOWN,
+                titleRes = R.string.tools_countdown_title,
+                descRes = R.string.tools_countdown_desc,
+                icon = Icons.Filled.HourglassBottom,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLOCK_OVERLAY,
+                titleRes = R.string.tools_clock_overlay_title,
+                descRes = R.string.tools_clock_overlay_desc,
+                icon = Icons.Filled.Schedule,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKFILL,
+                titleRes = R.string.tools_backfill_title,
+                descRes = R.string.tools_backfill_desc,
+                icon = Icons.Filled.EditCalendar,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CALC,
+                titleRes = R.string.tools_calc_title,
+                descRes = R.string.tools_calc_desc,
+                icon = Icons.Filled.Calculate,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LOAN,
+                titleRes = R.string.tools_loan_title,
+                descRes = R.string.tools_loan_desc,
+                icon = Icons.Filled.AccountBalance,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_TAX,
+                titleRes = R.string.tools_tax_title,
+                descRes = R.string.tools_tax_desc,
+                icon = Icons.AutoMirrored.Filled.ReceiptLong,
+            ),
+        ),
+    ),
+    // 生活助手：日常随手可用的小帮手（提醒/记录/照明/出行/家庭）
+    ToolCategory(
+        titleRes = R.string.tools_cat_life,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_EXPIRY,
+                titleRes = R.string.tools_expiry_title,
+                descRes = R.string.tools_expiry_desc,
+                icon = Icons.Filled.Event,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COOK_TIMER,
+                titleRes = R.string.tools_cook_timer_title,
+                descRes = R.string.tools_cook_timer_desc,
+                icon = Icons.Filled.Restaurant,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POINTS,
+                titleRes = R.string.points_title,
+                descRes = R.string.points_desc,
+                icon = Icons.Filled.EmojiEvents,
+            ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_VOICE,
                 titleRes = R.string.tools_voice_title,
                 descRes = R.string.tools_voice_desc,
                 icon = Icons.Filled.Mic,
             ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ARRIVAL,
+                titleRes = R.string.tools_arrival_title,
+                descRes = R.string.tools_arrival_desc,
+                icon = Icons.Filled.LocationOn,
+            ),
+            // 手电筒与补光反光板同为「照明」，相邻放置便于对比选用
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FLASHLIGHT,
+                titleRes = R.string.tools_flashlight_title,
+                descRes = R.string.tools_flashlight_desc,
+                icon = Icons.Filled.FlashlightOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_REFLECTOR,
+                titleRes = R.string.tools_reflector_title,
+                descRes = R.string.tools_reflector_desc,
+                icon = Icons.Filled.WbIncandescent,
+            ),
+        ),
+    ),
+    // 图像与识别：改图（马赛克/去水印/压缩/黑白）+ 图中取信息（二维码/条码）
+    ToolCategory(
+        titleRes = R.string.tools_cat_image,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOSAIC,
+                titleRes = R.string.tools_mosaic_title,
+                descRes = R.string.tools_mosaic_desc,
+                icon = Icons.Filled.BlurOn,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_WATERMARK,
+                titleRes = R.string.tools_watermark_title,
+                descRes = R.string.tools_watermark_desc,
+                icon = Icons.Filled.AutoFixHigh,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_COMPRESS,
+                titleRes = R.string.tools_img_compress_title,
+                descRes = R.string.tools_img_compress_desc,
+                icon = Icons.Filled.Compress,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_GRAY,
+                titleRes = R.string.tools_img_gray_title,
+                descRes = R.string.tools_img_gray_desc,
+                icon = Icons.Filled.FilterBAndW,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_QR,
+                titleRes = R.string.tools_qr_title,
+                descRes = R.string.tools_qr_desc,
+                icon = Icons.Filled.QrCode,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BARCODE,
+                titleRes = R.string.tools_barcode_title,
+                descRes = R.string.tools_barcode_desc,
+                icon = Icons.Filled.ViewWeek,
+            ),
+        ),
+    ),
+    // 测量与传感：把手机变成量具/仪表（长度、水平、方位、分贝、磁场、屏幕自检）
+    ToolCategory(
+        titleRes = R.string.tools_cat_measure,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_RULER,
+                titleRes = R.string.tools_ruler_title,
+                descRes = R.string.tools_ruler_desc,
+                icon = Icons.Filled.Straighten,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LEVEL,
+                titleRes = R.string.tools_level_title,
+                descRes = R.string.tools_level_desc,
+                icon = Icons.Filled.ScreenRotation,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COMPASS,
+                titleRes = R.string.tools_compass_title,
+                descRes = R.string.tools_compass_desc,
+                icon = Icons.Filled.Explore,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_NOISE,
+                titleRes = R.string.tools_noise_title,
+                descRes = R.string.tools_noise_desc,
+                icon = Icons.Filled.GraphicEq,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MAGNET,
+                titleRes = R.string.magnet_title,
+                descRes = R.string.magnet_desc,
+                icon = Icons.Filled.Tune,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_DEADPIXEL,
+                titleRes = R.string.deadpixel_title,
+                descRes = R.string.deadpixel_desc,
+                icon = Icons.Filled.Smartphone,
+            ),
+        ),
+    ),
+    // 隐私与安全：不让数据外泄，且能整体备份带走
+    ToolCategory(
+        titleRes = R.string.tools_cat_security,
+        entries = listOf(
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_VAULT,
                 titleRes = R.string.tools_vault_title,
@@ -179,7 +376,7 @@ private val TOOL_CATEGORIES = listOf(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLIPBOARD_GUARD,
                 titleRes = R.string.tools_clipboard_guard_title,
                 descRes = R.string.tools_clipboard_guard_desc,
-                icon = Icons.Filled.Lock,
+                icon = Icons.Filled.ContentPaste,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_PRIVACY,
@@ -187,52 +384,18 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_privacy_desc,
                 icon = Icons.Filled.Security,
             ),
-        ),
-    ),
-    ToolCategory(
-        titleRes = R.string.tools_cat_life,
-        entries = listOf(
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_QR,
-                titleRes = R.string.tools_qr_title,
-                descRes = R.string.tools_qr_desc,
-                icon = Icons.Filled.QrCode,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_EXPIRY,
-                titleRes = R.string.tools_expiry_title,
-                descRes = R.string.tools_expiry_desc,
-                icon = Icons.Filled.Event,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BARCODE,
-                titleRes = R.string.tools_barcode_title,
-                descRes = R.string.tools_barcode_desc,
-                icon = Icons.Filled.ViewWeek,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COOK_TIMER,
-                titleRes = R.string.tools_cook_timer_title,
-                descRes = R.string.tools_cook_timer_desc,
-                icon = Icons.Filled.Restaurant,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POINTS,
-                titleRes = R.string.points_title,
-                descRes = R.string.points_desc,
-                icon = Icons.Filled.EmojiEvents,
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKUP,
+                titleRes = R.string.tools_backup_title,
+                descRes = R.string.tools_backup_desc,
+                icon = Icons.Filled.Backup,
             ),
         ),
     ),
+    // 解压模拟：纯拟物触感，点一下就有反馈，不含输赢与创作
     ToolCategory(
         titleRes = R.string.tools_cat_sim,
         entries = listOf(
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ANIMAL,
-                titleRes = R.string.tools_animal_title,
-                descRes = R.string.tools_animal_desc,
-                icon = Icons.Filled.Pets,
-            ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_CANDLE,
                 titleRes = R.string.tools_sim_candle_title,
@@ -258,22 +421,34 @@ private val TOOL_CATEGORIES = listOf(
                 icon = Icons.Filled.Celebration,
             ),
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_PINBALL,
-                titleRes = R.string.tools_sim_pinball_title,
-                descRes = R.string.tools_sim_pinball_desc,
-                icon = Icons.Filled.SportsEsports,
-            ),
-            ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_GLASS,
                 titleRes = R.string.sim_glass_title,
                 descRes = R.string.sim_glass_desc,
                 icon = Icons.Filled.LocalBar,
             ),
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FORTUNE,
-                titleRes = R.string.tools_fortune_title,
-                descRes = R.string.tools_fortune_desc,
-                icon = Icons.Filled.EmojiEmotions,
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ANIMAL,
+                titleRes = R.string.tools_animal_title,
+                descRes = R.string.tools_animal_desc,
+                icon = Icons.Filled.Pets,
+            ),
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VIBE,
+                titleRes = R.string.tools_vibe_title,
+                descRes = R.string.tools_vibe_desc,
+                icon = Icons.Filled.Vibration,
+            ),
+        ),
+    ),
+    // 趣味玩法：小游戏、随手创作与趣味决策（抽签器属娱乐决策，不再混在实用工具里）
+    ToolCategory(
+        titleRes = R.string.tools_cat_fun,
+        entries = listOf(
+            ToolEntry(
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_SIM_PINBALL,
+                titleRes = R.string.tools_sim_pinball_title,
+                descRes = R.string.tools_sim_pinball_desc,
+                icon = Icons.Filled.SportsEsports,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_RPS,
@@ -282,16 +457,10 @@ private val TOOL_CATEGORIES = listOf(
                 icon = Icons.Filled.Games,
             ),
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VIBE,
-                titleRes = R.string.tools_vibe_title,
-                descRes = R.string.tools_vibe_desc,
-                icon = Icons.Filled.Vibration,
-            ),
-            ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_PET,
                 titleRes = R.string.pet_title,
                 descRes = R.string.pet_desc,
-                icon = Icons.Filled.Pets,
+                icon = Icons.Filled.EmojiFoodBeverage,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_DOODLE,
@@ -305,28 +474,11 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_piano_desc,
                 icon = Icons.Filled.MusicNote,
             ),
-        ),
-    ),
-    ToolCategory(
-        titleRes = R.string.tools_cat_utility,
-        entries = listOf(
             ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FLASHLIGHT,
-                titleRes = R.string.tools_flashlight_title,
-                descRes = R.string.tools_flashlight_desc,
-                icon = Icons.Filled.FlashlightOn,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_RULER,
-                titleRes = R.string.tools_ruler_title,
-                descRes = R.string.tools_ruler_desc,
-                icon = Icons.Filled.Straighten,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_NOISE,
-                titleRes = R.string.tools_noise_title,
-                descRes = R.string.tools_noise_desc,
-                icon = Icons.Filled.GraphicEq,
+                route = com.tickclear.app.ui.navigation.Routes.TOOLS_FORTUNE,
+                titleRes = R.string.tools_fortune_title,
+                descRes = R.string.tools_fortune_desc,
+                icon = Icons.Filled.EmojiEmotions,
             ),
             ToolEntry(
                 route = com.tickclear.app.ui.navigation.Routes.TOOLS_LOTTERY,
@@ -334,139 +486,10 @@ private val TOOL_CATEGORIES = listOf(
                 descRes = R.string.tools_lottery_desc,
                 icon = Icons.Filled.Casino,
             ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LEVEL,
-                titleRes = R.string.tools_level_title,
-                descRes = R.string.tools_level_desc,
-                icon = Icons.Filled.ScreenRotation,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CLOCK_OVERLAY,
-                titleRes = R.string.tools_clock_overlay_title,
-                descRes = R.string.tools_clock_overlay_desc,
-                icon = Icons.Filled.Schedule,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOSAIC,
-                titleRes = R.string.tools_mosaic_title,
-                descRes = R.string.tools_mosaic_desc,
-                icon = Icons.Filled.BlurOn,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_WATERMARK,
-                titleRes = R.string.tools_watermark_title,
-                descRes = R.string.tools_watermark_desc,
-                icon = Icons.Filled.BlurOn,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COMPASS,
-                titleRes = R.string.tools_compass_title,
-                descRes = R.string.tools_compass_desc,
-                icon = Icons.Filled.Explore,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKFILL,
-                titleRes = R.string.tools_backfill_title,
-                descRes = R.string.tools_backfill_desc,
-                icon = Icons.Filled.EditCalendar,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_ARRIVAL,
-                titleRes = R.string.tools_arrival_title,
-                descRes = R.string.tools_arrival_desc,
-                icon = Icons.Filled.LocationOn,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_BACKUP,
-                titleRes = R.string.tools_backup_title,
-                descRes = R.string.tools_backup_desc,
-                icon = Icons.Filled.Backup,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_COMPRESS,
-                titleRes = R.string.tools_img_compress_title,
-                descRes = R.string.tools_img_compress_desc,
-                icon = Icons.Filled.Compress,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_IMG_GRAY,
-                titleRes = R.string.tools_img_gray_title,
-                descRes = R.string.tools_img_gray_desc,
-                icon = Icons.Filled.FilterBAndW,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_REFLECTOR,
-                titleRes = R.string.tools_reflector_title,
-                descRes = R.string.tools_reflector_desc,
-                icon = Icons.Filled.WbIncandescent,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_DEADPIXEL,
-                titleRes = R.string.deadpixel_title,
-                descRes = R.string.deadpixel_desc,
-                icon = Icons.Filled.Smartphone,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MAGNET,
-                titleRes = R.string.magnet_title,
-                descRes = R.string.magnet_desc,
-                icon = Icons.Filled.Tune,
-            ),
-        ),
-    ),
-    ToolCategory(
-        titleRes = R.string.tools_cat_selfcheck,
-        entries = listOf(
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_VISION,
-                titleRes = R.string.tools_vision_title,
-                descRes = R.string.tools_vision_desc,
-                icon = Icons.Filled.RemoveRedEye,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_MOOD,
-                titleRes = R.string.tools_mood_title,
-                descRes = R.string.tools_mood_desc,
-                icon = Icons.Filled.Mood,
-            ),
-        ),
-    ),
-    ToolCategory(
-        titleRes = R.string.tools_cat_productivity,
-        entries = listOf(
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_POMODORO,
-                titleRes = R.string.tools_pomodoro_title,
-                descRes = R.string.tools_pomodoro_desc,
-                icon = Icons.Filled.Timer,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_CALC,
-                titleRes = R.string.tools_calc_title,
-                descRes = R.string.tools_calc_desc,
-                icon = Icons.Filled.Calculate,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_COUNTDOWN,
-                titleRes = R.string.tools_countdown_title,
-                descRes = R.string.tools_countdown_desc,
-                icon = Icons.Filled.HourglassBottom,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_LOAN,
-                titleRes = R.string.tools_loan_title,
-                descRes = R.string.tools_loan_desc,
-                icon = Icons.Filled.AccountBalance,
-            ),
-            ToolEntry(
-                route = com.tickclear.app.ui.navigation.Routes.TOOLS_TAX,
-                titleRes = R.string.tools_tax_title,
-                descRes = R.string.tools_tax_desc,
-                icon = Icons.AutoMirrored.Filled.ReceiptLong,
-            ),
         ),
     ),
 )
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

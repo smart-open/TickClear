@@ -728,8 +728,13 @@
     <string name="tools_unpin_msg">确定将“%1$s”从常用工具中移除吗？</string>
     <string name="dialog_confirm">确定</string>
     <string name="dialog_cancel">取消</string>
-    <string name="tools_cat_health">健康提醒</string>
-    <string name="tools_cat_security">效率与安全</string>
+    <string name="tools_cat_health">健康作息</string>
+    <string name="tools_cat_security">隐私与安全</string>
+
+    <!-- 工具箱分类（8 类，按「用户想做什么」划分，集中定义） -->
+    <string name="tools_cat_image">图像与识别</string>
+    <string name="tools_cat_measure">测量与传感</string>
+    <string name="tools_cat_fun">趣味玩法</string>
 
     <string name="tools_water_title">喝水提醒</string>
     <string name="tools_water_desc">每隔一段时间提醒喝水</string>
@@ -852,8 +857,6 @@
     <string name="nap_phase_fading">🌙 渐隐中 · 即将静音</string>
     <string name="nap_phase_silent">🌙 已静音 · 仅保留唤醒闹钟</string>
 
-    <!-- 工具箱：实用工具（V2.9++） -->
-    <string name="tools_cat_utility">实用工具</string>
 
     <!-- 手电筒 -->
     <string name="tools_flashlight_title">手电筒</string>
@@ -994,9 +997,7 @@
     <string name="lottery_clear">清空选项</string>
     <string name="lottery_delete">删除</string>
 
-    <!-- 健康自查分类 -->
-    <string name="tools_cat_selfcheck">健康自查</string>
-    <string name="tools_cat_productivity">效率工具</string>
+    <string name="tools_cat_productivity">效率与计算</string>
 
     <!-- 视力自测 -->
     <string name="tools_vision_title">视力自测</string>
@@ -1636,7 +1637,7 @@
     <string name="tools_animal_horse">马</string>
 
     <!-- ============ V2.9++ 新增工具分类：模拟解压 ============ -->
-    <string name="tools_cat_sim">模拟解压</string>
+    <string name="tools_cat_sim">解压模拟</string>
 
     <!-- 虚拟吹蜡烛 -->
     <string name="tools_sim_candle_title">吹蜡烛</string>
