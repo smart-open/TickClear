@@ -27,8 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -112,7 +110,8 @@ fun DoodleScreen(onBack: () -> Unit) {
 
     val palette = listOf(
         Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835),
-        Color(0xFF43A047), Color(0xFF1E88E5), Color(0xFF8E24AA),
+        Color(0xFF43A047), Color(0xFF00BCD4), Color(0xFF1E88E5),
+        Color(0xFF8E24AA), Color(0xFFE91E63),
         Color(0xFF000000), Color(0xFFFFFFFF),
     )
 
@@ -248,27 +247,32 @@ fun DoodleScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
                     palette.forEach { c ->
                         val selected = drawColor == c
                         Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .shadow(2.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(c)
-                                .border(
-                                    width = 3.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    shape = CircleShape,
-                                )
-                                .clickable {
-                                    drawColor = c
-                                    Haptic.vibrate(context, 10)
-                                },
-                        )
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .shadow(2.dp, CircleShape)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(
+                                        width = 3.dp,
+                                        color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = CircleShape,
+                                    )
+                                    .clickable {
+                                        drawColor = c
+                                        Haptic.vibrate(context, 10)
+                                    },
+                            )
+                        }
                     }
                 }
                 // 笔刷调节器：标签 + 实时预览圆 + 滑杆（从细到粗，预览随动）
