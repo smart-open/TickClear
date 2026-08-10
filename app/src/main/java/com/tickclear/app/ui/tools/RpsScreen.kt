@@ -61,7 +61,7 @@ private const val SPIN_INTERVAL_MS = 80L
 
 /**
  * 石头剪刀布（人机对战，V2.11++ 揭晓动画版）。
- * 点出拳后双方手势图标高速轮换 3–5 秒（出招紧张感），再定格显示真实结果与胜负。
+ * 点出拳后双方手势图标高速轮换约 2–3.3 秒（出招紧张感），再定格显示真实结果与胜负。
  * 揭晓期间按钮禁用，避免重按打断节奏。
  * 纯本地，无联网。
  */
@@ -126,7 +126,7 @@ fun RpsScreen(onBack: () -> Unit) {
         }
         revealed = false
         isSpinning = true
-        val durationMs = 3000L + Random.nextInt(2001) // 3.0s – 5.0s 随机
+        val durationMs = 2000L + Random.nextInt(1334) // 2.0s – 3.3s 随机（原 3–5s 减三分之一）
         val start = System.currentTimeMillis()
         while (true) {
             val elapsed = System.currentTimeMillis() - start
