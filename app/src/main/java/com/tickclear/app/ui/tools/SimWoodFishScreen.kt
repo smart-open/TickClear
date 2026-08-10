@@ -281,7 +281,7 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
                 // 浮起淡出的「+1」（功德+1）
                 pluses.forEach { p ->
                     key(p.id) {
-                        MeritPlusText(p) { pluses = pluses - p }
+                        MeritPlusText(p, motionReduced) { pluses = pluses - p }
                     }
                 }
             }
@@ -290,22 +290,36 @@ fun SimWoodFishScreen(onBack: () -> Unit) {
     }
 }
 
-/** 一次「功德+1」浮字：出现在敲击点，上浮并淡出后自我移除。 */
+/** 一次「功德+1」浮字：出现在敲击点，弹入→上浮→淡出后自我移除。 */
 private data class MeritPlus(val id: Int, val xDp: Dp, val yDp: Dp)
 
 @Composable
-private fun MeritPlusText(plus: MeritPlus, onDone: () -> Unit) {
+private fun MeritPlusText(plus: MeritPlus, motionReduced: Boolean, onDone: () -> Unit) {
     val plusAlpha = remember { Animatable(1f) }
     val move = remember { Animatable(0f) } // 像素，向上为负
+    val scale = remember { Animatable(if (motionReduced) 1f else 0.4f) }
     LaunchedEffect(Unit) {
-        launch { plusAlpha.animateTo(0f, tween(850, easing = FastOutSlowInEasing)) }
-        launch { move.animateTo(-72f, tween(850, easing = FastOutSlowInEasing)) }
+        // 入场弹一下，更有「功德+1」的获得感（尊重减弱动效设置）
+        if (!motionReduced) {
+            scale.animateTo(1.18f, tween(150, easing = FastOutSlowInEasing))
+            scale.animateTo(1f, tween(110))
+        }
+        // 上浮 + 淡出：两条动画并行；等两者都结束再移除自己，
+        // 否则 composable 被立刻移出，动画根本来不及播放（原实现就漏了这一步）。
+        val a = launch { plusAlpha.animateTo(0f, tween(820, easing = FastOutSlowInEasing)) }
+        val m = launch { move.animateTo(if (motionReduced) 0f else -72f, tween(820, easing = FastOutSlowInEasing)) }
+        a.join(); m.join()
         onDone()
     }
     Box(
         modifier = Modifier
             .offset(x = plus.xDp, y = plus.yDp)
-            .graphicsLayer { alpha = plusAlpha.value; translationY = move.value },
+            .graphicsLayer {
+                alpha = plusAlpha.value
+                translationY = move.value
+                scaleX = scale.value
+                scaleY = scale.value
+            },
     ) {
         Text(
             "+1",
