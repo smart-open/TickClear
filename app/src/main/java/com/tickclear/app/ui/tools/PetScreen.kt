@@ -29,8 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,6 +52,7 @@ import com.tickclear.app.R
 import com.tickclear.app.ui.components.Haptic
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.random.Random
@@ -93,16 +92,58 @@ fun PetScreen(onBack: () -> Unit) {
     var toyTimer by remember { mutableFloatStateOf(0f) }
 
     val fishes = remember {
-        List(3) { i ->
+        listOf(
+            // 大号金鱼：橙红
             Fish(
-                x = Random.nextFloat(),
-                y = 0.3f + i * 0.2f,
-                dir = if (i % 2 == 0) 1 else -1,
-                speed = 0.06f + Random.nextFloat() * 0.04f,
-                hue = listOf(195f, 45f, 320f)[i % 3],
-                bob = Random.nextFloat() * 6.28f,
-            )
-        }
+                x = 0.22f, y = 0.34f, dir = 1,
+                speed = 0.055f, bob = Random.nextFloat() * 6.28f,
+                sizeScale = 1.35f,
+                bodyColor = Color(0xFFFF7043),
+                finColor = Color(0xFFFFAB91),
+                stripeColor = null,
+                eyeColor = Color(0xFF3E2723),
+            ),
+            // 中号金鱼：金黄
+            Fish(
+                x = 0.74f, y = 0.26f, dir = -1,
+                speed = 0.065f, bob = Random.nextFloat() * 6.28f,
+                sizeScale = 1.0f,
+                bodyColor = Color(0xFFFFCA28),
+                finColor = Color(0xFFFFE082),
+                stripeColor = null,
+                eyeColor = Color(0xFF3E2723),
+            ),
+            // 中号蓝紫条纹鱼
+            Fish(
+                x = 0.78f, y = 0.62f, dir = -1,
+                speed = 0.07f, bob = Random.nextFloat() * 6.28f,
+                sizeScale = 1.0f,
+                bodyColor = Color(0xFF9575CD),
+                finColor = Color(0xFFB39DDB),
+                stripeColor = Color(0xFF5E35B1),
+                eyeColor = Color(0xFF263238),
+            ),
+            // 小号金鱼：橙
+            Fish(
+                x = 0.26f, y = 0.74f, dir = 1,
+                speed = 0.08f, bob = Random.nextFloat() * 6.28f,
+                sizeScale = 0.7f,
+                bodyColor = Color(0xFFFF8A50),
+                finColor = Color(0xFFFFB74D),
+                stripeColor = null,
+                eyeColor = Color(0xFF3E2723),
+            ),
+            // 小号银鱼
+            Fish(
+                x = 0.66f, y = 0.82f, dir = 1,
+                speed = 0.075f, bob = Random.nextFloat() * 6.28f,
+                sizeScale = 0.7f,
+                bodyColor = Color(0xFFB0BEC5),
+                finColor = Color(0xFFECEFF1),
+                stripeColor = Color(0xFF78909C),
+                eyeColor = Color(0xFF263238),
+            ),
+        )
     }
     var food by remember { mutableStateOf(emptyList<FoodPellet>()) }
     var particles by remember { mutableStateOf(emptyList<SimParticle>()) }
@@ -454,7 +495,12 @@ private enum class PetKind { FISH, DOG, PIG, CAT }
 private data class PetState(val fullness: Int, val happiness: Int)
 private data class Fish(
     var x: Float, var y: Float, var dir: Int,
-    var speed: Float, val hue: Float, var bob: Float,
+    var speed: Float, var bob: Float,
+    val sizeScale: Float,
+    val bodyColor: Color,
+    val finColor: Color,
+    val stripeColor: Color?,
+    val eyeColor: Color,
 )
 private data class FoodPellet(var x: Float, var y: Float, var vy: Float)
 
@@ -479,19 +525,113 @@ private fun DrawScope.drawFishTank(
     for (f in fishes) {
         val cx = f.x * w
         val cy = f.y * h + sin(f.bob) * 6f
-        val len = w * 0.10f
-        val col = simColor(f.hue, 1f)
-        val tail = Path().apply {
-            moveTo(cx - len * 0.5f, cy)
-            lineTo(cx - len * 0.95f, cy - len * 0.32f)
-            lineTo(cx - len * 0.95f, cy + len * 0.32f)
+        val baseLen = w * 0.10f * f.sizeScale
+        val dirF = f.dir.toFloat()
+        fun lx(dx: Float) = cx + dx * dirF
+        fun ly(dy: Float) = cy + dy
+
+        val bodyLen = baseLen * 1.9f
+        val bodyHeight = baseLen * 0.78f
+
+        // 身体（水滴形）
+        val bodyPath = Path().apply {
+            moveTo(lx(bodyLen * 0.45f), cy)
+            cubicTo(lx(bodyLen * 0.55f), ly(-bodyHeight * 0.55f), lx(-bodyLen * 0.35f), ly(-bodyHeight * 0.65f), lx(-bodyLen * 0.55f), cy)
+            cubicTo(lx(-bodyLen * 0.35f), ly(bodyHeight * 0.65f), lx(bodyLen * 0.55f), ly(bodyHeight * 0.55f), lx(bodyLen * 0.45f), cy)
             close()
         }
-        fillPath3D(tail, col)
-        fillOvoid(Offset(cx - len / 2f, cy - len * 0.35f), Size(len, len * 0.7f), col)
-        drawGloss(Offset(cx - len * 0.12f, cy - len * 0.18f), len * 0.18f, len * 0.10f, 0.55f)
-        drawCircle(color = Color.White, radius = len * 0.10f, center = Offset(cx + len * 0.28f, cy - len * 0.06f))
-        drawCircle(color = Color(0xFF212121), radius = len * 0.05f, center = Offset(cx + len * 0.30f, cy - len * 0.06f))
+        fillPath3D(bodyPath, f.bodyColor)
+
+        // 尾鳍（扇形，随波摆动）
+        val tailWag = sin(f.bob * 1.5f) * baseLen * 0.12f
+        val tailPath = Path().apply {
+            moveTo(lx(-bodyLen * 0.45f), cy)
+            lineTo(lx(-bodyLen * 0.95f), ly(-baseLen * 0.55f + tailWag))
+            lineTo(lx(-bodyLen * 0.82f), cy + tailWag * 0.3f)
+            lineTo(lx(-bodyLen * 0.95f), ly(baseLen * 0.55f + tailWag))
+            close()
+        }
+        fillPath3D(tailPath, f.finColor)
+
+        // 背鳍
+        val dorsalPath = Path().apply {
+            moveTo(lx(-bodyLen * 0.18f), ly(-bodyHeight * 0.32f))
+            quadraticTo(lx(-bodyLen * 0.28f), ly(-bodyHeight * 0.88f), lx(bodyLen * 0.18f), ly(-bodyHeight * 0.55f))
+            lineTo(lx(bodyLen * 0.08f), ly(-bodyHeight * 0.32f))
+            close()
+        }
+        fillPath3D(dorsalPath, f.finColor)
+
+        // 腹鳍
+        val ventralPath = Path().apply {
+            moveTo(lx(bodyLen * 0.02f), ly(bodyHeight * 0.32f))
+            quadraticTo(lx(-bodyLen * 0.18f), ly(bodyHeight * 0.88f), lx(-bodyLen * 0.38f), ly(bodyHeight * 0.42f))
+            lineTo(lx(-bodyLen * 0.12f), ly(bodyHeight * 0.32f))
+            close()
+        }
+        fillPath3D(ventralPath, f.finColor)
+
+        // 胸鳍
+        val pectoralPath = Path().apply {
+            moveTo(lx(bodyLen * 0.22f), ly(bodyHeight * 0.08f))
+            quadraticTo(lx(bodyLen * 0.55f), ly(bodyHeight * 0.58f), lx(bodyLen * 0.12f), ly(bodyHeight * 0.48f))
+            close()
+        }
+        fillPath3D(pectoralPath, f.finColor)
+
+        // 条纹（蓝紫鱼等）
+        f.stripeColor?.let { stripe ->
+            drawContext.canvas.save()
+            drawContext.canvas.clipPath(bodyPath)
+            for (i in -2..2) {
+                val sx = bodyLen * 0.1f * i
+                drawLine(
+                    color = stripe.copy(alpha = 0.55f),
+                    start = Offset(lx(sx), ly(-bodyHeight * 0.55f)),
+                    end = Offset(lx(sx - bodyLen * 0.12f), ly(bodyHeight * 0.55f)),
+                    strokeWidth = baseLen * 0.08f,
+                )
+            }
+            drawContext.canvas.restore()
+        }
+
+        // 鳞片（金鱼）
+        if (f.stripeColor == null) {
+            for (row in 0..2) {
+                for (col in 0..3) {
+                    val sx = bodyLen * 0.05f + col * bodyLen * 0.14f - row * bodyLen * 0.04f
+                    val sy = -bodyHeight * 0.22f + row * bodyHeight * 0.22f
+                    drawArc(
+                        color = Color.White.copy(alpha = 0.20f),
+                        startAngle = 0f,
+                        sweepAngle = 180f,
+                        useCenter = false,
+                        topLeft = Offset(lx(sx) - baseLen * 0.08f, cy + sy),
+                        size = Size(baseLen * 0.16f, baseLen * 0.10f),
+                        style = Stroke(width = 1.1f),
+                    )
+                }
+            }
+        }
+
+        // 眼睛
+        val eyeX = bodyLen * 0.32f
+        val eyeY = -bodyHeight * 0.08f
+        val eyeR = baseLen * 0.11f
+        drawCircle(color = Color.White, radius = eyeR, center = Offset(lx(eyeX), cy + eyeY))
+        drawCircle(color = f.eyeColor, radius = eyeR * 0.55f, center = Offset(lx(eyeX + baseLen * 0.02f), cy + eyeY))
+        drawCircle(color = Color.White, radius = eyeR * 0.22f, center = Offset(lx(eyeX + baseLen * 0.035f), cy + eyeY - baseLen * 0.025f))
+
+        // 嘴线
+        drawLine(
+            color = f.bodyColor.darken(0.25f),
+            start = Offset(lx(bodyLen * 0.45f), cy),
+            end = Offset(lx(bodyLen * 0.52f), cy),
+            strokeWidth = 1.2f,
+        )
+
+        // 身体高光
+        drawGloss(Offset(lx(bodyLen * 0.08f), cy - bodyHeight * 0.22f), baseLen * 0.22f, baseLen * 0.12f, 0.45f)
     }
     for (p in food) {
         drawCircle(color = Color(0xFFFBC02D), radius = 5f, center = Offset(p.x * w, p.y * h))
@@ -499,112 +639,165 @@ private fun DrawScope.drawFishTank(
     drawParticles(particles, w, h)
 }
 
-/** 坐姿小狗（3/4 侧视）：垂耳 + 长吻 + 坐姿身体 + 摇尾。 */
+/** 正面坐姿卷毛小狗：圆润身体 + 蓬松卷毛 + 垂耳 + 胸前发光云朵心。 */
 private fun DrawScope.drawDog(phase: Float, particles: List<SimParticle>, primary: Color, onSurface: Color) {
     val w = size.width
     val h = size.height
     val cx = w / 2f
     val cy = h * 0.58f
-    val r = w * 0.16f
-    val fur = Color(0xFFA06A41)        // 暖棕毛色
-    val furDark = fur.darken(0.20f)
-    val furLight = fur.lighten(0.30f)
-    val snout = Color(0xFFECD9C2)
+    val r = w * 0.18f
+    val sway = sin(phase * 3f) * r * 0.02f
+    val fur = Color(0xFFB78B5F)        // 暖棕毛色
+    val furDark = fur.darken(0.18f)
+    val furLight = fur.lighten(0.32f)
+    val cream = Color(0xFFFFF3E0)
     val black = Color(0xFF2A2118)
+    val tongue = Color(0xFFFF8A80)
 
-    drawSoftShadow(Offset(cx, cy + r * 1.15f), r * 1.25f, r * 0.32f)
+    drawSoftShadow(Offset(cx + sway, cy + r * 1.15f), r * 1.1f, r * 0.32f)
 
-    // 尾巴（身后上卷 + 摇）
-    val wag = sin(phase * 7f) * r * 0.14f
+    // 尾巴（身后摇摆）
+    val wag = sin(phase * 8f) * r * 0.18f
     drawPath(
         Path().apply {
-            moveTo(cx - r * 1.05f, cy + r * 0.05f)
-            quadraticTo(cx - r * 1.55f, cy - r * 0.05f + wag, cx - r * 1.32f, cy - r * 0.5f + wag)
+            moveTo(cx - r * 0.65f + sway, cy + r * 0.35f)
+            quadraticTo(cx - r * 1.25f, cy + r * 0.25f + wag, cx - r * 1.05f, cy - r * 0.35f + wag)
         },
-        color = fur,
-        style = Stroke(width = r * 0.22f, cap = StrokeCap.Round),
+        color = furDark,
+        style = Stroke(width = r * 0.24f, cap = StrokeCap.Round),
     )
 
-    // 后臀
-    fillSphere(Offset(cx - r * 0.5f, cy + r * 0.3f), r * 0.6f, fur, rimLight = false)
-    // 身体（坐姿：背到胸的流畅轮廓）
-    val bodyPath = Path().apply {
-        moveTo(cx - r * 1.05f, cy + r * 0.5f)
-        cubicTo(cx - r * 1.2f, cy - r * 0.15f, cx - r * 0.25f, cy - r * 0.4f, cx + r * 0.2f, cy - r * 0.58f)
-        lineTo(cx + r * 0.5f, cy - r * 0.52f)
-        cubicTo(cx + r * 0.75f, cy - r * 0.3f, cx + r * 0.72f, cy + r * 0.4f, cx + r * 0.32f, cy + r * 0.78f)
-        cubicTo(cx - r * 0.2f, cy + r * 0.9f, cx - r * 1.0f, cy + r * 0.9f, cx - r * 1.05f, cy + r * 0.5f)
-        close()
-    }
-    fillPath3D(bodyPath, fur)
-    drawRimLight(Offset(cx - r * 0.15f, cy + r * 0.05f), r * 0.95f, furLight, alpha = 0.22f)
+    // 后腿（坐姿，两侧）
+    fillOvoid(Offset(cx - r * 0.72f + sway, cy + r * 0.92f), Size(r * 0.36f, r * 0.48f), furDark)
+    fillOvoid(Offset(cx + r * 0.72f + sway, cy + r * 0.92f), Size(r * 0.36f, r * 0.48f), furDark)
 
-    // 前腿 + 爪
-    fillOvoid(Offset(cx + r * 0.18f, cy + r * 0.55f), Size(r * 0.27f, r * 0.72f), furLight)
-    fillOvoid(Offset(cx + r * 0.52f, cy + r * 0.55f), Size(r * 0.27f, r * 0.72f), furLight)
-    drawCircle(color = black.copy(alpha = 0.45f), radius = r * 0.08f, center = Offset(cx + r * 0.18f, cy + r * 1.2f))
-    drawCircle(color = black.copy(alpha = 0.45f), radius = r * 0.08f, center = Offset(cx + r * 0.52f, cy + r * 1.2f))
+    // 身体
+    fillSphere(Offset(cx + sway, cy + r * 0.35f), r * 1.02f, fur, rimLight = false)
+    drawRimLight(Offset(cx + sway, cy + r * 0.35f), r * 1.02f, furLight, alpha = 0.28f)
+
+    // 胸口浅色毛
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(cream.copy(alpha = 0.9f), cream.copy(alpha = 0.4f), Color.Transparent),
+            center = Offset(cx + sway, cy + r * 0.42f),
+            radius = r * 0.55f,
+        ),
+        topLeft = Offset(cx - r * 0.5f + sway, cy + r * 0.05f),
+        size = Size(r, r * 0.75f),
+    )
+
+    // 胸前发光云朵心
+    val glowCenter = Offset(cx + sway, cy + r * 0.42f)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFFFF9C4).copy(alpha = 0.7f), Color(0xFFFFF176).copy(alpha = 0.35f), Color.Transparent),
+            center = glowCenter,
+            radius = r * 0.42f,
+        ),
+        radius = r * 0.42f,
+        center = glowCenter,
+    )
+    listOf(
+        Offset(-r * 0.18f, -r * 0.08f),
+        Offset(r * 0.18f, -r * 0.08f),
+        Offset(0f, -r * 0.18f),
+        Offset(-r * 0.08f, r * 0.1f),
+        Offset(r * 0.08f, r * 0.1f),
+    ).forEach { off ->
+        drawCircle(
+            color = Color(0xFFFFFAD7).copy(alpha = 0.85f),
+            radius = r * 0.14f,
+            center = Offset(glowCenter.x + off.x, glowCenter.y + off.y),
+        )
+    }
+
+    // 前腿
+    fillOvoid(Offset(cx - r * 0.32f + sway, cy + r * 0.95f), Size(r * 0.30f, r * 0.55f), furLight)
+    fillOvoid(Offset(cx + r * 0.32f + sway, cy + r * 0.95f), Size(r * 0.30f, r * 0.55f), furLight)
+    drawCircle(color = black.copy(alpha = 0.35f), radius = r * 0.07f, center = Offset(cx - r * 0.32f + sway, cy + r * 1.25f))
+    drawCircle(color = black.copy(alpha = 0.35f), radius = r * 0.07f, center = Offset(cx + r * 0.32f + sway, cy + r * 1.25f))
 
     // 头
-    val hx = cx + r * 0.55f
-    val hy = cy - r * 0.6f
-    fillSphere(Offset(hx, hy), r * 0.66f, fur, rimLight = false)
-    drawRimLight(Offset(hx, hy), r * 0.66f, furLight, alpha = 0.28f)
+    val headCy = cy - r * 0.55f
+    fillSphere(Offset(cx + sway, headCy), r * 0.92f, fur, rimLight = false)
+    drawRimLight(Offset(cx + sway, headCy), r * 0.92f, furLight, alpha = 0.30f)
 
-    // 垂耳（两片）
+    // 卷毛（头部外圈蓬松小球）
+    for (i in 0..7) {
+        val ang = i * 0.785f + phase * 0.5f
+        val rx = cos(ang) * r * 0.95f
+        val ry = sin(ang) * r * 0.88f
+        fillSphere(Offset(cx + rx + sway, headCy + ry), r * 0.22f, if (i % 2 == 0) fur else furLight, rimLight = false)
+    }
+
+    // 垂耳
     fillPath3D(
         Path().apply {
-            moveTo(hx - r * 0.5f, hy - r * 0.3f)
-            quadraticTo(hx - r * 0.78f, hy - r * 0.05f, hx - r * 0.55f, hy + r * 0.55f)
-            quadraticTo(hx - r * 0.4f, hy + r * 0.2f, hx - r * 0.33f, hy - r * 0.2f)
+            moveTo(cx - r * 0.72f + sway, headCy - r * 0.25f)
+            quadraticTo(cx - r * 1.15f, headCy + r * 0.05f, cx - r * 0.82f + sway, headCy + r * 0.72f)
+            quadraticTo(cx - r * 0.55f, headCy + r * 0.38f, cx - r * 0.48f + sway, headCy - r * 0.12f)
             close()
         },
         furDark,
     )
     fillPath3D(
         Path().apply {
-            moveTo(hx + r * 0.32f, hy - r * 0.35f)
-            quadraticTo(hx + r * 0.6f, hy - r * 0.05f, hx + r * 0.42f, hy + r * 0.5f)
-            quadraticTo(hx + r * 0.28f, hy + r * 0.18f, hx + r * 0.26f, hy - r * 0.2f)
+            moveTo(cx + r * 0.72f + sway, headCy - r * 0.25f)
+            quadraticTo(cx + r * 1.15f, headCy + r * 0.05f, cx + r * 0.82f + sway, headCy + r * 0.72f)
+            quadraticTo(cx + r * 0.55f, headCy + r * 0.38f, cx + r * 0.48f + sway, headCy - r * 0.12f)
             close()
         },
         furDark,
     )
 
-    // 口鼻
-    fillOvoid(Offset(hx + r * 0.42f, hy + r * 0.22f), Size(r * 0.52f, r * 0.4f), snout)
-    drawCircle(color = black, radius = r * 0.1f, center = Offset(hx + r * 0.78f, hy + r * 0.2f))
-    drawGloss(Offset(hx + r * 0.75f, hy + r * 0.14f), r * 0.04f, r * 0.03f, 0.6f)
-    // 嘴（微笑）
+    // 口鼻部（浅色）
+    fillOvoid(Offset(cx + sway, headCy + r * 0.22f), Size(r * 0.62f, r * 0.46f), cream)
+    // 鼻子
+    drawOval(color = black, topLeft = Offset(cx - r * 0.12f + sway, headCy + r * 0.08f), size = Size(r * 0.24f, r * 0.16f))
+    drawGloss(Offset(cx - r * 0.04f + sway, headCy + r * 0.09f), r * 0.04f, r * 0.025f, 0.6f)
+
+    // 嘴巴 + 吐舌
     drawPath(
         Path().apply {
-            moveTo(hx + r * 0.45f, hy + r * 0.4f)
-            quadraticTo(hx + r * 0.66f, hy + r * 0.54f, hx + r * 0.8f, hy + r * 0.42f)
+            moveTo(cx - r * 0.16f + sway, headCy + r * 0.32f)
+            quadraticTo(cx - r * 0.05f + sway, headCy + r * 0.44f, cx + sway, headCy + r * 0.32f)
+            quadraticTo(cx + r * 0.05f + sway, headCy + r * 0.44f, cx + r * 0.16f + sway, headCy + r * 0.32f)
         },
         color = black,
-        style = Stroke(width = 1.6f, cap = StrokeCap.Round),
+        style = Stroke(width = 2f, cap = StrokeCap.Round),
+    )
+    drawOval(
+        color = tongue,
+        topLeft = Offset(cx - r * 0.08f + sway, headCy + r * 0.36f),
+        size = Size(r * 0.16f, r * 0.22f),
+    )
+    drawLine(
+        color = black.copy(alpha = 0.25f),
+        start = Offset(cx + sway, headCy + r * 0.36f),
+        end = Offset(cx + sway, headCy + r * 0.52f),
+        strokeWidth = 1f,
     )
 
     // 眼睛
-    drawCircle(color = black, radius = r * 0.085f, center = Offset(hx + r * 0.15f, hy - r * 0.08f))
-    drawCircle(color = black, radius = r * 0.065f, center = Offset(hx + r * 0.5f, hy - r * 0.05f))
-    drawGloss(Offset(hx + r * 0.12f, hy - r * 0.11f), r * 0.028f, r * 0.022f, 0.9f)
-    drawGloss(Offset(hx + r * 0.47f, hy - r * 0.08f), r * 0.022f, r * 0.018f, 0.9f)
+    drawCircle(color = black, radius = r * 0.10f, center = Offset(cx - r * 0.28f + sway, headCy - r * 0.08f))
+    drawCircle(color = black, radius = r * 0.10f, center = Offset(cx + r * 0.28f + sway, headCy - r * 0.08f))
+    drawCircle(color = Color.White, radius = r * 0.035f, center = Offset(cx - r * 0.25f + sway, headCy - r * 0.12f))
+    drawCircle(color = Color.White, radius = r * 0.035f, center = Offset(cx + r * 0.31f + sway, headCy - r * 0.12f))
 
     drawParticles(particles, w, h)
 }
 
-/** 坐姿小猪（正面）：圆身 + 大耳 + 圆盘鼻 + 卷尾 + 腮红。 */
+/** 正面坐姿微笑小猪：圆润身体 + 大圆耳 + 圆鼻 + 微笑 + 腮红。 */
 private fun DrawScope.drawPig(phase: Float, particles: List<SimParticle>, primary: Color, onSurface: Color) {
     val w = size.width
     val h = size.height
     val cx = w / 2f
-    val cy = h * 0.54f
-    val r = w * 0.16f
+    val cy = h * 0.55f
+    val r = w * 0.17f
     val sway = sin(phase * 4f) * (w * 0.008f)
     val base = Color(0xFFF6A5C0)      // 粉
     val baseDark = base.darken(0.12f)
-    val baseLight = base.lighten(0.35f)
+    val baseLight = base.lighten(0.38f)
     val pink = Color(0xFFE0457E)
     val black = Color(0xFF3A2230)
 
@@ -626,56 +819,99 @@ private fun DrawScope.drawPig(phase: Float, particles: List<SimParticle>, primar
     )
 
     // 身体（圆胖）
-    fillSphere(Offset(cx + sway, cy + r * 0.42f), r * 1.08f, base, rimLight = false)
-    drawRimLight(Offset(cx + sway, cy + r * 0.42f), r * 1.08f, baseLight, alpha = 0.30f)
+    fillSphere(Offset(cx + sway, cy + r * 0.42f), r * 1.12f, base, rimLight = false)
+    drawRimLight(Offset(cx + sway, cy + r * 0.42f), r * 1.12f, baseLight, alpha = 0.30f)
     // 肚皮浅色
-    drawOval(color = baseLight.copy(alpha = 0.5f), topLeft = Offset(cx - r * 0.5f + sway, cy + r * 0.55f), size = Size(r * 1.0f, r * 0.7f))
+    drawOval(color = baseLight.copy(alpha = 0.55f), topLeft = Offset(cx - r * 0.52f + sway, cy + r * 0.58f), size = Size(r * 1.04f, r * 0.72f))
 
     // 头
-    fillSphere(Offset(cx + sway, cy - r * 0.32f), r * 0.88f, base, rimLight = false)
-    drawRimLight(Offset(cx + sway, cy - r * 0.32f), r * 0.88f, baseLight, alpha = 0.30f)
+    fillSphere(Offset(cx + sway, cy - r * 0.28f), r * 0.95f, base, rimLight = false)
+    drawRimLight(Offset(cx + sway, cy - r * 0.28f), r * 0.95f, baseLight, alpha = 0.30f)
 
-    // 耳朵（三角，前折）
-    fillPath3D(Path().apply { moveTo(cx - r * 0.6f + sway, cy - r * 1.0f); lineTo(cx - r * 0.42f + sway, cy - r * 1.32f); lineTo(cx - r * 0.16f + sway, cy - r * 1.02f); close() }, baseDark)
-    fillPath3D(Path().apply { moveTo(cx + r * 0.6f + sway, cy - r * 1.0f); lineTo(cx + r * 0.42f + sway, cy - r * 1.32f); lineTo(cx + r * 0.16f + sway, cy - r * 1.02f); close() }, baseDark)
+    // 耳朵（大圆耳）
+    fillPath3D(
+        Path().apply {
+            moveTo(cx - r * 0.55f + sway, cy - r * 0.95f)
+            quadraticTo(cx - r * 1.05f, cy - r * 1.38f, cx - r * 0.35f + sway, cy - r * 1.28f)
+            quadraticTo(cx - r * 0.15f, cy - r * 1.18f, cx - r * 0.15f + sway, cy - r * 0.95f)
+            close()
+        },
+        base,
+    )
+    fillPath3D(
+        Path().apply {
+            moveTo(cx + r * 0.55f + sway, cy - r * 0.95f)
+            quadraticTo(cx + r * 1.05f, cy - r * 1.38f, cx + r * 0.35f + sway, cy - r * 1.28f)
+            quadraticTo(cx + r * 0.15f, cy - r * 1.18f, cx + r * 0.15f + sway, cy - r * 0.95f)
+            close()
+        },
+        base,
+    )
     // 耳内浅粉
-    fillPath3D(Path().apply { moveTo(cx - r * 0.55f + sway, cy - r * 1.05f); lineTo(cx - r * 0.45f + sway, cy - r * 1.22f); lineTo(cx - r * 0.27f + sway, cy - r * 1.03f); close() }, pink.copy(alpha = 0.5f))
-    fillPath3D(Path().apply { moveTo(cx + r * 0.55f + sway, cy - r * 1.05f); lineTo(cx + r * 0.45f + sway, cy - r * 1.22f); lineTo(cx + r * 0.27f + sway, cy - r * 1.03f); close() }, pink.copy(alpha = 0.5f))
+    fillPath3D(
+        Path().apply {
+            moveTo(cx - r * 0.45f + sway, cy - r * 1.0f)
+            quadraticTo(cx - r * 0.72f, cy - r * 1.25f, cx - r * 0.32f + sway, cy - r * 1.20f)
+            quadraticTo(cx - r * 0.22f, cy - r * 1.14f, cx - r * 0.25f + sway, cy - r * 1.02f)
+            close()
+        },
+        pink.copy(alpha = 0.5f),
+    )
+    fillPath3D(
+        Path().apply {
+            moveTo(cx + r * 0.45f + sway, cy - r * 1.0f)
+            quadraticTo(cx + r * 0.72f, cy - r * 1.25f, cx + r * 0.32f + sway, cy - r * 1.20f)
+            quadraticTo(cx + r * 0.22f, cy - r * 1.14f, cx + r * 0.25f + sway, cy - r * 1.02f)
+            close()
+        },
+        pink.copy(alpha = 0.5f),
+    )
 
-    // 口鼻（圆盘）
-    fillSphere(Offset(cx + sway, cy + r * 0.02f), r * 0.44f, baseLight, rimLight = false)
+    // 口鼻部（浅色椭圆）
+    fillSphere(Offset(cx + sway, cy + r * 0.02f), r * 0.48f, baseLight, rimLight = false)
     // 鼻孔
-    drawOval(color = pink, topLeft = Offset(cx - r * 0.22f + sway, cy - r * 0.02f), size = Size(r * 0.12f, r * 0.16f))
-    drawOval(color = pink, topLeft = Offset(cx + r * 0.10f + sway, cy - r * 0.02f), size = Size(r * 0.12f, r * 0.16f))
+    drawOval(color = pink, topLeft = Offset(cx - r * 0.24f + sway, cy - r * 0.04f), size = Size(r * 0.14f, r * 0.18f))
+    drawOval(color = pink, topLeft = Offset(cx + r * 0.10f + sway, cy - r * 0.04f), size = Size(r * 0.14f, r * 0.18f))
+    drawOval(color = Color.White.copy(alpha = 0.4f), topLeft = Offset(cx - r * 0.20f + sway, cy - r * 0.06f), size = Size(r * 0.04f, r * 0.06f))
+    drawOval(color = Color.White.copy(alpha = 0.4f), topLeft = Offset(cx + r * 0.14f + sway, cy - r * 0.06f), size = Size(r * 0.04f, r * 0.06f))
+
+    // 微笑
+    drawPath(
+        Path().apply {
+            moveTo(cx - r * 0.18f + sway, cy + r * 0.22f)
+            quadraticTo(cx + sway, cy + r * 0.36f, cx + r * 0.18f + sway, cy + r * 0.22f)
+        },
+        color = black,
+        style = Stroke(width = 2f, cap = StrokeCap.Round),
+    )
 
     // 眼睛
-    drawCircle(color = black, radius = r * 0.075f, center = Offset(cx - r * 0.30f + sway, cy - r * 0.42f))
-    drawCircle(color = black, radius = r * 0.075f, center = Offset(cx + r * 0.30f + sway, cy - r * 0.42f))
-    drawCircle(color = Color.White, radius = r * 0.028f, center = Offset(cx - r * 0.29f + sway, cy - r * 0.44f))
-    drawCircle(color = Color.White, radius = r * 0.028f, center = Offset(cx + r * 0.31f + sway, cy - r * 0.44f))
+    drawCircle(color = black, radius = r * 0.075f, center = Offset(cx - r * 0.30f + sway, cy - r * 0.35f))
+    drawCircle(color = black, radius = r * 0.075f, center = Offset(cx + r * 0.30f + sway, cy - r * 0.35f))
+    drawCircle(color = Color.White, radius = r * 0.028f, center = Offset(cx - r * 0.29f + sway, cy - r * 0.37f))
+    drawCircle(color = Color.White, radius = r * 0.028f, center = Offset(cx + r * 0.31f + sway, cy - r * 0.37f))
 
     // 腮红
-    drawOval(color = pink.copy(alpha = 0.35f), topLeft = Offset(cx - r * 0.62f + sway, cy - r * 0.18f), size = Size(r * 0.22f, r * 0.14f))
-    drawOval(color = pink.copy(alpha = 0.35f), topLeft = Offset(cx + r * 0.40f + sway, cy - r * 0.18f), size = Size(r * 0.22f, r * 0.14f))
+    drawOval(color = pink.copy(alpha = 0.4f), topLeft = Offset(cx - r * 0.68f + sway, cy - r * 0.12f), size = Size(r * 0.26f, r * 0.16f))
+    drawOval(color = pink.copy(alpha = 0.4f), topLeft = Offset(cx + r * 0.42f + sway, cy - r * 0.12f), size = Size(r * 0.26f, r * 0.16f))
 
     drawParticles(particles, w, h)
 }
 
-/** 坐姿小猫（正面）：尖耳 + 杏仁绿眼竖瞳 + 粉鼻 + 胡须 + 卷尾绕前。 */
+/** 橘白闭眼小猫：圆润身体 + 条纹 + 咖啡杯 + 逗猫棒。 */
 private fun DrawScope.drawCat(phase: Float, blink: Float, toyTimer: Float, particles: List<SimParticle>, primary: Color, onSurface: Color) {
     val w = size.width
     val h = size.height
     val cx = w / 2f
-    val cy = h * 0.56f
-    val r = w * 0.155f
+    val cy = h * 0.58f
+    val r = w * 0.17f
     val pounce = if (toyTimer > 0f) sin(phase * 12f) * (w * 0.015f) else 0f
-    val fur = Color(0xFFDDA066)        // 姜黄毛色
-    val furDark = fur.darken(0.22f)
-    val furLight = fur.lighten(0.32f)
-    val cream = Color(0xFFF3E2C4)
+    val orange = Color(0xFFE69A5F)     // 橘色
+    val orangeDark = orange.darken(0.20f)
+    val orangeLight = orange.lighten(0.28f)
+    val cream = Color(0xFFFFF8E7)
+    val white = Color(0xFFFFFFFF)
     val pink = Color(0xFFE48AA6)
-    val eyeGreen = Color(0xFF9CCC65)
-    val pupil = Color(0xFF22300A)
     val black = Color(0xFF2B2118)
 
     drawSoftShadow(Offset(cx, cy + r * 1.25f), r * 1.15f, r * 0.34f)
@@ -687,131 +923,160 @@ private fun DrawScope.drawCat(phase: Float, blink: Float, toyTimer: Float, parti
             quadraticTo(cx + r * 1.4f, cy + r * 0.8f, cx + r * 1.2f, cy - r * 0.05f)
             quadraticTo(cx + r * 1.1f, cy - r * 0.5f, cx + r * 0.65f, cy - r * 0.32f)
         },
-        color = furDark,
+        color = orangeDark,
         style = Stroke(width = r * 0.26f, cap = StrokeCap.Round),
     )
 
-    // 身体（坐姿梨形轮廓）
+    // 身体（坐姿梨形）
     val bodyPath = Path().apply {
         moveTo(cx - r * 0.8f, cy + r * 1.15f)
         cubicTo(cx - r * 1.0f, cy + r * 0.4f, cx - r * 0.7f, cy - r * 0.18f, cx, cy - r * 0.22f)
         cubicTo(cx + r * 0.7f, cy - r * 0.18f, cx + r * 1.0f, cy + r * 0.4f, cx + r * 0.8f, cy + r * 1.15f)
         close()
     }
-    fillPath3D(bodyPath, fur)
-    drawRimLight(Offset(cx, cy + r * 0.55f), r * 0.85f, furLight, alpha = 0.22f)
-    // 胸口/肚皮浅色
-    drawOval(color = cream.copy(alpha = 0.6f), topLeft = Offset(cx - r * 0.32f, cy + r * 0.35f), size = Size(r * 0.64f, r * 0.85f))
+    fillPath3D(bodyPath, orange)
+    drawRimLight(Offset(cx, cy + r * 0.55f), r * 0.85f, orangeLight, alpha = 0.22f)
+
+    // 肚皮浅色
+    drawOval(color = cream.copy(alpha = 0.7f), topLeft = Offset(cx - r * 0.32f, cy + r * 0.35f), size = Size(r * 0.64f, r * 0.85f))
+
+    // 身体条纹
+    listOf(-0.25f, 0f, 0.25f).forEach { ox ->
+        drawArc(
+            color = orangeDark.copy(alpha = 0.5f),
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(cx + r * ox - r * 0.18f, cy + r * 0.35f),
+            size = Size(r * 0.36f, r * 0.22f),
+            style = Stroke(width = r * 0.06f),
+        )
+    }
 
     // 前爪
-    fillOvoid(Offset(cx - r * 0.42f, cy + r * 1.02f), Size(r * 0.36f, r * 0.36f), cream)
-    fillOvoid(Offset(cx + r * 0.42f, cy + r * 1.02f), Size(r * 0.36f, r * 0.36f), cream)
-    drawLine(color = furDark, start = Offset(cx - r * 0.42f, cy + r * 1.05f), end = Offset(cx - r * 0.42f, cy + r * 1.28f), strokeWidth = 1.5f)
-    drawLine(color = furDark, start = Offset(cx + r * 0.42f, cy + r * 1.05f), end = Offset(cx + r * 0.42f, cy + r * 1.28f), strokeWidth = 1.5f)
+    fillOvoid(Offset(cx - r * 0.42f, cy + r * 1.02f), Size(r * 0.36f, r * 0.36f), white)
+    fillOvoid(Offset(cx + r * 0.42f, cy + r * 1.02f), Size(r * 0.36f, r * 0.36f), white)
+    drawLine(color = orangeDark, start = Offset(cx - r * 0.42f, cy + r * 1.05f), end = Offset(cx - r * 0.42f, cy + r * 1.28f), strokeWidth = 1.5f)
+    drawLine(color = orangeDark, start = Offset(cx + r * 0.42f, cy + r * 1.05f), end = Offset(cx + r * 0.42f, cy + r * 1.28f), strokeWidth = 1.5f)
 
     // 头
     val headCy = cy - r * 0.45f + pounce
-    fillSphere(Offset(cx, headCy), r * 0.95f, fur, rimLight = false)
-    drawRimLight(Offset(cx, headCy), r * 0.95f, furLight, alpha = 0.3f)
+    fillSphere(Offset(cx, headCy), r * 0.95f, orange, rimLight = false)
+    drawRimLight(Offset(cx, headCy), r * 0.95f, orangeLight, alpha = 0.3f)
 
-    // 耳朵（外三角 + 内粉）
-    val earTop = headCy - r * 0.95f
-    fillPath3D(
-        Path().apply {
-            moveTo(cx - r * 0.78f, headCy - r * 0.1f)
-            lineTo(cx - r * 1.0f, earTop)
-            lineTo(cx - r * 0.22f, headCy - r * 0.55f)
-            close()
-        },
-        fur,
-    )
-    fillPath3D(
-        Path().apply {
-            moveTo(cx - r * 0.66f, headCy - r * 0.2f)
-            lineTo(cx - r * 0.78f, earTop + r * 0.28f)
-            lineTo(cx - r * 0.36f, headCy - r * 0.5f)
-            close()
-        },
-        pink,
-    )
-    fillPath3D(
-        Path().apply {
-            moveTo(cx + r * 0.78f, headCy - r * 0.1f)
-            lineTo(cx + r * 1.0f, earTop)
-            lineTo(cx + r * 0.22f, headCy - r * 0.55f)
-            close()
-        },
-        fur,
-    )
-    fillPath3D(
-        Path().apply {
-            moveTo(cx + r * 0.66f, headCy - r * 0.2f)
-            lineTo(cx + r * 0.78f, earTop + r * 0.28f)
-            lineTo(cx + r * 0.36f, headCy - r * 0.5f)
-            close()
-        },
-        pink,
-    )
-
-    // 眼睛（杏仁绿 + 竖瞳）
-    val eyeY = headCy - r * 0.02f
-    val eyeH = if (blink > 0f) r * 0.04f else r * 0.22f
-    drawOval(color = eyeGreen, topLeft = Offset(cx - r * 0.56f, eyeY - eyeH / 2), size = Size(r * 0.32f, eyeH))
-    drawOval(color = eyeGreen, topLeft = Offset(cx + r * 0.24f, eyeY - eyeH / 2), size = Size(r * 0.32f, eyeH))
-    if (blink <= 0f) {
-        drawOval(color = pupil, topLeft = Offset(cx - r * 0.5f, eyeY - r * 0.13f), size = Size(r * 0.05f, r * 0.26f))
-        drawOval(color = pupil, topLeft = Offset(cx + r * 0.30f, eyeY - r * 0.13f), size = Size(r * 0.05f, r * 0.26f))
-        drawCircle(color = Color.White, radius = r * 0.03f, center = Offset(cx - r * 0.47f, eyeY - r * 0.05f))
-        drawCircle(color = Color.White, radius = r * 0.03f, center = Offset(cx + r * 0.33f, eyeY - r * 0.05f))
+    // 额头条纹
+    listOf(0f, -0.18f, 0.18f).forEach { ox ->
+        drawPath(
+            Path().apply {
+                moveTo(cx + r * ox, headCy - r * 0.78f)
+                quadraticTo(cx + r * ox * 0.7f, headCy - r * 0.35f, cx + r * ox * 0.4f, headCy - r * 0.12f)
+            },
+            color = orangeDark.copy(alpha = 0.5f),
+            style = Stroke(width = r * 0.08f, cap = StrokeCap.Round),
+        )
     }
 
-    // 鼻子（粉倒三角）
+    // 耳朵（外 + 内粉）
+    val earTop = headCy - r * 0.95f
+    fillPath3D(Path().apply { moveTo(cx - r * 0.78f, headCy - r * 0.1f); lineTo(cx - r * 1.0f, earTop); lineTo(cx - r * 0.22f, headCy - r * 0.55f); close() }, orange)
+    fillPath3D(Path().apply { moveTo(cx - r * 0.66f, headCy - r * 0.2f); lineTo(cx - r * 0.78f, earTop + r * 0.28f); lineTo(cx - r * 0.36f, headCy - r * 0.5f); close() }, pink)
+    fillPath3D(Path().apply { moveTo(cx + r * 0.78f, headCy - r * 0.1f); lineTo(cx + r * 1.0f, earTop); lineTo(cx + r * 0.22f, headCy - r * 0.55f); close() }, orange)
+    fillPath3D(Path().apply { moveTo(cx + r * 0.66f, headCy - r * 0.2f); lineTo(cx + r * 0.78f, earTop + r * 0.28f); lineTo(cx + r * 0.36f, headCy - r * 0.5f); close() }, pink)
+
+    // 白色口鼻部
+    fillOvoid(Offset(cx, headCy + r * 0.28f), Size(r * 0.52f, r * 0.36f), cream)
+
+    // 闭眼弯月
+    drawPath(
+        Path().apply {
+            moveTo(cx - r * 0.38f, headCy - r * 0.05f)
+            quadraticTo(cx - r * 0.25f, headCy + r * 0.08f, cx - r * 0.12f, headCy - r * 0.05f)
+        },
+        color = black,
+        style = Stroke(width = 2.5f, cap = StrokeCap.Round),
+    )
+    drawPath(
+        Path().apply {
+            moveTo(cx + r * 0.12f, headCy - r * 0.05f)
+            quadraticTo(cx + r * 0.25f, headCy + r * 0.08f, cx + r * 0.38f, headCy - r * 0.05f)
+        },
+        color = black,
+        style = Stroke(width = 2.5f, cap = StrokeCap.Round),
+    )
+
+    // 鼻子
     fillPath3D(
         Path().apply {
-            moveTo(cx, headCy + r * 0.2f)
-            lineTo(cx - r * 0.1f, headCy + r * 0.1f)
-            lineTo(cx + r * 0.1f, headCy + r * 0.1f)
+            moveTo(cx, headCy + r * 0.18f)
+            lineTo(cx - r * 0.08f, headCy + r * 0.10f)
+            lineTo(cx + r * 0.08f, headCy + r * 0.10f)
             close()
         },
         pink,
     )
 
     // 嘴（ω）
-    val mY = headCy + r * 0.24f
+    val mY = headCy + r * 0.22f
     drawPath(
         Path().apply {
-            moveTo(cx - r * 0.14f, mY)
-            quadraticTo(cx - r * 0.07f, mY + r * 0.08f, cx, mY)
-            quadraticTo(cx + r * 0.07f, mY + r * 0.08f, cx + r * 0.14f, mY)
+            moveTo(cx - r * 0.12f, mY)
+            quadraticTo(cx - r * 0.06f, mY + r * 0.07f, cx, mY)
+            quadraticTo(cx + r * 0.06f, mY + r * 0.07f, cx + r * 0.12f, mY)
         },
         color = black,
         style = Stroke(width = 1.5f, cap = StrokeCap.Round),
     )
 
-    // 胡须（左右各 3 根）
+    // 胡须
     val wY = headCy + r * 0.08f
     listOf(
-        Triple(-0.2f, -0.62f, -0.03f),
-        Triple(-0.2f, -0.36f, 0f),
-        Triple(-0.2f, -0.1f, 0.03f),
+        Triple(-0.18f, -0.55f, -0.03f),
+        Triple(-0.18f, -0.32f, 0f),
+        Triple(-0.18f, -0.08f, 0.03f),
     ).forEach { (sx, ex, dy) ->
         drawPath(
             Path().apply { moveTo(cx + r * sx, wY); lineTo(cx + r * ex, wY + r * dy) },
-            color = onSurface.copy(alpha = 0.45f),
+            color = onSurface.copy(alpha = 0.4f),
             style = Stroke(width = 1.2f, cap = StrokeCap.Round),
         )
     }
     listOf(
-        Triple(0.2f, 0.62f, -0.03f),
-        Triple(0.2f, 0.36f, 0f),
-        Triple(0.2f, 0.1f, 0.03f),
+        Triple(0.18f, 0.55f, -0.03f),
+        Triple(0.18f, 0.32f, 0f),
+        Triple(0.18f, 0.08f, 0.03f),
     ).forEach { (sx, ex, dy) ->
         drawPath(
             Path().apply { moveTo(cx + r * sx, wY); lineTo(cx + r * ex, wY + r * dy) },
-            color = onSurface.copy(alpha = 0.45f),
+            color = onSurface.copy(alpha = 0.4f),
             style = Stroke(width = 1.2f, cap = StrokeCap.Round),
         )
     }
+
+    // 咖啡杯（左侧）
+    val cupCx = cx - r * 1.45f
+    val cupCy = cy + r * 0.55f
+    val cupW = r * 0.55f
+    val cupH = r * 0.70f
+    fillRoundRect3D(Offset(cupCx - cupW / 2, cupCy - cupH / 2), Size(cupW, cupH), r * 0.06f, Color(0xFF8D6E63))
+    drawArc(
+        color = Color(0xFF8D6E63),
+        startAngle = 270f,
+        sweepAngle = 180f,
+        useCenter = false,
+        topLeft = Offset(cupCx + cupW * 0.25f, cupCy - cupH * 0.18f),
+        size = Size(cupW * 0.35f, cupH * 0.36f),
+        style = Stroke(width = r * 0.06f),
+    )
+    drawOval(color = Color(0xFF5D4037).copy(alpha = 0.9f), topLeft = Offset(cupCx - cupW * 0.38f, cupCy - cupH * 0.40f), size = Size(cupW * 0.76f, cupH * 0.22f))
+    drawCircle(color = cream.copy(alpha = 0.8f), radius = r * 0.08f, center = Offset(cupCx, cupCy - cupH * 0.35f))
+    drawPath(
+        Path().apply {
+            moveTo(cupCx - r * 0.04f, cupCy - cupH * 0.38f)
+            quadraticTo(cupCx, cupCy - cupH * 0.30f, cupCx + r * 0.04f, cupCy - cupH * 0.38f)
+        },
+        color = cream.copy(alpha = 0.8f),
+        style = Stroke(width = 2f, cap = StrokeCap.Round),
+    )
 
     // 逗猫棒
     if (toyTimer > 0f) {
