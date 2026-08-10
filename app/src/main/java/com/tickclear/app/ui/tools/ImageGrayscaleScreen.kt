@@ -39,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -201,6 +200,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                     offset = offset,
                     onOffsetChange = { offset = it },
                     enabled = processed != null,
+                    compact = true,
                 )
 
                 // 模式
@@ -234,7 +234,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                 }
 
                 if (mode == 1) {
-                    MiniHorizontalSlider(
+                    ToolHorizontalSlider(
                         label = stringResource(R.string.tools_img_gray_threshold),
                         value = threshold.toFloat(),
                         onValueChange = { threshold = it.toInt() },
@@ -244,7 +244,7 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
                     )
                 }
 
-                MiniHorizontalSlider(
+                ToolHorizontalSlider(
                     label = stringResource(R.string.tools_img_gray_contrast),
                     value = contrast,
                     onValueChange = { contrast = it.coerceIn(0.5f, 2.5f) },

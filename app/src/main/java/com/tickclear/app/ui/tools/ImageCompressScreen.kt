@@ -40,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -214,9 +213,10 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                     offset = offset,
                     onOffsetChange = { offset = it },
                     enabled = processed != null,
+                    compact = true,
                 )
 
-                MiniHorizontalSlider(
+                ToolHorizontalSlider(
                     label = stringResource(R.string.tools_img_compress_quality),
                     value = quality,
                     onValueChange = { quality = it },

@@ -133,9 +133,9 @@ fun BackfillScreen(
                     onClick = { tab = 0 },
                     content = {
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(96.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs, Alignment.CenterHorizontally),
                         ) {
                             Icon(
                                 Icons.Filled.LocalFireDepartment,
@@ -151,9 +151,9 @@ fun BackfillScreen(
                     onClick = { tab = 1 },
                     content = {
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(96.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs, Alignment.CenterHorizontally),
                         ) {
                             Icon(
                                 Icons.Filled.Event,
