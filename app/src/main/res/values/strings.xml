@@ -1898,7 +1898,7 @@
     <!-- 振动按摩 -->
     <string name="tools_vibe_title">振动按摩</string>
     <string name="tools_vibe_desc">多档振动，休闲解压</string>
-    <string name="tools_vibe_hint">选择模式开始按摩，离开页面自动停止。本工具使用「振动」权限（系统默认开启、无需手动授予）；若你在系统设置中关闭了触感/振动反馈，可能会感觉不到震动。</string>
+    <string name="tools_vibe_hint">选择模式开始按摩，离开页面自动停止。</string>
     <string name="vibe_start">开始</string>
     <string name="vibe_running">按摩中…</string>
     <string name="vibe_stop">停止</string>

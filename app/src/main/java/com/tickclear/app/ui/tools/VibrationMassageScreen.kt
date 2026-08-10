@@ -156,16 +156,11 @@ fun VibrationMassageScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SimHintCard(stringResource(R.string.tools_vibe_hint))
-
-            // 诊断信息行：把硬件状态直接显示给用户，「没震动」类问题不再静默。
-            if (diagnose != null) {
-                Text(
-                    text = diagnose!!,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            // 简要说明（已精简）后紧跟硬件诊断信息，同一行显示，便于「没震动」类问题定位。
+            SimHintCard(
+                stringResource(R.string.tools_vibe_hint) +
+                    (diagnose?.let { " · $it" } ?: ""),
+            )
 
             Text(
                 stringResource(R.string.vibe_mode_label),
