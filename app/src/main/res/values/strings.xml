@@ -1595,7 +1595,7 @@
     <string name="tools_zoom_in">放大</string>
     <string name="tools_zoom_out">缩小</string>
     <string name="tools_zoom_reset">复位</string>
-    <string name="tools_pan_hint">放大后可上下左右移动视图</string>
+    <string name="tools_pan_hint">放大后可移动视图</string>
     <string name="tools_pan_up">上移视图</string>
     <string name="tools_pan_down">下移视图</string>
     <string name="tools_pan_left">左移视图</string>

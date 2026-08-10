@@ -611,9 +611,118 @@ fun MiniHorizontalSlider(
 }
 
 /**
+ * 双行横向调节器：标题在上、自定义 Canvas 横条 + 圆球滑块在下。
+ * 用于马赛克 / 去水印侧边面板的强度 / 笔刷宽度调节，比 [MiniHorizontalSlider] 更直观，
+ * 且不受其它工具（压缩 / 黑白）的单行布局影响。
+ */
+@Composable
+fun ToolHorizontalSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    displayValue: String,
+    modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
+    barHeight: Dp = 24.dp,
+) {
+    val density = LocalDensity.current
+    val barHeightPx = with(density) { barHeight.toPx() }
+    val trackH = 6.dp
+    val thumbR = with(density) { 7.dp.toPx() }
+    val onValueChangeState = rememberUpdatedState(onValueChange)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    fun valueFromX(xPx: Float, widthPx: Float): Float {
+        val frac = (xPx / widthPx).coerceIn(0f, 1f)
+        var v = valueRange.start + frac * (valueRange.endInclusive - valueRange.start)
+        if (steps > 0) {
+            val stepSize = (valueRange.endInclusive - valueRange.start) / (steps + 1)
+            v = (kotlin.math.round((v - valueRange.start) / stepSize) * stepSize + valueRange.start).toFloat()
+        }
+        return v
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                Text(
+                    displayValue,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = accent,
+                    modifier = Modifier
+                        .background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    maxLines = 1,
+                )
+            }
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(barHeight)
+                    .pointerInput(valueRange, steps) {
+                        detectDragGestures(
+                            onDragStart = { onValueChangeState.value(valueFromX(it.x, size.width.toFloat())) },
+                            onDrag = { change, _ -> onValueChangeState.value(valueFromX(change.position.x, size.width.toFloat())) },
+                        )
+                    },
+            ) {
+                val trackHpx = with(density) { trackH.toPx() }
+                val frac = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+                val fillW = size.width * frac
+                val cy = size.height / 2f
+                // 轨道
+                drawRoundRect(
+                    color = accent.copy(alpha = 0.25f),
+                    topLeft = Offset(0f, cy - trackHpx / 2f),
+                    size = Size(size.width, trackHpx),
+                    cornerRadius = CornerRadius(trackHpx / 2f),
+                )
+                // 已填充
+                if (fillW > 1f) {
+                    drawRoundRect(
+                        color = accent,
+                        topLeft = Offset(0f, cy - trackHpx / 2f),
+                        size = Size(fillW, trackHpx),
+                        cornerRadius = CornerRadius(trackHpx / 2f),
+                    )
+                }
+                // 圆球滑块（带内圈，便于辨识）
+                val tx = fillW
+                drawCircle(color = accent, radius = thumbR, center = Offset(tx, cy))
+                drawCircle(color = surfaceColor, radius = thumbR * 0.42f, center = Offset(tx, cy))
+            }
+        }
+    }
+}
+
+/**
  * 缩放 + 方向键平移控制台（行内卡片式，与马赛克/去水印侧栏布局一致）。
  * 放大（scale>1）后「上/下/左/右」方向键才可点击，通过小幅平移查看放大后看不见的区域；
  * 未加载图片或未放大时整体禁用并给出提示。
+ *
+ * [compact]=true 时缩小图标与按钮尺寸、收紧行距，用于侧边面板空间紧张的 Mosaic/Watermark。
  */
 @Composable
 fun ZoomPanControls(
@@ -623,10 +732,13 @@ fun ZoomPanControls(
     onOffsetChange: (Offset) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     // offset 为归一化单位（0..1），方向键每按一次平移固定归一化步长
     val panStep = 0.12f
     val canPan = enabled && scale > 1f
+    // 复位仅在已放大或已偏移时可用（默认 scale=1 且 offset=0 时置灰）
+    val canReset = enabled && (scale != 1f || offset != Offset.Zero)
 
     fun clampPan(o: Offset, s: Float): Offset {
         val m = (s - 1f) / 2f
@@ -638,9 +750,20 @@ fun ZoomPanControls(
         onOffsetChange(clampPan(offset + Offset(dx * panStep, dy * panStep), scale))
     }
 
+    fun setScale(newScale: Float) {
+        val ns = newScale.coerceIn(1f, 4f)
+        onScaleChange(ns)
+        onOffsetChange(clampPan(offset, ns))
+    }
+
+    val iconSize = if (compact) 18.dp else 24.dp
+    val buttonSize = if (compact) 32.dp else 40.dp
+    val dpadSpacing = if (compact) 0.dp else Spacing.xs
+    val labelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(if (compact) Spacing.xs else Spacing.sm),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -648,49 +771,72 @@ fun ZoomPanControls(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                onClick = { onScaleChange((scale - 0.5f).coerceAtLeast(1f)) },
+                onClick = { setScale(scale - 0.5f) },
                 enabled = enabled,
-            ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out)) }
+                modifier = Modifier.size(buttonSize),
+            ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.tools_zoom_out), modifier = Modifier.size(iconSize)) }
             Text(
                 "${scale.toInt()}×",
-                style = MaterialTheme.typography.labelMedium,
+                style = labelStyle,
             )
             IconButton(
-                onClick = { onScaleChange((scale + 0.5f).coerceAtMost(4f)) },
+                onClick = { setScale(scale + 0.5f) },
                 enabled = enabled,
-            ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in)) }
+                modifier = Modifier.size(buttonSize),
+            ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tools_zoom_in), modifier = Modifier.size(iconSize)) }
         }
         OutlinedButton(
-            onClick = { onScaleChange(1f); onOffsetChange(Offset.Zero) },
-            enabled = enabled,
+            onClick = { setScale(1f); onOffsetChange(Offset.Zero) },
+            enabled = canReset,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.tools_zoom_reset)) }
+        ) { Text(stringResource(R.string.tools_zoom_reset), style = labelStyle) }
 
-        Spacer(Modifier.height(Spacing.xs))
+        if (!compact) Spacer(Modifier.height(Spacing.xs))
         Text(
             stringResource(R.string.tools_pan_hint),
-            style = MaterialTheme.typography.labelMedium,
+            style = labelStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         // 常规十字 D-pad：↑ 在上、←→ 在中间、↓ 在下（共 3 行）
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(dpadSpacing),
         ) {
-            IconButton(onClick = { move(0f, -1f) }, enabled = canPan) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up)) }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            IconButton(onClick = { move(-1f, 0f) }, enabled = canPan) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left)) }
-            IconButton(onClick = { move(1f, 0f) }, enabled = canPan) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right)) }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            IconButton(onClick = { move(0f, 1f) }, enabled = canPan) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down)) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                IconButton(
+                    onClick = { move(0f, -1f) },
+                    enabled = canPan,
+                    modifier = Modifier.size(buttonSize),
+                ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.tools_pan_up), modifier = Modifier.size(iconSize)) }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                IconButton(
+                    onClick = { move(-1f, 0f) },
+                    enabled = canPan,
+                    modifier = Modifier.size(buttonSize),
+                ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.tools_pan_left), modifier = Modifier.size(iconSize)) }
+                IconButton(
+                    onClick = { move(1f, 0f) },
+                    enabled = canPan,
+                    modifier = Modifier.size(buttonSize),
+                ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.tools_pan_right), modifier = Modifier.size(iconSize)) }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                IconButton(
+                    onClick = { move(0f, 1f) },
+                    enabled = canPan,
+                    modifier = Modifier.size(buttonSize),
+                ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.tools_pan_down), modifier = Modifier.size(iconSize)) }
+            }
         }
     }
 }
