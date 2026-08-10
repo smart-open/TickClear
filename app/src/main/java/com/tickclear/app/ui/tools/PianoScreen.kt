@@ -56,6 +56,7 @@ import com.tickclear.app.ui.theme.Spacing
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import kotlin.math.pow
 
 /**
@@ -63,7 +64,7 @@ import kotlin.math.pow
  *
  * 竖屏展示 1–7 简单音符（一个八度，白键标 1–7 / 哆来咪…），横屏扩展为两个八度更好弹。
  * 琴键为拟真黑白键布局，点按即响、按住可延长；右上角按钮切换横竖屏。
- * 另提供「离别开出花 / 祈求」抖音热歌预设，一键自动弹奏，方便直接弹曲子。
+ * 另提供「小星星 / 两只老虎」经典儿歌预设，一键自动弹奏，方便直接弹曲子。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +80,8 @@ fun PianoScreen(onBack: () -> Unit) {
     // 用显式 MutableState 持有按下的键集合，便于在「容器层 pointerInput」闭包中稳定读写（不受重组影响）。
     val pressedState = remember { mutableStateOf(emptySet<Int>()) }
     var playingSong by remember { mutableStateOf(false) }
+    // 跟踪自动演奏协程，便于「停止」按钮中途取消；取消时 runSong 的 finally 会释放仍按住的音，避免卡音。
+    var songJob by remember { mutableStateOf<Job?>(null) }
 
     fun pressNote(midi: Int) {
         pressedState.value = pressedState.value + midi
@@ -254,24 +257,35 @@ fun PianoScreen(onBack: () -> Unit) {
                     onClick = {
                         if (playingSong) return@OutlinedButton
                         playingSong = true
-                        scope.launch {
-                            try { runSong(SONG_FAREWELL, ::pressNote, ::releaseNote) }
-                            finally { playingSong = false }
+                        songJob = scope.launch {
+                            try { runSong(SONG_TWINKLE, ::pressNote, ::releaseNote) }
+                            finally { playingSong = false; songJob = null }
                         }
                     },
                     enabled = !playingSong,
-                ) { Text(stringResource(R.string.piano_song_farewell)) }
+                ) { Text(stringResource(R.string.piano_song_twinkle)) }
                 OutlinedButton(
                     onClick = {
                         if (playingSong) return@OutlinedButton
                         playingSong = true
-                        scope.launch {
-                            try { runSong(SONG_PRAY, ::pressNote, ::releaseNote) }
-                            finally { playingSong = false }
+                        songJob = scope.launch {
+                            try { runSong(SONG_TIGER, ::pressNote, ::releaseNote) }
+                            finally { playingSong = false; songJob = null }
                         }
                     },
                     enabled = !playingSong,
-                ) { Text(stringResource(R.string.piano_song_pray)) }
+                ) { Text(stringResource(R.string.piano_song_tiger)) }
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                // 停止按钮：仅在自动演奏进行中可点击；点击取消协程，runSong 的 finally 释放仍按住的音。
+                OutlinedButton(
+                    onClick = { songJob?.cancel() },
+                    enabled = playingSong,
+                ) { Text(stringResource(R.string.piano_song_stop)) }
             }
             Spacer(Modifier.height(Spacing.md))
         }
@@ -379,43 +393,48 @@ private val SOL_BY_PC = mapOf(
     11 to R.string.piano_sol_ti,
 )
 
-/** 自动弹奏一段旋律：midi 音符 + 时值(ms)。 */
+/** 自动弹奏一段旋律：midi 音符 + 时值(ms)。取消时释放仍按住的音，避免卡音。 */
 private suspend fun runSong(
     seq: List<Pair<Int, Long>>,
     press: (Int) -> Unit,
     release: (Int) -> Unit,
 ) {
-    for ((midi, ms) in seq) {
-        press(midi)
-        delay(ms)
-        release(midi)
-        delay(70)
+    var heldMidi: Int? = null
+    try {
+        for ((midi, ms) in seq) {
+            heldMidi = midi
+            press(midi)
+            delay(ms)
+            release(midi)
+            heldMidi = null
+            delay(70)
+        }
+    } finally {
+        heldMidi?.let { release(it) }
     }
 }
 
-// 离别开出花（就是南方凯，C 大调，1=C4=60）。主旋律按口风琴简谱映射：3 5 6 5 3 | 1 2 3 2 | 5 3 2 1 | 6 5 3 5 | 1 1 2 3 | 2 3 5 3 | 5 6 5 3 | 2 1 6
-private val SONG_FAREWELL = listOf(
-    64 to 360L, 67 to 360L, 69 to 360L, 67 to 360L, 64 to 360L,
-    60 to 360L, 62 to 360L, 64 to 360L, 62 to 360L,
-    67 to 360L, 64 to 360L, 62 to 360L, 60 to 360L,
-    69 to 360L, 67 to 360L, 64 to 360L, 67 to 360L,
-    60 to 360L, 60 to 360L, 62 to 360L, 64 to 360L,
-    62 to 360L, 64 to 360L, 67 to 360L, 64 to 360L,
-    67 to 360L, 69 to 360L, 67 to 360L, 64 to 360L,
-    62 to 720L, 60 to 720L, 69 to 720L,
+// 小星星（Twinkle Twinkle Little Star，C 大调，1=C4=60）。经典儿歌主旋律，
+// 每乐句收尾音拉长到 800ms，其余 400ms，听感更分明。
+private val SONG_TWINKLE = listOf(
+    60 to 400L, 60 to 400L, 67 to 400L, 67 to 400L, 69 to 400L, 69 to 400L, 67 to 800L,
+    65 to 400L, 65 to 400L, 64 to 400L, 64 to 400L, 62 to 400L, 62 to 400L, 60 to 800L,
+    67 to 400L, 67 to 400L, 65 to 400L, 65 to 400L, 64 to 400L, 64 to 400L, 62 to 800L,
+    67 to 400L, 67 to 400L, 65 to 400L, 65 to 400L, 64 to 400L, 64 to 400L, 62 to 800L,
+    60 to 400L, 60 to 400L, 67 to 400L, 67 to 400L, 69 to 400L, 69 to 400L, 67 to 800L,
+    65 to 400L, 65 to 400L, 64 to 400L, 64 to 400L, 62 to 400L, 62 to 400L, 60 to 800L,
 )
 
-// 祈求（六哲/郎军，C 大调，1=C4=60）。注：原曲为图片简谱、未见可靠数字谱，
-// 以下为按歌词情感走向（主歌下行倾诉、副歌“苦苦地在祈求”上扬）的最佳近似旋律，可后续按真实简谱微调。
-private val SONG_PRAY = listOf(
-    67 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
-    62 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
-    69 to 420L, 67 to 420L, 64 to 840L,
-    62 to 420L, 60 to 840L,
-    64 to 420L, 67 to 420L, 69 to 420L,
-    67 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
-    62 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
-    69 to 420L, 67 to 420L, 64 to 840L,
-    62 to 420L, 60 to 420L, 69 to 420L, 60 to 840L,
+// 两只老虎（Two Tigers / Frère Jacques，C 大调，1=C4=60）。经典儿歌主旋律，
+// “跑得快 / 真奇怪”乐句收尾音拉长到 800ms。
+private val SONG_TIGER = listOf(
+    60 to 400L, 62 to 400L, 64 to 400L, 60 to 400L,
+    60 to 400L, 62 to 400L, 64 to 400L, 60 to 400L,
+    64 to 400L, 65 to 400L, 67 to 800L,
+    64 to 400L, 65 to 400L, 67 to 800L,
+    67 to 400L, 69 to 400L, 67 to 400L, 65 to 400L, 64 to 400L, 60 to 400L,
+    67 to 400L, 69 to 400L, 67 to 400L, 65 to 400L, 64 to 400L, 60 to 400L,
+    60 to 400L, 67 to 400L, 60 to 800L,
+    60 to 400L, 67 to 400L, 60 to 800L,
 )
 
