@@ -1699,8 +1699,8 @@
     <string name="piano_sol_sol">索</string>
     <string name="piano_sol_la">拉</string>
     <string name="piano_sol_ti">西</string>
-    <string name="piano_song_twinkle">小星星</string>
-    <string name="piano_song_ode">欢乐颂</string>
+    <string name="piano_song_farewell">离别开出花</string>
+    <string name="piano_song_pray">祈求</string>
 
     <!-- 养宠物（模拟解压） -->
     <string name="pet_title">养宠物</string>

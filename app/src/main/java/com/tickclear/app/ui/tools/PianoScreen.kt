@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import com.tickclear.app.ui.components.LockScreenOrientation
 import com.tickclear.app.ui.components.OrientationLockState
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -62,7 +63,7 @@ import kotlin.math.pow
  *
  * 竖屏展示 1–7 简单音符（一个八度，白键标 1–7 / 哆来咪…），横屏扩展为两个八度更好弹。
  * 琴键为拟真黑白键布局，点按即响、按住可延长；右上角按钮切换横竖屏。
- * 另提供「小星星 / 欢乐颂」预设曲目，一键自动弹奏，方便直接弹曲子。
+ * 另提供「离别开出花 / 祈求」抖音热歌预设，一键自动弹奏，方便直接弹曲子。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,16 +76,17 @@ fun PianoScreen(onBack: () -> Unit) {
     // 横竖屏偏好存进程级单例 OrientationLockState：部分 ROM（如 HyperOS）旋转会整页重建，
     // rememberSaveable 不可靠恢复，改用 remember 从单例恢复，保证用户选择不丢、不被弹回竖屏。
     var landscape by remember { mutableStateOf(OrientationLockState.desiredLandscape) }
-    var pressed by remember { mutableStateOf(emptySet<Int>()) }
+    // 用显式 MutableState 持有按下的键集合，便于在「容器层 pointerInput」闭包中稳定读写（不受重组影响）。
+    val pressedState = remember { mutableStateOf(emptySet<Int>()) }
     var playingSong by remember { mutableStateOf(false) }
 
     fun pressNote(midi: Int) {
-        pressed = pressed + midi
+        pressedState.value = pressedState.value + midi
         PianoSynth.noteOn(midiToFreq(midi))
     }
 
     fun releaseNote(midi: Int) {
-        pressed = pressed - midi
+        pressedState.value = pressedState.value - midi
         PianoSynth.noteOff(midiToFreq(midi))
     }
 
@@ -156,15 +158,71 @@ fun PianoScreen(onBack: () -> Unit) {
                 val bkW = wkW * 0.62f
                 val keyH = maxHeight * 0.82f
 
-                Box(Modifier.fillMaxWidth().height(keyH)) {
+                // 统一在容器层做触摸命中：把指针坐标映射到具体琴键（白/黑），
+                // 彻底规避「分层命中 / 偏移」导致点错键或无响应的问题（支持多指和音与滑奏）。
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(keyH)
+                        .pointerInput(whites.size, blacks.size) {
+                            val wkWpx = size.width.toFloat() / whites.size
+                            val bkWpx = wkWpx * 0.62f
+                            val blackTop = size.height * 0.62f
+                            val blackCx = blacks.map { bk ->
+                                (whiteIdx[bk.midi - 1]!! + 1) * wkWpx
+                            }
+                            fun hitTest(px: Float, py: Float): Int {
+                                val wi = (px / wkWpx).toInt().coerceIn(0, whites.lastIndex)
+                                for (i in blacks.indices) {
+                                    val cx = blackCx[i]
+                                    if (px >= cx - bkWpx / 2f && px <= cx + bkWpx / 2f && py <= blackTop) {
+                                        return blacks[i].midi
+                                    }
+                                }
+                                return whites[wi].midi
+                            }
+                            val active = mutableMapOf<Int, Int>() // pointerId -> midi
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val ev = awaitPointerEvent()
+                                    val present = mutableSetOf<Int>()
+                                    for (ch in ev.changes) {
+                                        val id = ch.id.value.toInt()
+                                        present.add(id)
+                                        val midi = hitTest(ch.position.x, ch.position.y)
+                                        when {
+                                            ch.changedToDownIgnoreConsumed() -> {
+                                                active[id] = midi
+                                                pressNote(midi)
+                                                Haptic.vibrate(context, 12)
+                                            }
+                                            ch.changedToUpIgnoreConsumed() -> {
+                                                active.remove(id)?.let { releaseNote(it) }
+                                            }
+                                            ch.pressed -> {
+                                                val cur = active[id]
+                                                if (cur != null && cur != midi) {
+                                                    releaseNote(cur)
+                                                    active[id] = midi
+                                                    pressNote(midi)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // 指针被系统取消（未收到 up 事件）时回收，避免卡音。
+                                    for (id in active.keys.toSet()) {
+                                        if (id !in present) active.remove(id)?.let { releaseNote(it) }
+                                    }
+                                }
+                            }
+                        },
+                ) {
                     Row(Modifier.fillMaxSize()) {
                         whites.forEach { wk ->
                             WhiteKey(
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                                 key = wk,
-                                isPressed = pressed.contains(wk.midi),
-                                onDown = { pressNote(wk.midi) },
-                                onUp = { releaseNote(wk.midi) },
+                                isPressed = pressedState.value.contains(wk.midi),
                             )
                         }
                     }
@@ -180,9 +238,7 @@ fun PianoScreen(onBack: () -> Unit) {
                         ) {
                             BlackKey(
                                 key = bk,
-                                isPressed = pressed.contains(bk.midi),
-                                onDown = { pressNote(bk.midi) },
-                                onUp = { releaseNote(bk.midi) },
+                                isPressed = pressedState.value.contains(bk.midi),
                             )
                         }
                     }
@@ -199,23 +255,23 @@ fun PianoScreen(onBack: () -> Unit) {
                         if (playingSong) return@OutlinedButton
                         playingSong = true
                         scope.launch {
-                            try { runSong(SONG_TWINKLE, ::pressNote, ::releaseNote) }
+                            try { runSong(SONG_FAREWELL, ::pressNote, ::releaseNote) }
                             finally { playingSong = false }
                         }
                     },
                     enabled = !playingSong,
-                ) { Text(stringResource(R.string.piano_song_twinkle)) }
+                ) { Text(stringResource(R.string.piano_song_farewell)) }
                 OutlinedButton(
                     onClick = {
                         if (playingSong) return@OutlinedButton
                         playingSong = true
                         scope.launch {
-                            try { runSong(SONG_ODE, ::pressNote, ::releaseNote) }
+                            try { runSong(SONG_PRAY, ::pressNote, ::releaseNote) }
                             finally { playingSong = false }
                         }
                     },
                     enabled = !playingSong,
-                ) { Text(stringResource(R.string.piano_song_ode)) }
+                ) { Text(stringResource(R.string.piano_song_pray)) }
             }
             Spacer(Modifier.height(Spacing.md))
         }
@@ -227,10 +283,7 @@ private fun WhiteKey(
     modifier: Modifier,
     key: PianoKey,
     isPressed: Boolean,
-    onDown: () -> Unit,
-    onUp: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     Box(
         modifier
             .background(
@@ -241,15 +294,7 @@ private fun WhiteKey(
                 1.dp,
                 Color(0xFFD0D5DD),
                 RoundedCornerShape(bottomStart = 6.dp, bottomEnd = 6.dp),
-            )
-            .pointerInput(key.midi) {
-                detectTapGestures(onPress = {
-                    onDown()
-                    Haptic.vibrate(ctx, 12)
-                    tryAwaitRelease()
-                    onUp()
-                })
-            },
+            ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
@@ -284,10 +329,7 @@ private fun WhiteKey(
 private fun BlackKey(
     key: PianoKey,
     isPressed: Boolean,
-    onDown: () -> Unit,
-    onUp: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     Box(
         Modifier
             .fillMaxSize()
@@ -299,15 +341,7 @@ private fun BlackKey(
                 1.dp,
                 Color(0xFF111418),
                 RoundedCornerShape(bottomStart = 5.dp, bottomEnd = 5.dp),
-            )
-            .pointerInput(Unit) {
-                detectTapGestures(onPress = {
-                    onDown()
-                    Haptic.vibrate(ctx, 12)
-                    tryAwaitRelease()
-                    onUp()
-                })
-            },
+            ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Text(
@@ -359,21 +393,29 @@ private suspend fun runSong(
     }
 }
 
-// 小星星（C 大调，C4=60）
-private val SONG_TWINKLE = listOf(
-    60 to 320L, 60 to 320L, 67 to 320L, 67 to 320L, 69 to 320L, 69 to 320L, 67 to 640L,
-    65 to 320L, 65 to 320L, 64 to 320L, 64 to 320L, 62 to 320L, 62 to 320L, 60 to 640L,
-    67 to 320L, 67 to 320L, 65 to 320L, 65 to 320L, 64 to 320L, 64 to 320L, 62 to 640L,
-    67 to 320L, 67 to 320L, 65 to 320L, 65 to 320L, 64 to 320L, 64 to 320L, 62 to 640L,
-    60 to 320L, 60 to 320L, 67 to 320L, 67 to 320L, 69 to 320L, 69 to 320L, 67 to 640L,
-    65 to 320L, 65 to 320L, 64 to 320L, 64 to 320L, 62 to 320L, 62 to 320L, 60 to 640L,
+// 离别开出花（就是南方凯，C 大调，1=C4=60）。主旋律按口风琴简谱映射：3 5 6 5 3 | 1 2 3 2 | 5 3 2 1 | 6 5 3 5 | 1 1 2 3 | 2 3 5 3 | 5 6 5 3 | 2 1 6
+private val SONG_FAREWELL = listOf(
+    64 to 360L, 67 to 360L, 69 to 360L, 67 to 360L, 64 to 360L,
+    60 to 360L, 62 to 360L, 64 to 360L, 62 to 360L,
+    67 to 360L, 64 to 360L, 62 to 360L, 60 to 360L,
+    69 to 360L, 67 to 360L, 64 to 360L, 67 to 360L,
+    60 to 360L, 60 to 360L, 62 to 360L, 64 to 360L,
+    62 to 360L, 64 to 360L, 67 to 360L, 64 to 360L,
+    67 to 360L, 69 to 360L, 67 to 360L, 64 to 360L,
+    62 to 720L, 60 to 720L, 69 to 720L,
 )
 
-// 欢乐颂（C 大调）
-private val SONG_ODE = listOf(
-    64 to 320L, 64 to 320L, 65 to 320L, 67 to 320L, 67 to 320L, 65 to 320L, 64 to 320L, 62 to 320L,
-    60 to 320L, 60 to 320L, 62 to 320L, 64 to 320L, 64 to 480L, 62 to 160L, 62 to 640L,
-    64 to 320L, 64 to 320L, 65 to 320L, 67 to 320L, 67 to 320L, 65 to 320L, 64 to 320L, 62 to 320L,
-    60 to 320L, 60 to 320L, 62 to 320L, 64 to 320L, 62 to 480L, 60 to 160L, 60 to 640L,
+// 祈求（六哲/郎军，C 大调，1=C4=60）。注：原曲为图片简谱、未见可靠数字谱，
+// 以下为按歌词情感走向（主歌下行倾诉、副歌“苦苦地在祈求”上扬）的最佳近似旋律，可后续按真实简谱微调。
+private val SONG_PRAY = listOf(
+    67 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
+    62 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
+    69 to 420L, 67 to 420L, 64 to 840L,
+    62 to 420L, 60 to 840L,
+    64 to 420L, 67 to 420L, 69 to 420L,
+    67 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
+    62 to 420L, 64 to 420L, 62 to 420L, 60 to 420L,
+    69 to 420L, 67 to 420L, 64 to 840L,
+    62 to 420L, 60 to 420L, 69 to 420L, 60 to 840L,
 )
 
