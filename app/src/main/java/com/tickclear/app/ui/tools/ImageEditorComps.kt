@@ -109,7 +109,8 @@ fun SimStatCard(
     ) {
         if (horizontal && label != null) {
             Row(
-                modifier = Modifier.padding(Spacing.md),
+                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
