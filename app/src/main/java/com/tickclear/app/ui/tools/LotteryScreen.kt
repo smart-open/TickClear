@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -81,6 +82,7 @@ fun LotteryScreen(
     var result by remember { mutableStateOf<String?>(null) }
     var mode by remember { mutableStateOf("dice") } // pick / dice / coin
     var animToken by remember { mutableIntStateOf(0) }
+    var animating by remember { mutableStateOf(false) }
 
     // 非组合上下文（onClick）内禁止调用 stringResource，故在此预取格式串与文案。
     val pickFmt = stringResource(R.string.lottery_pick_result)
@@ -94,6 +96,7 @@ fun LotteryScreen(
         mode = next
         result = null
         animToken = 0 // 复位令牌，避免进入新模式时旧令牌触发非点击动画
+        animating = false
     }
 
     fun trigger() {
@@ -192,6 +195,7 @@ fun LotteryScreen(
                     options = options,
                     token = animToken,
                     onResult = { opt -> result = java.lang.String.format(pickFmt, opt) },
+                    onAnimatingChange = { animating = it },
                     onDelete = { vm.removeOption(it) },
                 )
 
@@ -210,11 +214,11 @@ fun LotteryScreen(
             } else {
                 // 掷骰子 / 抛硬币：动画展示区，结果仅在动画结束后由回调设置
                 if (mode == "dice") {
-                    DiceDisplay(token = animToken) { face ->
+                    DiceDisplay(token = animToken, onAnimatingChange = { animating = it }) { face ->
                         result = java.lang.String.format(diceFmt, face)
                     }
                 } else {
-                    CoinDisplay(token = animToken) { side ->
+                    CoinDisplay(token = animToken, onAnimatingChange = { animating = it }) { side ->
                         result = java.lang.String.format(coinFmt, if (side) heads else tails)
                     }
                 }
@@ -223,6 +227,7 @@ fun LotteryScreen(
             Button(
                 onClick = { trigger() },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !animating,
             ) {
                 Text(actionLabel)
             }
@@ -264,6 +269,7 @@ private fun PickGrid(
     options: List<String>,
     token: Int,
     onResult: (String) -> Unit,
+    onAnimatingChange: (Boolean) -> Unit,
     onDelete: (Int) -> Unit,
 ) {
     var highlightIndex by remember { mutableIntStateOf(-1) }
@@ -276,18 +282,23 @@ private fun PickGrid(
             return@LaunchedEffect
         }
         animating = true
-        val finalIdx = Random.nextInt(options.size)
-        var i = 0
-        var elapsed = 0L
-        while (elapsed < SPIN_DURATION) {
-            highlightIndex = i % options.size
-            i++
-            delay(80)
-            elapsed += 80
+        onAnimatingChange(true)
+        try {
+            val finalIdx = Random.nextInt(options.size)
+            var i = 0
+            var elapsed = 0L
+            while (elapsed < SPIN_DURATION) {
+                highlightIndex = i % options.size
+                i++
+                delay(80)
+                elapsed += 80
+            }
+            highlightIndex = finalIdx
+            onResult(options[finalIdx])
+        } finally {
+            animating = false
+            onAnimatingChange(false)
         }
-        highlightIndex = finalIdx
-        animating = false
-        onResult(options[finalIdx])
     }
 
     LazyVerticalGrid(
@@ -346,31 +357,35 @@ private fun PickGrid(
     }
 }
 
-/** 掷骰子动画：真 3D 立方体投影旋转 3s，期间不断翻面，结束定格为等概率随机点数。 */
+/** 掷骰子动画：2D 骰子面循环切换点数（1-6），配合轻微 3D 翻滚，3s 后定格为等概率随机点数。 */
 @Composable
-private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
-    val rotX = remember { Animatable(0f) }
-    val rotY = remember { Animatable(0f) }
+private fun DiceDisplay(
+    token: Int,
+    onAnimatingChange: (Boolean) -> Unit,
+    onResult: (Int) -> Unit,
+) {
     var shown by remember { mutableIntStateOf(1) }
+    val tumble = remember { Animatable(0f) }
 
     LaunchedEffect(token) {
         if (token == 0) return@LaunchedEffect
+        onAnimatingChange(true)
         val finalFace = Random.nextInt(1, 7)
-        val spinX = launch {
-            rotX.animateTo(rotX.value + 360f * 3f, tween(SPIN_DURATION, easing = LinearEasing))
+        try {
+            val spin = launch {
+                tumble.animateTo(1f, tween(SPIN_DURATION, easing = LinearEasing))
+            }
+            var elapsed = 0L
+            while (elapsed < SPIN_DURATION) {
+                shown = Random.nextInt(1, 7)
+                delay(80)
+                elapsed += 80
+            }
+            shown = finalFace
+            spin.join()
+        } finally {
+            onAnimatingChange(false)
         }
-        val spinY = launch {
-            rotY.animateTo(rotY.value + 360f * 3f, tween(SPIN_DURATION, easing = LinearEasing))
-        }
-        var elapsed = 0L
-        while (elapsed < SPIN_DURATION) {
-            shown = Random.nextInt(1, 7)
-            delay(90)
-            elapsed += 90
-        }
-        shown = finalFace
-        spinX.join()
-        spinY.join()
         onResult(finalFace)
     }
 
@@ -381,17 +396,26 @@ private fun DiceDisplay(token: Int, onResult: (Int) -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
-            modifier = Modifier.size(140.dp),
+            modifier = Modifier
+                .size(140.dp)
+                .graphicsLayer {
+                    // 旋转量取 360° 的整数倍，翻滚结束后恰好回到正向，不镜像
+                    rotationX = tumble.value * 720f
+                    rotationY = tumble.value * 360f
+                },
         ) {
-            // 读取 rotX/rotY 的 State，每帧重绘投影立方体，实现真 3D 旋转
-            draw3DDie(front = shown, rotXDeg = rotX.value, rotYDeg = rotY.value, size = size)
+            drawDieFace(shown, size)
         }
     }
 }
 
-/** 抛硬币动画：绕竖轴翻转 6s，期间正反面随翻转实时切换，结束才揭晓结果。 */
+/** 抛硬币动画：绕竖轴翻转 3s，期间正反面随翻转实时切换，结束才揭晓结果。 */
 @Composable
-private fun CoinDisplay(token: Int, onResult: (Boolean) -> Unit) {
+private fun CoinDisplay(
+    token: Int,
+    onAnimatingChange: (Boolean) -> Unit,
+    onResult: (Boolean) -> Unit,
+) {
     val flip = remember { Animatable(0f) }
     var restSide by remember { mutableStateOf(true) }
     var animating by remember { mutableStateOf(false) }
@@ -400,20 +424,25 @@ private fun CoinDisplay(token: Int, onResult: (Boolean) -> Unit) {
         if (token == 0) return@LaunchedEffect
         val finalSide = Random.nextBoolean()
         animating = true
-        val start = flip.value
-        flip.snapTo(start)
-        val spin = launch {
-            flip.animateTo(start + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+        onAnimatingChange(true)
+        try {
+            val start = flip.value
+            flip.snapTo(start)
+            val spin = launch {
+                flip.animateTo(start + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
+            }
+            var elapsed = 0L
+            while (elapsed < SPIN_DURATION) {
+                delay(60)
+                elapsed += 60
+            }
+            spin.join()
+            restSide = finalSide
+            flip.snapTo(0f)
+        } finally {
+            animating = false
+            onAnimatingChange(false)
         }
-        var elapsed = 0L
-        while (elapsed < SPIN_DURATION) {
-            delay(60)
-            elapsed += 60
-        }
-        spin.join()
-        animating = false
-        restSide = finalSide
-        flip.snapTo(0f)
         onResult(finalSide)
     }
 
@@ -439,117 +468,68 @@ private fun CoinDisplay(token: Int, onResult: (Boolean) -> Unit) {
     }
 }
 
-/** 3D 骰子：投影立方体，按 rotX/rotY 旋转后只绘制朝向相机（法线 z>0）的可见面。 */
-private data class V3(val x: Float, val y: Float, val z: Float)
-
-/** 给定正面点数，返回（顶面、右面）点数，保证不与正面或其对立面（和为 7）冲突。 */
-private fun dieTopRight(front: Int): Pair<Int, Int> {
-    val opp = 7 - front
-    val cands = (1..6).filter { it != front && it != opp }
-    return cands[0] to cands[1]
-}
-
-private fun lerpOffset(a: Offset, b: Offset, t: Float) = Offset(
-    a.x + (b.x - a.x) * t,
-    a.y + (b.y - a.y) * t,
-)
-
-/** 在四边形 [TL,TR,BR,BL] 内做双线性插值，u/v ∈ [0,1]。 */
-private fun quadPoint(tl: Offset, tr: Offset, br: Offset, bl: Offset, u: Float, v: Float): Offset {
-    val top = lerpOffset(tl, tr, u)
-    val bottom = lerpOffset(bl, br, u)
-    return lerpOffset(top, bottom, v)
-}
-
-private fun DrawScope.draw3DDie(
-    front: Int,
-    rotXDeg: Float,
-    rotYDeg: Float,
-    size: Size,
-) {
-    val (topVal, rightVal) = dieTopRight(front)
+/**
+ * 2D 骰子面（立体强化版）：投影 + 左上受光渐变面 + 右下倒角暗边 + 米色描边，
+ * 黑点内凹（右下缘高光）。保留标准点位坐标，绝不随旋转错位。
+ */
+private fun DrawScope.drawDieFace(value: Int, size: Size) {
     val cx = size.width / 2f
     val cy = size.height / 2f
-    val s = size.minDimension * 0.34f
+    val face = size.minDimension * 0.82f
+    val half = face / 2f
+    val corner = CornerRadius(face * 0.20f)
 
-    val base = listOf(
-        V3(-s, -s, -s), V3(s, -s, -s), V3(s, s, -s), V3(-s, s, -s),
-        V3(-s, -s, s), V3(s, -s, s), V3(s, s, s), V3(-s, s, s),
-    )
-    val ax = Math.toRadians(rotXDeg.toDouble())
-    val ay = Math.toRadians(rotYDeg.toDouble())
-    val ca = kotlin.math.cos(ax).toFloat()
-    val sa = kotlin.math.sin(ax).toFloat()
-    val cb = kotlin.math.cos(ay).toFloat()
-    val sb = kotlin.math.sin(ay).toFloat()
-
-    fun rotate(p: V3): V3 {
-        val y1 = p.y * ca - p.z * sa
-        val z1 = p.y * sa + p.z * ca
-        val x2 = p.x * cb + z1 * sb
-        val z2 = -p.x * sb + z1 * cb
-        return V3(x2, y1, z2)
-    }
-
-    val rv = base.map { rotate(it) }
-    val proj = rv.map { Offset(cx + it.x, cy + it.y) }
-
-    // 面定义：4 个角索引按 [TL,TR,BR,BL] 环序，value 为该面点数（背面值为 7-正面）
-    val faces = listOf(
-        listOf(4, 5, 6, 7) to front,
-        listOf(1, 2, 6, 5) to rightVal,
-        listOf(0, 4, 7, 3) to (7 - rightVal),
-        listOf(0, 1, 5, 4) to topVal,
-        listOf(3, 2, 6, 7) to (7 - topVal),
-        listOf(0, 1, 2, 3) to (7 - front),
-    )
-
+    // 接地投影：让骰子"浮"在桌面上，产生立体悬浮感
     drawSoftShadow(
-        center = Offset(cx, cy + s * 1.15f),
-        radiusX = s * 0.9f,
-        radiusY = s * 0.3f,
-        maxAlpha = 0.16f,
+        center = Offset(cx, cy + half * 0.12f),
+        radiusX = half * 0.96f,
+        radiusY = half * 0.96f,
+        maxAlpha = 0.22f,
     )
 
-    val light = V3(-0.5f, -0.5f, 0.7f)
-    val llen = kotlin.math.sqrt(light.x * light.x + light.y * light.y + light.z * light.z)
+    // 面主体：左上受光的白→米白渐变，模拟圆角塑料面的体积
+    val faceGrad = Brush.linearGradient(
+        colors = listOf(Color(0xFFFEFEFE), Color(0xFFF6F2EA), Color(0xFFE6E0D4)),
+        start = Offset(cx - half, cy - half),
+        end = Offset(cx + half, cy + half),
+    )
+    drawRoundRect(
+        brush = faceGrad,
+        topLeft = Offset(cx - half, cy - half),
+        size = Size(face, face),
+        cornerRadius = corner,
+    )
 
-    // 仅绘制法线朝向相机（z>0）的面，按 z 从远到近排序
-    val visible = faces.mapNotNull { (idx, value) ->
-        val vs = idx.map { rv[it] }
-        val center = V3(
-            (vs[0].x + vs[1].x + vs[2].x + vs[3].x) / 4f,
-            (vs[0].y + vs[1].y + vs[2].y + vs[3].y) / 4f,
-            (vs[0].z + vs[1].z + vs[2].z + vs[3].z) / 4f,
-        )
-        if (center.z <= 0.001f) null else idx to (value to center)
-    }.sortedBy { it.second.second.z }
+    // 右下暗角：叠加半透明黑，强化倒角厚度
+    val bevel = Brush.linearGradient(
+        colors = listOf(Color(0x00000000), Color(0x00000000), Color(0x26000000)),
+        start = Offset(cx, cy),
+        end = Offset(cx + half, cy + half),
+    )
+    drawRoundRect(
+        brush = bevel,
+        topLeft = Offset(cx - half, cy - half),
+        size = Size(face, face),
+        cornerRadius = corner,
+    )
 
-    for ((idx, valueCenter) in visible) {
-        val (value, center) = valueCenter
-        val nlen = kotlin.math.sqrt(center.x * center.x + center.y * center.y + center.z * center.z)
-        val ndot = (center.x * light.x + center.y * light.y + center.z * light.z) / (nlen * llen)
-        val shade = (0.55f + 0.45f * ndot.coerceIn(0f, 1f)).coerceIn(0f, 1f)
-        val faceColor = Color(
-            0.62f + 0.36f * shade,
-            0.60f + 0.37f * shade,
-            0.55f + 0.39f * shade,
-        )
-        val tl = proj[idx[0]]; val tr = proj[idx[1]]; val br = proj[idx[2]]; val bl = proj[idx[3]]
-        val path = Path().apply {
-            moveTo(tl.x, tl.y); lineTo(tr.x, tr.y); lineTo(br.x, br.y); lineTo(bl.x, bl.y); close()
-        }
-        drawPath(path, faceColor)
-        drawPath(path, Color(0xFFCFC9BE), style = Stroke(width = s * 0.035f))
-        if (value in 1..6) {
-            val pipR = s * 0.115f
-            for ((px, py) in dicePips(value)) {
-                val u = (px + 1f) / 2f
-                val v = (py + 1f) / 2f
-                val pt = quadPoint(tl, tr, br, bl, u, v)
-                drawCircle(Color(0xFF2A2A2A), pipR, pt)
-            }
-        }
+    // 边缘描边（米色），界定骰子轮廓
+    drawRoundRect(
+        color = Color(0xFFD8D2C4),
+        topLeft = Offset(cx - half, cy - half),
+        size = Size(face, face),
+        cornerRadius = corner,
+        style = Stroke(width = face * 0.045f),
+    )
+
+    // 黑点（标准骰子布局，居中对齐）+ 内凹高光（右下缘受光，呈凹陷感）
+    val pipR = face * 0.085f
+    val reach = half * 0.68f
+    for ((px, py) in dicePips(value)) {
+        val x = cx + px * reach
+        val y = cy + py * reach
+        drawCircle(Color(0xFFFFFFFF), pipR * 0.85f, Offset(x + pipR * 0.25f, y + pipR * 0.25f))
+        drawCircle(Color(0xFF2A2A2A), pipR, Offset(x, y))
     }
 }
 
@@ -632,8 +612,8 @@ private fun DrawScope.drawCoinObverse(cx: Float, cy: Float, r: Float) {
     // 1) 周边小圆点装饰
     drawCoinBorderDots(cx, cy, r, darkColor)
 
-    // 2) 牡丹花（左下）
-    drawPeonyFlower(cx - r * 0.34f, cy + r * 0.30f, r * 0.20f, darkColor)
+    // 2) 牡丹花（"1" 的左上方）
+    drawPeonyFlower(cx - r * 0.30f, cy - r * 0.14f, r * 0.20f, darkColor)
 
     // 3) 中央"1"（粗体超大）
     val num1Paint = android.graphics.Paint().apply {
