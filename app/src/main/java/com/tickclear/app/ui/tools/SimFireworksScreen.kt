@@ -74,7 +74,7 @@ private fun randomPalette(): Palette {
 }
 
 /** 烟花类型：牡丹=球形炸开；柳叶=低重力慢垂长拖尾；随机=每次随机其一；
- *  加特林=扫射连喷（短间隔横向扫动、小朵连爆）；连发=快速齐射（一簇密集连开）。 */
+ *  加特林=扫射连喷（短间隔横向扫动、小朵连爆）；连发=固定三发快速齐射。 */
 private enum class FireworkType(val labelRes: Int) {
     PEONY(R.string.tools_sim_fireworks_type_peony),
     WILLOW(R.string.tools_sim_fireworks_type_willow),
@@ -127,7 +127,7 @@ private class BurstFlash(
  * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，起飞时播「咻」声；
  * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
  * - 每朵烟花随机"单色球/双色/全彩虹"调色板；可选"牡丹/柳叶/随机/加特林/连发"类型：
- *   牡丹=球形炸开、柳叶=低重力慢垂长拖尾、随机=两者任取；加特林=短间隔横向扫射连爆、连发=一簇快速齐开；
+ *   牡丹=球形炸开、柳叶=低重力慢垂长拖尾、随机=两者任取；加特林=短间隔横向扫射连爆、连发=固定三发快速齐开；
  * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；
  * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
  * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
@@ -190,7 +190,7 @@ fun SimFireworksScreen(onBack: () -> Unit) {
             return
         }
         if (typeMode == FireworkType.BURST) {
-            launchBarrage(nx, ny, shots = 9, gapMs = 64L, spreadX = 0.14f, sweep = 0.0f)
+            launchBarrage(nx, ny, shots = 3, gapMs = 110L, spreadX = 0.14f, sweep = 0.0f)
             return
         }
         val concrete = if (typeMode == FireworkType.RANDOM)

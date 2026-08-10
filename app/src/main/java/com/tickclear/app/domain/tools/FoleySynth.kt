@@ -24,6 +24,8 @@ object FoleySynth {
     private const val SR = 44100
     private var current: AudioTrack? = null
     private var mp: MediaPlayer? = null
+    /** 并发播放的录音实例（烟花齐射时多个爆炸声同时响），各自播完自行释放。 */
+    private val activePlayers = mutableSetOf<MediaPlayer>()
 
     /** 停止并释放当前正在播放的合成音轨与录音。 */
     fun stop() {
@@ -42,6 +44,38 @@ object FoleySynth {
     private fun releaseMp() {
         runCatching { mp?.release() }
         mp = null
+        runCatching {
+            val list = activePlayers.toList()
+            activePlayers.clear()
+            list.forEach { it.release() }
+        }
+    }
+
+    /**
+     * 播放 res/raw 下的真实录音：每次新建独立 MediaPlayer，播放完自行释放，互不干扰。
+     * 修复"齐射时只有最后一个爆炸声能听到"的问题——旧实现共用单一 mp 字段，
+     * 后一声会 release 掉前一声；这里改为独立实例加入 [activePlayers]，可多声同响。
+     */
+    private fun playSample(context: Context, resId: Int, onMissing: () -> Unit) {
+        val player = runCatching { MediaPlayer.create(context, resId) }.getOrNull()
+        if (player == null) {
+            onMissing()
+            return
+        }
+        activePlayers.add(player)
+        player.setOnCompletionListener {
+            activePlayers.remove(it)
+            runCatching { it.release() }
+        }
+        player.setOnErrorListener { p, _, _ ->
+            activePlayers.remove(p)
+            runCatching { p.release() }
+            true
+        }
+        if (runCatching { player.start() }.isFailure) {
+            activePlayers.remove(player)
+            runCatching { player.release() }
+        }
     }
 
     /**
@@ -49,15 +83,7 @@ object FoleySynth {
      * 录音缺失/失败时回退合成音。录音来自公开木鱼音效（mokugyo），CC0 可用。
      */
     fun playWood(context: Context) {
-        val player = runCatching { MediaPlayer.create(context, R.raw.wood_knock) }.getOrNull()
-        if (player != null) {
-            releaseMp()
-            mp = player.apply {
-                setOnCompletionListener { releaseMp() }
-                setOnErrorListener { _, _, _ -> releaseMp(); true }
-                start()
-            }
-        } else {
+        playSample(context, R.raw.wood_knock) {
             AppLogger.w(TAG, "wood_knock 录音不可用，回退合成")
             synthWood()
         }
@@ -69,15 +95,7 @@ object FoleySynth {
      * CC0 公有领域；经 ffmpeg 转 16-bit/44.1k/单声道，并裁掉前 3.1s 静音段让爆炸即时触发。
      */
     fun playFirework(context: Context) {
-        val player = runCatching { MediaPlayer.create(context, R.raw.firework_boom) }.getOrNull()
-        if (player != null) {
-            releaseMp()
-            mp = player.apply {
-                setOnCompletionListener { releaseMp() }
-                setOnErrorListener { _, _, _ -> releaseMp(); true }
-                start()
-            }
-        } else {
+        playSample(context, R.raw.firework_boom) {
             AppLogger.w(TAG, "firework_boom 录音不可用，回退合成")
             play("firework")
         }
@@ -89,15 +107,7 @@ object FoleySynth {
      * CC0 公有领域；经 ffmpeg 从 16s 原始录音裁出首击 ~0.4s 清脆段，转 16-bit/44.1k/单声道。
      */
     fun playPop(context: Context) {
-        val player = runCatching { MediaPlayer.create(context, R.raw.marble_click) }.getOrNull()
-        if (player != null) {
-            releaseMp()
-            mp = player.apply {
-                setOnCompletionListener { releaseMp() }
-                setOnErrorListener { _, _, _ -> releaseMp(); true }
-                start()
-            }
-        } else {
+        playSample(context, R.raw.marble_click) {
             AppLogger.w(TAG, "marble_click 录音不可用，回退合成")
             play("pop")
         }
