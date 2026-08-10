@@ -11,27 +11,27 @@ import kotlin.math.sin
 
 /**
  * 拟声玻璃杯敲击合成器（工具箱「模拟解压」分类）。
- * 7 个玻璃杯对应 C 大调音阶 1234567（C5..B5）：杯中水越多音越低。
+ * 7 个玻璃杯对应 G 大调音阶 1234567（G4..F#5）：杯中水越多音越低。
  *
- * 声音来源：优先播放真实钢琴单音素材（mcapodici/pianosounds，CC0，res/raw/glass_note_1..7），
+ * 声音来源：优先播放程序生成的玻璃“叮”声素材（res/raw/glass_note_1..7，G 大调），
  * 缺失或播放失败时回退到本地 AudioTrack 合成的玻璃“叮”声。
  * 复用 AnimalSynth / FoleySynth 的「真实录音优先、合成兜底」思路，零额外依赖。
  */
 object GlassSynth {
     private const val SR = 44100
 
-    /** 1..7 对应 C 大调音阶 do re mi fa sol la ti（C5..B5）。 */
+    /** 1..7 对应 G 大调音阶 do re mi fa sol la ti（G4..F#5）。 */
     private val NOTE_FREQS = floatArrayOf(
-        523.25f, // 1 do
-        587.33f, // 2 re
-        659.25f, // 3 mi
-        698.46f, // 4 fa
-        783.99f, // 5 sol
-        880.00f, // 6 la
-        987.77f, // 7 ti
+        392.00f, // 1 do  G4
+        440.00f, // 2 re  A4
+        493.88f, // 3 mi  B4
+        523.25f, // 4 fa  C5
+        587.33f, // 5 sol D5
+        659.25f, // 6 la  E5
+        739.99f, // 7 ti  F#5
     )
 
-    /** 真实钢琴单音素材：note 1..7 → C5..B5。 */
+    /** 程序生成的玻璃“叮”声素材：note 1..7 → G4..F#5。 */
     private val NOTE_RES = intArrayOf(
         R.raw.glass_note_1, R.raw.glass_note_2, R.raw.glass_note_3, R.raw.glass_note_4,
         R.raw.glass_note_5, R.raw.glass_note_6, R.raw.glass_note_7,
