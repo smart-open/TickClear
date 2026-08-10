@@ -105,15 +105,14 @@ fun GlassCupScreen(onBack: () -> Unit) {
         Haptic.vibrate(context, 25)
     }
 
-    // 模拟按钮：自动按一段旋律序列依次敲击各杯，并播放背景旋律（详见 GlassSynth.playSong）。
-    fun simulate() {
+    // 「此去半生」按钮：自动按该曲主旋律依次敲击各杯（纯杯子音阶演奏，不播放原曲音频）。
+    fun playThisLife() {
         if (simulating) return
         simulating = true
-        GlassSynth.playSong(context)
         scope.launch {
-            for (cup in SIM_MELODY) {
+            for (cup in SONG_THIS_LIFE) {
                 knock(cup)
-                delay(300)
+                delay(260)
             }
             simulating = false
         }
@@ -233,14 +232,14 @@ fun GlassCupScreen(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(Spacing.md))
 
-            // 水杯下方的「模拟」按钮：点击自动按一段旋律依次敲击各杯（requirement 2/3）
+            // 水杯下方的「此去半生」按钮：点击自动按该曲主旋律依次敲击各杯
             Button(
-                onClick = { simulate() },
+                onClick = { playThisLife() },
                 enabled = !simulating,
                 modifier = Modifier.fillMaxWidth(0.6f),
             ) {
                 Text(
-                    stringResource(R.string.sim_glass_simulate) +
+                    stringResource(R.string.sim_glass_song_name) +
                         if (simulating) "…" else "",
                 )
             }
@@ -250,10 +249,14 @@ fun GlassCupScreen(onBack: () -> Unit) {
 }
 
 /**
- * 模拟按钮自动演奏的旋律序列（杯号 1..7 = do..ti）。
- * 一段舒缓的音阶起伏，点击「模拟」即按此顺序依次敲击各杯。
+ * 「此去半生」主旋律（杯号 1..7 = do..ti），按该曲简谱主旋律映射，
+ * 点击按钮即由杯子音阶依次敲击演奏出该曲伴奏。
  */
-private val SIM_MELODY = intArrayOf(1, 3, 5, 6, 5, 3, 1, 2, 4, 5, 4, 2, 1)
+private val SONG_THIS_LIFE = intArrayOf(
+    5, 5, 6, 5, 3, 1, 2, 3, 3, 2, 6, 6, 5, 3, 1, 3,
+    5, 6, 5, 5, 5, 6, 5, 3, 1, 2, 3, 3, 2, 6, 6, 5, 3, 1, 2, 3, 2, 1,
+    7, 7, 7, 6, 5, 3, 1, 2, 1, 3, 2, 1, 7, 7, 7, 6, 5, 3, 1, 2, 3, 3, 2, 1,
+)
 
 /**
  * 在 DrawScope 内绘制一个玻璃杯：半透明杯身 + 木纹般的水 + 杯口/水面椭圆 + 高光条。
