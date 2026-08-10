@@ -42,7 +42,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -51,12 +50,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -66,7 +68,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
@@ -276,7 +280,7 @@ fun DoodleScreen(onBack: () -> Unit) {
                     Text(stringResource(R.string.doodle_size), style = MaterialTheme.typography.labelMedium)
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(28.dp)
                             .shadow(1.dp, CircleShape)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surface)
@@ -285,7 +289,7 @@ fun DoodleScreen(onBack: () -> Unit) {
                     ) {
                         Canvas(Modifier.fillMaxSize()) {
                             // 实时笔刷预览：当前颜色 + 当前粗细；最小半径 1.5f 避免极小笔刷看不见
-                            val r = (brushSize / 2f).coerceAtLeast(1.5f)
+                            val r = (brushSize / 4f).coerceAtLeast(1.5f)
                             drawCircle(
                                 color = drawColor,
                                 radius = r,
@@ -293,7 +297,7 @@ fun DoodleScreen(onBack: () -> Unit) {
                             )
                         }
                     }
-                    Slider(
+                    DoodleBrushSlider(
                         value = brushSize,
                         onValueChange = { brushSize = it },
                         valueRange = 2f..40f,
@@ -376,6 +380,82 @@ fun DoodleScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * 涂鸦笔刷调节器：单行自定义 Canvas 滑块。
+ * 参考样式：圆角蓝色轨道 + 白底蓝边圆形滑块，与系统 Slider 区分明显。
+ */
+@Composable
+private fun DoodleBrushSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    trackHeight: Dp = 6.dp,
+    thumbRadius: Dp = 7.dp,
+    accent: Color = MaterialTheme.colorScheme.primary,
+) {
+    val density = LocalDensity.current
+    val onValueChangeState = rememberUpdatedState(onValueChange)
+    val trackHpx = with(density) { trackHeight.toPx() }
+    val thumbRpx = with(density) { thumbRadius.toPx() }
+    val strokeWidth = with(density) { 2.dp.toPx() }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(thumbRadius * 2 + 8.dp)
+            .pointerInput(valueRange) {
+                detectDragGestures(
+                    onDragStart = { onValueChangeState.value(valueFromX(it.x, valueRange, size.width.toFloat(), thumbRpx)) },
+                    onDrag = { change, _ -> onValueChangeState.value(valueFromX(change.position.x, valueRange, size.width.toFloat(), thumbRpx)) },
+                )
+            },
+    ) {
+        val frac = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+        val cy = size.height / 2f
+        val usableW = size.width - 2 * thumbRpx
+        val thumbCx = thumbRpx + usableW * frac
+        val trackLeft = thumbRpx
+        val trackTop = cy - trackHpx / 2f
+
+        // 背景轨道
+        drawRoundRect(
+            color = accent.copy(alpha = 0.25f),
+            topLeft = Offset(trackLeft, trackTop),
+            size = Size(usableW, trackHpx),
+            cornerRadius = CornerRadius(trackHpx / 2f),
+        )
+        // 已填充段
+        if (thumbCx > trackLeft + 1f) {
+            drawRoundRect(
+                color = accent,
+                topLeft = Offset(trackLeft, trackTop),
+                size = Size(thumbCx - trackLeft, trackHpx),
+                cornerRadius = CornerRadius(trackHpx / 2f),
+            )
+        }
+        // 滑块：白底 + 蓝边
+        drawCircle(color = Color.White, radius = thumbRpx, center = Offset(thumbCx, cy))
+        drawCircle(
+            color = accent,
+            radius = thumbRpx - strokeWidth / 2f,
+            center = Offset(thumbCx, cy),
+            style = Stroke(width = strokeWidth),
+        )
+    }
+}
+
+private fun valueFromX(
+    x: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    widthPx: Float,
+    thumbRpx: Float,
+): Float {
+    val usableW = widthPx - 2 * thumbRpx
+    val frac = ((x - thumbRpx) / usableW).coerceIn(0f, 1f)
+    return valueRange.start + frac * (valueRange.endInclusive - valueRange.start)
 }
 
 /**
