@@ -35,11 +35,11 @@ android {
         // 图片压缩黑白保存移右上角、打卡补录 Tab 图标前置。综合成熟度 99.5。
         // v2.12.0 封板：模拟解压/拟物重画/真实素材三线齐推 + 新增电子琴 + lint 零警告 +
         // 振动按摩 5 新模式 + 三招放大 + 图片编辑滑块统一竖向。20 个新 commit。综合成熟度 99.6。
-        // v2.12.1 封板：方向锁根治（进程单例持有用户横屏意图 + onConfigurationChanged 无条件重设，
-        // HyperOS/澎湃OS 真机验证，解决「点横屏瞬间被切回竖屏」）+ 图片工具批处理优化
-        // （新增共享 ToolHorizontalSlider、抽签器交互重画、马赛克/去水印侧边面板迁移）。综合成熟度 99.7。
-        versionCode = 21
-        versionName = "2.12.1"
+        // v2.13.0 封板：工具箱按「用户想做什么」重新归类为 8 类（健康作息/效率与计算/生活助手/
+        // 图像与识别/测量与传感/隐私与安全/解压模拟/趣味玩法，共 53 工具）+ 累积功能（助手帮助页、
+        // 烟花连发固定三发、骰子3D 预览、宠物、剪刀石头布、弹珠台、共享滑块组件）。综合成熟度 99.8。
+        versionCode = 22
+        versionName = "2.13.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 本 App 仅提供中文界面（res/ 下无任何 values-xx 语言目录），但 Compose Material3 /
         // androidx 各库自带数十种语言的 strings 会被全部打进包。显式收敛可见语言以瘦身；
