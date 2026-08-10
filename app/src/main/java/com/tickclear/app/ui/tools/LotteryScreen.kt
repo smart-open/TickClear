@@ -48,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -396,15 +395,13 @@ private fun DiceDisplay(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
-            modifier = Modifier
-                .size(140.dp)
-                .graphicsLayer {
-                    // 旋转量取 360° 的整数倍，翻滚结束后恰好回到正向，不镜像
-                    rotationX = tumble.value * 720f
-                    rotationY = tumble.value * 360f
-                },
+            modifier = Modifier.size(176.dp),
         ) {
-            drawDieFace(shown, size)
+            // 真实 3D 翻滚：绕 X 转 1 整圈、绕 Y 转 2 整圈，结束恰好回到零位（正面点数即结果）。
+            val t = tumble.value
+            val rx = t * (2f * Math.PI.toFloat())
+            val ry = t * (4f * Math.PI.toFloat())
+            draw3DDie(shown, size, rx, ry)
         }
     }
 }
@@ -468,68 +465,91 @@ private fun CoinDisplay(
     }
 }
 
+// ---------------------------------------------------------------------------
+// 3D 骰子（等距投影立方体）
+// 立方体几何、圆角切角、渐变受光、背面剔除与深度排序全部走共享的 drawCube3D
+// （见 IllustrationKit.kt），这里只保留骰子专属部分：
+// 各面点数、各面基色、点位分布与黑点画法。
+// ---------------------------------------------------------------------------
+
 /**
- * 2D 骰子面（立体强化版）：投影 + 左上受光渐变面 + 右下倒角暗边 + 米色描边，
- * 黑点内凹（右下缘高光）。保留标准点位坐标，绝不随旋转错位。
+ * 给定正面点数 [value]，返回 6 个面的点数。遵循：对面和为 7、相邻面互不为对（右手骰子），
+ * 因此转动任意角度露出的可见面点数都合法且自洽。
  */
-private fun DrawScope.drawDieFace(value: Int, size: Size) {
-    val cx = size.width / 2f
-    val cy = size.height / 2f
-    val face = size.minDimension * 0.82f
-    val half = face / 2f
-    val corner = CornerRadius(face * 0.20f)
+private fun dieFaceLabels(value: Int): Map<CubeFace, Int> {
+    val top = when (value) { 1 -> 2; 2 -> 1; 3 -> 1; 4 -> 1; 5 -> 1; else -> 5 }
+    val right = when (value) { 1 -> 3; 2 -> 3; 3 -> 5; 4 -> 2; 5 -> 4; else -> 3 }
+    return mapOf(
+        CubeFace.Front to value,
+        CubeFace.Top to top,
+        CubeFace.Right to right,
+        CubeFace.Back to 7 - value,
+        CubeFace.Bottom to 7 - top,
+        CubeFace.Left to 7 - right,
+    )
+}
 
-    // 接地投影：让骰子"浮"在桌面上，产生立体悬浮感
-    drawSoftShadow(
-        center = Offset(cx, cy + half * 0.12f),
-        radiusX = half * 0.96f,
-        radiusY = half * 0.96f,
-        maxAlpha = 0.22f,
-    )
+/** 各面基色：顶受光最亮、前次之、右/左更暗、底/后最暗，形成统一左上光源体积感。 */
+private fun dieFaceColor(face: CubeFace): Color = when (face) {
+    CubeFace.Top -> Color(0xFFFBF7EF)
+    CubeFace.Front -> Color(0xFFF3ECDC)
+    CubeFace.Right, CubeFace.Left -> Color(0xFFE7DBC4)
+    CubeFace.Back -> Color(0xFFD9CCB2)
+    CubeFace.Bottom -> Color(0xFFCFC0A4)
+}
 
-    // 面主体：左上受光的白→米白渐变，模拟圆角塑料面的体积
-    val faceGrad = Brush.linearGradient(
-        colors = listOf(Color(0xFFFEFEFE), Color(0xFFF6F2EA), Color(0xFFE6E0D4)),
-        start = Offset(cx - half, cy - half),
-        end = Offset(cx + half, cy + half),
-    )
-    drawRoundRect(
-        brush = faceGrad,
-        topLeft = Offset(cx - half, cy - half),
-        size = Size(face, face),
-        cornerRadius = corner,
-    )
+/** 单面点位（归一化到 [-o,o]，o=0.55 内缩不贴边）。 */
+private fun diePipVecs(face: Int): List<Pair<Float, Float>> {
+    val o = 0.55f
+    return when (face) {
+        1 -> listOf(0f to 0f)
+        2 -> listOf(-o to -o, o to o)
+        3 -> listOf(-o to -o, 0f to 0f, o to o)
+        4 -> listOf(-o to -o, -o to o, o to -o, o to o)
+        5 -> listOf(-o to -o, -o to o, 0f to 0f, o to -o, o to o)
+        else -> listOf(-o to -o, -o to 0f, -o to o, o to -o, o to 0f, o to o)
+    }
+}
 
-    // 右下暗角：叠加半透明黑，强化倒角厚度
-    val bevel = Brush.linearGradient(
-        colors = listOf(Color(0x00000000), Color(0x00000000), Color(0x26000000)),
-        start = Offset(cx, cy),
-        end = Offset(cx + half, cy + half),
-    )
-    drawRoundRect(
-        brush = bevel,
-        topLeft = Offset(cx - half, cy - half),
-        size = Size(face, face),
-        cornerRadius = corner,
-    )
+/**
+ * 绘制真 3D 骰子：按 [rotX]/[rotY] 翻滚的圆角受光立方体，
+ * 各面点数由 [drawCube3D] 的面内容回调绘制，随几何一起旋转，永远贴在面上。
+ */
+private fun DrawScope.draw3DDie(
+    value: Int,
+    size: Size,
+    rotX: Float = 0f,
+    rotY: Float = 0f,
+) {
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val scale = size.minDimension * 0.235f
+    val labels = dieFaceLabels(value)
+    val pipR = scale * 0.135f
 
-    // 边缘描边（米色），界定骰子轮廓
-    drawRoundRect(
-        color = Color(0xFFD8D2C4),
-        topLeft = Offset(cx - half, cy - half),
-        size = Size(face, face),
-        cornerRadius = corner,
-        style = Stroke(width = face * 0.045f),
-    )
-
-    // 黑点（标准骰子布局，居中对齐）+ 内凹高光（右下缘受光，呈凹陷感）
-    val pipR = face * 0.085f
-    val reach = half * 0.68f
-    for ((px, py) in dicePips(value)) {
-        val x = cx + px * reach
-        val y = cy + py * reach
-        drawCircle(Color(0xFFFFFFFF), pipR * 0.85f, Offset(x + pipR * 0.25f, y + pipR * 0.25f))
-        drawCircle(Color(0xFF2A2A2A), pipR, Offset(x, y))
+    drawCube3D(
+        center = center,
+        scale = scale,
+        rotX = rotX,
+        rotY = rotY,
+        faceColor = ::dieFaceColor,
+        edgeColor = Color(0xFFB9AB8D),
+        softEdgeColor = Color(0xFF786C54).copy(alpha = 0.35f),
+    ) { face, toScreen ->
+        // 黑点：暗点 + 右下投影 + 左上高光小点，呈内凹感
+        for ((u, v) in diePipVecs(labels[face] ?: 1)) {
+            val off = toScreen(u, v)
+            drawCircle(
+                Color(0xFF3A3A3A).copy(alpha = 0.26f),
+                pipR * 1.04f,
+                Offset(off.x + pipR * 0.16f, off.y + pipR * 0.20f),
+            )
+            drawCircle(Color(0xFF2A2A2A), pipR, off)
+            drawCircle(
+                Color(0xFFFFFFFF).copy(alpha = 0.5f),
+                pipR * 0.3f,
+                Offset(off.x - pipR * 0.28f, off.y - pipR * 0.30f),
+            )
+        }
     }
 }
 
@@ -779,27 +799,6 @@ private fun DrawScope.drawStar(cx: Float, cy: Float, radius: Float, color: Color
 }
 
 /**
- * 标准骰子点位布局，返回相对面中心的归一化坐标（单位 u）。
- * 黑点全部内缩到距面中心 70% 半径处（不再贴角贴边），参照用户提供的 3D 白骰子截图：
- * 即便是 4 号面的四个对角点、6 号面的 2x3 网格都明显有内缩 padding 让点居于面中部。
+ * 旧版 2D 平面骰子的点位布局（`dicePips`/`PIP_OFFSET`）已废弃，
+ * 真 3D 立方体改用上方的 [diePipVecs]（点位归一化到 [-o,o]，o=0.55）。
  */
-private const val PIP_OFFSET = 0.7f
-
-private fun dicePips(face: Int): List<Pair<Float, Float>> = when (face) {
-    1 -> listOf(0f to 0f)
-    2 -> listOf(-PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET)
-    3 -> listOf(-PIP_OFFSET to -PIP_OFFSET, 0f to 0f, PIP_OFFSET to PIP_OFFSET)
-    4 -> listOf(
-        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to PIP_OFFSET,
-        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET,
-    )
-    5 -> listOf(
-        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to PIP_OFFSET,
-        0f to 0f,
-        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to PIP_OFFSET,
-    )
-    else -> listOf(
-        -PIP_OFFSET to -PIP_OFFSET, -PIP_OFFSET to 0f, -PIP_OFFSET to PIP_OFFSET,
-        PIP_OFFSET to -PIP_OFFSET, PIP_OFFSET to 0f, PIP_OFFSET to PIP_OFFSET,
-    )
-}

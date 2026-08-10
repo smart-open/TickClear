@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -39,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -85,19 +85,11 @@ fun RpsScreen(onBack: () -> Unit) {
         val m = Random.nextInt(3)
         player = choice
         machine = m
+        // 只定胜负，不在此计分；计分在揭晓时刻落定，保证"结果出来后比分立即更新"
         resultWon = when {
-            choice == m -> {
-                draws++
-                null
-            }
-            (choice == 0 && m == 1) || (choice == 1 && m == 2) || (choice == 2 && m == 0) -> {
-                wins++
-                true
-            }
-            else -> {
-                losses++
-                false
-            }
+            choice == m -> null
+            (choice == 0 && m == 1) || (choice == 1 && m == 2) || (choice == 2 && m == 0) -> true
+            else -> false
         }
         Haptic.vibrate(context, 25) // 出招触感，轻
         roundCounter++
@@ -140,6 +132,12 @@ fun RpsScreen(onBack: () -> Unit) {
         displayedMachine = machine
         isSpinning = false
         revealed = true
+        // 计分在揭晓时落定：确保结果出来后顶部比分立即更新（而非出招瞬间）
+        when (resultWon) {
+            true -> wins++
+            false -> losses++
+            null -> draws++
+        }
         Haptic.vibrate(context, 60)
     }
 
@@ -212,6 +210,8 @@ fun RpsScreen(onBack: () -> Unit) {
                     ) {
                         ChoiceBadge(
                             who = stringResource(R.string.rps_you),
+                            badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                            isPlayer = true,
                             displayed = displayedPlayer,
                             isSpinning = isSpinning,
                             revealed = revealed,
@@ -224,6 +224,8 @@ fun RpsScreen(onBack: () -> Unit) {
                         )
                         ChoiceBadge(
                             who = stringResource(R.string.rps_machine),
+                            badgeColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            isPlayer = false,
                             displayed = displayedMachine,
                             isSpinning = isSpinning,
                             revealed = revealed,
@@ -345,7 +347,14 @@ private fun ScoreCard(label: String, value: Int, color: Color, modifier: Modifie
 }
 
 @Composable
-private fun ChoiceBadge(who: String, displayed: Int?, isSpinning: Boolean, revealed: Boolean) {
+private fun ChoiceBadge(
+    who: String,
+    badgeColor: Color,
+    isPlayer: Boolean,
+    displayed: Int?,
+    isSpinning: Boolean,
+    revealed: Boolean,
+) {
     val pop = remember { Animatable(1f) }
     LaunchedEffect(revealed) {
         if (revealed && displayed != null) {
@@ -354,12 +363,10 @@ private fun ChoiceBadge(who: String, displayed: Int?, isSpinning: Boolean, revea
         }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        val badgeColor = MaterialTheme.colorScheme.primaryContainer
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .scale(if (isSpinning) 1f else pop.value)
-                .clip(RoundedCornerShape(18.dp)),
+                .scale(if (isSpinning) 1f else pop.value),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.fillMaxSize()) {
@@ -388,6 +395,24 @@ private fun ChoiceBadge(who: String, displayed: Int?, isSpinning: Boolean, revea
                 displayed?.let { CHOICE_EMOJI[it] } ?: "—",
                 style = MaterialTheme.typography.headlineMedium,
             )
+            // “我”标记：仅玩家侧，直接标在出招图标圆圈上，明确哪方是自己
+            if (isPlayer) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(999.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (-6).dp),
+                ) {
+                    Text(
+                        stringResource(R.string.rps_you),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(Spacing.xs))
         Text(

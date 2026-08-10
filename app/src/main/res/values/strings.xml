@@ -319,6 +319,16 @@
     <string name="assistant_activation_code_title">验证码</string>
     <string name="assistant_activation_hint">请立即打开 xiaozhi.me 控制台 → 添加设备 → 输入上方 6 位验证码。App 正在后台自动轮询激活（最长 5 分钟），输码期间请勿离开本页；官网绑定成功后 App 会自动提示激活完成。</string>
     <string name="assistant_copy_id">复制</string>
+    <!-- V2.19 真实小智「接入官方小智」帮助弹窗 -->
+    <string name="assistant_xz_help_title">如何接入官方小智</string>
+    <string name="assistant_xz_help_intro">按以下步骤即可将本 App 接入 xiaozhi.me 官方云控制台：</string>
+    <string name="assistant_xz_help_step1">打开官网 xiaozhi.me，注册并登录控制台；新增一个智能体，并完成基础配置。</string>
+    <string name="assistant_xz_help_step2">在本页「真实小智」模式下，点击「激活设备（获取验证码）」按钮，App 会生成 6 位验证码（掩码）。</string>
+    <string name="assistant_xz_help_step3">回到官网控制台进入该智能体的「设备」入口，点击「绑定新设备」，输入 App 上显示的验证码完成激活。</string>
+    <string name="assistant_xz_help_step4">返回 App 点击「测试连接」验证链路，确认无误后保存配置即可使用。</string>
+    <string name="assistant_xz_help_site_label">官网地址</string>
+    <string name="assistant_xz_help_open_site">打开官网 xiaozhi.me</string>
+    <string name="assistant_xz_help_close">知道了</string>
 
     <!-- V2.8X++ 两步激活（对齐 py-xiaozhi 官方云已验证流程：OTA 拿码 → 展示码 → 后台轮询 /activate 至用户官网输码完成） -->
     <string name="assistant_activate_two_step_btn">激活设备（获取验证码）</string>
@@ -728,12 +738,15 @@
     <string name="tools_unpin_msg">确定将“%1$s”从常用工具中移除吗？</string>
     <string name="dialog_confirm">确定</string>
     <string name="dialog_cancel">取消</string>
+    <!-- ============ 工具箱分类（8 类，按「用户想做什么」划分；集中定义，勿再散落到各工具段落） ============
+         前 6 类为刚需工具，后 2 类为休闲娱乐；每类 5-8 个，避免再出现「实用工具」式的垃圾桶分类。 -->
     <string name="tools_cat_health">健康作息</string>
-    <string name="tools_cat_security">隐私与安全</string>
-
-    <!-- 工具箱分类（8 类，按「用户想做什么」划分，集中定义） -->
+    <string name="tools_cat_productivity">效率与计算</string>
+    <string name="tools_cat_life">生活助手</string>
     <string name="tools_cat_image">图像与识别</string>
     <string name="tools_cat_measure">测量与传感</string>
+    <string name="tools_cat_security">隐私与安全</string>
+    <string name="tools_cat_sim">解压模拟</string>
     <string name="tools_cat_fun">趣味玩法</string>
 
     <string name="tools_water_title">喝水提醒</string>
@@ -746,9 +759,6 @@
     <string name="tools_voice_desc">快速录制语音笔记</string>
     <string name="tools_vault_title">密码保险箱</string>
     <string name="tools_vault_desc">加密保存账号密码</string>
-
-    <!-- V2.9++ 新增工具分类：生活助手 -->
-    <string name="tools_cat_life">生活助手</string>
 
     <!-- 二维码 -->
     <string name="tools_qr_title">二维码</string>
@@ -856,7 +866,6 @@
     <string name="nap_phase_playing">🎧 %1$s 助眠中</string>
     <string name="nap_phase_fading">🌙 渐隐中 · 即将静音</string>
     <string name="nap_phase_silent">🌙 已静音 · 仅保留唤醒闹钟</string>
-
 
     <!-- 手电筒 -->
     <string name="tools_flashlight_title">手电筒</string>
@@ -996,8 +1005,6 @@
     <string name="lottery_empty">请先添加选项</string>
     <string name="lottery_clear">清空选项</string>
     <string name="lottery_delete">删除</string>
-
-    <string name="tools_cat_productivity">效率与计算</string>
 
     <!-- 视力自测 -->
     <string name="tools_vision_title">视力自测</string>
@@ -1636,9 +1643,6 @@
     <string name="tools_animal_frog">青蛙</string>
     <string name="tools_animal_horse">马</string>
 
-    <!-- ============ V2.9++ 新增工具分类：模拟解压 ============ -->
-    <string name="tools_cat_sim">解压模拟</string>
-
     <!-- 虚拟吹蜡烛 -->
     <string name="tools_sim_candle_title">吹蜡烛</string>
     <string name="tools_sim_candle_desc">对着麦克风吹气，吹灭小蜡烛</string>
@@ -1664,18 +1668,17 @@
     <!-- 模拟烟花 -->
     <string name="tools_sim_fireworks_title">烟花特效</string>
     <string name="tools_sim_fireworks_desc">底部窜起，到点开花</string>
-    <string name="tools_sim_fireworks_hint">点按发射，火箭飞向指尖炸开；切换牡丹/柳叶/加特林/连发；双击齐射</string>
+    <string name="tools_sim_fireworks_hint">点按发射，火箭飞向指尖炸开；切换牡丹/柳叶/随机/连发；双击齐射</string>
     <string name="tools_sim_fireworks_type_label">烟花类型</string>
     <string name="tools_sim_fireworks_type_peony">牡丹</string>
     <string name="tools_sim_fireworks_type_willow">柳叶</string>
     <string name="tools_sim_fireworks_type_random">随机</string>
-    <string name="tools_sim_fireworks_type_gatling">加特林</string>
     <string name="tools_sim_fireworks_type_burst">连发</string>
 
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>
     <string name="tools_sim_pinball_desc">台面 12 颗蓝珠，10 发瞄准撞击计分</string>
-    <string name="tools_sim_pinball_hint">台面随机摆放 12 颗蓝色弹珠。在台面按住并向任意方向拖动设定发射口朝向与力度，松手从底部发射台射出红色弹珠；每撞到一颗蓝珠 +1 分，共 10 发。结算本局总分、单发最佳 / 最差，并一直保留历史最高分</string>
+    <string name="tools_sim_pinball_hint">按住拖动瞄准蓄力，松手发射红珠撞蓝珠 +1 分。\n共 10 发，记录本局总分、单发最佳/最差与历史最高分。</string>
     <string name="tools_sim_pinball_launch">发射弹珠</string>
     <string name="tools_sim_pinball_reset">重置</string>
     <string name="tools_sim_pinball_score">本局总分</string>
@@ -1894,7 +1897,7 @@
     <string name="rps_rock">石头</string>
     <string name="rps_scissors">剪刀</string>
     <string name="rps_paper">布</string>
-    <string name="rps_you">你</string>
+    <string name="rps_you">我</string>
     <string name="rps_machine">机器</string>
     <string name="rps_win">你赢了</string>
     <string name="rps_lose">你输了</string>

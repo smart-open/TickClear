@@ -116,7 +116,7 @@ private fun saveBestTotal(ctx: Context, value: Int) {
 
 /**
  * 虚拟弹珠台（V2.13 重做）。
- * 干净台面：12 颗蓝色目标弹珠 + 底部圆形发射台（发射口随触摸方向转动）。
+ * 干净台面：12 颗蓝色目标弹珠 + 底部长方块发射台（单一发射口随触摸方向转动，已修正 90° 偏差）。
  * 在台面按住并拖动设定发射口朝向与力度，松手从发射台射出红色弹珠；红珠直线飞行、撞墙反弹、
  * 与蓝珠弹性碰撞，每个首次接触到的蓝珠 +1 分（边沿检测，避免一次接触重复计分）。
  * 共 10 发，结算本局总分、单发最佳 / 最差，历史最高分（单局总分）跨会话持久化保留。
@@ -338,7 +338,36 @@ fun SimPinballScreen(onBack: () -> Unit) {
             SimHintCard(stringResource(R.string.tools_sim_pinball_hint))
             Spacer(Modifier.height(Spacing.sm))
 
-            // 本局总分 + 已发射次数
+            // 第 1 行：最高分 / 单发最佳 / 单发最差
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                SimStatCard(
+                    value = bestTotal.toString(),
+                    label = stringResource(R.string.tools_sim_pinball_best_total),
+                    modifier = Modifier.weight(1f),
+                    horizontal = true,
+                    compact = true,
+                )
+                SimStatCard(
+                    value = singleBest.toString(),
+                    label = stringResource(R.string.tools_sim_pinball_single_best),
+                    modifier = Modifier.weight(1f),
+                    horizontal = true,
+                    compact = true,
+                )
+                SimStatCard(
+                    value = singleWorst.toString(),
+                    label = stringResource(R.string.tools_sim_pinball_single_worst),
+                    modifier = Modifier.weight(1f),
+                    horizontal = true,
+                    compact = true,
+                )
+            }
+            Spacer(Modifier.height(Spacing.sm))
+
+            // 第 2 行：本局总分 / 已发射
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -348,42 +377,16 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     label = stringResource(R.string.tools_sim_pinball_score),
                     modifier = Modifier.weight(1f),
                     horizontal = true,
+                    compact = true,
                 )
                 SimStatCard(
                     value = "$shotsUsed/$SHOTS",
                     label = stringResource(R.string.tools_sim_pinball_shots),
                     modifier = Modifier.weight(1f),
                     horizontal = true,
+                    compact = true,
                 )
             }
-            Spacer(Modifier.height(Spacing.sm))
-
-            // 本局单发最佳 / 最差
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                SimStatCard(
-                    value = singleBest.toString(),
-                    label = stringResource(R.string.tools_sim_pinball_single_best),
-                    modifier = Modifier.weight(1f),
-                    horizontal = true,
-                )
-                SimStatCard(
-                    value = singleWorst.toString(),
-                    label = stringResource(R.string.tools_sim_pinball_single_worst),
-                    modifier = Modifier.weight(1f),
-                    horizontal = true,
-                )
-            }
-            Spacer(Modifier.height(Spacing.sm))
-
-            // 历史最高分（一直保留）
-            SimStatCard(
-                value = bestTotal.toString(),
-                label = stringResource(R.string.tools_sim_pinball_best_total),
-                modifier = Modifier.fillMaxWidth(),
-            )
             Spacer(Modifier.height(Spacing.md))
 
             Box(
@@ -460,28 +463,44 @@ fun SimPinballScreen(onBack: () -> Unit) {
                         )
                     }
 
-                    // 发射台：圆形基座 + 可转发射口（炮管随 aimDir 旋转）
-                    val baseR = 0.058f * w
+                    // 发射台：长方块底座 + 单一发射口（炮管随 aimDir 正确指向，修正顺时针 90° 偏差）
+                    val blockW = 0.22f * w     // 长方块：长
+                    val blockH = 0.052f * h    // 矮
                     drawSoftShadow(
-                        center = Offset(bx, by + baseR * 0.5f),
-                        radiusX = baseR * 1.4f,
-                        radiusY = baseR * 0.5f,
-                        maxAlpha = 0.20f,
+                        center = Offset(bx, by + blockH * 0.5f),
+                        radiusX = blockW * 0.55f,
+                        radiusY = blockH * 0.7f,
+                        maxAlpha = 0.22f,
                     )
-                    drawCircle(color = Color(0xFF37474F), radius = baseR * 1.3f, center = Offset(bx, by))
-                    drawCircle(color = Color(0xFF546E7A), radius = baseR, center = Offset(bx, by))
+                    // 长方块底座（深色，与炮管形成对比）
+                    fillRoundRect3D(
+                        topLeft = Offset(bx - blockW / 2f, by - blockH / 2f),
+                        size = Size(blockW, blockH),
+                        cornerRadius = blockH * 0.5f,
+                        base = Color(0xFF37474F),
+                    )
+                    // 顶面高光，增加立体感
+                    drawGloss(
+                        center = Offset(bx, by - blockH * 0.22f),
+                        radiusX = blockW * 0.42f,
+                        radiusY = blockH * 0.20f,
+                        alpha = 0.18f,
+                    )
+                    // 旋转发射口（炮管）：基准几何沿 +x，旋转后正好指向 aimDir（消除 90° 偏差）
                     val ang = atan2(aimDir.y, aimDir.x)
                     drawContext.canvas.save()
                     drawContext.canvas.nativeCanvas.rotate(Math.toDegrees(ang.toDouble()).toFloat(), bx, by)
-                    val tubeW = baseR * 0.42f
-                    val tubeH = baseR * 1.9f
+                    val tubeW = blockH * 0.52f
+                    val tubeH = blockW * 0.42f
+                    // 炮管从底座中心沿 +x 伸出
                     fillRoundRect3D(
-                        topLeft = Offset(bx - tubeW / 2f, by - tubeH),
-                        size = Size(tubeW, tubeH),
+                        topLeft = Offset(bx, by - tubeW / 2f),
+                        size = Size(tubeH, tubeW),
                         cornerRadius = tubeW / 2f,
                         base = primary,
                     )
-                    drawCircle(color = RED_LIGHT, radius = tubeW * 0.5f, center = Offset(bx, by - tubeH))
+                    // 发射口（muzzle）位于炮管末端
+                    drawCircle(color = RED_LIGHT, radius = tubeW * 0.5f, center = Offset(bx + tubeH, by))
                     drawContext.canvas.restore()
 
                     // 瞄准指示：发射台沿手指方向画箭头，长度随力度

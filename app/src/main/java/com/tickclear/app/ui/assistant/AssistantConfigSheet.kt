@@ -24,6 +24,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -146,6 +152,9 @@ internal fun AssistantConfigContent(
     var testLoading by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<com.tickclear.app.domain.assistant.XiaozhiConnectionTester.Result?>(null) }
 
+    // V2.19 「接入官方小智」帮助弹窗开关
+    var showXzHelp by remember { mutableStateOf(false) }
+
     // 切换 LLM 服务商：载入该服务商默认值与密钥
     LaunchedEffect(localProvider) {
         val def = LlmProviderCatalog.defaults(localProvider)
@@ -250,11 +259,24 @@ internal fun AssistantConfigContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                         color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
                     )
-                    Text(
-                        text = stringResource(R.string.assistant_device_section_title),
-                        style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.assistant_device_section_title),
+                            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { showXzHelp = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = stringResource(R.string.assistant_xz_help_title),
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     // Device-Id：可手动编辑（V2.8X+）。可从 xiaozhi.me 控制台「我的设备」抄入【已绑定设备】的 MAC，
                     // 服务端鉴权仅基于 device-id（client-id 不参与校验、不读 Authorization 头），
                     // 粘贴已知可用的 Device-Id 即可让 App 以该设备身份完成握手，用于验证 App 协议是否正确。
@@ -704,6 +726,54 @@ internal fun AssistantConfigContent(
                 Text(stringResource(R.string.action_save))
             }
         }
+
+    // V2.19 「接入官方小智」帮助弹窗：展示 xiaozhi.me 官方云接入流程
+    if (showXzHelp) {
+        val uriHandler = LocalUriHandler.current
+        AlertDialog(
+            onDismissRequest = { showXzHelp = false },
+            confirmButton = {
+                TextButton(onClick = { showXzHelp = false }) {
+                    Text(stringResource(R.string.assistant_xz_help_close))
+                }
+            },
+            title = { Text(stringResource(R.string.assistant_xz_help_title)) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = stringResource(R.string.assistant_xz_help_intro),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Text(
+                        text = "1. " + stringResource(R.string.assistant_xz_help_step1),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    Text(
+                        text = "2. " + stringResource(R.string.assistant_xz_help_step2),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    Text(
+                        text = "3. " + stringResource(R.string.assistant_xz_help_step3),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    Text(
+                        text = "4. " + stringResource(R.string.assistant_xz_help_step4),
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.assistant_xz_help_site_label),
+                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                    TextButton(onClick = { uriHandler.openUri("https://xiaozhi.me/") }) {
+                        Text(stringResource(R.string.assistant_xz_help_open_site))
+                    }
+                }
+            },
+        )
+    }
+
     }
 
 @Composable

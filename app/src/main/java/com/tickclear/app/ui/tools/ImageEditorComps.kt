@@ -101,7 +101,11 @@ fun SimStatCard(
     modifier: Modifier = Modifier,
     label: String? = null,
     horizontal: Boolean = false,
+    compact: Boolean = false,
 ) {
+    val pad = if (compact) Spacing.sm else Spacing.md
+    val valueStyle = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium
+    val labelStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -109,13 +113,13 @@ fun SimStatCard(
     ) {
         if (horizontal && label != null) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                modifier = Modifier.fillMaxWidth().padding(pad),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     value,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = valueStyle,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     maxLines = 1,
                     softWrap = false,
@@ -123,7 +127,7 @@ fun SimStatCard(
                 Spacer(Modifier.width(Spacing.xs))
                 Text(
                     label,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = labelStyle,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     maxLines = 1,
                     softWrap = false,
@@ -131,19 +135,19 @@ fun SimStatCard(
             }
         } else {
             Column(
-                modifier = Modifier.padding(Spacing.md),
+                modifier = Modifier.padding(pad),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     value,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = valueStyle,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 if (label != null) {
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
                         label,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = labelStyle,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
