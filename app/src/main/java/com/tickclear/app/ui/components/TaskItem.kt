@@ -129,11 +129,16 @@ fun TaskItem(
                     .padding(horizontal = Spacing.lg),
                 contentAlignment = if (isComplete) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
-                Icon(
-                    imageVector = swipeIcon,
-                    contentDescription = stringResource(swipeCdRes),
-                    tint = fg,
-                )
+                // 仅在滑动过程中出现图标：静止态（Settled）不绘制，避免删除图标从半透明行背景后透出、
+                // 与行尾编辑图标视觉叠加（用户反馈「修改和删除图标叠加」）。左滑删除的交互本身由
+                // confirmValueChange 的 EndToStart 分支承载，不受此处图标显隐影响。
+                if (dir != SwipeToDismissBoxValue.Settled) {
+                    Icon(
+                        imageVector = swipeIcon,
+                        contentDescription = stringResource(swipeCdRes),
+                        tint = fg,
+                    )
+                }
             }
         },
         content = {
