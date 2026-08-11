@@ -1,6 +1,7 @@
 package com.tickclear.app.ui.tools
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -62,10 +63,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tickclear.app.R
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** 单次转动/滚动总时长（毫秒）。用户要求统一为 3 秒，结果在动画结束后才揭晓。 */
 private const val SPIN_DURATION = 3000
@@ -356,7 +357,13 @@ private fun PickGrid(
     }
 }
 
-/** 掷骰子动画：2D 骰子面循环切换点数（1-6），配合轻微 3D 翻滚，3s 后定格为等概率随机点数。 */
+/**
+ * 掷骰子动画：真 3D 立方体高速翻滚 + 三段弹跳落地，3s 后减速停稳，
+ * **朝上那一面**即等概率随机结果（与真实骰子一致）。
+ *
+ * 时间轴由单个线性 progress（0→1）驱动，旋转与弹跳各自套不同曲线：
+ * 旋转走 [DecelEasing] 能量衰减，弹跳走 [diceHop] 递减抛物线，两者互不干扰。
+ */
 @Composable
 private fun DiceDisplay(
     token: Int,
@@ -364,24 +371,23 @@ private fun DiceDisplay(
     onResult: (Int) -> Unit,
 ) {
     var shown by remember { mutableIntStateOf(1) }
-    val tumble = remember { Animatable(0f) }
+    // 落定时额外绕 Y 轴转的 1/4 圈数：让每次停下的侧面朝向不同，朝上的面不受影响。
+    var quarterTurns by remember { mutableIntStateOf(0) }
+    val progress = remember { Animatable(0f) }
 
     LaunchedEffect(token) {
         if (token == 0) return@LaunchedEffect
         onAnimatingChange(true)
         val finalFace = Random.nextInt(1, 7)
         try {
-            val spin = launch {
-                tumble.animateTo(1f, tween(SPIN_DURATION, easing = LinearEasing))
-            }
-            var elapsed = 0L
-            while (elapsed < SPIN_DURATION) {
-                shown = Random.nextInt(1, 7)
-                delay(80)
-                elapsed += 80
-            }
+            // 骰子在整段翻滚中就是同一颗（点数分布固定），靠高速旋转制造悬念——
+            // 不再逐帧随机换点数，避免"面上数字乱闪"的廉价感。
             shown = finalFace
-            spin.join()
+            quarterTurns = Random.nextInt(4)
+            // 必须先归零：Animatable 停在 1f 时再 animateTo(1f) 目标等于当前值，
+            // 动画会瞬间完成，表现为"第二次点击骰子不转"。
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(SPIN_DURATION, easing = LinearEasing))
         } finally {
             onAnimatingChange(false)
         }
@@ -391,18 +397,42 @@ private fun DiceDisplay(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
+            .height(220.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(
             modifier = Modifier.size(176.dp),
         ) {
-            // 真实 3D 翻滚：绕 X 转 1 整圈、绕 Y 转 2 整圈，结束恰好回到零位（正面点数即结果）。
-            val t = tumble.value
-            val rx = t * (2f * Math.PI.toFloat())
-            val ry = t * (4f * Math.PI.toFloat())
-            draw3DDie(shown, size, rx, ry)
+            val p = progress.value
+            val spun = DecelEasing.transform(p)
+            // 绕 X 转 3 整圈、绕 Y 转 (5 + n/4) 圈：X 为整圈保证朝上的面回到顶部，
+            // Y 的 1/4 圈只是水平转向，不改变谁朝上。
+            val rx = spun * (6f * Math.PI.toFloat())
+            val ry = spun * ((10f + quarterTurns * 0.5f) * Math.PI.toFloat())
+            draw3DDie(shown, size, rx, ry, lift = diceHop(p))
         }
+    }
+}
+
+/**
+ * 抛掷减速曲线（power-out）：起手极快、末段柔和收住，模拟能量衰减。
+ * 匀速旋转到点突然静止会很"机械"，这条曲线让骰子/硬币像是自己慢慢停下的。
+ */
+private val DecelEasing: Easing = Easing { p -> 1f - (1f - p).pow(2.6f) }
+
+/**
+ * 骰子弹跳高度（0=贴地，1=最高点），输入为线性进度。
+ * 四段递减抛物线模拟"抛起→落地→越弹越低→停住"，最后 10% 时间已完全落地，
+ * 与旋转的末段微调重叠，收尾自然。
+ */
+private fun diceHop(p: Float): Float {
+    fun arc(x: Float, h: Float) = 4f * h * x * (1f - x)
+    return when {
+        p < 0.36f -> arc(p / 0.36f, 1f)
+        p < 0.62f -> arc((p - 0.36f) / 0.26f, 0.40f)
+        p < 0.80f -> arc((p - 0.62f) / 0.18f, 0.15f)
+        p < 0.90f -> arc((p - 0.80f) / 0.10f, 0.05f)
+        else -> 0f
     }
 }
 
@@ -423,17 +453,8 @@ private fun CoinDisplay(
         animating = true
         onAnimatingChange(true)
         try {
-            val start = flip.value
-            flip.snapTo(start)
-            val spin = launch {
-                flip.animateTo(start + 360f * 6f, tween(SPIN_DURATION, easing = LinearEasing))
-            }
-            var elapsed = 0L
-            while (elapsed < SPIN_DURATION) {
-                delay(60)
-                elapsed += 60
-            }
-            spin.join()
+            // animateTo 本身就会挂起到动画结束，无需再起协程 + 空转轮询计时
+            flip.animateTo(flip.value + 360f * 6f, tween(SPIN_DURATION, easing = DecelEasing))
             restSide = finalSide
             flip.snapTo(0f)
         } finally {
@@ -473,18 +494,24 @@ private fun CoinDisplay(
 // ---------------------------------------------------------------------------
 
 /**
- * 给定正面点数 [value]，返回 6 个面的点数。遵循：对面和为 7、相邻面互不为对（右手骰子），
- * 因此转动任意角度露出的可见面点数都合法且自洽。
+ * 给定**朝上**的点数 [value]，返回 6 个面的点数。
+ *
+ * 结果面放 [CubeFace.Top] 而非 Front：等距投影下 Front 是左下方那个菱形侧面，
+ * 既不朝上也不正对镜头，把结果画在那里会让人分不清"到底哪面是结果"。
+ * 真实骰子的读数就是朝上那面，Top 又恰好是等距视图里最亮、位置最高的面。
+ *
+ * 面序遵循标准西式**右手骰**：1、2、3 绕公共顶点逆时针（等价于法线满足 n₁×n₂=n₃），
+ * 且对面和恒为 7，因此翻滚到任意角度露出的可见面组合都合法自洽。
  */
 private fun dieFaceLabels(value: Int): Map<CubeFace, Int> {
-    val top = when (value) { 1 -> 2; 2 -> 1; 3 -> 1; 4 -> 1; 5 -> 1; else -> 5 }
-    val right = when (value) { 1 -> 3; 2 -> 3; 3 -> 5; 4 -> 2; 5 -> 4; else -> 3 }
+    val front = when (value) { 1 -> 2; 2 -> 6; 3 -> 2; 4 -> 2; 5 -> 1; else -> 5 }
+    val right = when (value) { 1 -> 3; 2 -> 3; 3 -> 6; 4 -> 1; 5 -> 3; else -> 3 }
     return mapOf(
-        CubeFace.Front to value,
-        CubeFace.Top to top,
+        CubeFace.Top to value,
+        CubeFace.Front to front,
         CubeFace.Right to right,
-        CubeFace.Back to 7 - value,
-        CubeFace.Bottom to 7 - top,
+        CubeFace.Bottom to 7 - value,
+        CubeFace.Back to 7 - front,
         CubeFace.Left to 7 - right,
     )
 }
@@ -514,21 +541,35 @@ private fun diePipVecs(face: Int): List<Pair<Float, Float>> {
 /**
  * 绘制真 3D 骰子：按 [rotX]/[rotY] 翻滚的圆角受光立方体，
  * 各面点数由 [drawCube3D] 的面内容回调绘制，随几何一起旋转，永远贴在面上。
+ *
+ * [lift] 为离地高度（0=贴地，1=弹跳最高点）。阴影**不跟着骰子飞**——它固定投在地面，
+ * 只随高度收缩变淡，这样弹跳才有真正的空间感而不是整体平移。
  */
 private fun DrawScope.draw3DDie(
     value: Int,
     size: Size,
     rotX: Float = 0f,
     rotY: Float = 0f,
+    lift: Float = 0f,
 ) {
-    val center = Offset(size.width / 2f, size.height / 2f)
     val scale = size.minDimension * 0.235f
+    val restY = size.height / 2f
+    val center = Offset(size.width / 2f, restY - scale * 1.05f * lift)
     val labels = dieFaceLabels(value)
     val pipR = scale * 0.135f
+
+    // 地面阴影：始终贴地，骰子越高越小越淡
+    drawSoftShadow(
+        center = Offset(size.width / 2f, restY + scale * 1.45f),
+        radiusX = scale * 1.5f * (1f - 0.32f * lift),
+        radiusY = scale * 0.5f * (1f - 0.32f * lift),
+        maxAlpha = 0.22f * (1f - 0.55f * lift),
+    )
 
     drawCube3D(
         center = center,
         scale = scale,
+        shadow = false,
         rotX = rotX,
         rotY = rotY,
         faceColor = ::dieFaceColor,
