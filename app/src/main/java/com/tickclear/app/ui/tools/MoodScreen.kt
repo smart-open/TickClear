@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -290,14 +291,20 @@ fun MoodScreen(
     val entries by vm.entries.collectAsStateWithLifecycle()
     val today by vm.today.collectAsStateWithLifecycle()
 
-    var selectedCode by remember { mutableStateOf<Int?>(null) }
-    var note by remember { mutableStateOf("") }
+    // 用 rememberSaveable：旋转 / 进程被回收后仍保留用户已选心情与正在写的备注。
+    var selectedCode by rememberSaveable { mutableStateOf<Int?>(null) }
+    var note by rememberSaveable { mutableStateOf("") }
+    // 回填只做一次。否则旋转重建时 LaunchedEffect(today) 会再跑一遍，
+    // 把用户尚未保存的备注直接覆盖回数据库里的旧值。
+    var prefilled by rememberSaveable { mutableStateOf(false) }
 
-    // today 首次到达（或保存后回写）时同步选择，使「今日已打卡」可被编辑/覆盖。
+    // today 首次到达时同步选择，使「今日已打卡」可被编辑/覆盖。
     LaunchedEffect(today) {
-        if (today != null) {
-            selectedCode = today!!.code
-            note = today!!.note
+        val t = today
+        if (t != null && !prefilled) {
+            selectedCode = t.code
+            note = t.note
+            prefilled = true
         }
     }
 
@@ -311,16 +318,22 @@ fun MoodScreen(
     val recentLabel = stringResource(R.string.mood_recent)
     val recentEmpty = stringResource(R.string.mood_recent_empty)
 
-    // 本月情绪分布
-    val now = LocalDate.now()
-    val monthKey = now.year * 100 + now.monthValue
-    val thisMonth = entries.filter {
-        val d = LocalDate.ofEpochDay(it.epochDay)
-        d.year * 100 + d.monthValue == monthKey
+    // 本月情绪分布 / 近 7 条：只随 entries 变化。
+    // 不做 remember 的话，备注框每敲一个字都会重新遍历全部记录 + 重建统计 Map，
+    // 记录攒多了以后输入会肉眼可见地卡。
+    val thisMonth = remember(entries) {
+        val now = LocalDate.now()
+        val monthKey = now.year * 100 + now.monthValue
+        entries.filter {
+            val d = LocalDate.ofEpochDay(it.epochDay)
+            d.year * 100 + d.monthValue == monthKey
+        }
     }
-    val counts = MOODS.associate { m -> m.code to thisMonth.count { e -> e.code == m.code } }
-    val maxCount = (counts.values.maxOrNull() ?: 0).coerceAtLeast(1)
-    val recent = entries.takeLast(7).reversed()
+    val counts = remember(thisMonth) {
+        MOODS.associate { m -> m.code to thisMonth.count { e -> e.code == m.code } }
+    }
+    val maxCount = remember(counts) { (counts.values.maxOrNull() ?: 0).coerceAtLeast(1) }
+    val recent = remember(entries) { entries.takeLast(7).reversed() }
 
     Scaffold(
         topBar = {

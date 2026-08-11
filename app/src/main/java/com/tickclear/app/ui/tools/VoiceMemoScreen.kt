@@ -62,8 +62,9 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.tickclear.app.R
 import com.tickclear.app.data.local.entities.VoiceMemoEntity
 import com.tickclear.app.ui.theme.Spacing
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -345,8 +346,22 @@ private fun formatDuration(ms: Long): String {
     return "%d:%02d".format(totalSec / 60, totalSec % 60)
 }
 
+// 列表每条录音都要格式化时间。原来每次调用都 new 一个 SimpleDateFormat（内部还要解析
+// pattern、拉 DateFormatSymbols），长列表滚动时是实打实的开销。改用不可变、线程安全的
+// DateTimeFormatter 并按 Locale 缓存；系统语言切换时自动重建。
+private var memoFormatterLocale: Locale? = null
+private var memoFormatter: DateTimeFormatter? = null
+
 private fun formatDateTime(ts: Long): String {
-    return SimpleDateFormat("M-d HH:mm", Locale.getDefault()).format(Date(ts))
+    val locale = Locale.getDefault()
+    var f = memoFormatter
+    if (f == null || memoFormatterLocale != locale) {
+        f = DateTimeFormatter.ofPattern("M-d HH:mm", locale)
+        memoFormatter = f
+        memoFormatterLocale = locale
+    }
+    // 时区不进缓存：出行跨时区后立刻生效
+    return f.format(Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()))
 }
 
 /**

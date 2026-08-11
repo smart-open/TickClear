@@ -146,6 +146,16 @@ fun SimPinballScreen(onBack: () -> Unit) {
     var aimDir by remember { mutableStateOf(Offset(0f, -1f)) }
     var aimPower by remember { mutableStateOf(0.5f) }
     var dragStartPx by remember { mutableStateOf(Offset.Zero) }
+    // 飘分文字的 Paint：原来「每个飘分 × 每帧」都 new 一个（60fps × 多条同时在飞），
+    // 是这屏最大的一处逐帧垃圾来源。提到组合层复用，绘制时只改会变的 textSize/color/alpha。
+    val popupPaint = remember {
+        Paint().apply {
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            setShadowLayer(6f, 0f, 0f, Color.Black.toArgb())
+        }
+    }
 
     fun refreshExtremes() {
         var best = 0
@@ -536,16 +546,10 @@ fun SimPinballScreen(onBack: () -> Unit) {
                         if (age < life) {
                             val a = 1f - age / life
                             val rise = age * 0.12f * h
-                            val paint = Paint().apply {
-                                isAntiAlias = true
-                                textAlign = Paint.Align.CENTER
-                                textSize = 22f * (w / 360f)
-                                color = p.hue.toArgb()
-                                alpha = (a * 255).toInt()
-                                typeface = Typeface.DEFAULT_BOLD
-                                setShadowLayer(6f, 0f, 0f, Color.Black.toArgb())
-                            }
-                            drawContext.canvas.nativeCanvas.drawText(p.text, p.x * w, p.y * h - rise, paint)
+                            popupPaint.textSize = 22f * (w / 360f)
+                            popupPaint.color = p.hue.toArgb()
+                            popupPaint.alpha = (a * 255).toInt()
+                            drawContext.canvas.nativeCanvas.drawText(p.text, p.x * w, p.y * h - rise, popupPaint)
                         }
                     }
                 }

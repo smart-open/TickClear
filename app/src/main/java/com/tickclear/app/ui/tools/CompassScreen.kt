@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -144,7 +145,14 @@ fun CompassScreen(onBack: () -> Unit) {
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val surfaceColor = MaterialTheme.colorScheme.surface
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val dirLabel = stringResource(directionRes(azimuth))
+    // nativeCanvas 画字用的 Paint 提到组合层复用：原来每帧（50Hz）在 DrawScope 内 new 一个，
+    // 稳定产生垃圾对象，长时间开着表盘会频繁触发 GC 抖动。
+    val labelPaint = remember {
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -200,21 +208,16 @@ fun CompassScreen(onBack: () -> Unit) {
                         onSurface = onSurface,
                         surfaceColor = surfaceColor,
                         surfaceVariant = surfaceVariant,
+                        labelPaint = labelPaint,
                     )
                 }
-                // 中心读数用 Compose 文本渲染，字体与主题一致，比 nativeCanvas 画字更清晰
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.compass_degree, azimuth.toInt()),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        dirLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = onSurfaceVariant,
-                    )
-                }
+                // 中心读数用 Compose 文本渲染，字体与主题一致，比 nativeCanvas 画字更清晰。
+                // 用 lambda 传角度：把状态读取关进 CompassReadout 内部，避免 50Hz 传感器
+                // 回调把整页（含底部 7 条常识卡片）一起重组。
+                CompassReadout(
+                    azimuthProvider = { azimuth },
+                    labelColor = onSurfaceVariant,
+                )
             }
 
             Spacer(Modifier.height(Spacing.xs))
@@ -277,6 +280,31 @@ fun CompassScreen(onBack: () -> Unit) {
     }
 }
 
+/**
+ * 表盘中心读数（度数 + 八向文字）。
+ *
+ * 角度以 lambda 形式传入，状态读取发生在本函数内，重组范围被限制在这两行文字；
+ * 再经 [derivedStateOf] 收敛到「整数度」，把 50Hz 的原始角变化压到肉眼可见的刷新频次。
+ */
+@Composable
+private fun CompassReadout(azimuthProvider: () -> Float, labelColor: Color) {
+    val degree by remember(azimuthProvider) {
+        derivedStateOf { azimuthProvider().toInt().coerceIn(0, 359) }
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            stringResource(R.string.compass_degree, degree),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            stringResource(directionRes(degree.toFloat())),
+            style = MaterialTheme.typography.labelLarge,
+            color = labelColor,
+        )
+    }
+}
+
 /** 绘制指南针表盘：金属外圈 + 底盘渐变 + 分级刻度 + 方位标签 + 3D 双色指针 + 顶部固定指示。 */
 private fun DrawScope.drawCompassDial(
     azimuth: Float,
@@ -285,6 +313,7 @@ private fun DrawScope.drawCompassDial(
     onSurface: Color,
     surfaceColor: Color,
     surfaceVariant: Color,
+    labelPaint: android.graphics.Paint,
 ) {
     val cx = size.width / 2f
     val cy = size.height / 2f
@@ -332,11 +361,6 @@ private fun DrawScope.drawCompassDial(
         center = center,
         style = Stroke(width = 1.dp.toPx()),
     )
-
-    val labelPaint = android.graphics.Paint().apply {
-        isAntiAlias = true
-        textAlign = android.graphics.Paint.Align.CENTER
-    }
 
     // 表盘整体按 -azimuth 旋转，使 N 始终指向真实北方
     rotate(degrees = -azimuth, pivot = center) {
