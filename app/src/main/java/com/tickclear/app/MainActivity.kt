@@ -51,11 +51,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tickclear.app.domain.repository.PermissionIntroRepository
+import com.tickclear.app.ui.intro.PermissionsIntroScreen
 import com.tickclear.app.ui.navigation.ShortcutHelper
 import com.tickclear.app.ui.navigation.TickClearApp
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /** 开机动画每个进程只播一次（旋转重建 Activity 不重播，且不引入 runtime-saveable 新依赖）。 */
 private var splashShownThisProcess = false
@@ -64,6 +68,12 @@ private var splashShownThisProcess = false
 class MainActivity : FragmentActivity() {
     // V2.9：动态快捷方式携带的启动动作，冷启动经 onCreate、热启动经 onNewIntent 更新。
     private var shortcutAction by mutableStateOf<String?>(null)
+
+    /**
+     * V2.13.2 首次启动权限引导状态。Hilt field-injected，由 AppRoot 订阅；
+     * `false` 时在启动动画结束之后叠加引导页遮罩。
+     */
+    @Inject lateinit var introRepository: PermissionIntroRepository
 
     // V2.8X++：POST_NOTIFICATIONS 运行时授权（Android 13+ 必需）。本 App 以定时提醒为核心，
     // 未授予该权限时任务/习惯/测试通知在前台/后台/锁屏三态下全部被系统静默拦截，
@@ -79,6 +89,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 AppRoot(
+                    introRepository = introRepository,
                     startAction = shortcutAction,
                     onStartActionConsumed = { shortcutAction = null },
                 )
@@ -115,9 +126,11 @@ class MainActivity : FragmentActivity() {
  */
 @Composable
 private fun AppRoot(
+    introRepository: PermissionIntroRepository,
     startAction: String?,
     onStartActionConsumed: () -> Unit,
 ) {
+    val introDone by introRepository.introDone.collectAsStateWithLifecycle(initialValue = true)
     Box(Modifier.fillMaxSize()) {
         TickClearApp(
             startAction = startAction,
@@ -126,6 +139,11 @@ private fun AppRoot(
         var showSplash by remember { mutableStateOf(!splashShownThisProcess) }
         if (showSplash) {
             LaunchSplash(onDismiss = { showSplash = false; splashShownThisProcess = true })
+        }
+        // V2.13.2 首次启动权限引导遮罩：introDone=false 时在主内容与启动动画之上叠加。
+        // 引导页内部调 PermissionIntroViewModel.markDone()，introDone 变 true 后 Composable 自动消失。
+        if (!introDone) {
+            PermissionsIntroScreen(onClose = { /* markDone 已让 introDone=true 自动消失 */ })
         }
     }
 }

@@ -1985,4 +1985,55 @@
 
     <!-- 石头剪刀布 -->
     <string name="rps_your_move">你的出招</string>
+
+    <!-- V2.13.2 首次启动权限引导（4 步分页） -->
+    <string name="intro_step1_title">通知与提醒</string>
+    <string name="intro_step1_subtitle">开启通知权限，提醒才能按时弹出。可在通知设置里调重要性与声音。</string>
+    <string name="intro_step1_grant_btn">开启通知权限</string>
+    <string name="intro_step1_open_settings_btn">通知设置</string>
+    <string name="intro_step1_channels_title">已开通的提醒渠道</string>
+    <string name="intro_step1_channel_high">高优先级 · 任务提醒 / 午休唤醒（声音+震动，可越过勿扰）</string>
+    <string name="intro_step1_channel_default">标准 · 习惯 / 喝水 / 休息 / 护眼 / 到期 / 听力 / 到站 / 倒计时</string>
+    <string name="intro_step1_channel_low">低优先级 · 小憩播放 / 悬浮时钟</string>
+    <string name="intro_step1_channel_min">静默 · 静音时段提醒（仅亮屏，不响铃不震动）</string>
+
+    <string name="intro_step2_title">闹钟与日历</string>
+    <string name="intro_step2_subtitle">到点提醒需要「闹钟和提醒」精确权限，否则系统会延迟或丢弃。</string>
+    <string name="intro_step2_open_settings_btn">去授权精确闹钟</string>
+    <string name="intro_step2_full_screen_title">全屏提醒</string>
+    <string name="intro_step2_full_screen_desc">Android 14+ 需要「全屏通知意图」权限，锁屏下提醒能直接亮屏弹窗。</string>
+    <string name="intro_step2_full_screen_btn">全屏通知设置</string>
+
+    <string name="intro_step3_title">后台与电池</string>
+    <string name="intro_step3_subtitle">加入电池优化白名单后，到站提醒、间隔提醒等后台任务才能稳定运行。</string>
+    <string name="intro_step3_open_battery_btn">加入电池白名单</string>
+    <string name="intro_step3_boot_title">开机自启</string>
+    <string name="intro_step3_boot_desc">重启手机后，闹钟类提醒需要系统允许应用自启。系统设置路径：设置 → 应用 → 本应用 → 自启动。</string>
+
+    <string name="intro_step4_title">可选增强</string>
+    <string name="intro_step4_subtitle">以下权限仅在首次使用对应工具时申请，可稍后再开。</string>
+    <string name="intro_step4_location_title">位置</string>
+    <string name="intro_step4_location_desc">用于「到站提醒」「位置触发提醒」</string>
+    <string name="intro_step4_microphone_title">麦克风</string>
+    <string name="intro_step4_microphone_desc">用于「语音唤醒」「语音备忘」「噪声计」</string>
+    <string name="intro_step4_camera_title">相机</string>
+    <string name="intro_step4_camera_desc">用于「手电筒」「扫码」「二维码」</string>
+    <string name="intro_step4_overlay_title">悬浮窗</string>
+    <string name="intro_step4_overlay_desc">用于「悬浮时钟」显示在其他应用上层</string>
+
+    <string name="intro_status_granted">已开启</string>
+    <string name="intro_status_denied">未开启</string>
+    <string name="intro_status_check_again">点击重新检查</string>
+
+    <string name="intro_prev_btn">上一步</string>
+    <string name="intro_next_btn">下一步</string>
+    <string name="intro_skip_btn">跳过</string>
+    <string name="intro_done_btn">完成</string>
+    <string name="intro_back_btn">返回</string>
+    <string name="intro_step_indicator">第 %1$d / %2$d 步</string>
+
+    <!-- V2.13.2 权限引导 · 步骤 1 通知卡 title 来源（substringBefore 取权限名） -->
+    <string name="intro_status_notification_granted">通知权限 · 已授权</string>
+    <string name="intro_settings_row_title">权限配置</string>
+    <string name="intro_settings_row_desc">查看各权限状态或重新授权</string>
 </resources>
