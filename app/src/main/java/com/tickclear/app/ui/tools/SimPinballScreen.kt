@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -25,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -140,6 +143,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
     var singleWorst by remember { mutableIntStateOf(0) }
     var sessionOver by remember { mutableStateOf(false) }
     var popups by remember { mutableStateOf<List<Popup>>(emptyList()) }
+    var showHelp by remember { mutableStateOf(false) }
     val perShot = remember { IntArray(SHOTS) }   // 每发得分缓存（非重组）
     var nextId by remember { mutableIntStateOf(BALL_COUNT) }
     // 瞄准状态（拖动手势驱动，Canvas 内实时绘制）
@@ -344,6 +348,11 @@ fun SimPinballScreen(onBack: () -> Unit) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showHelp = true }) {
+                        Icon(Icons.AutoMirrored.Filled.Help, contentDescription = stringResource(R.string.a11y_help))
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -355,9 +364,6 @@ fun SimPinballScreen(onBack: () -> Unit) {
                 .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SimHintCard(stringResource(R.string.tools_sim_pinball_hint))
-            Spacer(Modifier.height(Spacing.sm))
-
             // 第 1 行：最高分 / 单发最佳 / 单发最差
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -511,7 +517,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     drawContext.canvas.save()
                     drawContext.canvas.nativeCanvas.rotate(Math.toDegrees(ang.toDouble()).toFloat(), bx, by)
                     val tubeW = blockH * 0.52f
-                    val tubeH = blockW * 0.42f
+                    val tubeH = blockW * 0.21f
                     // 炮管从底座中心沿 +x 伸出
                     fillRoundRect3D(
                         topLeft = Offset(bx, by - tubeW / 2f),
@@ -557,24 +563,39 @@ fun SimPinballScreen(onBack: () -> Unit) {
                 }
             }
 
-            Spacer(Modifier.height(Spacing.sm))
-            Button(
-                onClick = { launch(aimDir, aimPower) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !sessionOver && shotsUsed < SHOTS,
-            ) { Text(stringResource(R.string.tools_sim_pinball_launch)) }
-
+            Spacer(Modifier.height(Spacing.sm / 2f))
             if (sessionOver) {
-                Spacer(Modifier.height(Spacing.sm))
                 SimHintCard(stringResource(R.string.tools_sim_pinball_over))
+                Spacer(Modifier.height(Spacing.sm))
             }
-
-            Spacer(Modifier.height(Spacing.sm))
-            Button(
-                onClick = { reset() },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.tools_sim_pinball_reset)) }
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Button(
+                    onClick = { launch(aimDir, aimPower) },
+                    modifier = Modifier.weight(1f),
+                    enabled = !sessionOver && shotsUsed < SHOTS,
+                ) { Text(stringResource(R.string.tools_sim_pinball_launch)) }
+                Button(
+                    onClick = { reset() },
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(R.string.tools_sim_pinball_reset)) }
+            }
             Spacer(Modifier.height(Spacing.md))
+        }
+
+        if (showHelp) {
+            AlertDialog(
+                onDismissRequest = { showHelp = false },
+                title = { Text(stringResource(R.string.tools_sim_pinball_help_title)) },
+                text = { Text(stringResource(R.string.tools_sim_pinball_hint)) },
+                confirmButton = {
+                    TextButton(onClick = { showHelp = false }) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                },
+            )
         }
     }
 }
