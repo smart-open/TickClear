@@ -5,6 +5,7 @@ import com.tickclear.app.data.repositories.CompletionRepositoryImpl
 import com.tickclear.app.data.repositories.GroupRepositoryImpl
 import com.tickclear.app.data.repositories.HabitRepositoryImpl
 import com.tickclear.app.data.repositories.MedalRepositoryImpl
+import com.tickclear.app.data.repositories.PermissionIntroRepositoryImpl
 import com.tickclear.app.data.repositories.RecycleBinRepositoryImpl
 import com.tickclear.app.data.repositories.SettingsRepositoryImpl
 import com.tickclear.app.data.repositories.TaskRepositoryImpl
@@ -16,6 +17,7 @@ import com.tickclear.app.domain.repository.CompletionRepository
 import com.tickclear.app.domain.repository.GroupRepository
 import com.tickclear.app.domain.repository.HabitRepository
 import com.tickclear.app.domain.repository.MedalRepository
+import com.tickclear.app.domain.repository.PermissionIntroRepository
 import com.tickclear.app.domain.repository.RecycleBinRepository
 import com.tickclear.app.domain.repository.SettingsRepository
 import com.tickclear.app.domain.repository.TaskRepository
@@ -78,4 +80,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindExpiryRepository(impl: ExpiryRepositoryImpl): ExpiryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPermissionIntroRepository(impl: PermissionIntroRepositoryImpl): PermissionIntroRepository
 }
