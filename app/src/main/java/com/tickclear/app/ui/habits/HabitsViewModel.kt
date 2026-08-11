@@ -68,7 +68,11 @@ class HabitsViewModel @Inject constructor(
             }
             combine(flows) { arr -> HabitsUiState(arr.toList(), isEmpty = false) }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HabitsUiState())
+    // V2.7X：uiState 用 Lazily 持续收集（而非 WhileSubscribed(5000)）。
+    // 今日页与「计划→习惯」页各自 hiltViewModel() 出作用域不同的 HabitsViewModel 实例；
+    // 若用 WhileSubscribed(5000)，切到其它页 5 秒后上游（Room）流停收，返回今日时新习惯回流有失效窗口，
+    // 表现为「今日新增习惯不进今日 tab」。Lazily 让流在 VM 存活期内始终反映最新习惯数据。
+    }.stateIn(viewModelScope, SharingStarted.Lazily, HabitsUiState())
 
     fun toggleToday(habitId: String) {
         val today = todayLocal()
