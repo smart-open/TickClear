@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -154,7 +155,8 @@ fun SimFireworksScreen(onBack: () -> Unit) {
     var flashes by remember { mutableStateOf(emptyList<BurstFlash>()) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var typeMode by remember { mutableStateOf(FireworkType.RANDOM) }
-    var lastWhistleMs by remember { mutableStateOf(0L) }
+    // 发射节流用的时间戳，高频读写；泛型版每写一次就装箱一个 Long
+    var lastWhistleMs by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(Unit) {
         onDispose { FoleySynth.stop() }

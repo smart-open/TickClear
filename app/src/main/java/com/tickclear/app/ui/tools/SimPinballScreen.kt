@@ -29,6 +29,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -144,7 +145,8 @@ fun SimPinballScreen(onBack: () -> Unit) {
     // 瞄准状态（拖动手势驱动，Canvas 内实时绘制）
     var aiming by remember { mutableStateOf(false) }
     var aimDir by remember { mutableStateOf(Offset(0f, -1f)) }
-    var aimPower by remember { mutableStateOf(0.5f) }
+    // 拖动瞄准时逐帧刷新，用 mutableFloatStateOf 免掉每次写入的 Float 装箱
+    var aimPower by remember { mutableFloatStateOf(0.5f) }
     var dragStartPx by remember { mutableStateOf(Offset.Zero) }
     // 飘分文字的 Paint：原来「每个飘分 × 每帧」都 new 一个（60fps × 多条同时在飞），
     // 是这屏最大的一处逐帧垃圾来源。提到组合层复用，绘制时只改会变的 textSize/color/alpha。
