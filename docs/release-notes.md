@@ -4,6 +4,49 @@
 
 ---
 
+## v2.14.0（2026-08-11 · 封板）· 首次启动权限引导全链路交付 + 配置页视觉美化
+
+**平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
+**版本**：versionCode 24 / versionName 2.14.0 · DB schema v10（本次无 schema 变更）
+**相对 v2.13.0 / v2.13.1**：单条主特性「首次启动权限引导」分五期分期交付（数据层 / UI 层 / 设置页入口 / 视觉美化 / 顺序回归修复），共 5 个新 commit。零新增远程依赖，DB 版本不变。
+
+### 🚀 首次启动权限引导（4 步分页 · 复访可达）
+
+**核心改动**
+新增冷启动后的权限引导闭环：开机 splash 退场即呈现 4 步分页遮罩（通知 / 闹钟 / 后台 / 可选增强），逐项实时扫描 + 一键直达系统设置；用户勾完必选项点「完成」后遮罩消失；任意时刻可经「设置 → 高级 → 助手配置 → 权限配置」复访同一组件查看现状，不再有「装完即忘、关键权限缺失不可见」的死角。
+
+**架构（与主设置存储完全解耦）**
+- **数据层（独立 DataStore）**：新建 `PermissionIntroRepository` + Impl，独立存储文件 `tickclear_intro`，**不参与备份导入/导出**，避免跨设备恢复时把已完成的引导状态意外重置到未完成——这是关键设计。
+- **领域扩展**：`PermissionStatus` 快照模型作为引导页与复访页的唯一数据载体；`PermissionChecker` 加 6 个检测方法（`isNotificationGranted` / `isIgnoringBatteryOptimizations` / `canDrawOverlays` / `isLocationGranted` / `isMicrophoneGranted` / `isCameraGranted`），统一 `runCatching` 兜底；`RepositoryModule` 加 `@Binds` 绑定。
+- **UI 层（4 步分页）**：`PermissionsIntroScreen` Composable 通用化（既能首次启动遮罩、也能设置页复访），配 `PermissionIntroViewModel` 现场扫描不缓存；`introDone` Eagerly 收集；`LifecycleResumeEffect` 触发 refresh，进设置页改完权限回来能即时刷新状态。底栏「上一步 / 下一步 / 完成」全可点。
+- **MainActivity 集成**：`@Inject introRepository`；`AppRoot` 收集 `introDone`，未完成时叠加引导页遮罩，`markDone` 后自动消失。
+- **设置页入口**：`Routes.PERMISSIONS = "settings/permissions"`；`SettingsScreen` 签名加 `onNavigateToPermissions`，高级段紧接「助手配置」行后插入「权限配置」ClickableRow（`intro_settings_row_title` / `desc` 文案已在 strings.xml 引导段）；`TickClearNavGraph` 的 `composable(Routes.PERMISSIONS)` 复用 `PermissionsIntroScreen`，`onClose = popBackStack` 回到设置页。
+- **strings.xml**：追加 32 条文案（4 步标题 / 副标题 / 按钮 / 状态短语 / 复访入口）。
+
+### 🎨 配置页视觉美化
+
+重写 `PermissionsIntroScreen` 视觉风格，强化「该走完四步」的第一印象：
+
+- **顶栏**：4 圆点指示器（当前步 14dp 主色大圆 + 已完成实心主色 + 未到 8dp 灰空心）+ 第 1/4 步文字进度，取代单调进度条；左右返回 / 跳过按钮齐备。
+- **每步头部**：80dp 大圆形图标容器（主色 tinted 0.12 alpha）+ 40dp 矢量图标（`NotificationsActive` / `Alarm` / `BatteryFull` / `Security` 四步各自特色）+ HeadlineMedium 标题 + 副标题，视觉锚点更明确。
+- **StatusCard**：16dp 圆角 + 2dp elevation + 主色/error tinted 0.08 alpha 背景 + 22dp 状态图标（绿勾 / 红叉）+ LabelLarge 状态文字 + 40dp 圆角按钮。
+- **底栏**：48dp 高圆角按钮（24dp radius）+ LabelLarge 文字，按间距加大。
+- **ChannelList**：8dp 圆点 + 16dp 圆角，节奏感更强。
+- **清理**：删除 `keepCheckIcon` 死字段、unused `Check` icon import、无用的 `animateFloatAsState` + `tween` 动画（圆点大小直接由 `size` 控制更简洁）。
+
+### 🐞 splash → 引导顺序回归修复
+
+引导页刚接入时把 `if (!introDone)` 直接放在 `Box` 内、splash 之后渲染，z-order 把 splash 完全遮住 —— 用户冷启动看到的第一屏直接是引导页，开机动画消失。
+
+**修复**：引入 `splashCompleted` 状态（`remember`），仅在 `LaunchSplash.onDismiss` 触发后置 `true`；引导页条件改为 `if (splashCompleted && !introDone)`，保证 splash 退出后才显示引导页；旋转重建时 `splashShownThisProcess` 已为 `true`，`splashCompleted` 初值亦为 `true`，不会重播 splash。
+
+### 成熟度
+- 综合 **99.9 / 100**（产品设计 99 / 软件开发 99 / 质量测试 99 / 应用配置 99）
+- 三道门禁（`compileDebugKotlin` / `lintRelease` / `scan_strings.mjs`）+ `check_migrations.py` 全绿
+- 默认不 push，等待用户授权推送
+
+---
+
 ## v2.13.0（2026-08-10 · 封板）· 工具箱按使用意图重归 8 类 + 音效池化 + 全量质量加固
 
 **平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板

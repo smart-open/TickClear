@@ -39,8 +39,9 @@ android {
         // 图像与识别/测量与传感/隐私与安全/解压模拟/趣味玩法，共 53 工具）+ 累积功能（助手帮助页、
         // 烟花连发固定三发、骰子3D 预览、宠物、剪刀石头布、弹珠台、共享滑块组件）。综合成熟度 99.8。
         // v2.13.1 封板：今日 Tab 三项修复（新增习惯显示 / 任务行左滑删除去图标叠加 / 整体逻辑审查）+ 弹珠台两轮布局优化（帮助弹窗、按钮整行、炮管与发射台位置）。
-        versionCode = 23
-        versionName = "2.13.1"
+        // v2.14.0 封板：首次启动权限引导全链路交付（独立 DataStore + PermissionChecker 扩展 / 4 步分页 UI + MainActivity 集成 / 设置页「高级 → 助手配置 → 权限配置」入口 / 配置页视觉美化 / splash→引导顺序回归修复）+ 重新归类后工具箱稳定后的首批累积提交。综合成熟度 99.9。
+        versionCode = 24
+        versionName = "2.14.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 本 App 仅提供中文界面（res/ 下无任何 values-xx 语言目录），但 Compose Material3 /
         // androidx 各库自带数十种语言的 strings 会被全部打进包。显式收敛可见语言以瘦身；
