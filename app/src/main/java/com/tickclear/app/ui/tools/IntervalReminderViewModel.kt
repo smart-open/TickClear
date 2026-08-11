@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -44,8 +46,11 @@ open class IntervalReminderViewModel(
     private val _waterGoalMl = MutableStateFlow(2000)
     val waterGoalMl: StateFlow<Int> = _waterGoalMl.asStateFlow()
 
+    /** 串行化饮水累加的读-改-写，避免快速连点丢记录。 */
+    private val waterMutex = Mutex()
+
     private fun todayStr(): String =
-        LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
 
     init {
         viewModelScope.launch {
@@ -118,19 +123,26 @@ open class IntervalReminderViewModel(
         NotificationHelper.showIntervalReminder(appContext, type)
     }
 
-    /** 记录一次饮水（ml）；跨天自动先归零再累加。仅 WATER 类型有效。 */
+    /**
+     * 记录一次饮水（ml）；跨天自动先归零再累加。仅 WATER 类型有效。
+     *
+     * 「读当前值 → 加 → 写回 StateFlow 与 DataStore」是复合操作，快速连点会派发多个协程，
+     * 若不串行化则后写覆盖先写（点 3 次 200ml 只记 200ml）。用 [waterMutex] 保证整段原子。
+     */
     fun addWater(ml: Int) {
         if (type != IntervalType.WATER) return
         viewModelScope.launch {
-            val today = todayStr()
-            if (settings.waterIntakeDate.first() != today) {
-                settings.setWaterIntakeDate(today)
-                settings.setWaterIntakeMl(0)
-                _waterMl.value = 0
+            waterMutex.withLock {
+                val today = todayStr()
+                if (settings.waterIntakeDate.first() != today) {
+                    settings.setWaterIntakeDate(today)
+                    settings.setWaterIntakeMl(0)
+                    _waterMl.value = 0
+                }
+                val next = (_waterMl.value + ml).coerceAtLeast(0)
+                _waterMl.value = next
+                settings.setWaterIntakeMl(next)
             }
-            val next = (_waterMl.value + ml).coerceAtLeast(0)
-            _waterMl.value = next
-            settings.setWaterIntakeMl(next)
         }
     }
 

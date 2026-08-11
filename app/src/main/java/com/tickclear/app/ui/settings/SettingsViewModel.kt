@@ -33,18 +33,15 @@ import com.tickclear.app.ui.theme.ThemeSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.tickclear.app.domain.assistant.XiaozhiConnectionTester
-
-sealed class SettingsEvent {
-    data object NavigateToRecycleBin : SettingsEvent()
-    data object NavigateToAbout : SettingsEvent()
-}
 
 /** 备份/恢复操作的一次性提示（成功/失败均带用户可读文案）。 */
 data class BackupToast(val message: String)
@@ -59,8 +56,16 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
-    val events = MutableSharedFlow<SettingsEvent>(extraBufferCapacity = 1)
-    val backupToasts = MutableSharedFlow<BackupToast>(extraBufferCapacity = 1)
+    // 一次性提示队列：只读暴露给 UI，禁止外部直接 emit（统一走 postToast）。
+    // 缓冲给到 8：导入备份会连发「核心数据 / 设置 / 保险箱 / 家庭积分」多条结果，
+    // 原来 extraBufferCapacity=1 在无订阅者或订阅者忙时会静默丢弃后续提示。
+    private val _backupToasts = MutableSharedFlow<BackupToast>(extraBufferCapacity = 8)
+    val backupToasts: SharedFlow<BackupToast> = _backupToasts.asSharedFlow()
+
+    /** UI 侧投递一次性提示（如权限被拒），避免 UI 直接持有可变 Flow。 */
+    fun postToast(message: String) {
+        _backupToasts.tryEmit(BackupToast(message))
+    }
 
     /** 导出备份到用户选择的 uri（SAF）。 */
     fun exportTo(uri: Uri) = viewModelScope.launch {
@@ -69,9 +74,9 @@ class SettingsViewModel @Inject constructor(
             appContext.contentResolver.openOutputStream(uri)?.use { out ->
                 out.write(json.toByteArray(Charsets.UTF_8))
             } ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED)
-            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.backup_export_ok)))
+            _backupToasts.tryEmit(BackupToast(appContext.getString(R.string.backup_export_ok)))
         } catch (e: Exception) {
-            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
+            _backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
         }
     }
 
@@ -105,11 +110,11 @@ class SettingsViewModel @Inject constructor(
             // 导入只把数据写回了库，AlarmManager 里还是导入前那批闹钟：
             // 恢复出来的任务/习惯/到期提醒会全部静默不响，直到下次重启或改设置才自愈。
             rescheduleAfterImport()
-            backupToasts.tryEmit(
+            _backupToasts.tryEmit(
                 BackupToast(appContext.getString(R.string.backup_import_ok, r.tasks, r.groups, r.habits)),
             )
         } catch (e: Exception) {
-            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
+            _backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
         }
     }
 
@@ -138,9 +143,9 @@ class SettingsViewModel @Inject constructor(
             appContext.contentResolver.openOutputStream(uri)?.use { out ->
                 out.write(ics.toByteArray(Charsets.UTF_8))
             } ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED)
-            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_export_ok, tasks.size)))
+            _backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_export_ok, tasks.size)))
         } catch (e: Exception) {
-            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
+            _backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
         }
     }
 
@@ -153,9 +158,9 @@ class SettingsViewModel @Inject constructor(
             val tasks = IcsManager.parseIcsToTasks(ics)
             if (tasks.isEmpty()) throw AppException(ErrorCode.IMPORT_EMPTY)
             tasks.forEach { taskRepository.upsert(it) }
-            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_import_ok, tasks.size)))
+            _backupToasts.tryEmit(BackupToast(appContext.getString(R.string.ics_import_ok, tasks.size)))
         } catch (e: Exception) {
-            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
+            _backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.IMPORT_PARSE_FAILED).userMessage(appContext)))
         }
     }
 
@@ -166,9 +171,9 @@ class SettingsViewModel @Inject constructor(
             appContext.contentResolver.openOutputStream(uri)?.use { out ->
                 out.write(json.toByteArray(Charsets.UTF_8))
             } ?: throw AppException(ErrorCode.EXPORT_WRITE_FAILED)
-            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.group_template_export_ok)))
+            _backupToasts.tryEmit(BackupToast(appContext.getString(R.string.group_template_export_ok)))
         } catch (e: Exception) {
-            backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
+            _backupToasts.tryEmit(BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)))
         }
     }
 
@@ -407,9 +412,9 @@ class SettingsViewModel @Inject constructor(
                 backupManager = backupManager,
                 settingsRepository = settingsRepository,
             )
-            backupToasts.tryEmit(BackupToast(appContext.getString(R.string.backup_auto_now_ok)))
+            _backupToasts.tryEmit(BackupToast(appContext.getString(R.string.backup_auto_now_ok)))
         } catch (e: Exception) {
-            backupToasts.tryEmit(
+            _backupToasts.tryEmit(
                 BackupToast(AppException.from(e, ErrorCode.EXPORT_WRITE_FAILED).userMessage(appContext)),
             )
         }
@@ -452,7 +457,4 @@ class SettingsViewModel @Inject constructor(
     /** 基于已保存的 ASR 配置解析 Provider 并执行连通性自检。 */
     suspend fun testCurrentAsr(): Boolean =
         runCatching { asrResolver.resolve()?.test() ?: false }.getOrDefault(false)
-
-    fun navigateToRecycleBin() = events.tryEmit(SettingsEvent.NavigateToRecycleBin)
-    fun navigateToAbout() = events.tryEmit(SettingsEvent.NavigateToAbout)
 }

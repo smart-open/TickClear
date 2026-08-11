@@ -151,7 +151,7 @@ fun SettingsScreen(
             toggleWakeWordService(context, true)
         } else {
             viewModel.setWakeWordEnabled(false)
-            viewModel.backupToasts.tryEmit(BackupToast(micPermissionDeniedMsg))
+            viewModel.postToast(micPermissionDeniedMsg)
         }
     }
     val openNotificationChannel: () -> Unit = {

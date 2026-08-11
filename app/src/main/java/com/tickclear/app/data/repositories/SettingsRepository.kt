@@ -373,14 +373,26 @@ class SettingsRepositoryImpl @Inject constructor(
     // clientId / serialNumber 首次缺失时惰性生成并持久化。
     // 必须串行 + 二次检查：SettingsViewModel 与 WebSocketXiaozhiTransport 都经 .first() 消费，
     // 并发触发时若各自生成随机 UUID 会互相覆盖，导致握手用的设备身份在同一次启动内漂移。
-    // 写失败亦不可静默——一旦吞掉，下次冷启动会再生成新 ID，服务端设备绑定与会话连续性直接失效。
+    // 写失败不能只记日志就完事：磁盘满 / DataStore 损坏时，落盘失败后每次读取都会重新
+    // 生成一个新 UUID，身份在同一次运行内就开始漂移，服务端握手会被判成不同设备。
+    // 因此失败时把值记进进程内兜底表，保证本次运行身份稳定，并在下次读取时重试落盘。
     private val identityMutex = Mutex()
+    private val identityFallback = mutableMapOf<String, String>()
 
     private suspend fun ensureIdentity(key: Preferences.Key<String>): String = identityMutex.withLock {
         dataStore.data.first()[key]?.takeIf { it.isNotEmpty() }?.let { return@withLock it }
+        identityFallback[key.name]?.let { cached ->
+            // 上次写盘失败留下的兜底值：再试一次，成功后即可回到正常路径
+            runCatching { dataStore.edit { it[key] = cached } }
+                .onFailure { AppLogger.e(TAG_SETTINGS, "重试持久化小智设备身份仍失败：${key.name}", it) }
+            return@withLock cached
+        }
         val generated = java.util.UUID.randomUUID().toString()
         runCatching { dataStore.edit { it[key] = generated } }
-            .onFailure { AppLogger.e(TAG_SETTINGS, "持久化小智设备身份失败：${key.name}", it) }
+            .onFailure {
+                AppLogger.e(TAG_SETTINGS, "持久化小智设备身份失败：${key.name}", it)
+                identityFallback[key.name] = generated
+            }
         generated
     }
 
