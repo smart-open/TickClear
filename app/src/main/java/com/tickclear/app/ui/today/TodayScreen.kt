@@ -21,10 +21,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SmartToy
@@ -68,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -106,7 +105,8 @@ fun TodayScreen(
     isWide: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    // 今日页主列表混排：把「今日应打卡」的所有习惯（含已打卡）与「进行中任务」按提醒时间穿插排列。
+    // 今日页主列表混排：把「今日应打卡」的习惯与任务按提醒时间穿插排列；
+    // 未完成的进「待处理」段，已打卡/已完成的一并沉到「已完成」段（分段在 TodayMainContent 内完成）。
     val habitsState by habitsViewModel.uiState.collectAsStateWithLifecycle()
     val todayHabits = remember(habitsState.items) { habitsState.items.filter { it.dueToday } }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -130,6 +130,17 @@ fun TodayScreen(
         viewModel.clearAll()
         scope.launch {
             snackbarHostState.showTimedSnackbar(message = clearedSnack)
+        }
+    }
+    // 下拉刷新：isRefreshing 必须在协程里「先置 true、隔一帧以上再置 false」。
+    // 若像早期实现那样在同一次回调里同步 true→false，快照会把两次写合并，
+    // PullToRefreshBox 收不到 true→false 的切换 → 收起动画不触发，转圈指示器长期悬停在顶部（问题3）。
+    val onPullRefresh: () -> Unit = {
+        scope.launch {
+            isRefreshing = true
+            viewModel.refreshEncouragement()
+            delay(PULL_REFRESH_MIN_VISIBLE_MS)
+            isRefreshing = false
         }
     }
     LaunchedEffect(pending?.id) {
@@ -250,12 +261,8 @@ fun TodayScreen(
                     listState = listState,
                     isRefreshing = isRefreshing,
                     ptrState = ptrState,
-                    onRefresh = {
-                        isRefreshing = true
-                        viewModel.refreshEncouragement()
-                        isRefreshing = false
-                    },
-                    onComplete = { viewModel.complete(it) },
+                    onRefresh = onPullRefresh,
+                    onComplete = { viewModel.toggleComplete(it) },
                     onDelete = { viewModel.delete(it) },
                     onEdit = { editingTaskId = it.task.id; showEditor = true },
                     onAdd = { editingTaskId = null; showEditor = true },
@@ -273,12 +280,8 @@ fun TodayScreen(
                 listState = listState,
                 isRefreshing = isRefreshing,
                 ptrState = ptrState,
-                onRefresh = {
-                    isRefreshing = true
-                    viewModel.refreshEncouragement()
-                    isRefreshing = false
-                },
-                onComplete = { viewModel.complete(it) },
+                onRefresh = onPullRefresh,
+                onComplete = { viewModel.toggleComplete(it) },
                 onDelete = { viewModel.delete(it) },
                 onEdit = { editingTaskId = it.task.id; showEditor = true },
                 onAdd = { editingTaskId = null; showEditor = true },
@@ -374,6 +377,11 @@ private fun TodayMainContent(
     // 不能放在 LazyColumn 的 LazyListScope（仅 item/items 内部是 composable 上下文）。
     val activeItems = remember(state.items) { state.items.filter { !it.done } }
     val doneItems = remember(state.items) { state.items.filter { it.done } }
+    // 习惯与任务同构：已打卡的习惯必须离开「待处理」段、沉到「已完成」段，
+    // 否则打卡后仍留在待办里，与任务完成后的表现不一致（用户反馈问题1）。
+    val activeHabits = remember(todayHabits) { todayHabits.filter { !it.todayChecked } }
+    val checkedHabits = remember(todayHabits) { todayHabits.filter { it.todayChecked } }
+    val doneCount = doneItems.size + checkedHabits.size
     // V2.54：键盘焦点只在「进行中」段内移动，故持有 active 列表的最新引用，
     // 让监听闭包始终读取最新 activeItems，避免按合并序号（active+done）索引导致的跨段错位。
     val currentActive = rememberUpdatedState(activeItems)
@@ -382,9 +390,9 @@ private fun TodayMainContent(
     // 同时用 userToggled 记录用户是否手动干预过，避免数据刷新/返回本页时把用户刚展开的段重新折叠回去。
     var userToggledDone by rememberSaveable { mutableStateOf(false) }
     var collapseDone by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(doneItems.size, userToggledDone) {
+    LaunchedEffect(doneCount, userToggledDone) {
         if (!userToggledDone) {
-            collapseDone = TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size)
+            collapseDone = TodayListPrefs.shouldShowCollapseByDoneCount(doneCount)
         }
     }
     DisposableEffect(view, shortcutsEnabled) {
@@ -437,11 +445,19 @@ private fun TodayMainContent(
         // 今日页主列表混排：把「进行中任务」与「今日应打卡习惯」按提醒时间穿插排列。
         // 排序键：任务用 instanceDueMinute（任务模型派生的当日分钟），习惯用 reminderMin（>=0）；
         // 无时间的项 sortKey 为 null，用 Int.MIN_VALUE 排到最上方，避免「有时间项把无时间项挤到底」。
-        val allLines: List<TodayLine> = remember(activeItems, todayHabits, state.groups) {
+        val allLines: List<TodayLine> = remember(activeItems, activeHabits, state.groups) {
             val taskLines = activeItems.mapIndexed { idx, item ->
                 TodayLine.Task(item, state.groups[item.task.groupId], activeIndex = idx)
             }
-            val habitLines = todayHabits.map { TodayLine.Habit(it) }
+            val habitLines = activeHabits.map { TodayLine.Habit(it) }
+            (taskLines + habitLines).sortedBy { it.sortKey ?: Int.MIN_VALUE }
+        }
+        // 已完成段同样任务 + 习惯混排；activeIndex = -1 表示不参与键盘焦点（焦点只在进行中段内移动）。
+        val doneLines: List<TodayLine> = remember(doneItems, checkedHabits, state.groups) {
+            val taskLines = doneItems.map { item ->
+                TodayLine.Task(item, state.groups[item.task.groupId], activeIndex = -1)
+            }
+            val habitLines = checkedHabits.map { TodayLine.Habit(it) }
             (taskLines + habitLines).sortedBy { it.sortKey ?: Int.MIN_VALUE }
         }
 
@@ -478,48 +494,42 @@ private fun TodayMainContent(
                     }
 
                     // 任务 + 习惯按 sortKey 混排；key 用行唯一标识符，避免 LazyColumn 在重排时复用错位。
-                    itemsIndexed(allLines, key = { _, line -> line.key }) { _, line ->
+                    itemsIndexed(allLines, key = { _, line -> line.key }) { index, line ->
                         Box(modifier = Modifier.animateItem()) {
-                            when (line) {
-                                is TodayLine.Task -> TaskItem(
-                                    item = line.item,
-                                    group = line.group,
-                                    isConflict = state.conflictIds.contains(line.item.instanceId),
-                                    onComplete = { onComplete(line.item) },
-                                    onDelete = { onDelete(line.item) },
-                                    onEdit = { onEdit(line.item) },
-                                    isFocused = line.activeIndex == focusedIndex,
-                                    index = line.activeIndex,
-                                )
-                                is TodayLine.Habit -> HabitRow(
-                                    item = line.habit,
-                                    onCheck = { onHabitCheck(line.habit.habit.id) },
-                                )
-                            }
+                            TodayLineRow(
+                                line = line,
+                                conflictIds = state.conflictIds,
+                                focusedIndex = focusedIndex,
+                                rowIndex = index,
+                                onComplete = onComplete,
+                                onDelete = onDelete,
+                                onEdit = onEdit,
+                                onHabitCheck = onHabitCheck,
+                            )
                         }
                     }
 
-                    if (doneItems.isNotEmpty()) {
+                    if (doneLines.isNotEmpty()) {
                         item {
                             DoneSectionHeader(
-                                count = doneItems.size,
+                                count = doneLines.size,
                                 collapsed = collapseDone,
-                                showToggle = TodayListPrefs.shouldShowCollapseByDoneCount(doneItems.size),
+                                showToggle = TodayListPrefs.shouldShowCollapseByDoneCount(doneLines.size),
                                 onToggle = { collapseDone = !collapseDone; userToggledDone = true },
                             )
                         }
                         if (!collapseDone) {
-                            itemsIndexed(doneItems, key = { _, item -> item.instanceId }) { index, item ->
+                            itemsIndexed(doneLines, key = { _, line -> line.key }) { index, line ->
                                 Box(modifier = Modifier.animateItem()) {
-                                    TaskItem(
-                                        item = item,
-                                        group = state.groups[item.task.groupId],
-                                        isConflict = state.conflictIds.contains(item.instanceId),
-                                        onComplete = { onComplete(item) },
-                                        onDelete = { onDelete(item) },
-                                        onEdit = { onEdit(item) },
-                                        isFocused = false,
-                                        index = activeItems.size + 1 + index,
+                                    TodayLineRow(
+                                        line = line,
+                                        conflictIds = state.conflictIds,
+                                        focusedIndex = focusedIndex,
+                                        rowIndex = allLines.size + 1 + index,
+                                        onComplete = onComplete,
+                                        onDelete = onDelete,
+                                        onEdit = onEdit,
+                                        onHabitCheck = onHabitCheck,
                                     )
                                 }
                             }
@@ -536,6 +546,47 @@ private fun TodayMainContent(
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add))
             }
         }
+    }
+}
+
+/**
+ * 下拉刷新指示器最短可见时长（毫秒）。
+ * 刷新本身是内存级操作、瞬间返回，若立刻收起会看到指示器"闪一下"；
+ * 更关键的是必须跨过至少一帧，PullToRefreshBox 才能观察到 isRefreshing 的 true→false 切换并播放收起动画。
+ */
+private const val PULL_REFRESH_MIN_VISIBLE_MS = 450L
+
+/**
+ * 今日主列表单行：任务与习惯共用，进行中段与已完成段共用同一套渲染，
+ * 避免两段各写一份导致行为漂移（如已完成段忘记同步新交互）。
+ * [rowIndex] 仅用于隔行变色；键盘焦点只认 [TodayLine.Task.activeIndex]（已完成段恒为 -1，永不高亮）。
+ */
+@Composable
+private fun TodayLineRow(
+    line: TodayLine,
+    conflictIds: Set<String>,
+    focusedIndex: Int,
+    rowIndex: Int,
+    onComplete: (TodayItem) -> Unit,
+    onDelete: (TodayItem) -> Unit,
+    onEdit: (TodayItem) -> Unit,
+    onHabitCheck: (String) -> Unit,
+) {
+    when (line) {
+        is TodayLine.Task -> TaskItem(
+            item = line.item,
+            group = line.group,
+            isConflict = conflictIds.contains(line.item.instanceId),
+            onComplete = { onComplete(line.item) },
+            onDelete = { onDelete(line.item) },
+            onEdit = { onEdit(line.item) },
+            isFocused = line.activeIndex >= 0 && line.activeIndex == focusedIndex,
+            index = rowIndex,
+        )
+        is TodayLine.Habit -> HabitRow(
+            item = line.habit,
+            onCheck = { onHabitCheck(line.habit.habit.id) },
+        )
     }
 }
 
