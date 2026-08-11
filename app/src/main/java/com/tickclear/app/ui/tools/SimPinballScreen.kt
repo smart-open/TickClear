@@ -66,7 +66,7 @@ private const val TRAIL_LEN = 8
 private const val POPUP_LIFE = 900L      // 飘分存活时长（ms）
 private const val RED_LINGER_MS = 2000L  // 红珠计分后约 2 秒自动消失
 private const val LAUNCH_X = 0.5f        // 发射台中心（台底居中）
-private const val LAUNCH_Y = 0.88f
+private const val LAUNCH_Y = 0.94f       // 发射台中心 y（占画布高比例）；下移二分之一（0.88→0.94）以拉近与下方按钮的间距
 private const val MIN_LAUNCH = 0.45f     // 最小发射速度（归一化/秒）
 private const val MAX_LAUNCH = 1.85f     // 最大发射速度
 private const val MAX_DRAG = 220f        // 手指拖动到该像素距离即满力
@@ -517,7 +517,7 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     drawContext.canvas.save()
                     drawContext.canvas.nativeCanvas.rotate(Math.toDegrees(ang.toDouble()).toFloat(), bx, by)
                     val tubeW = blockH * 0.52f
-                    val tubeH = blockW * 0.21f
+                    val tubeH = blockW * 0.28f   // 炮管长度：+1/3（0.21→0.28），枪头更长
                     // 炮管从底座中心沿 +x 伸出
                     fillRoundRect3D(
                         topLeft = Offset(bx, by - tubeW / 2f),
