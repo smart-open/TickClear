@@ -4,7 +4,6 @@ import android.content.Context
 import com.tickclear.app.R
 import android.media.AudioFormat
 import android.media.AudioTrack
-import android.media.MediaPlayer
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
@@ -37,34 +36,30 @@ object GlassSynth {
         R.raw.glass_note_5, R.raw.glass_note_6, R.raw.glass_note_7,
     )
 
-    private var currentMp: MediaPlayer? = null
     private var currentTrack: AudioTrack? = null
 
     /** 释放所有正在播放的音频（离开页面时调用）。 */
     fun stop() {
-        releaseMp()
+        releaseTrack()
+        FoleySynth.stop() // 短音效走 FoleySynth 的共享池，一并释放
+    }
+
+    private fun releaseTrack() {
         runCatching { currentTrack?.stop(); currentTrack?.release() }
         currentTrack = null
     }
 
     /**
      * 播放第 [note] 个玻璃杯(1..7)的敲击音。
-     * 优先用真实钢琴单音素材（MediaPlayer），缺失/失败再回退到合成的“叮”声。
+     * 优先用真实玻璃单音素材（走 FoleySynth 共享池，可叠音），缺失/失败再回退到合成的“叮”声。
      */
     fun play(context: Context, note: Int) {
         val idx = (note.coerceIn(1, 7) - 1).coerceIn(0, NOTE_RES.lastIndex)
         val resId = NOTE_RES[idx]
-        val mp = runCatching { MediaPlayer.create(context, resId) }.getOrNull()
-        if (mp != null) {
-            releaseMp()
-            mp.setOnCompletionListener { releaseMp() }
-            mp.setOnErrorListener { _, _, _ -> releaseMp(); true }
-            currentMp = mp
-            runCatching { mp.start() }
-            return
-        }
+        // 走 FoleySynth 的共享播放池：每个音各自播完、互不掐断，
+        // 否则连敲不同杯子时后一声会顶掉前一声（0.9s 余韵全被砍掉，弹不成旋律）。
+        if (FoleySynth.playOneShot(context, resId)) return
         // 回退：合成玻璃“叮”声
-        releaseMp()
         val samples = glass(NOTE_FREQS[idx])
         val fmt = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -80,14 +75,10 @@ object GlassSynth {
                 .setBufferSizeInBytes(samples.size * 2)
                 .build()
             track.write(samples, 0, samples.size)
+            releaseTrack() // 换新前先释放上一条，否则原生缓冲直到进程退出都不回收
             currentTrack = track
             track.play()
         }
-    }
-
-    private fun releaseMp() {
-        runCatching { currentMp?.stop(); currentMp?.release() }
-        currentMp = null
     }
 
     /**

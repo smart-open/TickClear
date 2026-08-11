@@ -124,9 +124,11 @@ fun NoiseMeterScreen(onBack: () -> Unit) {
                         AudioFormat.ENCODING_PCM_16BIT,
                         bufSize,
                     )
-                    record.startRecording()
                     val buf = ShortArray(1024)
+                    // startRecording 必须在 try 内：麦克风被占用时它会抛异常，
+                    // 若在 try 外，record 就永远不会 release，麦克风一直被本进程占着
                     try {
+                        record.startRecording()
                         while (isActive) {
                             val n = record.read(buf, 0, buf.size)
                             if (n > 0) {

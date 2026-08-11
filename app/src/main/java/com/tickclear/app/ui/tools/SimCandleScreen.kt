@@ -139,9 +139,11 @@ fun SimCandleScreen(onBack: () -> Unit) {
                     rec.release()
                     return@withContext
                 }
-                rec.startRecording()
                 val buf = ShortArray(1024)
+                // startRecording 必须在 try 内：麦克风被占用时它会抛异常，
+                // 若在 try 外，rec 就永远不会 release，麦克风一直被本进程占着
                 try {
+                    rec.startRecording()
                     while (lit) {
                         val n = rec.read(buf, 0, buf.size)
                         if (n <= 0) break

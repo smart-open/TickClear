@@ -72,10 +72,13 @@ object FoleySynth {
      * 播放一段短录音，**允许与正在响的其他音效重叠**——这是"几朵花就几声响"的关键。
      * 需在主线程调用（MediaPlayer 回调依赖调用线程的 Looper）。
      *
+     * 全工程短音效的统一入口：任何"连点会连响"的音效都必须走这里，
+     * 不要再各自持一个 MediaPlayer 字段（那会让后一声掐断前一声）。
+     *
      * @param volume 音量 0~1，用于让次要音效（如连发时的发射「咻」）退居背景。
      * @return 录音资源不可用或启动失败时返回 false，调用方据此回退到合成音。
      */
-    private fun playOneShot(context: Context, resId: Int, volume: Float = 1f): Boolean {
+    fun playOneShot(context: Context, resId: Int, volume: Float = 1f): Boolean {
         val player = runCatching { MediaPlayer.create(context, resId) }.getOrNull() ?: return false
         synchronized(sfxPool) {
             while (sfxPool.size >= MAX_CONCURRENT_SFX) {
