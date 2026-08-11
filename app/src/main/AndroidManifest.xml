@@ -22,7 +22,11 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!--
+      注：ACCESS_NOTIFICATION_POLICY 已移除。应用只读取 isNotificationPolicyAccessGranted
+      做诊断展示（该查询不需要此权限），从不调用 setInterruptionFilter / setNotificationPolicy
+      去改勿扰策略。留着只会在应用信息里多出一条用户看不懂的权限，与「纯本地、最小权限」定位相悖。
+    -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
