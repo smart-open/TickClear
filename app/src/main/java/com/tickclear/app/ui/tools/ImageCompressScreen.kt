@@ -36,6 +36,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,9 +55,21 @@ import androidx.compose.ui.unit.sp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageProcessor
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private val MAX_DIMS = listOf(0, 1920, 1280, 800)
+
+/**
+ * 参数变化到重算的防抖窗口。质量滑杆 steps=89，一次拖动会触发数十次
+ * 「缩放 + 整图编码」；不防抖会逐帧编码大图，主线程直接卡死。
+ */
+private const val COMPRESS_DEBOUNCE_MS = 180L
 
 private fun formatBytes(b: Long?): String {
     if (b == null) return "—"
@@ -97,11 +111,48 @@ fun ImageCompressScreen(onBack: () -> Unit) {
         }
     }
 
-    val processed = remember(bitmap, maxDim) {
-        bitmap?.let { if (maxDim > 0) ImageProcessor.scaleToMaxSide(it, maxDim) else it }
+    var processed by remember { mutableStateOf<Bitmap?>(null) }
+    // 只保留字节数：整张编码结果没有别的用途，常驻内存等于白白多占一份图片大小
+    var compressedSize by remember { mutableStateOf<Long?>(null) }
+    // gate 串行化后台运算：新结果就绪时上一次运算必已结束，此刻回收上一张缩放图不会被读到
+    val gate = remember { Mutex() }
+
+    // 原实现在 remember 里同步做「缩放 + 整图编码」：拖质量滑杆时主线程逐帧编码，既卡顿，
+    // 又会不断产出新的缩放位图且从不回收（Native 堆，GC 跟不上）→ 大图必 OOM。
+    LaunchedEffect(bitmap, maxDim, format, quality) {
+        val src = bitmap
+        if (src == null) {
+            processed = null
+            compressedSize = null
+            return@LaunchedEffect
+        }
+        delay(COMPRESS_DEBOUNCE_MS)
+        val q = quality.toInt()
+        val dim = maxDim
+        val fmt = format
+        gate.withLock {
+            // NonCancellable：编码/缩放打不断，被取消也要把结果挂上去，否则缩放图成为无人回收的孤儿
+            withContext(NonCancellable) {
+                val result = withContext(Dispatchers.Default) {
+                    val scaled = if (dim > 0) ImageProcessor.scaleToMaxSide(src, dim) else src
+                    scaled to runCatching { ImageProcessor.compress(scaled, fmt, q).size.toLong() }
+                        .getOrNull()
+                }
+                val old = processed
+                processed = result.first
+                compressedSize = result.second
+                // 与原图同一个对象（未触发缩放）时不能回收，否则会连原图一起废掉
+                if (old !== result.first && old !== src && !busy) old?.recycle()
+            }
+        }
     }
-    val compressed = remember(processed, format, quality) {
-        processed?.let { ImageProcessor.compress(it, format, quality.toInt()) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            val p = processed
+            // 未缩放时 processed 就是原图，交给 GC；saveCompressed 进行中同理，避免写盘途中被回收
+            if (p != null && p !== bitmap && !busy) p.recycle()
+        }
     }
 
     // 保存已移至右上角图标按钮（参考 MosaicScreen）：校验选图后压缩并写入相册
@@ -304,7 +355,7 @@ fun ImageCompressScreen(onBack: () -> Unit) {
                         InfoChip(
                             stringResource(R.string.tools_img_compress_after),
                             "${processed!!.width}×${processed!!.height}",
-                            formatBytes(compressed?.size?.toLong()),
+                            formatBytes(compressedSize),
                             modifier = Modifier.weight(1f),
                         )
                     }

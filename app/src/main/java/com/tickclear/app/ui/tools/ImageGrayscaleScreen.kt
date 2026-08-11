@@ -36,6 +36,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +55,25 @@ import androidx.compose.ui.unit.sp
 import com.tickclear.app.R
 import com.tickclear.app.domain.tools.ImageProcessor
 import com.tickclear.app.ui.theme.Spacing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/**
+ * 参数变化到重算的防抖窗口。阈值滑杆 steps=254、对比度 steps=20，
+ * 一次拖动能触发上百次重算；不防抖会连续产出上百张与原图等大的位图。
+ */
+private const val GRAY_DEBOUNCE_MS = 150L
+
+/**
+ * 载入位图的长边上限。黑白模式除了输出位图，还要额外分配 IntArray(w*h)（Java 堆），
+ * 4096 长边时两者各约 50MB，低内存机型必 OOM；2048 下各约 12MB，且存图清晰度足够。
+ */
+private const val GRAY_MAX_SIDE = 2048
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,8 +95,10 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
-            val bmp = ImageProcessor.loadBitmap(context, uri)
+            val bmp = ImageProcessor.loadBitmap(context, uri, maxSide = GRAY_MAX_SIDE)
             if (bmp != null) {
+                // 不主动回收旧原图：后台可能正基于它运算（取消不会打断已在跑的 CPU 循环），
+                // 回收会造成 use-after-free。丢引用后交给 GC 即可（数量有限，不会累积）。
                 bitmap = bmp
             } else {
                 snackbarHostState.showSnackbar(context.getString(R.string.tools_img_gray_noimg))
@@ -84,10 +106,42 @@ fun ImageGrayscaleScreen(onBack: () -> Unit) {
         }
     }
 
-    val processed = remember(bitmap, mode, threshold, contrast) {
-        bitmap?.let {
-            if (mode == 0) ImageProcessor.toGrayscale(it, contrast)
-            else ImageProcessor.toBlackWhite(it, threshold, contrast)
+    var processed by remember { mutableStateOf<Bitmap?>(null) }
+    // gate 串行化后台运算：新结果就绪时上一次运算必已结束，此刻回收上一张结果图不会被读到。
+    val gate = remember { Mutex() }
+
+    // 每次调参都会产出一张与原图等大的新位图，Bitmap 主体在 Native 堆、GC 不及时，
+    // 旧图不显式回收就会在拖动滑杆时堆到 OOM。这里防抖 + 后台线程 + 换新后立即回收旧图。
+    LaunchedEffect(bitmap, mode, threshold, contrast) {
+        val src = bitmap
+        if (src == null) {
+            processed = null
+            return@LaunchedEffect
+        }
+        delay(GRAY_DEBOUNCE_MS)
+        gate.withLock {
+            // NonCancellable：CPU 循环本就打不断，若中途被取消，withContext 会在算完后抛异常，
+            // 结果位图就成了无人回收的孤儿。包起来保证「算出来的一定挂上去、也一定被下一轮回收」。
+            withContext(NonCancellable) {
+                val next = withContext(Dispatchers.Default) {
+                    if (mode == 0) {
+                        ImageProcessor.toGrayscale(src, contrast)
+                    } else {
+                        ImageProcessor.toBlackWhite(src, threshold, contrast)
+                    }
+                }
+                val old = processed
+                processed = next
+                // busy 期间旧图可能正在被写入相册，此时交给 GC，不做即时回收
+                if (old !== next && !busy) old?.recycle()
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // 离开页面后不会再有绘制；saveGray 进行中（busy）则留给 GC，避免写盘途中位图被回收
+            if (!busy) processed?.recycle()
         }
     }
 

@@ -66,7 +66,9 @@ import com.tickclear.app.domain.tools.QrGenerator
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** 涂抹工具：矩形拖框 / 自由笔刷。 */
 private enum class DrawMode { BRUSH, BOX }
@@ -113,8 +115,13 @@ fun MosaicScreen(onBack: () -> Unit) {
         }
         scope.launch {
             busy = true
-            val out = ImageMasker.applyMaskWithShapes(bmp, shapes, maskMode, strength)
+            // 遮挡运算是逐像素的重活，放后台线程，否则主线程被占满、连进度圈都转不起来
+            val out = withContext(Dispatchers.Default) {
+                ImageMasker.applyMaskWithShapes(bmp, shapes, maskMode, strength)
+            }
             val ok = QrGenerator.saveToGallery(context, out, "tickclear_mosaic")
+            // out 是原图的整张副本（Native 堆），存完即弃；与原图同对象时不能回收
+            if (out !== bmp) out.recycle()
             snackbarHostState.showSnackbar(
                 context.getString(if (ok) R.string.mosaic_saved else R.string.mosaic_save_fail),
             )

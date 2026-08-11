@@ -62,7 +62,9 @@ import com.tickclear.app.domain.tools.QrGenerator
 import com.tickclear.app.ui.theme.Spacing
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 去水印工具（V2.9++，简易版）：选图后在图上拖动框选水印区域，
@@ -101,8 +103,13 @@ fun WatermarkScreen(onBack: () -> Unit) {
         }
         scope.launch {
             busy = true
-            val out = ImageRepair.applyRepair(bmp, rects, mode, strength)
+            // 修复/模糊是逐像素的重活，放后台线程，否则主线程被占满、连进度圈都转不起来
+            val out = withContext(Dispatchers.Default) {
+                ImageRepair.applyRepair(bmp, rects, mode, strength)
+            }
             val ok = QrGenerator.saveToGallery(context, out, "tickclear_watermark")
+            // out 是原图的整张副本（Native 堆），存完即弃；与原图同对象时不能回收
+            if (out !== bmp) out.recycle()
             snackbarHostState.showSnackbar(
                 context.getString(if (ok) R.string.watermark_saved else R.string.watermark_save_fail),
             )
