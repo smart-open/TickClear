@@ -137,12 +137,17 @@ private fun AppRoot(
             onStartActionConsumed = onStartActionConsumed,
         )
         var showSplash by remember { mutableStateOf(!splashShownThisProcess) }
+        // V2.13.2 修复：引导页必须在 splash 退出**之后**才显示，否则 splash 被引导页遮住
+        // 用户看不到开机动画。splashCompleted 用 remember 跟随 LaunchSplash onDismiss 置 true。
+        var splashCompleted by remember { mutableStateOf(splashShownThisProcess) }
         if (showSplash) {
-            LaunchSplash(onDismiss = { showSplash = false; splashShownThisProcess = true })
+            LaunchSplash(onDismiss = {
+                showSplash = false
+                splashShownThisProcess = true
+                splashCompleted = true
+            })
         }
-        // V2.13.2 首次启动权限引导遮罩：introDone=false 时在主内容与启动动画之上叠加。
-        // 引导页内部调 PermissionIntroViewModel.markDone()，introDone 变 true 后 Composable 自动消失。
-        if (!introDone) {
+        if (splashCompleted && !introDone) {
             PermissionsIntroScreen(onClose = { /* markDone 已让 introDone=true 自动消失 */ })
         }
     }
