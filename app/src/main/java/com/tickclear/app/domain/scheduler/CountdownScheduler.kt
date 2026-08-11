@@ -14,6 +14,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -47,10 +48,15 @@ object CountdownScheduler {
     private fun ep(context: Context) =
         EntryPointAccessors.fromApplication(context.applicationContext, CountdownEntryPoint::class.java)
 
-    private fun requestCodeFor(id: String, dayIndex: Int): Int {
-        val h = id.hashCode() and 0x7FFFFF
-        return REQ_BASE + ((h * 64 + (dayIndex and 0x3F)) % 9000)
-    }
+    /**
+     * 该事件某一天提醒的 PendingIntent requestCode。
+     *
+     * 走 [ReminderIds.fnv1a] 全 int 空间取值：原实现用 `id.hashCode()` 再 `% 9000`，
+     * 把取值压到 9000 个槽内，不同事件极易撞码；配合 [PendingIntent.FLAG_UPDATE_CURRENT]
+     * 后注册者会直接覆盖前者的 PendingIntent，导致前一个事件的闹钟被静默丢弃。
+     */
+    private fun requestCodeFor(id: String, dayIndex: Int): Int =
+        ReminderIds.fnv1a("cd:$id:$dayIndex")
 
     private fun baseIntent(context: Context, id: String, event: CountdownEvent?, daysLeft: Int): Intent =
         Intent(context, CountdownReceiver::class.java).apply {
@@ -77,7 +83,10 @@ object CountdownScheduler {
 
     /** 该事件所有待触发通知（时刻 + 剩余天数），已滤掉过期时刻。 */
     private fun triggers(event: CountdownEvent): List<Pair<Long, Int>> {
-        val target = LocalDate.ofEpochDay(event.targetEpochMs / 86_400_000L)
+        // 必须按本地时区换算：targetEpochMs 是绝对时间戳，直接整除 86400000 得到的是 UTC 日，
+        // 东八区用户设在 1/1 00:30 的事件会被算成 12/31，倒计时天数与提醒日整体错一天
+        // （负时间戳还会因 Java 截断除法再错一天）。下面的 atZone 已用系统时区，此处须一致。
+        val target = Instant.ofEpochMilli(event.targetEpochMs).atZone(ZoneId.systemDefault()).toLocalDate()
         val days = if (event.daily) {
             (0..event.advanceDays).map { target.minusDays(it.toLong()) }
         } else {

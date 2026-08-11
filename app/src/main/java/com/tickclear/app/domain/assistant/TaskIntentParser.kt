@@ -187,16 +187,23 @@ object TaskIntentParser {
         return null
     }
 
+    /**
+     * 解析时刻，越界一律判为「未识别」（返回 null）而非放行。
+     *
+     * 正则只保证是数字，不保证在合法范围内。若放行 "25:99"，下游 `hour * 60 + minute`
+     * 会得到 1599 并落库：一次性提醒经 Calendar 规整成次日 02:39（静默错时），
+     * 间隔重复的时刻则因全部超过 1440 被过滤掉（永不提醒）。
+     */
     private fun parseClock(text: String): Pair<Int?, Int?> {
         // HH:MM
         RE_CLOCK_HHMM.find(text)?.let {
             val (h, m) = it.destructured
-            return h.toIntOrNull() to m.toIntOrNull()
+            return h.toIntOrNull()?.takeIf { v -> v in 0..23 } to m.toIntOrNull()?.takeIf { v -> v in 0..59 }
         }
         // HH点MM分 / HH点
         RE_CLOCK_CN.find(text)?.let {
             val (h, m) = it.destructured
-            return h.toIntOrNull() to m.toIntOrNull()?.let { if (it > 59) null else it }
+            return h.toIntOrNull()?.takeIf { v -> v in 0..23 } to m.toIntOrNull()?.takeIf { v -> v in 0..59 }
         }
         return null to null
     }
