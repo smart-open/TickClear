@@ -73,8 +73,20 @@ private fun randomPalette(): Palette {
     }
 }
 
+/**
+ * 「连发」一次固定发射的烟花数量。三朵是刻意的：既有连发的节奏感，
+ * 又能让每朵花与每一声爆炸都数得清（早期的 9 发过于密集，画面糊成一片、声音也叠成一团）。
+ */
+private const val BURST_SHOTS = 3
+
+/** 连发相邻两朵的发射间隔（毫秒）。需明显大于发射时长抖动，三声爆炸才不会挤在一起。 */
+private const val BURST_GAP_MS = 200L
+
+/** 连发时发射「咻」的音量：退到背景，让三声爆炸当主角。 */
+private const val BURST_WHISTLE_VOLUME = 0.55f
+
 /** 烟花类型：牡丹=球形炸开；柳叶=低重力慢垂长拖尾；随机=每次随机其一；
- *  连发=快速齐射（一簇密集连开）。 */
+ *  连发=固定三连发（一簇有节奏地连开）。 */
 private enum class FireworkType(val labelRes: Int) {
     PEONY(R.string.tools_sim_fireworks_type_peony),
     WILLOW(R.string.tools_sim_fireworks_type_willow),
@@ -125,8 +137,9 @@ private class BurstFlash(
  * - 点击屏幕任意位置 → 从底部（y=1）发射一颗"火箭"，起飞时播「咻」声；
  * - 火箭抵达（或飞行 [travelTime] 秒）→ 炸出大粒子群 + 爆点白光闪 + 真实爆炸音 + 触感；
  * - 每朵烟花随机"单色球/双色/全彩虹"调色板；可选"牡丹/柳叶/随机/连发"类型：
- *   牡丹=球形炸开、柳叶=低重力慢垂长拖尾、随机=两者任取、连发=一簇快速齐开；
- * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；
+ *   牡丹=球形炸开、柳叶=低重力慢垂长拖尾、随机=两者任取、
+ *   连发=固定 [BURST_SHOTS] 朵、间隔 [BURST_GAP_MS] 依次开花，几朵花就几声响；
+ * - 双击 = 5 发短间隔齐射（目标与飞行时长略错开），炮竹齐鸣感更强；连发模式下双击仍只放一轮三连发；
  * - 粒子用径向光晕 + 速度拖尾 + 中心亮芯 + twinkle 闪烁，呈现自然散开与坠落；
  * - 爆炸声优先播放真实录音 firework_boom（Freesound #624413，CC0），缺失回退合成音。
  * 纯 Canvas + AudioTrack/MediaPlayer，零新依赖。
@@ -148,31 +161,35 @@ fun SimFireworksScreen(onBack: () -> Unit) {
     }
 
     /**
-     * 连射弹幕：以 [baseX]/[baseY] 为中心，短间隔连发 [shots] 颗火箭。
+     * 连射弹幕：以 [baseX]/[baseY] 为中心，间隔 [gapMs] 连发 [shots] 颗火箭。
      * [sweep] 控制横向扫动幅度；[spreadX] 控制随机散布。
-     * 每颗都带自身调色板与类型，到达即炸，形成炫酷的连续爆花。
+     * 每颗都带自身调色板，到达即炸——**发射几颗就炸几朵、响几声**。
+     *
+     * 飞行时长抖动被刻意压到 ±30ms（远小于 [gapMs]），保证爆炸顺序严格等于发射顺序，
+     * 三声"砰—砰—砰"清晰可数；若沿用原先 ±110ms 的抖动，后发的可能反超先发的，
+     * 听起来就成了糊在一起的一团响。
      */
     fun launchBarrage(baseX: Float, baseY: Float, shots: Int, gapMs: Long, spreadX: Float, sweep: Float) {
+        // 连发时类型固定成具体形态，避免同一簇里牡丹柳叶混杂显得凌乱。
+        val concrete = if (Random.nextBoolean()) FireworkType.PEONY else FireworkType.WILLOW
         scope.launch {
             repeat(shots) { i ->
                 val f = if (shots > 1) i.toFloat() / (shots - 1) else 0f
                 val sx = (baseX + spreadX * (Random.nextFloat() - 0.5f) + sweep * (f - 0.5f))
                     .coerceIn(0.05f, 0.95f)
-                val sy = (baseY + 0.10f * (Random.nextFloat() - 0.5f)).coerceIn(0.10f, 0.85f)
-                val tt = 0.58f + Random.nextFloat() * 0.22f
+                // 高度错落：三朵一高一低更有层次，不至于排成一条直线。
+                val sy = (baseY + 0.12f * (Random.nextFloat() - 0.5f)).coerceIn(0.10f, 0.85f)
+                val tt = 0.62f + Random.nextFloat() * 0.06f
                 rockets = rockets + FireworkRocket(
                     targetX = sx,
                     targetY = sy,
                     palette = randomPalette(),
-                    type = typeMode,
+                    type = concrete,
                     travelTime = tt,
                 )
-                val nowMs = System.currentTimeMillis()
-                if (nowMs - lastWhistleMs >= 110L) {
-                    FoleySynth.playLaunch(context)
-                    lastWhistleMs = nowMs
-                }
-                delay(gapMs)
+                FoleySynth.playLaunch(context, BURST_WHISTLE_VOLUME)
+                lastWhistleMs = System.currentTimeMillis()
+                if (i < shots - 1) delay(gapMs)
             }
         }
     }
@@ -182,9 +199,9 @@ fun SimFireworksScreen(onBack: () -> Unit) {
      * 注意：爆炸音/触感延迟到 "抵达" 才触发，「先咻后响」才像真放烟花。
      */
     fun launchTo(nx: Float, ny: Float, travelTime: Float = 0.85f) {
-        // 连发：不单发，改为连射弹幕（见 launchBarrage）
+        // 连发：不单发，改为固定三连发（见 launchBarrage）
         if (typeMode == FireworkType.BURST) {
-            launchBarrage(nx, ny, shots = 9, gapMs = 64L, spreadX = 0.14f, sweep = 0.0f)
+            launchBarrage(nx, ny, BURST_SHOTS, BURST_GAP_MS, spreadX = 0.16f, sweep = 0.0f)
             return
         }
         val concrete = if (typeMode == FireworkType.RANDOM)
@@ -315,17 +332,23 @@ fun SimFireworksScreen(onBack: () -> Unit) {
                             onDoubleTap = { offset ->
                                 val nx = if (canvasSize.width > 0) offset.x / canvasSize.width else 0.5f
                                 val ny = if (canvasSize.height > 0) offset.y / canvasSize.height else 0.5f
-                                scope.launch {
-                                    // 齐射：5 发短间隔、目标与飞行时长略错开，炮竹齐鸣更密更自然。
-                                    repeat(5) { i ->
-                                        val dx = (Random.nextFloat() - 0.5f) * 0.16f
-                                        val dy = (Random.nextFloat() - 0.5f) * 0.12f
-                                        launchTo(
-                                            (nx + dx).coerceIn(0.05f, 0.95f),
-                                            (ny + dy).coerceIn(0.10f, 0.85f),
-                                            0.78f + Random.nextFloat() * 0.18f,
-                                        )
-                                        delay(60)
+                                if (typeMode == FireworkType.BURST) {
+                                    // 连发模式下单击已经是三连发，双击若再乘 5 会变成 15 发失控齐射；
+                                    // 这里只放一轮，保证「连发 = 三朵三声」这一约定在任何手势下都成立。
+                                    launchBarrage(nx, ny, BURST_SHOTS, BURST_GAP_MS, spreadX = 0.16f, sweep = 0.0f)
+                                } else {
+                                    scope.launch {
+                                        // 齐射：5 发短间隔、目标与飞行时长略错开，炮竹齐鸣更密更自然。
+                                        repeat(5) {
+                                            val dx = (Random.nextFloat() - 0.5f) * 0.16f
+                                            val dy = (Random.nextFloat() - 0.5f) * 0.12f
+                                            launchTo(
+                                                (nx + dx).coerceIn(0.05f, 0.95f),
+                                                (ny + dy).coerceIn(0.10f, 0.85f),
+                                                0.78f + Random.nextFloat() * 0.18f,
+                                            )
+                                            delay(60)
+                                        }
                                     }
                                 }
                             },
