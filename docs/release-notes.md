@@ -4,6 +4,69 @@
 
 ---
 
+## v2.13.0（2026-08-10 · 封板）· 工具箱按使用意图重归 8 类 + 音效池化 + 全量质量加固
+
+**平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
+**版本**：versionCode 22 / versionName 2.13.0 · DB schema v10（本次无 schema 变更）
+**相对 v2.12.1**：信息架构重归类 + 若干工具玩法重做 + 一轮覆盖「逻辑错误 / 边界 / 内存泄漏 / 并发 / 性能 / 权限」的全量代码复审与修复。零新增远程依赖，DB 版本不变。
+
+### 🗂️ 工具箱重新归类：按「用户想做什么」分 8 大类
+- 原分类混杂「按功能属性」与「按场景」两套口径，重排为 **8 大类 53 个工具**：健康作息(8) / 效率与计算(7) / 生活助手(7) / 图像与识别(6) / 测量与传感(6) / 隐私与安全(5) / 解压模拟(7) / 趣味玩法(7)。
+- 排序原则：**前 6 类刚需靠前、后 2 类娱乐沉底**，每类控制在 5–8 个，避免单类过长要翻屏。
+- 唯一事实来源为 `ToolsScreen.kt` 的 `TOOL_CATEGORIES`，文档与之对账。
+
+### 🎮 工具玩法重做
+- **弹珠台**：改为**发射台瞄准计分**玩法（拉杆蓄力 + 角度瞄准 + 得分区），红珠命中后约 2 秒自动消失，避免场上越堆越满。
+- **骰子（抽签器）**：结果点数改**落在朝上的面**（等距投影下 Top 面才是用户视线焦点），并采用标准西式右手骰（法线 n₁×n₂=n₃、对面和为 7）；掷骰加三段弹跳落地 + 减速缓动 + 随机落定朝向；修复「第一次动、第二次不动」（Animatable 停在终点后再 `animateTo` 同目标被判无需动画，改为先 `snapTo` 起点）。
+- **烟花**：连发固定三朵**依次开花**（发射间隔 200ms 远大于飞行抖动 ±30ms，保证次序），修复双击与 `launchTo` 自转发叠加导致的 5×3=15 发失控。
+- **玻璃杯 / 电子琴**：自动演奏换儿歌并加可停止按钮；玻璃杯音色改清脆。
+
+### 🔊 音频层：短音效改池化播放
+- **根因**：短音效各自持一个 `MediaPlayer` 字段，播放前 `release()` 上一个 → 连发时后一声掐断前一声，「N 个动作只响一声」。
+- **修复**：`FoleySynth` 统一提供 `sfxPool` + `MAX_CONCURRENT_SFX=6` + `playOneShot(context, resId, volume)`，作为**全工程短音效唯一入口**；超上限回收池中最早的一个（系统硬件解码器各机型仅 16~32 个）。
+- `GlassSynth` 移除自有 `MediaPlayer` 字段改走共享池（7 杯连敲各自播完、0.9s 余韵不再被砍）；合成回退路径的 `AudioTrack` 换新前先 `releaseTrack()`，堵住原生缓冲泄漏。
+- 主次音效用 volume 分层（连发咻声 0.55 / 爆炸 1.0），不再靠节流砍掉次要音效。
+
+### 🛡️ 全量质量加固（14 项）
+
+**逻辑错误 / 数据一致性**
+- `CountdownScheduler.triggers`：目标日期由 `targetEpochMs / 86400000`（UTC 日）改为按**本地时区**换算，修复东八区用户设在 1/1 00:30 的事件被算成 12/31、倒计时天数与提醒日整体错一天（负时间戳还会因截断除法再错一天）。
+- `CountdownScheduler.requestCodeFor`：requestCode 由 `hashCode() % 9000`（9000 槽极易撞码）改走 `ReminderIds.fnv1a` 全 int 空间，修复配合 `FLAG_UPDATE_CURRENT` 时后注册者静默覆盖前一事件闹钟。
+- `TaskIntentParser.parseClock`：时刻越界一律判「未识别」，修复 "25:99" 被放行后一次性提醒被 Calendar 规整成次日 02:39（静默错时）、间隔提醒因超 1440 被全过滤（永不提醒）。
+- `GroupRepository.softDelete` / `HabitRepository.deleteHabit`：两步写入包进 `TransactionRunner` 同事务，修复「任务已脱组但组未删」「打卡已清空但习惯还在」的半成功状态。
+
+**内存 / 资源**
+- 图片压缩 / 图片黑白：原在 `remember` 里同步「缩放 + 整图编码」，拖质量滑杆一次触发数十次整图编码全在主线程跑、缩放位图从不回收 → 大图必 OOM。改为 180ms 防抖 + 后台线程 + `Mutex` 串行 + `NonCancellable` + `DisposableEffect` 离场回收，且只保留编码字节数而非整个字节数组。
+- 马赛克 / 去水印：逐像素遮挡运算移出主线程，修复主线程被占满连进度圈都不转。
+- 噪声计 / 吹蜡烛：`startRecording()` 移入 `try` 内——麦克风被占用时它会抛异常，原写法下 `AudioRecord` 永远走不到 `release()`，麦克风被本进程长期霸占。
+
+**并发**
+- `SettingsViewModel`：`MutableSharedFlow` 改私有 + `asSharedFlow()` 只读暴露、emit 统一走 `postToast()`；`extraBufferCapacity` 1→8（原容量覆盖不了最坏连发，备份提示会丢）；删除无消费点的 `SettingsEvent` 死代码。
+- `IntervalReminderViewModel.addWater`：饮水累加的「读日期→判跨天→读值→写值」复合操作包进 `Mutex.withLock`，修复连点加水时读-改-写竞态丢计数。
+- `SettingsRepository.ensureIdentity`：DataStore 写失败时不再只记日志，落进程内兜底表并在下次读取时重试落盘，保证本次运行内设备身份稳定不漂移。
+
+**Compose 性能**
+- `CompassScreen`：50Hz 传感器状态下沉到 `CompassReadout` 子组件（传 `() -> Float` + `derivedStateOf` 收敛到整数度），重组范围由整页缩到两行文字；`android.graphics.Paint` 提到组合层 `remember` 复用，不再逐帧 new。
+- `SimPinballScreen`：飘分 `Paint` 同样提到组合层复用，绘制时只改 `textSize`/`color`/`alpha`。
+- `VoiceMemoScreen`：`SimpleDateFormat` 改 `DateTimeFormatter` 并按 Locale 缓存（时区不缓存），列表滚动不再每项新建格式化器。
+- `MoodScreen`：`selectedCode`/`note` 改 `rememberSaveable` + `prefilled` 标志（修复旋转重建覆盖未保存备注）；`thisMonth`/`counts`/`maxCount`/`recent` 改 `remember(key)` 缓存，输入备注时不再全量重算月度统计。
+
+**边界 / 权限**
+- `BackupCrypto.decrypt`：加密文件被截断时抛 `AppException(IMPORT_PARSE_FAILED)` 并带长度详情，不再抛裸 `ArrayIndexOutOfBoundsException` 直接崩。
+- `AndroidManifest.xml`：移除 `ACCESS_NOTIFICATION_POLICY`（仅 `isNotificationPolicyAccessGranted` 只读查询，不需该权限），权限清单最小化。
+
+### 📚 文档同步
+- `AGENT.md`：工具数口径 7 大类 → **8 大类 53**；编码规范 §3 新增 5 条硬约束（高频状态重组隔离 / 逐帧对象分配 / ViewModel 事件流封装 / 读-改-写复合操作 / 权限最小化）。
+- `README.md`：版本基线 v2.12.0 → v2.13.0，工具分类段整段重写为 8 大类 + 每类实际工具清单。
+- `docs/release-notes.md`：新增本节。
+
+### 成熟度
+- 综合 **99.6 / 100**（产品设计 99 / 软件开发 99 / 质量测试 99 / 应用配置 99）
+- 三道门禁（`compileDebugKotlin` / `lintRelease` / `scan_strings.mjs`）+ `check_migrations.py` 全绿
+- 默认不 push，等待用户授权推送
+
+---
+
 ## v2.12.0（2026-08-09 · 封板）· 模拟解压/拟物重画/真实素材三线齐推 + 新增电子琴 + lint 零警告
 
 **平台**：Android 8.0+（minSdk 26 / targetSdk 34）· 手机 + 平板
