@@ -85,6 +85,8 @@ fun SettingsScreen(
     onNavigateToVoiceHistory: () -> Unit = {},
     // V2.8X++：跳转助手 Tab 并直接弹出配置面板（LLM/ASR 唯一数据源在 AssistantConfigSheet）。
     onNavigateToAssistantConfig: () -> Unit = {},
+    // V2.13.2：跳权限引导复访页（设置 → 高级 → 助手配置后入口，与首次启动同一 Composable）。
+    onNavigateToPermissions: () -> Unit = {},
     onBack: () -> Unit = {},
     isWide: Boolean = false,
 ) {
@@ -664,6 +666,14 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_assistant_config_row),
                 subtitle = stringResource(R.string.settings_assistant_config_subtitle),
                 onClick = onNavigateToAssistantConfig,
+            )
+            // V2.13.2：权限配置入口，复访权限引导页（与首次启动同一 Composable，
+            // onClose = popBackStack 由 NavGraph 注入）。
+            ClickableRow(
+                icon = Icons.Filled.Settings,
+                title = stringResource(R.string.intro_settings_row_title),
+                subtitle = stringResource(R.string.intro_settings_row_desc),
+                onClick = onNavigateToPermissions,
             )
             // V2.8X 调试日志开关：默认关闭，仅记录 WARN/ERROR；开启后记录全量日志（调试页可查看/导出）。
             SettingRow(

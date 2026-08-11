@@ -37,6 +37,8 @@ object Routes {
     const val DEBUG = "settings/debug"
     const val ABOUT = "settings/about"
     const val VOICE_HISTORY = "settings/voiceHistory"
+    /** V2.13.2 首次启动权限引导复访页：设置 → 高级 → 助手配置后入口。 */
+    const val PERMISSIONS = "settings/permissions"
     // V2.8X++：ASR_CONFIG/LLM_CONFIG/ASSISTANT_CONFIG 三个从未接线的死常量已删；
     // 助手配置直达改用 "assistant?openConfig=true" 参数化路由（见 TickClearNavGraph）。
 

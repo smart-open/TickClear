@@ -259,6 +259,7 @@ private fun AppNavHost(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToPermissions = { navController.navigate(Routes.PERMISSIONS) },
                 onBack = { navController.popBackStack(navController.graph.startDestinationId, false) },
                 isWide = isWide,
             )
@@ -270,6 +271,12 @@ private fun AppNavHost(
             VoiceHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.PERMISSIONS) {
+            // V2.13.2 复访页：复用首次启动同一 Composable；onClose = popBackStack 回到设置页。
+            com.tickclear.app.ui.intro.PermissionsIntroScreen(
+                onClose = { navController.popBackStack() },
+            )
+        }
         composable(Routes.RECYCLE_BIN) {
             RecycleBinScreen(
                 onBack = { navController.popBackStack() },
