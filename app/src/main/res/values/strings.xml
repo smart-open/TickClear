@@ -1678,7 +1678,7 @@
     <!-- 虚拟弹珠台 -->
     <string name="tools_sim_pinball_title">弹珠台</string>
     <string name="tools_sim_pinball_desc">台面 12 颗蓝珠，10 发瞄准撞击计分</string>
-    <string name="tools_sim_pinball_hint">按住拖动瞄准蓄力，松手发射红珠撞蓝珠 +1 分。\n共 10 发，记录本局总分、单发最佳/最差与历史最高分。</string>
+    <string name="tools_sim_pinball_hint">拖动蓄力瞄准，松手发射红珠撞蓝珠计分。\n共 10 发 · 红珠命中约 2 秒后自动消失</string>
     <string name="tools_sim_pinball_launch">发射弹珠</string>
     <string name="tools_sim_pinball_reset">重置</string>
     <string name="tools_sim_pinball_score">本局总分</string>

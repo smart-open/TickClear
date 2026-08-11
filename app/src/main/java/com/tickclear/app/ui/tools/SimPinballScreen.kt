@@ -60,6 +60,7 @@ private const val SHOTS = 10             // 每局发射次数
 private const val BALL_R = 0.020f        // 弹珠半径（归一化）
 private const val TRAIL_LEN = 8
 private const val POPUP_LIFE = 900L      // 飘分存活时长（ms）
+private const val RED_LINGER_MS = 2000L  // 红珠计分后约 2 秒自动消失
 private const val LAUNCH_X = 0.5f        // 发射台中心（台底居中）
 private const val LAUNCH_Y = 0.88f
 private const val MIN_LAUNCH = 0.45f     // 最小发射速度（归一化/秒）
@@ -79,6 +80,7 @@ private data class Ball(
     val vx: Float,
     val vy: Float,
     val trail: List<Offset> = emptyList(),
+    val disappearAt: Long? = null,   // 红珠计分后约 2 秒自动消失的时间戳（蓝珠恒为 null）
 )
 
 /** 命中飘分：在命中点升起并淡出。 */
@@ -276,6 +278,9 @@ fun SimPinballScreen(onBack: () -> Unit) {
                                     hitX = (a.x + c.x) / 2f
                                     hitY = (a.y + c.y) / 2f
                                 }
+                                // 红珠计分后约 2 秒自动消失（持续计分时顺延，以末次计分起算）
+                                val redIdx = if (a.id >= BALL_COUNT) i else j
+                                next[redIdx] = next[redIdx].copy(disappearAt = tNow + RED_LINGER_MS)
                             }
                         }
                     }
@@ -294,6 +299,9 @@ fun SimPinballScreen(onBack: () -> Unit) {
                     lastHitMs = tNow
                 }
             }
+
+            // 红珠计分后约 2 秒自动消失（仅影响红珠；蓝珠目标与未计分红珠不受影响）
+            next.removeAll { it.id >= BALL_COUNT && it.disappearAt != null && tNow >= it.disappearAt }
 
             balls = next
 
