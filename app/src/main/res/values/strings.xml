@@ -698,7 +698,9 @@
     <string name="a11y_task_item">任务：%1$s，点击编辑</string>
     <string name="a11y_group_header">任务组：%1$s，点击编辑</string>
     <string name="a11y_time_conflict">时间冲突</string>
+    <string name="a11y_task_row">任务：%1$s</string>
     <string name="a11y_swipe_complete">右滑完成</string>
+    <string name="a11y_swipe_uncomplete">右滑恢复未完成</string>
     <string name="a11y_swipe_delete">左滑删除</string>
     <string name="task_default_title">新任务</string>
     <string name="a11y_medal">勋章：%1$s，%2$s</string>

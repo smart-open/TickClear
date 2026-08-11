@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +16,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -68,8 +70,10 @@ fun formatMinute(min: Int?): String =
     if (min == null) "—" else String.format(Locale.ROOT, "%02d:%02d", min / 60, min % 60)
 
 /**
- * 今日任务行：右滑完成、左滑软删（带撤销由 Screen 负责）。
+ * 今日任务行：右滑切换完成态、左滑软删（带撤销由 Screen 负责）。
  * confirmValueChange 返回 false，使滑动后回弹（真实删除/完成由数据库驱动列表更新）。
+ * [onComplete] 为「切换」语义：未完成→完成，已完成→恢复未完成（与习惯打卡一致），
+ * 故右滑背景的图标/文案随 [com.tickclear.app.domain.usecase.TodayItem.done] 切换，避免对已完成项仍提示「右滑完成」。
  * [index] 用于隔行变色：偶数行浅底色增强视觉分隔，奇数行纯 surface。
  */
 @Composable
@@ -108,6 +112,16 @@ fun TaskItem(
                 else -> MaterialTheme.colorScheme.errorContainer
             }
             val fg = if (isComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+            val swipeIcon = when {
+                !isComplete -> Icons.Filled.Delete
+                item.done -> Icons.AutoMirrored.Filled.Undo
+                else -> Icons.Filled.CheckCircle
+            }
+            val swipeCdRes = when {
+                !isComplete -> R.string.a11y_swipe_delete
+                item.done -> R.string.a11y_swipe_uncomplete
+                else -> R.string.a11y_swipe_complete
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -116,10 +130,8 @@ fun TaskItem(
                 contentAlignment = if (isComplete) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
                 Icon(
-                    imageVector = if (isComplete) Icons.Filled.CheckCircle else Icons.Filled.Delete,
-                    contentDescription = stringResource(
-                        if (isComplete) R.string.a11y_swipe_complete else R.string.a11y_swipe_delete,
-                    ),
+                    imageVector = swipeIcon,
+                    contentDescription = stringResource(swipeCdRes),
                     tint = fg,
                 )
             }
@@ -151,7 +163,8 @@ private fun TaskCardContent(
     index: Int = 0,
 ) {
     val timeText = if (task.allDay) stringResource(R.string.task_all_day) else formatMinute(task.instanceDueMinute())
-    val taskItemCd = stringResource(R.string.a11y_task_item, task.title)
+    // 今日行不再整行触发编辑，语义描述去掉「点击编辑」（编辑由行尾图标按钮自带描述）。
+    val taskItemCd = stringResource(R.string.a11y_task_row, task.title)
     // V2.21 完成任务微动效：勾选框轻微回弹放大，内容随完成淡出。
     val checkScale by animateFloatAsState(
         targetValue = if (done) 1.12f else 1f,
@@ -183,7 +196,7 @@ private fun TaskCardContent(
                     Modifier
                 },
             )
-            .clickable { onEdit() }
+            // 整行不再吞点击：编辑只由行尾的编辑图标触发，避免「想勾选/想看详情却弹出编辑页」的误触。
             .semantics { contentDescription = taskItemCd }
             .padding(vertical = Spacing.xs, horizontal = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -256,6 +269,18 @@ private fun TaskCardContent(
                     tint = Warning,
                     modifier = Modifier.size(18.dp),
                 )
+        }
+        // 编辑入口：显式图标按钮（36dp 触控区不撑高行高，Checkbox 自身已占 48dp 高）。
+        IconButton(
+            onClick = onEdit,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.action_edit),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
