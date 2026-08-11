@@ -15,5 +15,6 @@ class CompletionRepositoryImpl @Inject constructor(
     override fun observeRange(from: String, to: String): Flow<List<CompletionLogEntity>> = dao.observeRange(from, to)
     override fun observeDates(): Flow<List<String>> = dao.observeDates()
     override suspend fun insert(log: CompletionLogEntity) { dao.insert(log) }
+    override suspend fun delete(taskId: String, dateLocal: String) { dao.deleteByTaskAndDate(taskId, dateLocal) }
     override suspend fun countByDate(date: String): Int = dao.countByDate(date)
 }

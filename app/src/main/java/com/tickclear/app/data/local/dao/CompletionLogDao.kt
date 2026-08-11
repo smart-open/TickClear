@@ -13,6 +13,10 @@ interface CompletionLogDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(log: CompletionLogEntity)
 
+    /** 撤销完成：删除某任务某日的完成记录（(taskId, dateLocal) 唯一，至多一行）。 */
+    @Query("DELETE FROM completion_log WHERE taskId = :taskId AND dateLocal = :date")
+    suspend fun deleteByTaskAndDate(taskId: String, date: String)
+
     @Query("SELECT * FROM completion_log WHERE dateLocal >= :from AND dateLocal <= :to ORDER BY completedAt ASC")
     fun observeRange(from: String, to: String): Flow<List<CompletionLogEntity>>
 

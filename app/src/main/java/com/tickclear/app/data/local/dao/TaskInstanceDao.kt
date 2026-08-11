@@ -44,6 +44,13 @@ interface TaskInstanceDao {
     @Query("UPDATE task_instance SET status = 2, completedAt = :ts WHERE id = :id")
     suspend fun setCompleted(id: String, ts: Long = System.currentTimeMillis())
 
+    /**
+     * 撤销完成：实例回到 active 并清空 completedAt，与 [setCompleted] 严格对称。
+     * 用于今日页「已完成任务再次点击勾选框恢复未完成」；CompletionLog 的删除由调用方同事务处理。
+     */
+    @Query("UPDATE task_instance SET status = 0, completedAt = NULL WHERE id = :id")
+    suspend fun setPending(id: String)
+
     /** 跳过本次实例（重复任务）：保留任务、不计入完成，当日不再提醒。 */
     @Query("UPDATE task_instance SET status = 3 WHERE id = :id")
     suspend fun setSkipped(id: String)

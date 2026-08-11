@@ -15,6 +15,7 @@ import com.tickclear.app.domain.usecase.GetTodayTasksUseCase
 import com.tickclear.app.domain.usecase.SoftDeleteTaskUseCase
 import com.tickclear.app.domain.usecase.RestoreTaskUseCase
 import com.tickclear.app.domain.usecase.TodayItem
+import com.tickclear.app.domain.usecase.UncompleteTaskUseCase
 import com.tickclear.app.domain.usecase.UpdateTaskUseCase
 import com.tickclear.app.ui.components.CelebrationEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,6 +46,7 @@ class TodayViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
     private val taskRepository: TaskRepository,
     private val completeTaskUseCase: CompleteTaskUseCase,
+    private val uncompleteTaskUseCase: UncompleteTaskUseCase,
     private val softDeleteTaskUseCase: SoftDeleteTaskUseCase,
     private val restoreTaskUseCase: RestoreTaskUseCase,
     private val addTaskUseCase: AddTaskUseCase,
@@ -86,6 +88,24 @@ class TodayViewModel @Inject constructor(
             val unlocked = completeTaskUseCase(item.task, item.instanceId)
             ReminderScheduler.cancelForTask(appContext, item.task.id)
             _celebration.value = CelebrationEvent(unlocked)
+        }
+    }
+
+    /**
+     * 勾选框切换：未完成→完成（撒花+震动），已完成→恢复未完成（与习惯打卡的 toggle 语义一致，取消不打扰）。
+     * 恢复未完成时把提醒重新排上，否则任务回到待办却永远不再响铃。
+     */
+    fun toggleComplete(item: TodayItem) {
+        if (!item.done) {
+            complete(item)
+            return
+        }
+        viewModelScope.launch {
+            uncompleteTaskUseCase(item.task, item.instanceId)
+            ReminderScheduler.cancelForTask(appContext, item.task.id)
+            if (item.task.reminderEnabled) {
+                ReminderScheduler.scheduleForTask(appContext, item.task)
+            }
         }
     }
 

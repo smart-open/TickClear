@@ -89,6 +89,12 @@ class TaskInstanceRepository @Inject constructor(
         dao.setCompleted(instanceId)
     }
 
+    /**
+     * 撤销实例完成态：回到 active 并清空 completedAt。
+     * 实例不存在时无需补建（本就等价于未完成），CompletionLog 由调用方在同一事务内删除。
+     */
+    suspend fun uncompleteInstance(instanceId: String) = dao.setPending(instanceId)
+
     suspend fun get(taskId: String, date: LocalDate): TaskInstanceEntity? =
         dao.get(taskId, date.format(DateTimeFormatter.ISO_LOCAL_DATE))
 
