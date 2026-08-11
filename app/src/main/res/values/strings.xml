@@ -314,7 +314,7 @@
     <string name="assistant_device_id_label">设备 ID（Device-Id）</string>
     <string name="assistant_client_id_label">客户端 ID（Client-Id）</string>
     <string name="assistant_device_id_hint">请输入【真实设备 MAC】作为 Device-Id（如面包板 ESP32 的 MAC：AA:BB:CC:DD:EE:FF）。虚拟/随机 MAC 在 xiaozhi.me 官方云无法完成绑定与握手（服务端 license 绑定硬件 MAC）。格式须为 6 组十六进制，字母大小写均可。</string>
-    <string name="assistant_regenerate_btn">重置软件身份</string>
+    <string name="assistant_regenerate_btn">重置身份</string>
     <string name="assistant_mac_invalid">设备 MAC 格式不正确，应为 6 组十六进制（如 AA:BB:CC:DD:EE:FF），且须为真实设备 MAC。</string>
     <string name="assistant_activation_code_title">验证码</string>
     <string name="assistant_activation_hint">请立即打开 xiaozhi.me 控制台 → 添加设备 → 输入上方 6 位验证码。App 正在后台自动轮询激活（最长 5 分钟），输码期间请勿离开本页；官网绑定成功后 App 会自动提示激活完成。</string>
@@ -323,7 +323,7 @@
     <string name="assistant_xz_help_title">如何接入官方小智</string>
     <string name="assistant_xz_help_intro">按以下步骤即可将本 App 接入 xiaozhi.me 官方云控制台：</string>
     <string name="assistant_xz_help_step1">打开官网 xiaozhi.me，注册并登录控制台；新增一个智能体，并完成基础配置。</string>
-    <string name="assistant_xz_help_step2">在本页「真实小智」模式下，点击「激活设备（获取验证码）」按钮，App 会生成 6 位验证码（掩码）。</string>
+    <string name="assistant_xz_help_step2">在本页「真实小智」模式下，点击「激活设备」按钮，App 会生成 6 位验证码（掩码）。</string>
     <string name="assistant_xz_help_step3">回到官网控制台进入该智能体的「设备」入口，点击「绑定新设备」，输入 App 上显示的验证码完成激活。</string>
     <string name="assistant_xz_help_step4">返回 App 点击「测试连接」验证链路，确认无误后保存配置即可使用。</string>
     <string name="assistant_xz_help_site_label">官网地址</string>
@@ -331,7 +331,7 @@
     <string name="assistant_xz_help_close">知道了</string>
 
     <!-- V2.8X++ 两步激活（对齐 py-xiaozhi 官方云已验证流程：OTA 拿码 → 展示码 → 后台轮询 /activate 至用户官网输码完成） -->
-    <string name="assistant_activate_two_step_btn">激活设备（获取验证码）</string>
+    <string name="assistant_activate_two_step_btn">激活设备</string>
     <string name="assistant_two_step_waiting">已获取验证码，正在等待你到官网输码（自动轮询中，最长 5 分钟）…</string>
     <string name="assistant_two_step_ok">激活成功！设备已在官网完成绑定，serial_number 与 hmac 已写入服务端设备记录。现在可直接点「测试连接」。</string>
     <string name="assistant_two_step_step1_error">Step 1 失败（OTA 注册/拿 challenge）：%1$s</string>
